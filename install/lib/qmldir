@@ -1,0 +1,7 @@
+module dsqml
+linktarget dsqmlplugin
+optional plugin dsqmlplugin
+classname dsqmlPlugin
+typeinfo dsqml.qmltypes
+prefer :/dsqml/
+
