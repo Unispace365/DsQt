@@ -4,7 +4,6 @@
 #include <QQmlPropertyMap>
 #include <qqml.h>
 #include <QtSql/QSql>
-#include "dscontexthash.h"
 
 namespace dsqt::model {
 class DSContentModel;
@@ -17,18 +16,22 @@ class DSContentModel: public QQmlPropertyMap
     QML_ELEMENT
 public:
     explicit DSContentModel(QObject *parent=nullptr);
-    Q_INVOKABLE DSMutableContentModel* getMutableModel(dsContext context);
 
 
 private:
     static std::map<int, DSMutableContentModelPtr> mMutables;
     static DSContentModelPtr Root;
-    static DSContentModelPtr create();
+
+
+
+    // QQmlPropertyMap interface
+
+protected:
 
 
     // QQmlPropertyMap interface
 protected:
-    virtual QVariant updateValue(const QString &key, const QVariant &input) override;
+    QVariant updateValue(const QString &key, const QVariant &input);
 };
 
 class DSMutableContentModel: public DSContentModel

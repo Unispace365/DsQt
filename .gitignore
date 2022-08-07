@@ -35,6 +35,8 @@ Makefile*
 #downstream
 build/
 install/
+add_build/*
+!add_build/.gitkeep
 
 # Qt unit tests
 target_wrapper.*
