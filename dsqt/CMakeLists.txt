@@ -14,10 +14,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_INSTALL_PREFIX ${CMAKE_SOURCE_DIR}/../install/ CACHE PATH "Install Prefix" FORCE)
 
 find_package(Qt6 6.2 COMPONENTS Quick REQUIRED)
-find_package(tomlplusplus)
-
-
-add_subdirectory(src)
+add_subdirectory(../modules/dsqml ${CMAKE_CURRENT_BINARY_DIR}/modules/dsqml)
 
 add_custom_target(dsqt-cmake-tools
     SOURCES ../cmake/dsqt.cmake)

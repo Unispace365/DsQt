@@ -11,9 +11,9 @@ function(downstream_modules)
     set(DSQT_PROJECT_PATH "${DIR_OF_DSQT_CMAKE_PARENT}")
     message("DSQT_PROJECT_PATH: ${DSQT_PROJECT_PATH} :")
     if(${CMAKE_BUILD_TYPE} STREQUAL "Debug")
-        set(DSQT_BUILD_PATH "${DSQT_PROJECT_PATH}/build-debug/")
+        set(DSQT_BUILD_PATH "${DSQT_PROJECT_PATH}/build/build-debug/")
     else()
-        set(DSQT_BUILD_PATH "${DSQT_PROJECT_PATH}/build-release/")
+        set(DSQT_BUILD_PATH "${DSQT_PROJECT_PATH}/build/build-release/")
     endif()
 
 
@@ -22,8 +22,12 @@ function(downstream_modules)
     list(REMOVE_DUPLICATES DS_IMPORT_PATH)
     set(QML2_IMPORT_PATH "${DS_IMPORT_PATH}" CACHE STRING "Qt Creator 4.1 extra qml import paths" FORCE)
 
-    foreach(MOD in LISTS DOWNSTREAM_MOD_MODULES)
-        add_subdirectory("${DSQT_PROJECT_PATH}/${MOD}" "${DSQT_BUILD_PATH}/${MOD}")
+    foreach(MOD IN LISTS DOWNSTREAM_MOD_MODULES)
+        execute_process(COMMAND ${conan_program} install .
+                            WORKING_DIRECTORY "${DSQT_PROJECT_PATH}/modules/${MOD}"
+                            RESULT_VARIABLE CONAN_MOD_RESULT)
+                        message(${CONAN_MOD_RESULT})
+        add_subdirectory("${DSQT_PROJECT_PATH}/modules/${MOD}" "${DSQT_BUILD_PATH}/${MOD}")
         target_link_libraries(${DOWNSTREAM_MOD_TARGET}
             PRIVATE ${MOD} "${MOD}plugin")
         target_include_directories(${DOWNSTREAM_MOD_TARGET} PRIVATE ${MOD})
