@@ -15,11 +15,9 @@ set(CMAKE_INSTALL_PREFIX ${CMAKE_SOURCE_DIR}/../install/ CACHE PATH "Install Pre
 
 find_package(Qt6 6.2 COMPONENTS Quick REQUIRED)
 add_subdirectory(../modules/dsqml ${CMAKE_CURRENT_BINARY_DIR}/modules/dsqml)
-
+add_subdirectory(../modules/DsSqlQuery ${CMAKE_CURRENT_BINARY_DIR}/modules/DsSqlQuery)
 add_custom_target(dsqt-cmake-tools
-    SOURCES ../cmake/dsqt.cmake)
-
-
+    SOURCES ../cmake/dsqt.cmake ../cmake/dsqmlimportpath.h.in)
 
 
 #add_custom_command(TARGET dsqt POST_BUILD
