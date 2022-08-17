@@ -22,5 +22,5 @@ qt_add_qml_module(DsSqlQuery
 target_compile_definitions(DsSqlQuery
     PRIVATE $<$<OR:$<CONFIG:Debug>,$<CONFIG:RelWithDebInfo>>:QT_QML_DEBUG>)
 target_link_libraries(DsSqlQuery
-    PRIVATE Qt6::Quick dsqml tomlplusplus::tomlplusplus)
+    PRIVATE Qt6::Quick dsqml)
 target_include_directories(DsSqlQuery PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})

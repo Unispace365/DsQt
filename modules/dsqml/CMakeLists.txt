@@ -1,10 +1,9 @@
-set (INCLUDES_LIST )
-set (CPP_LIST )
-#set (DSQML_LOCAL_INCLUDES ${INCLUDES_LIST})
-#list (TRANSFORM DSQML_LOCAL_INCLUDES PREPEND ${CMAKE_CURRENT_SOURCE_DIR}/ )
-
-#add_library(dsqml STATIC)
+## find the tomlplusplus package
+## this needs to be in the projects conanfile.txt
 find_package(tomlplusplus)
+
+#create the modules
+## this adds the qml and c++ files to the module
 qt_add_qml_module(dsqml
     STATIC
     URI dsqml
@@ -15,7 +14,8 @@ qt_add_qml_module(dsqml
     QML_FILES Test.qml
 )
 
-target_link_libraries(dsqml PRIVATE tomlplusplus::tomlplusplus)
+#link to the libaries that we are using
+target_link_libraries(dsqml PUBLIC tomlplusplus::tomlplusplus)
 target_include_directories(dsqml PUBLIC tomlplusplus::tomlplusplus)
 target_include_directories(dsqml PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 set(DS_LIB_FILES dsqml.qmltypes dsqmlplugin.lib qmldir)
