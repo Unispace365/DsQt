@@ -33,6 +33,7 @@ Makefile*
 *.prl
 
 #downstream
+cmake/dsqmlimportpath.h
 build/
 install/
 add_build/*

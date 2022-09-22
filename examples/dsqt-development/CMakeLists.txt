@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.16)
 include("$ENV{DS_QT_PLATFORM_100}/cmake/dsqt.cmake")
+#Set Install location as a relative location to the source dir -AOF
+set(CMAKE_INSTALL_PREFIX ${CMAKE_SOURCE_DIR}/install/ CACHE PATH "Install Prefix" FORCE)
 
 project(dsqt-development VERSION 0.1 LANGUAGES CXX)
 
@@ -41,3 +43,18 @@ target_include_directories(appdsqt-development PUBLIC tomlplusplus::tomlplusplus
 #install(TARGETS appdsqt-development
 #    BUNDLE DESTINATION .
 #    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
+
+install(TARGETS appdsqt-development
+    BUNDLE  DESTINATION .
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+)
+
+qt_generate_deploy_qml_app_script(
+    TARGET appdsqt-development
+    FILENAME_VARIABLE deploy_script
+    MACOS_BUNDLE_POST_BUILD
+    NO_UNSUPPORTED_PLATFORM_ERROR
+    DEPLOY_USER_QML_MODULES_ON_UNSUPPORTED_PLATFORM
+)
+install(SCRIPT ${deploy_script})
+
