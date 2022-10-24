@@ -4,6 +4,8 @@
 
 #include <dsqmlimportpath.h>
 #include <dscontentmodel.h>
+#include <dssettings.h>
+#include <dsenvironment.h>
 
 int main(int argc, char *argv[])
 {
@@ -13,6 +15,7 @@ int main(int argc, char *argv[])
 
     QQmlApplicationEngine engine;
     dsqt::model::DSContentModel content;
+    dsqt::DSEnvironment::loadEngineSettings();
     engine.addImportPath(DS_QML_IMPORT_PATH);
     engine.rootContext()->setContextProperty("ds_content",&content);
     const QUrl url(u"qrc:/dsqt-development/qml/main.qml"_qs);

@@ -31,6 +31,7 @@ protected:
 
     // QQmlPropertyMap interface
 protected:
+
     QVariant updateValue(const QString &key, const QVariant &input);
 };
 

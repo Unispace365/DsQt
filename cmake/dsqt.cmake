@@ -1,6 +1,15 @@
+include(FetchContent)
 get_filename_component(DIR_OF_DSQT_CMAKE_PARENT ".." ABSOLUTE BASE_DIR "${CMAKE_CURRENT_LIST_DIR}")
 message("DIR_OF_DSQT_CMAKE_PARENT: ${DIR_OF_DSQT_CMAKE_PARENT} :")
 set(CMAKE_DIR_LOCATION "${CMAKE_CURRENT_LIST_DIR}")
+
+FetchContent_Declare(
+    tomlplusplus
+    GIT_REPOSITORY https://github.com/marzer/tomlplusplus.git
+    GIT_TAG        v3.2.0
+)
+FetchContent_MakeAvailable(tomlplusplus)
+
 function(downstream_modules)
     set(options)
     set(oneValueArgs TARGET)

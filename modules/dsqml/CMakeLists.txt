@@ -11,6 +11,8 @@ qt_add_qml_module(dsqml
     SOURCES
     dscontentmodel.h dscontexthash.h dssettings.h dsqmlapplicationengine.h
     dscontentmodel.cpp dscontexthash.cpp dssettings.cpp dsqmlapplicationengine.cpp
+    dsenvironment.h dsenvironment.cpp
+    dsenginesettings.h dsenginesettings.cpp
     QML_FILES Test.qml
 )
 
