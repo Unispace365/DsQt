@@ -1,0 +1,6 @@
+#ifndef SETTINGS_CONCEPTS_H
+#define SETTINGS_CONCEPTS_H
+
+
+
+#endif // SETTINGS_CONCEPTS_H

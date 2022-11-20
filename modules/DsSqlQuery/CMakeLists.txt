@@ -6,7 +6,7 @@ include("$ENV{DS_QT_PLATFORM_100}/cmake/dsqt.cmake")
 #set(CMAKE_CXX_STANDARD_REQUIRED ON)
 #set(QT_QML_OUTPUT_DIRECTORY  ${CMAKE_BINARY_DIR})
 
-find_package(tomlplusplus)
+##find_package(tomlplusplus)
 add_library(DsSqlQuery STATIC)
 
 

@@ -1,0 +1,128 @@
+
+#TOML settings file thoughts. (in TOML!)
+
+
+#no table test
+no_table="test value"
+no_table_arrayed=["test value",{type="string"}]
+
+project_path=["dsqt_development",{type="string", test="", restart="full"}]
+
+[test]
+read_string="string value"
+read_number=10
+read_array=[["",20,30]]
+read_int_from_string="10"
+read_float_from_string="5.5"
+read_float=5.5
+read_vec2=[[20,15]]
+read_vec3=[[20,15,10]]
+read_vec4=[[20,15,10,5]]
+read_size={w=1920,h=1080}
+read_rect={x=10,y=10,w=1920,h=1080}
+read_rect_as_points={x1=10,y1=10,x2=1930,y2=1090}
+read_color_as_floats={r=0.5,g=0.88,b=0.25,a=1}
+read_color_as_int={r=128,g=255,b=255,a=128}
+read_color_as_string="#ffeeaa80"
+
+[test.bool]
+bool_true = true
+bool_str_true = "true"
+bool_str_false = "false"
+bool_str_empty = ""
+bool_str_foobar = "foobar"
+
+[test.int]
+int_positive=1024
+int_negative=-1024
+int_from_str = "1024"
+int_from_float =1024.25
+
+[test.color.strings]
+hex="#80ffeeaa"
+name="blue"
+
+[test.color.no_meta]
+array_1 = [[0.5]] #float rgb gray
+array_2 = [[0.5,1.0]] #float rgb gray and alpha
+array_3 = [[0.5,0,0]] #float rgb
+array_4 = [[0.5,0,0,1.0]] #float float_a
+
+[test.color.arrays]
+float_gray = [[0.5],{type="color",element_type="float",array_color_type="rgb"}]
+float_rgb = [[0.5,0,0],{type="color",element_type="float",array_color_type="rgb"}]
+float_cmyk = [[0,0.26,0.99,0.1],{type="color",element_type="float",array_color_type="cmyk"}]
+float_hsv = [[0.12,0.99,0.99],{type="color",element_type="float",array_color_type="hsv"}]
+float_hsl = [[0.12,0.98,0.5],{type="color",element_type="float",array_color_type="hsl"}]
+
+float_graya = [[0.5,1.0],{type="color",element_type="float",array_color_type="rgb"}]
+float_rgba = [[0.5,0,0,1.0],{type="color",element_type="float",array_color_type="rgb"}]
+float_cmyka = [[0,0.26,0.99,0.1,1.0],{type="color",element_type="float",array_color_type="cmyk"}]
+float_hsva = [[0.12,0.99,0.99,1.0],{type="color",element_type="float",array_color_type="hsv"}]
+float_hsla = [[0.12,0.98,0.5,1.0],{type="color",element_type="float",array_color_type="hsl"}]
+
+int_gray = [[128],{type="color",element_type="int",array_color_type="rgb"}]
+int_rgb = [[128,0,0],{type="color",element_type="int",array_color_type="rgb"}]
+int_cmyk = [[0,66,252,25],{type="color",element_type="int",array_color_type="cmyk"}]
+int_hsv = [[44,252,252],{type="color",element_type="int",array_color_type="hsv"}]
+int_hsl = [[44,250,128],{type="color",element_type="int",array_color_type="hsl"}]
+
+int_graya = [[128,255],{type="color",element_type="int",array_color_type="rgb"}]
+int_rgba = [[128,0,0,255],{type="color",element_type="int",array_color_type="rgb"}]
+int_cmyka = [[0,66,252,25,255],{type="color",element_type="int",array_color_type="cmyk"}]
+int_hsva = [[44,252,252,255],{type="color",element_type="int",array_color_type="hsv"}]
+int_hsla = [[44,250,128,255],{type="color",element_type="int",array_color_type="hsl"}]
+
+[test.color.tables]
+
+float_rgb = [{r=0.5,g=0,b=0},{type="color",element_type="float"}]
+float_cmyk = [{c=0,m=0.26,y=0.99,k=0.1},{type="color",element_type="float"}]
+float_hsv = [{h=0.12,s=0.99,v=0.99},{type="color",element_type="float"}]
+float_hsl = [{h=0.12,s=0.98,l=0.5},{type="color",element_type="float"}]
+
+float_rgba = [{r=0.5,g=0,b=0,a=1.0},{type="color",element_type="float"}]
+float_cmyka = [{c=0,m=0.26,y=0.99,k=0.1,a=1.0},{type="color",element_type="float"}]
+float_hsva = [{h=0.12,s=0.99,v=0.99,a=1.0},{type="color",element_type="float"}]
+float_hsla = [{h=0.12,s=0.98,l=0.5,a=1.0},{type="color",element_type="float"}]
+
+int_rgb = [{r=128,g=0,b=0},{type="color",element_type="int"}]
+int_cmyk = [{c=0,m=66,y=252,k=25},{type="color",element_type="int"}]
+int_hsv = [{h=44,s=252,v=252},{type="color",element_type="int"}]
+int_hsl = [{h=44,s=250,l=128},{type="color",element_type="int"}]
+
+int_rgba = [{r=128,g=0,b=0,a=255},{type="color",element_type="int"}]
+int_cmyka = [{c=0,m=66,y=252,k=25,a=255},{type="color",element_type="int"}]
+int_hsva = [{h=44,s=252,v=252,a=255},{type="color",element_type="int"}]
+int_hsla = [{h=44,s=250,l=128,a=255},{type="color",element_type="int"}]
+
+[engine.window]
+world_dimensions=[{w=1920,h=1080},{type="size"}] #The size of the overall app space.
+source_rectangle=[{x=0,y=0,w=1920,h=1080},{type="rect"}] #the rectangle of the world space to render.
+destination_rectangle=[{x=0,y=0,w=0,h=0},{type="rect"}] #The output window size and position to render.
+
+[engine.examples]
+#this is the same as example_simple = [450,{}] and should take the same code path
+example_simple = 450 #simple example makes an int
+
+example_full = ["450",{type="int",max=700,min=0,step=10,name="Example Full",desc="An example of a full value with meta data for a stepped slider"}]
+example_string = "450" #simple format, will read as string, but you can convert to a number ofcourse
+
+#an array. note the double brackets
+example_array = [["fe","fi","fo","fum"]]
+
+#this is not valid as it conflicts with value as array pattern.
+#We could probably make this work by analyzing the content, but
+#for simplicity sake I say we just don't allow it.
+example_array_bad = [{object="one"},{issue="nice"},"fo","fum"]
+
+#These should all produce a 100x100 rectangle with an x and y value at 10,5
+example_rect_1 = {x=10,y=5,w=100,h=100} #will read as an object, but can try to convert to a rect
+example_rect_2 = [[10,5,100,100]] #will read as a simple array, but can try to convert to a rect (or a color or vec4)
+example_rect_3 = {x1=10,y1=5,x2=110,y2=105} #will read as an object, but can try to convert to a rect
+example_rect_4 = [{x=10,y=5,w=100,h=100},{type="rect",x_min=0,x_max=500,y_min=0,y_max=500}] #the meta data is TBD
+
+#colors
+example_color_1 = {r=0.5,g=0.5,b=0.5,a=1.0}
+example_color_2 = [{r=0.5,g=0.5,b=0.5,a=1.0},{type="color"}]
+example_color_3 = [[0.5,0.5,0.5,1.0],{type="color"}]
+example_color_4 = [[0.5,0.5,0.5],{type="color"}]

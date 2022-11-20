@@ -44,24 +44,27 @@ std::string DSEnvironment::expand(const std::string &_path)
 }
 
 bool DSEnvironment::loadEngineSettings(){
+    auto baseConfigFile = expand("%APP%/settings/configuration.toml");
+    auto docConfigFile = expand("%LOCAL%/settings/%PP%/configuration.toml");
     auto [found,setting] = DSSettings::getSettingsOrCreate("engine",nullptr);
-    auto loaded = setting->loadSettingFile(expand("%APP%/settings/engine_settings.toml"));
+    auto loaded = setting->loadSettingFile(expand("%APP%/settings/engine.toml"));
     if(loaded){
-        std::optional<std::string> projectPath = setting->getValue<std::string>(std::string("engine.project_path"));
+        std::optional<std::string> projectPath = setting->get<std::string>(std::string("engine.project_path"));
         if(projectPath.has_value()){
             sProjectPath = projectPath.value();
             qDebug()<<"Project Path:"<<sProjectPath.c_str();
         }
 
         auto [cfgFound,config] = DSSettings::getSettingsOrCreate("config",nullptr);
-        config->loadSettingFile(expand("%APP%/settings/configuration.toml"));
-        config->loadSettingFile(expand("%LOCAL%/settings/%PP%/configuration.toml"));
-        auto cfgFolder = config->getValue<std::string>("config_folder");
+        config->loadSettingFile(baseConfigFile);
+        config->loadSettingFile(docConfigFile);
+
+        auto cfgFolder = config->get<std::string>("config_folder");
         if(cfgFolder.has_value()){
             sConfigFolder = cfgFolder.value();
             qDebug()<<"Config Folder:"<<sConfigFolder.c_str();
         }
-        loadSettings("engine","engine_settings.toml");
+        loadSettings("engine","engine.toml");
         return true;
     }
     return false;

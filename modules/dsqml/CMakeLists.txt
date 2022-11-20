@@ -1,6 +1,8 @@
 ## find the tomlplusplus package
 ## this needs to be in the projects conanfile.txt
-find_package(tomlplusplus)
+## find_package(tomlplusplus)
+
+find_package(Qt6 REQUIRED COMPONENTS Gui)
 
 #create the modules
 ## this adds the qml and c++ files to the module
@@ -12,14 +14,17 @@ qt_add_qml_module(dsqml
     dscontentmodel.h dscontexthash.h dssettings.h dsqmlapplicationengine.h
     dscontentmodel.cpp dscontexthash.cpp dssettings.cpp dsqmlapplicationengine.cpp
     dsenvironment.h dsenvironment.cpp
-    dsenginesettings.h dsenginesettings.cpp
+    settings/dssettings_qcolor.cpp
+    settings/dssettings_base.cpp
+    overload.h
     QML_FILES Test.qml
 )
 
 #link to the libaries that we are using
 target_link_libraries(dsqml PUBLIC tomlplusplus::tomlplusplus)
 target_include_directories(dsqml PUBLIC tomlplusplus::tomlplusplus)
-target_include_directories(dsqml PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_include_directories(dsqml PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} glm)
+target_link_libraries(dsqml PUBLIC glm Qt6::Gui)
 set(DS_LIB_FILES dsqml.qmltypes dsqmlplugin.lib qmldir)
 list(TRANSFORM DS_LIB_FILES PREPEND ${CMAKE_CURRENT_BINARY_DIR}/ )
 message("${DS_LIB_FILES}")

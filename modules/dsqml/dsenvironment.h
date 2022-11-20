@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 #include <QDebug>
+
 namespace dsqt {
 
 class DSSettings;
@@ -67,5 +68,5 @@ private:
 };
 
 }//namepace dsqt
-
+using DSEnv = dsqt::DSEnvironment;
 #endif // DSENVIRONMENT_H

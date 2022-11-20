@@ -1,4 +1,0 @@
-[requires]
-tomlplusplus/3.2.0
-[generators]
-cmake_find_package
