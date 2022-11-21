@@ -35,7 +35,7 @@ bool_str_foobar = "foobar"
 [test.int]
 int_positive=1024
 int_negative=-1024
-int_from_str = "1024"
+int_from_string = "1024"
 int_from_float =1024.25
 
 [test.color.strings]

@@ -114,29 +114,26 @@ void DSSettingsTest::getOr_shoudReturnTheOrValueWhenTheSettingDoesNotExist(){
 //*****************
 void DSSettingsTest::get_integral_shouldReturnExpectedIntegral_data(){
     QTest::addColumn<QString>("key");
-    QTest::addColumn<int>("result");
+    QTest::addColumn<int64_t>("result");
 
-    QTest::newRow("int positive")<<"int_positive"<<1024;
-    QTest::newRow("int negative")<<"int_negative"<<-1024;
-    QTest::newRow("int from string")<<"int_from_string"<<1024;
-    QTest::newRow("int from float")<<"int_from_float"<<1024;
+    QTest::newRow("int positive")<<"int_positive"<<1024ll;
+    QTest::newRow("int negative")<<"int_negative"<<-1024ll;
+    QTest::newRow("int from string")<<"int_from_string"<<1024ll;
+    QTest::newRow("int from float")<<"int_from_float"<<1024ll;
 
 };
 void DSSettingsTest::get_integral_shouldReturnExpectedIntegral(){
     QFETCH(QString, key);
-    QFETCH(int, result);
+    QFETCH(int64_t, result);
 
-    auto uint32_value = test_settings->get<uint32_t>("test.int."+key.toStdString());
-    auto int32_value = test_settings->get<int32_t>("test.int."+key.toStdString());
-    auto uint64_value = test_settings->get<uint64_t>("test.int."+key.toStdString());
+
+    auto int32_value = test_settings->get<int>("test.int."+key.toStdString());
     auto int64_value = test_settings->get<int64_t>("test.int."+key.toStdString());
-    QCOMPARE(uint32_value.has_value(),true);
+
     QCOMPARE(int32_value.has_value(),true);
-    QCOMPARE(uint64_value.has_value(),true);
     QCOMPARE(int64_value.has_value(),true);
-    QCOMPARE(uint32_value.value(),(uint32_t)result);
+
     QCOMPARE(int32_value.value(),(int32_t)result);
-    QCOMPARE(uint64_value.value(),(uint64_t)result);
     QCOMPARE(int64_value.value(),(int64_t)result);
 };
 void DSSettingsTest::get_floatingPoint_shouldReturnExpectedFloatingPoint_data(){

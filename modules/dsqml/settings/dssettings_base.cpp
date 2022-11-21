@@ -71,22 +71,6 @@ template<> std::optional<ValueWMeta<int64_t>> DSSettings::getWithMeta(const std:
     return std::optional<ValueWMeta<int64_t>>();
 }
 
-template<> std::optional<ValueWMeta<uint64_t>> DSSettings::getWithMeta(const std::string& key){
-    qCDebug(settingsParser)<<"RUNNING uint64";
-    auto val = getNodeViewWithMeta(key);
-    if(!val.has_value()) return std::optional<ValueWMeta<uint64_t>>();
-
-    auto [node,meta,place] = val.value();
-    if(node.is_integer()){
-        return std::optional<ValueWMeta<uint64_t>>(ValueWMeta<uint64_t>(node.value_or<uint64_t>(0),meta,place));
-    } else if(node.is_floating_point()){
-        return std::optional<ValueWMeta<uint64_t>>(ValueWMeta<uint64_t>(node.value_or<double>(0),meta,place));
-    } else if(node.is_string()) {
-        return std::optional<ValueWMeta<uint64_t>>(ValueWMeta<uint64_t>(std::stoull(node.value_or<std::string>("")),meta,place));
-    }
-    return std::optional<ValueWMeta<uint64_t>>();
-}
-
 template<> std::optional<ValueWMeta<int32_t>> DSSettings::getWithMeta(const std::string& key){
     qCDebug(settingsParser)<<"RUNNING int32";
     auto val = getNodeViewWithMeta(key);
@@ -102,22 +86,6 @@ template<> std::optional<ValueWMeta<int32_t>> DSSettings::getWithMeta(const std:
     }
     return std::optional<ValueWMeta<int32_t>>();
 }
-template<> std::optional<ValueWMeta<uint32_t>> DSSettings::getWithMeta(const std::string& key){
-    qCDebug(settingsParser)<<"RUNNING uint32";
-    auto val = getNodeViewWithMeta(key);
-    if(!val.has_value()) return std::optional<ValueWMeta<uint32_t>>();
-
-    auto [node,meta,place] = val.value();
-    if(node.is_integer()){
-        return std::optional<ValueWMeta<uint32_t>>(ValueWMeta<uint32_t>(node.value_or<uint64_t>(0),meta,place));
-    } else if(node.is_floating_point()){
-        return std::optional<ValueWMeta<uint32_t>>(ValueWMeta<uint32_t>(node.value_or<double>(0),meta,place));
-    } else if(node.is_string()) {
-        return std::optional<ValueWMeta<uint32_t>>(ValueWMeta<uint32_t>(std::stoul(node.value_or<std::string>("")),meta,place));
-    }
-    return std::optional<ValueWMeta<uint32_t>>();
-}
-
 
 template<> std::optional<ValueWMeta<double>> DSSettings::getWithMeta(const std::string& key){
     qCDebug(settingsParser)<<"RUNNING double";

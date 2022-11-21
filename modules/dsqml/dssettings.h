@@ -69,38 +69,39 @@ public:
     bool loadSettingFile(const std::string &file);
 
     template <typename T>
-    static constexpr bool is_any = std::is_same_v<T, QMap<QString,QVariant>>		 //
-    || std::is_same_v<T, QVector<QVariant>>		 //
-    || std::is_same_v<T, std::string>
-    || std::is_same_v<T, QString> //
-    || std::is_same_v<T, int64_t>	 //
-    || std::is_same_v<T, int32_t>	 //
-    || std::is_same_v<T, double>
-    || std::is_same_v<T, float>//
-    || std::is_same_v<T, bool>		 //
-    || std::is_same_v<T, QDate>		 //
-    || std::is_same_v<T, QTime>		 //
-    || std::is_same_v<T, QDateTime>
-    || std::is_same_v<T, QRectF>
-    || std::is_same_v<T, QSizeF>
-    || std::is_same_v<T, QPointF>
-    || std::is_same_v<T, QVector2D>
-    || std::is_same_v<T, QVector3D>
-    || std::is_same_v<T, QVector4D>
-    || std::is_same_v<T, glm::vec2>
-    || std::is_same_v<T, glm::vec3>
-    || std::is_same_v<T, glm::vec4>
-    || std::is_same_v<T, QColor>;
+    static constexpr bool is_valid_setting_type = std::is_same_v<T, toml::node> ||
+    std::is_same_v<T, QMap<QString,QVariant>> ||
+    std::is_same_v<T, QVector<QVariant>> ||
+    std::is_same_v<T, std::string> ||
+    std::is_same_v<T, QString> ||
+    std::is_same_v<T, int64_t> ||
+    std::is_same_v<T, int32_t> ||
+    std::is_same_v<T, double> ||
+    std::is_same_v<T, float> ||
+    std::is_same_v<T, bool> ||
+    std::is_same_v<T, QDate> ||
+    std::is_same_v<T, QTime> ||
+    std::is_same_v<T, QDateTime> ||
+    std::is_same_v<T, QRectF> ||
+    std::is_same_v<T, QSizeF> ||
+    std::is_same_v<T, QPointF> ||
+    std::is_same_v<T, QVector2D> ||
+    std::is_same_v<T, QVector3D> ||
+    std::is_same_v<T, QVector4D> ||
+    std::is_same_v<T, glm::vec2> ||
+    std::is_same_v<T, glm::vec3> ||
+    std::is_same_v<T, glm::vec4> ||
+    std::is_same_v<T, QColor>;
 
     ///Get a setting from the collection.
     template<class T> T getOr(const std::string& key,const T& def){
-        static_assert(is_any<T>,"The type is directly gettable from a settings file");
+        static_assert(is_valid_setting_type<T>,"The type is not directly gettable from a settings file");
         std::optional<T> value = get<T>(key);
         return value.value_or(def);
     };
 
     template<class T> std::optional<T> get(const std::string& key){
-        static_assert(is_any<T>,"The type is directly gettable from a settings file");
+        static_assert(is_valid_setting_type<T>,"The type is not directly gettable from a settings file");
         auto retval = getWithMeta<T>(key);
         if(retval){
            auto [value,x,y] = retval.value();
@@ -165,11 +166,10 @@ public:
     //template<typename T> std::optional<ValueWMeta<std::vector<T>>> getWithMeta(const std::string& key);
 
     //base types
+    //TODO: done
     template<> std::optional<ValueWMeta<bool>> getWithMeta(const std::string& key);
     template<> std::optional<ValueWMeta<int64_t>> getWithMeta(const std::string& key);
     template<> std::optional<ValueWMeta<int32_t>> getWithMeta(const std::string& key);
-    template<> std::optional<ValueWMeta<uint64_t>> getWithMeta(const std::string& key);
-    template<> std::optional<ValueWMeta<uint32_t>> getWithMeta(const std::string& key);
     template<> std::optional<ValueWMeta<double>> getWithMeta(const std::string& key);
     template<> std::optional<ValueWMeta<float>> getWithMeta(const std::string& key);
     template<> std::optional<ValueWMeta<std::string>> getWithMeta(const std::string& key);
