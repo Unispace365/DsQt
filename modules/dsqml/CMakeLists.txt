@@ -16,6 +16,8 @@ qt_add_qml_module(dsqml
     dsenvironment.h dsenvironment.cpp
     settings/dssettings_qcolor.cpp
     settings/dssettings_base.cpp
+    settings/dssettings_collections.cpp
+    settings/dssettings_datetime.cpp
     overload.h
     QML_FILES Test.qml
 )

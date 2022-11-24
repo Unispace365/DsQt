@@ -27,14 +27,14 @@ using NodeWMeta = std::tuple<toml::node_view<toml::node>,toml::table*,std::strin
 template<typename T> using ValueWMeta = std::tuple<T,toml::table*,std::string>;
 using tomlType = std::variant<
     ValueWMeta<toml::value<bool>>,
-ValueWMeta<toml::value<int64_t>>,
-ValueWMeta<toml::value<double>>,
-ValueWMeta<toml::value<std::string>>,
-ValueWMeta<toml::table>,
-ValueWMeta<toml::array>,
-ValueWMeta<toml::value<toml::date>>,
-ValueWMeta<toml::value<toml::time>>,
-ValueWMeta<toml::value<toml::date_time>>>;
+    ValueWMeta<toml::value<int64_t>>,
+    ValueWMeta<toml::value<double>>,
+    ValueWMeta<toml::value<std::string>>,
+    ValueWMeta<toml::table>,
+    ValueWMeta<toml::array>,
+    ValueWMeta<toml::value<toml::date>>,
+    ValueWMeta<toml::value<toml::time>>,
+    ValueWMeta<toml::value<toml::date_time>>>;
 
 class DSSettings:public QObject {
     Q_OBJECT
@@ -51,6 +51,32 @@ public:
     DSSettings(QObject* parent=nullptr)=delete;
     ~DSSettings();
 
+    template <typename T>
+    static constexpr bool is_valid_setting_type =
+        std::is_same_v<T, toml::node> ||
+        //std::is_same_v<T, QMap<QString,QVariant>> ||
+        //std::is_same_v<T, QVector<QVariant>> ||
+        std::is_same_v<T, std::string> ||
+        std::is_same_v<T, QString> ||
+        std::is_same_v<T, int64_t> ||
+        std::is_same_v<T, int32_t> ||
+        std::is_same_v<T, double> ||
+        std::is_same_v<T, float> ||
+        std::is_same_v<T, bool> ||
+        std::is_same_v<T, QDate> ||
+        std::is_same_v<T, QTime> ||
+        std::is_same_v<T, QDateTime> ||
+        std::is_same_v<T, QRectF> ||
+        std::is_same_v<T, QSizeF> ||
+        std::is_same_v<T, QPointF> ||
+        std::is_same_v<T, QVector2D> ||
+        std::is_same_v<T, QVector3D> ||
+        std::is_same_v<T, QVector4D> ||
+        std::is_same_v<T, glm::vec2> ||
+        std::is_same_v<T, glm::vec3> ||
+        std::is_same_v<T, glm::vec4> ||
+        std::is_same_v<T, QColor>;
+
     /// Get a DSSettingsRef by name.
     /// Get the DSSettingRef (a std::shared_ptr<DSSettings> typedef) to a setting collection associated with \b name.
     /// If the setting collection does not exist it will create it and return a DSSettingsRef to it.
@@ -63,36 +89,29 @@ public:
     /// \returns DSSettingsRef \b settings
     static DSSettingsRef getSettings(const std::string& name);
 
+    /// remove a setting file from the list of known setting files.
+    /// \return a bool that indicates that a setting object was removed (true)
+    /// or that no setting file existed (false)
+    static bool forgetSettings(const std::string& name);
+
+
     /// load a setting file into this setting object.
     /// \return a bool the indecates the success
     /// or failure of loading the file.
     bool loadSettingFile(const std::string &file);
 
-    template <typename T>
-    static constexpr bool is_valid_setting_type = std::is_same_v<T, toml::node> ||
-    std::is_same_v<T, QMap<QString,QVariant>> ||
-    std::is_same_v<T, QVector<QVariant>> ||
-    std::is_same_v<T, std::string> ||
-    std::is_same_v<T, QString> ||
-    std::is_same_v<T, int64_t> ||
-    std::is_same_v<T, int32_t> ||
-    std::is_same_v<T, double> ||
-    std::is_same_v<T, float> ||
-    std::is_same_v<T, bool> ||
-    std::is_same_v<T, QDate> ||
-    std::is_same_v<T, QTime> ||
-    std::is_same_v<T, QDateTime> ||
-    std::is_same_v<T, QRectF> ||
-    std::is_same_v<T, QSizeF> ||
-    std::is_same_v<T, QPointF> ||
-    std::is_same_v<T, QVector2D> ||
-    std::is_same_v<T, QVector3D> ||
-    std::is_same_v<T, QVector4D> ||
-    std::is_same_v<T, glm::vec2> ||
-    std::is_same_v<T, glm::vec3> ||
-    std::is_same_v<T, glm::vec4> ||
-    std::is_same_v<T, QColor>;
 
+    ///Set the date format;
+    void setDateFormat(Qt::DateFormat format,bool clearCustom=true){
+        mDateFormat = format;
+        if(clearCustom && !mCustomDateFormat.isEmpty()){
+            qWarning(settingsParser)<<"setDateFormat is clearing a custom date format for "<<QString::fromStdString(mName)<<" settings.";
+            mCustomDateFormat="";
+        }
+    }
+    void setCustomDateFormat(QString format){
+        mCustomDateFormat = format;
+    }
     ///Get a setting from the collection.
     template<class T> T getOr(const std::string& key,const T& def){
         static_assert(is_valid_setting_type<T>,"The type is not directly gettable from a settings file");
@@ -104,8 +123,8 @@ public:
         static_assert(is_valid_setting_type<T>,"The type is not directly gettable from a settings file");
         auto retval = getWithMeta<T>(key);
         if(retval){
-           auto [value,x,y] = retval.value();
-           return value;
+            auto [value,x,y] = retval.value();
+            return value;
         }
         return std::optional<T>();
     }
@@ -140,15 +159,15 @@ public:
         auto meta= m;
         auto place = p;
         auto grabber = DSOverloaded {
-                [meta,place](toml::value<std::string> s){ return ValueWMeta<toml::value<std::string>>(s,meta,place);},
-                [meta,place](toml::value<bool> s){ return ValueWMeta<toml::value<bool>>(s,meta,place);},
-                [meta,place](toml::value<int64_t> s){ return ValueWMeta<toml::value<int64_t>>(s,meta,place);},
-                [meta,place](toml::value<double> s){ return ValueWMeta<toml::value<double>>(s,meta,place);},
-                [meta,place](toml::value<toml::date> s){ return ValueWMeta<toml::value<toml::date>>(s,meta,place);},
-                [meta,place](toml::value<toml::time> s){ return ValueWMeta<toml::value<toml::time>>(s,meta,place);},
-                [meta,place](toml::value<toml::date_time> s){ return ValueWMeta<toml::value<toml::date_time>>(s,meta,place);},
-                [meta,place](toml::array s){ return ValueWMeta<toml::array>(s,meta,place);},
-                [meta,place](toml::table s){ return ValueWMeta<toml::table>(s,meta,place);}
+            [meta,place](toml::value<std::string> s){ return ValueWMeta<toml::value<std::string>>(s,meta,place);},
+            [meta,place](toml::value<bool> s){ return ValueWMeta<toml::value<bool>>(s,meta,place);},
+            [meta,place](toml::value<int64_t> s){ return ValueWMeta<toml::value<int64_t>>(s,meta,place);},
+            [meta,place](toml::value<double> s){ return ValueWMeta<toml::value<double>>(s,meta,place);},
+            [meta,place](toml::value<toml::date> s){ return ValueWMeta<toml::value<toml::date>>(s,meta,place);},
+            [meta,place](toml::value<toml::time> s){ return ValueWMeta<toml::value<toml::time>>(s,meta,place);},
+            [meta,place](toml::value<toml::date_time> s){ return ValueWMeta<toml::value<toml::date_time>>(s,meta,place);},
+            [meta,place](toml::array s){ return ValueWMeta<toml::array>(s,meta,place);},
+            [meta,place](toml::table s){ return ValueWMeta<toml::table>(s,meta,place);}
         };
         auto nodeval = node.visit(grabber);
         return std::optional(nodeval);
@@ -166,19 +185,29 @@ public:
     //template<typename T> std::optional<ValueWMeta<std::vector<T>>> getWithMeta(const std::string& key);
 
     //base types
-    //TODO: done
     template<> std::optional<ValueWMeta<bool>> getWithMeta(const std::string& key);
     template<> std::optional<ValueWMeta<int64_t>> getWithMeta(const std::string& key);
     template<> std::optional<ValueWMeta<int32_t>> getWithMeta(const std::string& key);
     template<> std::optional<ValueWMeta<double>> getWithMeta(const std::string& key);
     template<> std::optional<ValueWMeta<float>> getWithMeta(const std::string& key);
     template<> std::optional<ValueWMeta<std::string>> getWithMeta(const std::string& key);
-
-    // get specific types
-    template<> std::optional<ValueWMeta<QColor>> getWithMeta(const std::string& key);
-
     template<> std::optional<ValueWMeta<QString>> getWithMeta(const std::string& key);
 
+    //Collections
+    template<> std::optional<ValueWMeta<toml::node>> getWithMeta(const std::string& key);
+    //template<> std::optional<ValueWMeta<QVector<QVariant>>> getWithMeta(const std::string& key);
+    //template<> std::optional<ValueWMeta<QMap<QString,QVariant>>> getWithMeta(const std::string& key);
+
+    // QColor
+    template<> std::optional<ValueWMeta<QColor>> getWithMeta(const std::string& key);
+
+
+    //TODO Date & Time
+    template<> std::optional<ValueWMeta<QDate>> getWithMeta(const std::string& key);
+    template<> std::optional<ValueWMeta<QTime>> getWithMeta(const std::string& key);
+    template<> std::optional<ValueWMeta<QDateTime>> getWithMeta(const std::string& key);
+
+    //TODO Geometry
     template<> std::optional<ValueWMeta<QVector2D>> getWithMeta(const std::string& key);
     template<> std::optional<ValueWMeta<QVector3D>> getWithMeta(const std::string& key);
     template<> std::optional<ValueWMeta<QVector4D>> getWithMeta(const std::string& key);
@@ -192,7 +221,7 @@ public:
     template<> std::optional<ValueWMeta<glm::vec3>> getWithMeta(const std::string& key);
     template<> std::optional<ValueWMeta<glm::vec4>> getWithMeta(const std::string& key);
 
-/*
+    /*
     const std::string&				SETTING_TYPE_UNKNOWN = "unknown";
     const std::string&				SETTING_TYPE_BOOL = "bool";
     const std::string&				SETTING_TYPE_INT = "int";
@@ -215,6 +244,8 @@ public:
     // QQmlPropertyMap interface
 private:
     //meta data
+    Qt::DateFormat mDateFormat = Qt::ISODateWithMs;
+    QString mCustomDateFormat = "";
     static std::string mConfigurationDirectory;
     static bool mLoadedConfiguration;
     static std::unordered_map<std::string,DSSettingsRef> sSettings;

@@ -16,6 +16,8 @@ public:
 private slots:
     void initTestCase();
     void cleanupTestCase();
+    void init();
+    void cleanup();
     void getOrCreateSettings_shouldReturnExisitngSettingsAndTrueWhenSettingsExist();
     void getOrCreateSettings_shouldReturnNewSettingsAndFalseWhenSettingsDoNotExist();
     void getSettings_shouldReturnExistingSettingsWhenSettingsExist();
@@ -42,6 +44,9 @@ private slots:
     void get_QColor_from_Tables_shouldReturnAValidQColorOptional_data();
     void get_QColor_from_Tables_shouldReturnAValidQColorOptional();
 
+    //Date & time
+    void get_QTime_from_validString_shouldReturnAValidQTimeOptional_data();
+
     void get_shouldReturnAnEmptyOptionalWhenTheSettingDoesNotExist();
     void getWithMeta_shouldReturnAValidTupleWhenTheSettingExists();
     void read_notable();
@@ -63,6 +68,18 @@ DSSettingsTest::~DSSettingsTest()
 void DSSettingsTest::initTestCase()
 {
     DSEnv::loadEngineSettings();
+
+
+
+}
+
+void DSSettingsTest::cleanupTestCase()
+{
+
+}
+
+void DSSettingsTest::init()
+{
     DSEnv::loadSettings("test_settings","test_settings.toml");
     auto [existed,test] = dsqt::DSSettings::getSettingsOrCreate("test_settings");
     test_settings = test;
@@ -71,10 +88,11 @@ void DSSettingsTest::initTestCase()
     }
 }
 
-void DSSettingsTest::cleanupTestCase()
+void DSSettingsTest::cleanup()
 {
-
+    dsqt::DSSettings::forgetSettings("test_settings");
 }
+
 
 void DSSettingsTest::getOrCreateSettings_shouldReturnExisitngSettingsAndTrueWhenSettingsExist()
 {

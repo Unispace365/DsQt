@@ -79,6 +79,15 @@ DSSettingsRef DSSettings::getSettings(const std::string &name) {
     return sSettings[name];
 }
 
+bool DSSettings::forgetSettings(const std::string &name) {
+    auto iter = sSettings.find(name);
+    if(iter != sSettings.end()){
+        sSettings.erase(iter);
+        return true;
+    }
+    return false;
+}
+
 //template<class T> std::optional<T> DSSettings::getValue(const std::string& key){
 //     auto retval = getWithMeta<T>(key);
 //     if(retval){
