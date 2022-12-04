@@ -46,6 +46,17 @@ private slots:
 
     //Date & time
     void get_QTime_from_validString_shouldReturnAValidQTimeOptional_data();
+    void get_QTime_from_validString_shouldReturnAValidQTimeOptional();
+    void get_QDate_from_validString_shouldReturnAValidQDateOptional_data();
+    void get_QDate_from_validString_shouldReturnAValidQDateOptional();
+    void get_QDateTime_from_validString_shouldReturnAValidQDateTimeOptional_data();
+    void get_QDateTime_from_validString_shouldReturnAValidQDateTimeOptional();
+	void get_QTime_from_tomlDateTime_shouldReturnAValidQTimeOptional_data();
+    void get_QTime_from_tomlDateTime_shouldReturnAValidQTimeOptional();
+	void get_QDate_from_tomlDateTime_shouldReturnAValidQDateOptional_data();
+    void get_QDate_from_tomlDateTime_shouldReturnAValidQDateOptional();
+	void get_QDateTime_from_tomlDateTime_shouldReturnAValidQDateTimeOptional_data();
+    void get_QDateTime_from_tomlDateTime_shouldReturnAValidQDateTimeOptional();
 
     void get_shouldReturnAnEmptyOptionalWhenTheSettingDoesNotExist();
     void getWithMeta_shouldReturnAValidTupleWhenTheSettingExists();
@@ -80,12 +91,14 @@ void DSSettingsTest::cleanupTestCase()
 
 void DSSettingsTest::init()
 {
-    DSEnv::loadSettings("test_settings","test_settings.toml");
+	QLoggingCategory::setFilterRules("settings.parser*=false\n"
+									 );
     auto [existed,test] = dsqt::DSSettings::getSettingsOrCreate("test_settings");
     test_settings = test;
     if(!existed){
-        qWarning()<<"test_settings did not already exist";
+		//qWarning()<<"test_settings did not already exist";
     }
+    DSEnv::loadSettings("test_settings","test_settings.toml");
 }
 
 void DSSettingsTest::cleanup()
@@ -93,7 +106,7 @@ void DSSettingsTest::cleanup()
     dsqt::DSSettings::forgetSettings("test_settings");
 }
 
-
+//settings creation
 void DSSettingsTest::getOrCreateSettings_shouldReturnExisitngSettingsAndTrueWhenSettingsExist()
 {
     auto [existed,test] = dsqt::DSSettings::getSettingsOrCreate("test_settings");
@@ -279,6 +292,120 @@ void DSSettingsTest::get_QColor_from_Tables_shouldReturnAValidQColorOptional(){
      QCOMPARE(test_value.has_value(),true);
      QCOMPARE(test_value.value(),result);
 };
+
+//*****************
+//QDate, QTime, QDateTime
+//*****************
+void DSSettingsTest::get_QTime_from_validString_shouldReturnAValidQTimeOptional_data(){
+    QTest::addColumn<QString>("key");
+    QTest::addColumn<QTime>("result");
+    QTest::addColumn<Qt::DateFormat>("format");
+    QTest::addColumn<QString>("format_string");
+
+
+    QTest::newRow("Iso8601")<<"ISO8601_default"<<QTime(17,30,30)<<Qt::DateFormat::ISODateWithMs<<"";
+    QTest::newRow("TextDate")<<"ISO8601_default"<<QTime(17,30,30)<<Qt::DateFormat::TextDate<<"";
+    QTest::newRow("Custom")<<"custom_time"<<QTime(17,30)<<Qt::DateFormat::ISODateWithMs<<"h:map";
+}
+void DSSettingsTest::get_QTime_from_validString_shouldReturnAValidQTimeOptional(){
+    QFETCH(QString, key);
+    QFETCH(QTime, result);
+    QFETCH(Qt::DateFormat,format);
+    QFETCH(QString, format_string);
+
+    test_settings->setDateFormat(format);
+    test_settings->setCustomDateFormat(format_string);
+    auto test_value = test_settings->get<QTime>("test.time.strings."+key.toStdString());
+    QCOMPARE(test_value.has_value(),true);
+    QCOMPARE(test_value.value(),result);
+}
+
+void DSSettingsTest::get_QDate_from_validString_shouldReturnAValidQDateOptional_data(){
+    QTest::addColumn<QString>("key");
+    QTest::addColumn<QDate>("result");
+    QTest::addColumn<Qt::DateFormat>("format");
+    QTest::addColumn<QString>("format_string");
+
+
+    QTest::newRow("Iso8601")<<"ISO8601_default"<<QDate(2023,1,30)<<Qt::DateFormat::ISODate<<"";
+    QTest::newRow("QT::TextDate")<<"text_date"<<QDate(2023,1,30)<<Qt::DateFormat::TextDate<<"";
+    QTest::newRow("RFC2822")<<"rfc2822"<<QDate(2023,1,30)<<Qt::DateFormat::RFC2822Date<<"";
+    QTest::newRow("Custom")<<"custom_date"<<QDate(2023,8,27)<<Qt::DateFormat::ISODateWithMs<<"M/d/yyyy";
+}
+void DSSettingsTest::get_QDate_from_validString_shouldReturnAValidQDateOptional(){
+    QFETCH(QString, key);
+    QFETCH(QDate, result);
+    QFETCH(Qt::DateFormat,format);
+    QFETCH(QString, format_string);
+
+    test_settings->setDateFormat(format);
+    test_settings->setCustomDateFormat(format_string);
+    auto test_value = test_settings->get<QDate>("test.date.strings."+key.toStdString());
+    QCOMPARE(test_value.has_value(),true);
+    QCOMPARE(test_value.value(),result);
+}
+
+void DSSettingsTest::get_QDateTime_from_validString_shouldReturnAValidQDateTimeOptional_data(){
+    QTest::addColumn<QString>("key");
+    QTest::addColumn<QDateTime>("result");
+    QTest::addColumn<Qt::DateFormat>("format");
+    QTest::addColumn<QString>("format_string");
+
+
+    QTest::newRow("Iso8601")<<"ISO8601_default"<<QDateTime(QDate(2023,1,30),QTime(17,30,30))<<Qt::DateFormat::ISODateWithMs<<"";
+    QTest::newRow("Custom")<<"custom_date_time"<<QDateTime(QDate(2023,8,27),QTime(7,30))<<Qt::DateFormat::ISODateWithMs<<"h:map on M/d/yyyy";
+}
+void DSSettingsTest::get_QDateTime_from_validString_shouldReturnAValidQDateTimeOptional(){
+    QFETCH(QString, key);
+    QFETCH(QDateTime, result);
+    QFETCH(Qt::DateFormat,format);
+    QFETCH(QString, format_string);
+
+    test_settings->setDateFormat(format);
+    test_settings->setCustomDateFormat(format_string);
+    auto test_value = test_settings->get<QDateTime>("test.datetime.strings."+key.toStdString());
+    QCOMPARE(test_value.has_value(),true);
+    QCOMPARE(test_value.value(),result);
+}
+
+void DSSettingsTest::get_QTime_from_tomlDateTime_shouldReturnAValidQTimeOptional_data(){
+	QTest::addColumn<QString>("key");
+	QTest::addColumn<QTime>("result");
+
+	QTest::newRow("offset1")<<"odt1"<<QTime(7,32);
+	QTest::newRow("offset2")<<"odt2"<<QTime(0,32);
+	QTest::newRow("offset3")<<"odt3"<<QTime(0,32,00,999);
+}
+
+void DSSettingsTest::get_QTime_from_tomlDateTime_shouldReturnAValidQTimeOptional(){
+	QFETCH(QString, key);
+	QFETCH(QTime, result);
+
+	auto test_value = test_settings->get<QTime>("test.datetimes.toml."+key.toStdString());
+	QCOMPARE(test_value.has_value(),true);
+	qDebug()<<test_value.value();
+	QCOMPARE(test_value.value(),result);
+
+}
+
+void DSSettingsTest::get_QDate_from_tomlDateTime_shouldReturnAValidQDateOptional_data(){
+
+}
+
+void DSSettingsTest::get_QDate_from_tomlDateTime_shouldReturnAValidQDateOptional(){
+qWarning() << "Not Implemented";
+}
+
+void DSSettingsTest::get_QDateTime_from_tomlDateTime_shouldReturnAValidQDateTimeOptional_data(){
+
+}
+
+void DSSettingsTest::get_QDateTime_from_tomlDateTime_shouldReturnAValidQDateTimeOptional(){
+qWarning() << "Not Implemented";
+}
+
+
+
 void DSSettingsTest::get_shouldReturnAnEmptyOptionalWhenTheSettingDoesNotExist(){qWarning() << "Not Implemented";}
 void DSSettingsTest::getWithMeta_shouldReturnAValidTupleWhenTheSettingExists(){qWarning() << "Not Implemented";}
 

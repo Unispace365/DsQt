@@ -18,6 +18,7 @@
  * Reads a setting file
  */
 Q_DECLARE_LOGGING_CATEGORY(settingsParser)
+Q_DECLARE_LOGGING_CATEGORY(settingsParserWarn)
 namespace dsqt {
 
 class DSSettings;

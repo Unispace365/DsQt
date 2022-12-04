@@ -72,7 +72,10 @@ template<> std::optional<ValueWMeta<QTime>> DSSettings::getWithMeta(const std::s
         auto datetime_node = getDateTimeFromNode(node);
         if(datetime_node){
             auto time = datetime_node.value().time;
-            retval.setHMS(time.hour,time.minute,time.second,time.nanosecond/1000);
+			if(!datetime_node.value().is_local()){
+				qCWarning(settingsParser)<<"The time setting has an offset but QTime won't capture it. Try using QDateTime.";
+			}
+			retval.setHMS(time.hour,time.minute,time.second,time.nanosecond/1000000);
         }
     } else if(node.is_string()) {
         auto string = node.value<std::string>().value();

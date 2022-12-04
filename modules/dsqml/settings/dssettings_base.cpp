@@ -2,7 +2,7 @@
 #include <string>
 #include <algorithm>
 
-Q_LOGGING_CATEGORY(settingsParser, "settings.parser")
+
 namespace dsqt {
 
 

@@ -5,6 +5,8 @@
 #include <toml++/toml.h>
 #include "dsenvironment.h"
 
+Q_LOGGING_CATEGORY(settingsParser, "settings.parser")
+Q_LOGGING_CATEGORY(settingsParserWarn, "settings.parser.warning")
 namespace dsqt{
 
 std::string DSSettings::mConfigurationDirectory="";
@@ -25,14 +27,14 @@ bool DSSettings::loadSettingFile(const std::string &file)
 
     std::string fullFile = DSEnvironment::expand(file);
     if(!std::filesystem::exists(fullFile)){
-        qWarning()<<"File doesn't exist warning: Attempting to load file \""<<fullFile.c_str()<<"\" but it does not exist";
+        qCWarning(settingsParserWarn)<<"File doesn't exist warning: Attempting to load file \""<<fullFile.c_str()<<"\" but it does not exist";
         return false;
     }
     auto clearItr = mResultStack.end();
-     SettingFile* loadResult = nullptr;
+    SettingFile* loadResult = nullptr;
     for(auto resultItr = mResultStack.begin();resultItr != mResultStack.end();++resultItr){
         if(resultItr->filepath == fullFile){
-            qWarning()<<"File already loaded warning: Updating already loaded file";
+            qCWarning(settingsParserWarn)<<"File already loaded warning: Updating already loaded file";
             loadResult = &(*resultItr);
         }
     }
@@ -48,7 +50,7 @@ bool DSSettings::loadSettingFile(const std::string &file)
         loadResult->data = toml::parse_file(fullFile);
         loadResult->valid=true;
     } catch (const toml::parse_error& e){
-        qWarning() << "Faild to parse setting file \""<<fullFile.c_str()<<"\n:"<<e.what();
+        qCWarning(settingsParserWarn) << "Faild to parse setting file \""<<fullFile.c_str()<<"\n:"<<e.what();
         return false;
     }
 
@@ -61,7 +63,7 @@ bool DSSettings::loadSettingFile(const std::string &file)
 std::tuple<bool,DSSettingsRef> DSSettings::getSettingsOrCreate(const std::string &name, QObject* parent) {
 
     if(sSettings.find(name) != sSettings.end()){
-        qDebug()<<"getSettingsOrCreate: Found Setting "<<QString::fromStdString(name);
+        qCDebug(settingsParser)<<"getSettingsOrCreate: Found Setting "<<QString::fromStdString(name);
         return {true,sSettings[name]};
     }
 
