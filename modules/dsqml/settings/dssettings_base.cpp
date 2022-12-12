@@ -38,8 +38,16 @@ template<> std::optional<ValueWMeta<std::string>> DSSettings::getWithMeta(const 
         std::stringstream ss;
         ss << dateTime;
         return std::optional(ValueWMeta<std::string>(ss.str(),meta,place));},
-    [meta,place](toml::array s){ return std::optional<ValueWMeta<std::string>>();},
-    [meta,place](toml::table s){ return std::optional<ValueWMeta<std::string>>();}
+	[meta,place](toml::array s){
+		toml::array array = s;
+		std::stringstream ss;
+		ss << array;
+		return std::optional(ValueWMeta<std::string>(ss.str(),meta,place));},
+	[meta,place](toml::table s){
+			toml::table table = s;
+			std::stringstream ss;
+			ss << table;
+			return std::optional(ValueWMeta<std::string>(ss.str(),meta,place));}
 };
     auto nodeval = node.visit(grabber);
     return nodeval;
@@ -62,11 +70,19 @@ template<> std::optional<ValueWMeta<int64_t>> DSSettings::getWithMeta(const std:
 
     auto [node,meta,place] = val.value();
     if(node.is_integer()){
-        return std::optional<ValueWMeta<int64_t>>(ValueWMeta<int64_t>(node.value_or<int64_t>(0),meta,place));
+		return std::optional<ValueWMeta<int64_t>>(ValueWMeta<int64_t>(node.value_or<int64_t>(INFINITY),meta,place));
     } else if(node.is_floating_point()){
-        return std::optional<ValueWMeta<int64_t>>(ValueWMeta<int64_t>(node.value_or<double>(0),meta,place));
+		return std::optional<ValueWMeta<int64_t>>(ValueWMeta<int64_t>(node.value_or<double>(INFINITY),meta,place));
     } else if(node.is_string()) {
-        return std::optional<ValueWMeta<int64_t>>(ValueWMeta<int64_t>(std::stoll(node.value_or<std::string>("")),meta,place));
+		int64_t int64_val;
+		try {
+			int64_val = std::stoll(node.value_or<std::string>(""));
+		} catch (std::invalid_argument exception) {
+			int64_val = NAN;
+		} catch (std::out_of_range exception) {
+			int64_val = INFINITY;
+		}
+		return std::optional<ValueWMeta<int64_t>>(ValueWMeta<int64_t>(int64_val,meta,place));
     }
     return std::optional<ValueWMeta<int64_t>>();
 }
@@ -78,11 +94,19 @@ template<> std::optional<ValueWMeta<int32_t>> DSSettings::getWithMeta(const std:
 
     auto [node,meta,place] = val.value();
     if(node.is_integer()){
-        return std::optional<ValueWMeta<int32_t>>(ValueWMeta<int32_t>(node.value_or<int64_t>(0),meta,place));
+		return std::optional<ValueWMeta<int32_t>>(ValueWMeta<int32_t>(node.value_or<int64_t>(INFINITY),meta,place));
     } else if(node.is_floating_point()){
-        return std::optional<ValueWMeta<int32_t>>(ValueWMeta<int32_t>(node.value_or<double>(0),meta,place));
+		return std::optional<ValueWMeta<int32_t>>(ValueWMeta<int32_t>(node.value_or<double>(INFINITY),meta,place));
     } else if(node.is_string()) {
-        return std::optional<ValueWMeta<int32_t>>(ValueWMeta<int32_t>(std::stoi(node.value_or<std::string>("")),meta,place));
+		int32_t int32_val;
+		try {
+			int32_val = std::stoi(node.value_or<std::string>(""));
+		} catch (std::invalid_argument exception) {
+			int32_val = NAN;
+		} catch (std::out_of_range exception) {
+			int32_val = INFINITY;
+		}
+		return std::optional<ValueWMeta<int32_t>>(ValueWMeta<int32_t>(int32_val,meta,place));
     }
     return std::optional<ValueWMeta<int32_t>>();
 }
@@ -94,11 +118,20 @@ template<> std::optional<ValueWMeta<double>> DSSettings::getWithMeta(const std::
 
     auto [node,meta,place] = val.value();
     if(node.is_floating_point()){
-        return std::optional<ValueWMeta<double>>(ValueWMeta<double>(node.value_or<double>(0),meta,place));
+		return std::optional<ValueWMeta<double>>(ValueWMeta<double>(node.value_or<double>(INFINITY),meta,place));
     } else if(node.is_integer()){
-        return std::optional<ValueWMeta<double>>(ValueWMeta<double>(node.value_or<int64_t>(0),meta,place));
+		return std::optional<ValueWMeta<double>>(ValueWMeta<double>(node.value_or<int64_t>(INFINITY),meta,place));
     } else if(node.is_string()) {
-        return std::optional<ValueWMeta<double>>(ValueWMeta<double>(std::stod(node.value_or<std::string>("")),meta,place));
+		double double_val;
+		try {
+			double_val = std::stod(node.value_or<std::string>(""));
+		} catch (std::invalid_argument exception) {
+			double_val = NAN;
+		} catch (std::out_of_range exception) {
+			double_val = INFINITY;
+		}
+
+		return std::optional<ValueWMeta<double>>(ValueWMeta<double>(double_val,meta,place));
     }
     return std::optional<ValueWMeta<double>>();
 }
@@ -110,11 +143,21 @@ template<> std::optional<ValueWMeta<float>> DSSettings::getWithMeta(const std::s
 
     auto [node,meta,place] = val.value();
     if(node.is_floating_point()){
-        return std::optional<ValueWMeta<float>>(ValueWMeta<float>(node.value_or<float>(0),meta,place));
+		auto double_val = node.value_or<double>(NAN);
+		return std::optional<ValueWMeta<float>>(ValueWMeta<float>((float)double_val,meta,place));
     } else if(node.is_integer()){
-        return std::optional<ValueWMeta<float>>(ValueWMeta<float>(node.value_or<int64_t>(0),meta,place));
+		return std::optional<ValueWMeta<float>>(ValueWMeta<float>(node.value_or<int64_t>(INFINITY),meta,place));
     } else if(node.is_string()) {
-        return std::optional<ValueWMeta<float>>(ValueWMeta<float>(std::stof(node.value_or<std::string>("")),meta,place));
+		double double_val;
+		try {
+			double_val = std::stod(node.value_or<std::string>(""));
+		} catch (std::invalid_argument e) {
+			double_val = NAN;
+		}catch (std::out_of_range exception) {
+			double_val = INFINITY;
+		}
+
+		return std::optional<ValueWMeta<float>>(ValueWMeta<float>((float)double_val,meta,place));
     }
     return std::optional<ValueWMeta<float>>();
 }

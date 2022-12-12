@@ -20,6 +20,18 @@
 Q_DECLARE_LOGGING_CATEGORY(settingsParser)
 Q_DECLARE_LOGGING_CATEGORY(settingsParserWarn)
 namespace dsqt {
+struct GeomElements {
+	std::optional<double> x;
+	std::optional<double> y;
+	std::optional<double> z;
+	std::optional<double> w;
+	std::optional<double> h;
+	std::optional<double> x1;
+	std::optional<double> y1;
+	std::optional<double> x2;
+	std::optional<double> y2;
+};
+const GeomElements getGeomElementsFromTable(toml::node_view<toml::node> node);
 
 class DSSettings;
 using DSSettingsRef	   = std::shared_ptr<DSSettings>;
@@ -50,16 +62,29 @@ class DSSettings : public QObject {
 	~DSSettings();
 
 	template <typename T>
-	static constexpr bool is_valid_setting_type =
-		std::is_same_v<T, toml::node> ||
-		// std::is_same_v<T, QMap<QString,QVariant>> ||
-		// std::is_same_v<T, QVector<QVariant>> ||
-		std::is_same_v<T, std::string> || std::is_same_v<T, QString> || std::is_same_v<T, int64_t> ||
-		std::is_same_v<T, int32_t> || std::is_same_v<T, double> || std::is_same_v<T, float> || std::is_same_v<T, bool> ||
-		std::is_same_v<T, QDate> || std::is_same_v<T, QTime> || std::is_same_v<T, QDateTime> || std::is_same_v<T, QRectF> ||
-		std::is_same_v<T, QSizeF> || std::is_same_v<T, QPointF> || std::is_same_v<T, QVector2D> || std::is_same_v<T, QVector3D> ||
-		std::is_same_v<T, QVector4D> || std::is_same_v<T, glm::vec2> || std::is_same_v<T, glm::vec3> ||
-		std::is_same_v<T, glm::vec4> || std::is_same_v<T, QColor>;
+	static constexpr bool is_valid_setting_type = std::is_same_v<T, toml::node> || //
+												  // std::is_same_v<T, QMap<QString,QVariant>> || //
+												  // std::is_same_v<T, QVector<QVariant>> || //
+												  std::is_same_v<T, std::string> ||	 //
+												  std::is_same_v<T, QString> ||		 //
+												  std::is_same_v<T, int64_t> ||		 //
+												  std::is_same_v<T, int32_t> ||		 //
+												  std::is_same_v<T, double> ||		 //
+												  std::is_same_v<T, float> ||		 //
+												  std::is_same_v<T, bool> ||		 //
+												  std::is_same_v<T, QDate> ||		 //
+												  std::is_same_v<T, QTime> ||		 //
+												  std::is_same_v<T, QDateTime> ||	 //
+												  std::is_same_v<T, QRectF> ||		 //
+												  std::is_same_v<T, QSizeF> ||		 //
+												  std::is_same_v<T, QPointF> ||		 //
+												  std::is_same_v<T, QVector2D> ||	 //
+												  std::is_same_v<T, QVector3D> ||	 //
+												  std::is_same_v<T, QVector4D> ||	 //
+												  std::is_same_v<T, glm::vec2> ||	 //
+												  std::is_same_v<T, glm::vec3> ||	 //
+												  std::is_same_v<T, glm::vec4> ||	 //
+												  std::is_same_v<T, QColor>;		 //
 
 	/// Get a DSSettingsRef by name.
 	/// Get the DSSettingRef (a std::shared_ptr<DSSettings> typedef) to a setting collection associated with \b name.

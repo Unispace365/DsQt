@@ -111,7 +111,7 @@ template<> std::optional<ValueWMeta<QDateTime>> DSSettings::getWithMeta(const st
             auto time = datetime_node.value().time;
             auto datetime = datetime_node.value();
             QDate qDate(date.year,date.month,date.day);
-            QTime qTime(time.hour,time.minute,time.second,time.nanosecond/1000);
+			QTime qTime(time.hour,time.minute,time.second,time.nanosecond/1000000);
             retval.setDate(qDate);
             retval.setTime(qTime);
             if(!datetime.is_local()){

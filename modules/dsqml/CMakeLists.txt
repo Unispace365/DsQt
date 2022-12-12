@@ -19,6 +19,8 @@ qt_add_qml_module(dsqml
     settings/dssettings_collections.cpp
     settings/dssettings_datetime.cpp
     settings/dssettings_geom_qt.cpp
+    settings/dssettings_geom_glm.cpp
+    settings/dssettings_geom_common.cpp
     overload.h
     QML_FILES Test.qml
 )

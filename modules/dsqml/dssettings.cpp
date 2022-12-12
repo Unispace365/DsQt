@@ -8,6 +8,7 @@
 Q_LOGGING_CATEGORY(settingsParser, "settings.parser")
 Q_LOGGING_CATEGORY(settingsParserWarn, "settings.parser.warning")
 namespace dsqt {
+struct GeomElements;
 
 std::string									   DSSettings::mConfigurationDirectory = "";
 bool										   DSSettings::mLoadedConfiguration	   = false;
