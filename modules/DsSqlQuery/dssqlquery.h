@@ -2,7 +2,7 @@
 #define DSSQLQUERY_H
 
 #include <QtQuick/QQuickPaintedItem>
-#include <dssettings.h>
+#include "settings/settings.h"
 class DsSqlQuery : public QQuickPaintedItem
 {
     Q_OBJECT

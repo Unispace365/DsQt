@@ -4,7 +4,7 @@
 #include <QDir>
 #include <QString>
 #include <qapplicationstatic.h>
-#include "dssettings.h"
+#include "settings/settings.h"
 
 namespace dsqt {
 bool DSEnvironment::sInitialized = false;
@@ -70,7 +70,7 @@ bool DSEnvironment::loadEngineSettings(){
     return false;
 }
 
-void DSEnvironment::loadSettings(const std::string &settingsName, const std::string &filename)
+DSSettingsRef DSEnvironment::loadSettings(const std::string &settingsName, const std::string &filename)
 {
     std::string name = settingsName;
     std::string filepath = "%APP%/settings/"+filename;
@@ -85,6 +85,7 @@ void DSEnvironment::loadSettings(const std::string &settingsName, const std::str
         setting->loadSettingFile(expand(cfgDocFilepath));
 
     }
+	return setting;
 }
 
 bool DSEnvironment::initialize(){

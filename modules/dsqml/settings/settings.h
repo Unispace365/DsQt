@@ -122,6 +122,7 @@ class DSSettings : public QObject {
 	void setCustomDateFormat(QString format) {
 		mCustomDateFormat = format;
 	}
+
 	/// Get a setting from the collection.
 	template <class T>
 	T getOr(const std::string& key, const T& def) {
@@ -313,6 +314,8 @@ class DSSettings : public QObject {
 		sColorConversionFuncs;
 	// static std::unordered_map<std::type_index,DSOverloaded> sOverloadMap;
 };
+
+
 
 }  // namespace dsqt
 #endif	// DSSETTINGS_H

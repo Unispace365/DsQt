@@ -8,12 +8,20 @@ Window {
     visible: true
     title: qsTr("Hello World")
 
+    DSSettingProxy {
+        id:colorProxy
+        target:"app_settings"
+        prefix:"colors"
+    }
+
     Test {
         id:test1
         anchors.fill: parent
         x_model: 0.25
+        color: colorProxy.getColor("box");
         Component.onCompleted: {
             ds_content.woot = 20;
+
         }
     }
 

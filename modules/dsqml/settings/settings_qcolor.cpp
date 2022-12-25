@@ -1,4 +1,4 @@
-#include <dssettings.h>
+#include "settings.h"
 namespace dsqt {
 
 std::unordered_map<std::string,std::function<void(QColor&,float,float,float,float,float)>>

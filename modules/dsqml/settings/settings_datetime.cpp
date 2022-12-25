@@ -1,4 +1,4 @@
-#include <dssettings.h>
+#include "settings.h"
 #include <string>
 #include <algorithm>
 #include <QDate>
