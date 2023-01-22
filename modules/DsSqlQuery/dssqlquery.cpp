@@ -1,27 +1,54 @@
 #include "dssqlquery.h"
 
-#include <QPainter>
+#include <QtSql/QSqlQueryModel>
+#include <QtSql/QSqlRecord>
+#include <QtSql/QSqlField>
+#include "settings/dssettings.h"
+#include "dsenvironment.h"
+#include "dscontentmodel.h"
+#include "nw_sql_queries.h"
 
-DsSqlQuery::DsSqlQuery(QQuickItem *parent)
-    : QQuickPaintedItem(parent)
+
+Q_LOGGING_CATEGORY(sqlQuery, "sqlQuery")
+Q_LOGGING_CATEGORY(sqlQueryWarn, "sqlQuery.warning")
+namespace dsqt {
+DsSqlQuery::DsSqlQuery(QObject *parent)
+    : QObject(parent)
 {
-    // By default, QQuickItem does not draw anything. If you subclass
-    // QQuickItem to create a visual item, you will need to uncomment the
-    // following line and re-implement updatePaintNode()
+    mDatabase = QSqlDatabase::addDatabase("QSQLITE");
+    auto opFile = dsqt::DSEnvironment::engineSettings()->get<QString>("resource_db");
+    if(opFile){
+        mDatabase.setDatabaseName(opFile.value());
 
-    // setFlag(ItemHasContents, true);
+        if(!mDatabase.open()){
+            qCWarning(sqlQueryWarn)<<"Could not open database;";
+        } else {
+            //get the raw nodes
+
+        }
+    }
+
+
 }
 
-void DsSqlQuery::paint(QPainter *painter)
-{
-    QPen pen(QColorConstants::Red, 2);
-    QBrush brush(QColorConstants::Red);
-
-    painter->setPen(pen);
-    painter->setBrush(brush);
-    painter->drawRect(0, 0, 100, 100);
-}
 
 DsSqlQuery::~DsSqlQuery()
 {
 }
+
+
+void DsSqlQuery::queryTables(){
+    QSqlQueryModel model;
+    model.setQuery(qwaffle_nodes);
+    auto rowcount = model.rowCount();
+    model::DSContentModelPtr nodeTree;
+    model::DSContentModelPtr nodeMap;
+    for(int i=0;i<rowcount;i++){
+        auto record = model.record(i);
+        auto id = record.field(u"id"_qs).value().value<int>();
+
+    }
+}
+
+
+}//namespace dsqt

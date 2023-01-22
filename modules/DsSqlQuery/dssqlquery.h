@@ -1,17 +1,25 @@
 #ifndef DSSQLQUERY_H
 #define DSSQLQUERY_H
 
-#include <QtQuick/QQuickPaintedItem>
-#include "settings/settings.h"
-class DsSqlQuery : public QQuickPaintedItem
+#include <QObject>
+#include <QLoggingCategory>
+#include <QtSql/QSql>
+#include <QtSql/QSqlDatabase>
+
+Q_DECLARE_LOGGING_CATEGORY(settingsParser)
+Q_DECLARE_LOGGING_CATEGORY(settingsParserWarn)
+
+namespace dsqt {
+class DsSqlQuery : public QObject
 {
     Q_OBJECT
-    QML_ELEMENT
     Q_DISABLE_COPY(DsSqlQuery)
 public:
-    explicit DsSqlQuery(QQuickItem *parent = nullptr);
-    void paint(QPainter *painter) override;
+    explicit DsSqlQuery(QObject *parent = nullptr);
     ~DsSqlQuery() override;
+private:
+    QSqlDatabase mDatabase;
+    void queryTables();
 };
-
+}
 #endif // DSSQLQUERY_H
