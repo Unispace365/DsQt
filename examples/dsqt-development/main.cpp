@@ -1,12 +1,12 @@
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
-#include <QQmlContext>
+
 
 #include <dsqmlimportpath.h>
-#include <dscontentmodel.h>
-#include <settings/settings.h>
-#include <settings/setting_proxy.h>
-#include <dsenvironment.h>
+
+#include <core/dsqmlapplicationengine.h>
+
+
 
 int main(int argc, char *argv[])
 {
@@ -14,16 +14,13 @@ int main(int argc, char *argv[])
 
     QGuiApplication app(argc, argv);
 
-    QQmlApplicationEngine engine;
-    dsqt::model::DSContentModel content;
-    dsqt::DSEnvironment::loadEngineSettings();
-    dsqt::DSSettingsRef appSettings = dsqt::DSEnvironment::loadSettings("app_settings","app_settings.toml");
-    dsqt::DSSettingProxy appProxy;
-    appProxy.setTarget(u"app_settings"_qs);
+    dsqt::DSQmlApplicationEngine engine;
     engine.addImportPath(DS_QML_IMPORT_PATH);
-    engine.rootContext()->setContextProperty("ds_content",&content);
-    engine.rootContext()->setContextProperty("app_settings",&appProxy);
-    const QUrl url(u"qrc:/dsqt-development/qml/main.qml"_qs);
+
+    //this initalizes and reads in the settings files.
+    engine.initialize();
+
+    const QUrl url("dsqt-development/qml/main.qml");
     QObject::connect(&engine, &QQmlApplicationEngine::objectCreated,
                      &app, [url](QObject *obj, const QUrl &objUrl) {
         if (!obj && url == objUrl)

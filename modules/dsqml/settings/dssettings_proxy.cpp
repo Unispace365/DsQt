@@ -1,10 +1,10 @@
-#include "setting_proxy.h"
-#include "dsenvironment.h"
+#include "dssettings_proxy.h"
+#include "core/dsenvironment.h"
 
 namespace dsqt {
-DSSettingProxy::DSSettingProxy(QObject* parent) : QObject{parent} {}
+DSSettingsProxy::DSSettingsProxy(QObject* parent) : QObject{parent} {}
 
-void DSSettingProxy::setTarget(const QString& val) {
+void DSSettingsProxy::setTarget(const QString& val) {
 	if (_target != val) {
 		_target				 = val;
 		auto [created, sets] = DSSettings::getSettingsOrCreate(_target.toStdString(), this);
@@ -13,7 +13,7 @@ void DSSettingProxy::setTarget(const QString& val) {
 	}
 }
 
-void DSSettingProxy::setPrefix(const QString& val) {
+void DSSettingsProxy::setPrefix(const QString& val) {
 	if (_prefix != val) {
 		_prefix		= val;
 		_prefix_str = val.toStdString();
@@ -21,13 +21,13 @@ void DSSettingProxy::setPrefix(const QString& val) {
 	}
 }
 
-void DSSettingProxy::loadFromFile(const QString& filename) {
+void DSSettingsProxy::loadFromFile(const QString& filename) {
 	if (_settings) {
 		_settings = DSEnvironment::loadSettings(_target.toStdString(), filename.toStdString());
 	}
 }
 
-QVariant DSSettingProxy::getString(const QString& key, QVariant def) {
+QVariant DSSettingsProxy::getString(const QString& key, QVariant def) {
 	QVariant	result;
 	std::string keyPath = _prefix_str + "." + key.toStdString();
 	if (def.canConvert<QString>()) {
@@ -41,43 +41,43 @@ QVariant DSSettingProxy::getString(const QString& key, QVariant def) {
 	return result;
 }
 
-QVariant DSSettingProxy::getInt(const QString& key, QVariant def) {
+QVariant DSSettingsProxy::getInt(const QString& key, QVariant def) {
 	QVariant	result;
 	std::string keyPath = _prefix_str + "." + key.toStdString();
 	return result;
 }
 
-QVariant DSSettingProxy::getFloat(const QString& key, QVariant def) {
+QVariant DSSettingsProxy::getFloat(const QString& key, QVariant def) {
 	QVariant	result;
 	std::string keyPath = _prefix_str + "." + key.toStdString();
 	return result;
 }
 
-QVariant DSSettingProxy::getDate(const QString& key, QVariant def) {
+QVariant DSSettingsProxy::getDate(const QString& key, QVariant def) {
 	QVariant	result;
 	std::string keyPath = _prefix_str + "." + key.toStdString();
 	return result;
 }
 
-QVariant DSSettingProxy::getPoint(const QString& key, QVariant def) {
+QVariant DSSettingsProxy::getPoint(const QString& key, QVariant def) {
 	QVariant	result;
 	std::string keyPath = _prefix_str + "." + key.toStdString();
 	return result;
 }
 
-QVariant DSSettingProxy::getRect(const QString& key, QVariant def) {
+QVariant DSSettingsProxy::getRect(const QString& key, QVariant def) {
 	QVariant	result;
 	std::string keyPath = _prefix_str + "." + key.toStdString();
 	return result;
 }
 
-QVariant DSSettingProxy::getSize(const QString& key, QVariant def) {
+QVariant DSSettingsProxy::getSize(const QString& key, QVariant def) {
 	QVariant	result;
 	std::string keyPath = _prefix_str + "." + key.toStdString();
 	return result;
 }
 
-QVariant DSSettingProxy::getColor(const QString& key, QVariant def) {
+QVariant DSSettingsProxy::getColor(const QString& key, QVariant def) {
 	QVariant	result;
 	std::string keyPath = _prefix_str + "." + key.toStdString();
 	if (def.canConvert<QColor>()) {

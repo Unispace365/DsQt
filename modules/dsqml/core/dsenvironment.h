@@ -55,9 +55,10 @@ public:
     static void					saveSettings(const std::string& filename, dsqt::DSSettings& setting);
 
 
-    static void					setConfigDirFileExpandOverride(const bool doOverride);
-    static bool					initialize();
-private:
+	static void					setConfigDirFileExpandOverride(const bool doOverride);
+	static bool					initialize();
+	static DSSettingsRef		engineSettings();
+  private:
 
     static std::string getDownstreamDocumentsFolder();
     static std::string sDocuments;

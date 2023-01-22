@@ -1,9 +1,9 @@
-#include "settings.h"
+#include "dssettings.h"
 #include <toml++/toml.h>
 #include <filesystem>
 #include <iostream>
 #include <string>
-#include "dsenvironment.h"
+#include "core/dsenvironment.h"
 
 Q_LOGGING_CATEGORY(settingsParser, "settings.parser")
 Q_LOGGING_CATEGORY(settingsParserWarn, "settings.parser.warning")

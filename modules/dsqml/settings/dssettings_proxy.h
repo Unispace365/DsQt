@@ -3,17 +3,17 @@
 
 #include <QObject>
 #include <qqmlintegration.h>
-#include "settings/settings.h"
+#include "settings/dssettings.h"
 
 namespace dsqt {
-class DSSettingProxy : public QObject
+class DSSettingsProxy : public QObject
 {
 	Q_OBJECT
 	Q_PROPERTY(QString target READ target WRITE setTarget NOTIFY targetChanged);
 	Q_PROPERTY(QString prefix READ prefix WRITE setPrefix NOTIFY prefixChanged);
 	QML_ELEMENT
   public:
-	explicit DSSettingProxy(QObject *parent = nullptr);
+	explicit DSSettingsProxy(QObject *parent = nullptr);
 
 	QString target(){return _target;}
 	void setTarget(const QString& val);

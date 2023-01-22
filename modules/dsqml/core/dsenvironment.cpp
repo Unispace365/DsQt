@@ -4,7 +4,7 @@
 #include <QDir>
 #include <QString>
 #include <qapplicationstatic.h>
-#include "settings/settings.h"
+#include "settings/dssettings.h"
 
 namespace dsqt {
 bool DSEnvironment::sInitialized = false;
@@ -68,6 +68,14 @@ bool DSEnvironment::loadEngineSettings(){
         return true;
     }
     return false;
+}
+
+DSSettingsRef DSEnvironment::engineSettings(){
+	auto engineSettingsRef = DSSettings::getSettings("engine");
+	if(!engineSettingsRef) {
+		loadEngineSettings();
+	}
+	return DSSettings::getSettings("engine");
 }
 
 DSSettingsRef DSEnvironment::loadSettings(const std::string &settingsName, const std::string &filename)
