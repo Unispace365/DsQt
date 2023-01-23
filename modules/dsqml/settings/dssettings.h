@@ -251,7 +251,7 @@ class DSSettings : public QObject {
 	template <>
 	std::optional<ValueWMeta<QDateTime>> getWithMeta(const std::string& key);
 
-	// TODO Geometry
+	// Geometry
 	template <>
 	std::optional<ValueWMeta<QVector2D>> getWithMeta(const std::string& key);
 	template <>
