@@ -34,6 +34,8 @@ add_custom_target(ds-settings SOURCES ${DS_SETTINGS})
 file(GLOB_RECURSE DS_DATA LIST_DIRECTORIES true "./data/*")
 add_custom_target(ds-data SOURCES ${DS_DATA})
 
+
+
 set_target_properties(appdsqt-development PROPERTIES
     MACOSX_BUNDLE_GUI_IDENTIFIER my.example.com
     MACOSX_BUNDLE_BUNDLE_VERSION ${PROJECT_VERSION}

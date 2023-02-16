@@ -2,6 +2,9 @@
 #define NW_SQL_QUERIES_H
 
 #include <QMap>
+QString resources = R"query(
+SELECT r.*, m.type, FROM resources r INNER JOIN media m ON r.media_id = m.id
+)query";
 
 QString qwaffle_nodes = R"query(
 SELECT wn.*, ck.app_key AS kind, ck.app_key AS type, ck.branch FROM wfl_nodes wn

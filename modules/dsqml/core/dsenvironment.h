@@ -25,10 +25,13 @@ public:
     ///  %CFG_FOLDER% -- expand to the configuration folder, if it exists
     /// "%DOCUMENTS%" -- expand to current user documents folder
     static std::string			expand(const std::string& path);
+	static QString expand(const QString& path){ return QString::fromStdString(expand(path.toStdString()));}
 
     /// Return the path but with any applicable environment variables inserted. See expand for variables
     static std::string			contract(const std::string& fullPath);
-
+	static QString contract(const QString& fullPath){
+		 return QString::fromStdString(contract(fullPath.toStdString()));
+	}
     /// Answer an app folder -- currently only SETTINGS() is valid for arg 1.
     /// If fileName is valid, then it will be appended to the found app folder, if it exists.
     /// This function assumes that I don't actually know the location of the folderName
