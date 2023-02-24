@@ -14,6 +14,7 @@ qt_add_qml_module(dsqml
     model/dscontentmodel.h model/dscontentmodel.cpp
     model/dscontexthash.h model/dscontexthash.cpp
     model/dsresource.h model/dsresource.cpp
+    model/dscontentmodelmodel.h model/dscontentmodelmodel.cpp
     settings/dssettings.h settings/dssettings.cpp
     core/dsqmlapplicationengine.h core/dsqmlapplicationengine.cpp
     core/dsenvironment.h core/dsenvironment.cpp

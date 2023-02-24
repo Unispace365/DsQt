@@ -7,6 +7,7 @@
 #include "settings/dssettings.h"
 
 namespace dsqt {
+using namespace Qt::Literals::StringLiterals;
 bool DSEnvironment::sInitialized = false;
 std::string DSEnvironment::sDocuments = "%DOCUMENTS%";
 std::string DSEnvironment::sDocumentsDownstream = "%LOCAL%";
@@ -44,11 +45,11 @@ std::string DSEnvironment::expand(const std::string &_path)
 }
 
 bool DSEnvironment::loadEngineSettings(){
-    auto baseConfigFile = expand("%APP%/settings/configuration.toml");
-    auto docConfigFile = expand("%LOCAL%/settings/%PP%/configuration.toml");
+	auto baseConfigFile = expand("%APP%/settings/configuration.toml");
+	auto docConfigFile = expand("%LOCAL%/settings/%PP%/configuration.toml");
     auto [found,setting] = DSSettings::getSettingsOrCreate("engine",nullptr);
-    auto loaded = setting->loadSettingFile(expand("%APP%/settings/engine.toml"));
-    if(loaded){
+	auto loaded = setting->loadSettingFile(expand("%APP%/settings/engine.toml"));
+	if(loaded){
         std::optional<std::string> projectPath = setting->get<std::string>(std::string("engine.project_path"));
         if(projectPath.has_value()){
             sProjectPath = projectPath.value();

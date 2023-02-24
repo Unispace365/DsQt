@@ -1,8 +1,11 @@
 #include "dsqmlapplicationengine.h"
 #include "dsenvironment.h"
 #include "settings/dssettings_proxy.h"
+#include "model/dscontentmodel.h"
 #include <QQmlContext>
 #include <QStringLiteral>
+
+
 
 namespace dsqt {
 using namespace Qt::Literals::StringLiterals;
@@ -29,10 +32,12 @@ void DSQmlApplicationEngine::preInit()
 
 void DSQmlApplicationEngine::init()
 {
-	mContentRoot = model::DSContentModelPtr(new model::DSContentModel());
+	mContentRoot = model::DSContentModel::mContent;
+	mContentRoot->unlock();
 	dsqt::DSEnvironment::loadEngineSettings();
 	dsqt::DSSettingsRef appSettings = dsqt::DSEnvironment::loadSettings("app_settings","app_settings.toml");
 	dsqt::DSSettingsProxy appProxy;
+
 	appProxy.setTarget("app_settings");
 
 	rootContext()->setContextProperty("contentRoot",mContentRoot.get());

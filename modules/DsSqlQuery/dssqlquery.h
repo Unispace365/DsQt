@@ -7,7 +7,8 @@
 #include <QtSql/QSqlDatabase>
 #include <QQmlPropertyMap>
 #include <model/dsresource.h>
-
+#include <model/dscontentmodel.h>
+#include "core/dsqmlapplicationengine.h"
 
 Q_DECLARE_LOGGING_CATEGORY(settingsParser)
 Q_DECLARE_LOGGING_CATEGORY(settingsParserWarn)
@@ -20,12 +21,13 @@ class DsSqlQuery : public QObject
     Q_OBJECT
     Q_DISABLE_COPY(DsSqlQuery)
 public:
-    explicit DsSqlQuery(QObject *parent = nullptr);
+    explicit DsSqlQuery(DSQmlApplicationEngine *parent = nullptr);
     ~DsSqlQuery() override;
 private:
     QSqlDatabase mDatabase;
-    std::shared_ptr<QQmlPropertyMap> mRoot;
+    std::shared_ptr<model::DSContentModel*> mRoot;
     std::unordered_map<int,DSResourceRef> mAllResources;
+    QString mResourceLocation;
     void queryTables();
 };
 }

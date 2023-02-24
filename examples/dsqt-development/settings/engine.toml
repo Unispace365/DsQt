@@ -12,6 +12,10 @@ world_dimensions=[{w=1920,h=1080},{type="size"}] #The size of the overall app sp
 source_rectangle=[{x=0,y=0,w=1920,h=1080},{type="rect"}] #the rectangle of the world space to render.
 destination_rectangle=[{x=0,y=0,w=0,h=0},{type="rect"}] #The output window size and position to render.
 
+[engine.resource]
+location="%LOCAL%/linkedin/resources/"
+resource_db="../db/db.sqlite"
+
 [engine.examples]
 #this is the same as example_simple = [450,{}] and should take the same code path
 example_simple = 450 #simple example makes an int

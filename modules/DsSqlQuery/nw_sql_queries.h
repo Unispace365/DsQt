@@ -3,7 +3,7 @@
 
 #include <QMap>
 QString resources = R"query(
-SELECT r.*, m.type, FROM resources r INNER JOIN media m ON r.media_id = m.id
+SELECT r.*, m.type FROM resources r INNER JOIN media m ON r.media_id = m.id
 )query";
 
 QString qwaffle_nodes = R"query(

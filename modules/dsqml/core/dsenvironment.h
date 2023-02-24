@@ -25,7 +25,7 @@ public:
     ///  %CFG_FOLDER% -- expand to the configuration folder, if it exists
     /// "%DOCUMENTS%" -- expand to current user documents folder
     static std::string			expand(const std::string& path);
-	static QString expand(const QString& path){ return QString::fromStdString(expand(path.toStdString()));}
+	static QString expandq(const QString& path){ return QString::fromStdString(expand(path.toStdString()));}
 
     /// Return the path but with any applicable environment variables inserted. See expand for variables
     static std::string			contract(const std::string& fullPath);

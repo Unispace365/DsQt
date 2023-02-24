@@ -5,7 +5,7 @@
 #include <dsqmlimportpath.h>
 
 #include <core/dsqmlapplicationengine.h>
-
+#include <dssqlquery.h>
 
 
 int main(int argc, char *argv[])
@@ -17,6 +17,7 @@ int main(int argc, char *argv[])
     dsqt::DSQmlApplicationEngine engine;
     engine.addImportPath(DS_QML_IMPORT_PATH);
 
+     auto query = new dsqt::DsSqlQuery(&engine);
     //this initalizes and reads in the settings files.
     engine.initialize();
 

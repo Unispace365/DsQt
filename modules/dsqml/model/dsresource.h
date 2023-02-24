@@ -34,7 +34,7 @@ class DSResource : public QObject
 		LOCAL
 	};
 	Q_ENUM(Origin)
-	static const QMap<QStringView,ResourceType> sDbToTypeMap;
+	static const QMap<QString,ResourceType> sDbToTypeMap;
 
 
   private:

@@ -8,7 +8,7 @@ Window {
     visible: true
     title: qsTr("Hello World")
 
-    DSSettingProxy {
+    DSSettingsProxy {
         id:colorProxy
         target:"app_settings"
         prefix:"colors"
@@ -20,8 +20,13 @@ Window {
         x_model: 0.25
         color: colorProxy.getColor("box");
         Component.onCompleted: {
-            ds_content.woot = 20;
+            var vroot = contentRoot.getChildByName("cms_root");
+            for(let i in vroot.children ){
+                console.log(vroot.children[i].name);
+            }
 
+            console.log(vroot.children.length);
+            test1.model = contentRoot.getModel();
         }
     }
 
