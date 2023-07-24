@@ -223,7 +223,7 @@ void DsSqlQuery::queryTables()
         }
 
         mAllResources[resId]
-            = dsqt::DSResource::create(resId, type, duration, width, height, url, thumbId, nullptr);
+            = new dsqt::DSResource(resId, type, duration, width, height, url, thumbId, this);
     }
 
     //handle media fields
@@ -442,7 +442,7 @@ void DsSqlQuery::queryTables()
 
         QString location = record.field("location").value().value<QString>();
         auto stream_res_id = record.field("stream_res").value().value<int>();
-        DSResourceRef stream_res = mAllResources[stream_res_id];
+        DSResource* stream_res = mAllResources[stream_res_id];
         QString resourcesfilename = record.field("resourcesfilename").value().value<QString>();
 
         if (!location.isEmpty()) {

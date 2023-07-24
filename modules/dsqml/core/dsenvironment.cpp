@@ -6,6 +6,8 @@
 #include <qapplicationstatic.h>
 #include "settings/dssettings.h"
 
+/// \defgroup QML QML Elements
+
 namespace dsqt {
 using namespace Qt::Literals::StringLiterals;
 bool DSEnvironment::sInitialized = false;

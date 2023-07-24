@@ -1,6 +1,6 @@
 #include "dssettings_proxy.h"
 #include "core/dsenvironment.h"
-
+#include <QDateTime>
 namespace dsqt {
 DSSettingsProxy::DSSettingsProxy(QObject* parent) : QObject{parent} {}
 
@@ -44,36 +44,84 @@ QVariant DSSettingsProxy::getString(const QString& key, QVariant def) {
 QVariant DSSettingsProxy::getInt(const QString& key, QVariant def) {
 	QVariant	result;
 	std::string keyPath = _prefix_str + "." + key.toStdString();
+	if (def.canConvert<int>()) {
+		result = _settings->getOr(keyPath, def.toInt());
+	} else {
+		auto strOpt = _settings->get<int>(keyPath);
+		if (strOpt) {
+			result = strOpt.value();
+		}
+	}
 	return result;
 }
 
 QVariant DSSettingsProxy::getFloat(const QString& key, QVariant def) {
 	QVariant	result;
 	std::string keyPath = _prefix_str + "." + key.toStdString();
+	if (def.canConvert<float>()) {
+		result = _settings->getOr(keyPath, def.toFloat());
+	} else {
+		auto strOpt = _settings->get<float>(keyPath);
+		if (strOpt) {
+			result = strOpt.value();
+		}
+	}
 	return result;
 }
 
 QVariant DSSettingsProxy::getDate(const QString& key, QVariant def) {
 	QVariant	result;
 	std::string keyPath = _prefix_str + "." + key.toStdString();
+	if (def.canConvert<QDateTime>()) {
+		result = _settings->getOr(keyPath, def.toString());
+	} else {
+		auto strOpt = _settings->get<QDateTime>(keyPath);
+		if (strOpt) {
+			result = strOpt.value();
+		}
+	}
 	return result;
 }
 
 QVariant DSSettingsProxy::getPoint(const QString& key, QVariant def) {
 	QVariant	result;
 	std::string keyPath = _prefix_str + "." + key.toStdString();
+	if (def.canConvert<QPointF>()) {
+		result = _settings->getOr(keyPath, def.toPointF());
+	} else {
+		auto strOpt = _settings->get<QPointF>(keyPath);
+		if (strOpt) {
+			result = strOpt.value();
+		}
+	}
 	return result;
 }
 
 QVariant DSSettingsProxy::getRect(const QString& key, QVariant def) {
 	QVariant	result;
 	std::string keyPath = _prefix_str + "." + key.toStdString();
+	if (def.canConvert<QRectF>()) {
+		result = _settings->getOr(keyPath, def.toRectF());
+	} else {
+		auto strOpt = _settings->get<QRectF>(keyPath);
+		if (strOpt) {
+			result = strOpt.value();
+		}
+	}
 	return result;
 }
 
 QVariant DSSettingsProxy::getSize(const QString& key, QVariant def) {
 	QVariant	result;
 	std::string keyPath = _prefix_str + "." + key.toStdString();
+	if (def.canConvert<QSizeF>()) {
+		result = _settings->getOr(keyPath, def.toSizeF());
+	} else {
+		auto strOpt = _settings->get<QSizeF>(keyPath);
+		if (strOpt) {
+			result = strOpt.value();
+		}
+	}
 	return result;
 }
 

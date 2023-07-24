@@ -13,13 +13,13 @@
 
 #include <type_traits>
 #include <typeindex>
-/**
- * @brief The DSSettings class
- * Reads a setting file
- */
+
 Q_DECLARE_LOGGING_CATEGORY(settingsParser)
 Q_DECLARE_LOGGING_CATEGORY(settingsParserWarn)
+
+/// @brief main dsqt namespace
 namespace dsqt {
+
 struct GeomElements {
 	std::optional<double> x;
 	std::optional<double> y;
@@ -33,6 +33,7 @@ struct GeomElements {
 };
 const GeomElements getGeomElementsFromTable(toml::node_view<toml::node> node);
 
+
 class DSSettings;
 using DSSettingsRef	   = std::shared_ptr<DSSettings>;
 using parse_resultWRef = std::weak_ptr<toml::parse_result>;
@@ -44,14 +45,38 @@ using tomlType	 = std::variant<ValueWMeta<toml::value<bool>>, ValueWMeta<toml::v
 								ValueWMeta<toml::value<toml::date>>, ValueWMeta<toml::value<toml::time>>,
 								ValueWMeta<toml::value<toml::date_time>>>;
 
+///\brief The DSSettings class
+///
+///Description
+///----
+/// The Setting class represents a named collection of values that are drawn from toml files.
+/// As settings are loaded into the collection the form a stack with the first file loaded forming the bottom of the stack.
+/// when settings are recalled the object looks first at any setting that was
+/// set at runtime and then systematically goes down the stack looking for the setting until
+/// it reached the first file loaded. If it fails to find the setting it returns an error.
+/// You can use the static functions ::getSettings or ::getSettingsOrCreate to find or create a collection.
+/// a new collection has no settings in it. settings can be added to a stack of settings by calling ::loadSettingFile
+///
+/// todo
+/// ----
+/// * saving runtime values to a particular location in the stack
+/// * updating setting stack from disk on demand.
+///
+/// DSCinder reference notes
+/// ----
+/// This class was obviously inspired by the dscinder system, but hopefully it is more flexible.
+/// The actuall replication of the DSCinder system is done by the DSEnvironment class. Eventually it will be able to tell and editor where a setting comes from
+///
+///\see dsqt::DSSettingsProxy
+///\see dsqt::DSEnvironment
 class DSSettings : public QObject {
 	Q_OBJECT
   public:
-	// struct to hold setting file
+    /// struct to hold setting file
 	struct SettingFile {
-		std::string		   filepath;
-		toml::parse_result data;
-		bool			   valid = false;
+        std::string		   filepath; ///< the path to the loaded data
+        toml::parse_result data; ///< the raw toml data
+        bool			   valid = false; ///< this is true if the DSSetting class has successfully loaded the fields above.
 	};
 
   protected:
@@ -89,28 +114,35 @@ class DSSettings : public QObject {
 	/// Get a DSSettingsRef by name.
 	/// Get the DSSettingRef (a std::shared_ptr<DSSettings> typedef) to a setting collection associated with \b name.
 	/// If the setting collection does not exist it will create it and return a DSSettingsRef to it.
+    /// \param name name of the settings object to search for or create.
+    /// \param parent a QObject derived parent.
 	/// \returns a tuple of [bool \b exists,DSSettingsRef \b settings]
 	static std::tuple<bool, DSSettingsRef> getSettingsOrCreate(const std::string& name, QObject* parent = nullptr);
 
 	/// Get a setting collection by name.
 	/// Get the DSSettingsRef (a std::shared_ptr<DSSettings> typedef)to a setting collection associated with \b name.
 	/// If the setting collection does not exist it will return an empty DSSettingsRef.
-	/// \returns DSSettingsRef \b settings
+    /// \param name the name of the settings object to search for.
+    /// \returns DSSettingsRef \b settings.
 	static DSSettingsRef getSettings(const std::string& name);
 
-	/// remove a setting file from the list of known setting files.
-	/// \return a bool that indicates that a setting object was removed (true)
-	/// or that no setting file existed (false)
+    /// remove a setting file from the list of known setting files.
+    /// \param name the name of the settings object to forget.
+    /// \return a bool that indicates that a setting object was removed (true)
+    /// or that no setting file existed (false)
 	static bool forgetSettings(const std::string& name);
 
 
 	/// load a setting file into this setting object.
-	/// \return a bool the indecates the success
+    /// \param file the absolute file name of a settings file to add to the object.
+    /// \return a bool the indecates the success
 	/// or failure of loading the file.
 	bool loadSettingFile(const std::string& file);
 
 
 	/// Set the date format;
+    /// \param format the format to use for dates in this setting object. default is Qt::ISODateWithMs;
+    /// \param clearCustom if this is set to true, then any custom date format is cleared. defaults to true.
 	void setDateFormat(Qt::DateFormat format, bool clearCustom = true) {
 		mDateFormat = format;
 		if (clearCustom && !mCustomDateFormat.isEmpty()) {

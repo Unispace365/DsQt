@@ -1,0 +1,60 @@
+\hypertarget{dsenvironment_8h_source}{}\doxysection{dsenvironment.\+h}
+\label{dsenvironment_8h_source}\index{C:/dev/projects/DsQt/modules/dsqml/core/dsenvironment.h@{C:/dev/projects/DsQt/modules/dsqml/core/dsenvironment.h}}
+
+\begin{DoxyCode}{0}
+\DoxyCodeLine{00001\ \textcolor{preprocessor}{\#ifndef\ DSENVIRONMENT\_H}}
+\DoxyCodeLine{00002\ \textcolor{preprocessor}{\#define\ DSENVIRONMENT\_H}}
+\DoxyCodeLine{00003\ }
+\DoxyCodeLine{00004\ \textcolor{preprocessor}{\#include\ <string>}}
+\DoxyCodeLine{00005\ \textcolor{preprocessor}{\#include\ <vector>}}
+\DoxyCodeLine{00006\ \textcolor{preprocessor}{\#include\ <QDebug>}}
+\DoxyCodeLine{00007\ }
+\DoxyCodeLine{00008\ \textcolor{keyword}{namespace\ }\mbox{\hyperlink{namespacedsqt}{dsqt}}\ \{}
+\DoxyCodeLine{00009\ }
+\DoxyCodeLine{00010\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classdsqt_1_1_d_s_settings}{DSSettings}};}
+\DoxyCodeLine{00011\ \textcolor{keyword}{typedef}\ std::shared\_ptr<DSSettings>\ DSSettingsRef;}
+\DoxyCodeLine{00016\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classdsqt_1_1_d_s_environment}{DSEnvironment}}\ \{}
+\DoxyCodeLine{00017\ \textcolor{keyword}{public}:}
+\DoxyCodeLine{00018\ \ \ \ \ \mbox{\hyperlink{classdsqt_1_1_d_s_environment}{DSEnvironment}}()\ =\ \textcolor{keyword}{delete};}
+\DoxyCodeLine{00019\ \ \ \ \ \mbox{\hyperlink{classdsqt_1_1_d_s_environment}{DSEnvironment}}(\textcolor{keyword}{const}\ \mbox{\hyperlink{classdsqt_1_1_d_s_environment}{DSEnvironment}}\&)\ =\ \textcolor{keyword}{delete};}
+\DoxyCodeLine{00020\ }
+\DoxyCodeLine{00027\ \ \ \ \ \textcolor{keyword}{static}\ std::string\ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classdsqt_1_1_d_s_environment_ac57769dd1ebd6f25a463740e9a0a0765}{expand}}(\textcolor{keyword}{const}\ std::string\&\ path);}
+\DoxyCodeLine{00028\ \ \ \ \ \textcolor{keyword}{static}\ QString\ expandq(\textcolor{keyword}{const}\ QString\&\ path)\{\ \textcolor{keywordflow}{return}\ QString::fromStdString(\mbox{\hyperlink{classdsqt_1_1_d_s_environment_ac57769dd1ebd6f25a463740e9a0a0765}{expand}}(path.toStdString()));\}}
+\DoxyCodeLine{00029\ }
+\DoxyCodeLine{00031\ \ \ \ \ \textcolor{keyword}{static}\ std::string\ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classdsqt_1_1_d_s_environment_a507b76251ddf702142fafae31d00159a}{contract}}(\textcolor{keyword}{const}\ std::string\&\ fullPath);}
+\DoxyCodeLine{00032\ \ \ \ \ \textcolor{keyword}{static}\ QString\ \mbox{\hyperlink{classdsqt_1_1_d_s_environment_a507b76251ddf702142fafae31d00159a}{contract}}(\textcolor{keyword}{const}\ QString\&\ fullPath)\{}
+\DoxyCodeLine{00033\ \ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{return}\ QString::fromStdString(\mbox{\hyperlink{classdsqt_1_1_d_s_environment_a507b76251ddf702142fafae31d00159a}{contract}}(fullPath.toStdString()));}
+\DoxyCodeLine{00034\ \ \ \ \ \}}
+\DoxyCodeLine{00041\ \ \ \ \ \textcolor{keyword}{static}\ std::string\ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classdsqt_1_1_d_s_environment_a155318b389075800d011ad17a87b2ee9}{getAppFolder}}(\ \ \ \textcolor{keyword}{const}\ std::string\&\ folderName,\ \textcolor{keyword}{const}\ std::string\&\ fileName\ =\ \textcolor{stringliteral}{"{}"{}},}
+\DoxyCodeLine{00042\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \textcolor{keyword}{const}\ \textcolor{keywordtype}{bool}\ verify\ =\ \textcolor{keyword}{false});}
+\DoxyCodeLine{00043\ }
+\DoxyCodeLine{00046\ \ \ \ \ \textcolor{keyword}{static}\ std::string\ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classdsqt_1_1_d_s_environment_a49efb5b324e9b5a737b7285759554bbc}{getLocalSettingsPath}}(\textcolor{keyword}{const}\ std::string\&\ fileName);}
+\DoxyCodeLine{00047\ }
+\DoxyCodeLine{00049\ \ \ \ \ \textcolor{keyword}{static}\ DSSettingsRef\ \ \ \ \ \ \ \ \mbox{\hyperlink{classdsqt_1_1_d_s_environment_a53e2102977d0ffbd87853baa525a902f}{loadSettings}}(\textcolor{keyword}{const}\ std::string\&\ settingsName,\ \textcolor{keyword}{const}\ std::string\&\ filename);}
+\DoxyCodeLine{00050\ }
+\DoxyCodeLine{00052\ \ \ \ \ \textcolor{keyword}{static}\ \textcolor{keywordtype}{bool}\ \mbox{\hyperlink{classdsqt_1_1_d_s_environment_af0ba98ba65c4b2a791395279dd143d44}{loadEngineSettings}}();}
+\DoxyCodeLine{00053\ }
+\DoxyCodeLine{00055\ \ \ \ \ \textcolor{keyword}{static}\ \textcolor{keywordtype}{bool}\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classdsqt_1_1_d_s_environment_a6f58e2af57498ac6d99b89baf1805f96}{hasSettings}}(\textcolor{keyword}{const}\ std::string\&\ filename);}
+\DoxyCodeLine{00056\ }
+\DoxyCodeLine{00058\ \ \ \ \ \textcolor{keyword}{static}\ \textcolor{keywordtype}{void}\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{classdsqt_1_1_d_s_environment_a857a59fb7a6877fb742ee50ef28e01e4}{saveSettings}}(\textcolor{keyword}{const}\ std::string\&\ filename,\ \mbox{\hyperlink{classdsqt_1_1_d_s_settings}{dsqt::DSSettings}}\&\ setting);}
+\DoxyCodeLine{00059\ }
+\DoxyCodeLine{00060\ }
+\DoxyCodeLine{00061\ \ \ \ \ \textcolor{keyword}{static}\ \textcolor{keywordtype}{void}\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ setConfigDirFileExpandOverride(\textcolor{keyword}{const}\ \textcolor{keywordtype}{bool}\ doOverride);}
+\DoxyCodeLine{00062\ \ \ \ \ \textcolor{keyword}{static}\ \textcolor{keywordtype}{bool}\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ initialize();}
+\DoxyCodeLine{00063\ \ \ \ \ \textcolor{keyword}{static}\ DSSettingsRef\ \ \ \ \ \ \ \ engineSettings();}
+\DoxyCodeLine{00064\ \ \ \textcolor{keyword}{private}:}
+\DoxyCodeLine{00065\ }
+\DoxyCodeLine{00066\ \ \ \ \ \textcolor{keyword}{static}\ std::string\ getDownstreamDocumentsFolder();}
+\DoxyCodeLine{00067\ \ \ \ \ \textcolor{keyword}{static}\ std::string\ sDocuments;}
+\DoxyCodeLine{00068\ \ \ \ \ \textcolor{keyword}{static}\ std::string\ sDocumentsDownstream;}
+\DoxyCodeLine{00069\ \ \ \ \ \textcolor{keyword}{static}\ std::string\ sAppRootFolder;}
+\DoxyCodeLine{00070\ \ \ \ \ \textcolor{keyword}{static}\ std::string\ sProjectPath;}
+\DoxyCodeLine{00071\ \ \ \ \ \textcolor{keyword}{static}\ std::string\ sConfigFolder;}
+\DoxyCodeLine{00072\ \ \ \ \ \textcolor{keyword}{static}\ \textcolor{keywordtype}{bool}\ sInitialized;}
+\DoxyCodeLine{00073\ \};}
+\DoxyCodeLine{00074\ }
+\DoxyCodeLine{00075\ \}\textcolor{comment}{//namepace\ dsqt}}
+\DoxyCodeLine{00076\ \textcolor{keyword}{using\ }\mbox{\hyperlink{classdsqt_1_1_d_s_environment}{DSEnv}}\ =\ \mbox{\hyperlink{classdsqt_1_1_d_s_environment}{dsqt::DSEnvironment}};}
+\DoxyCodeLine{00077\ \textcolor{preprocessor}{\#endif\ }\textcolor{comment}{//\ DSENVIRONMENT\_H}}
+
+\end{DoxyCode}

@@ -1,12 +1,22 @@
 import QtQuick
 import QtQuick.VirtualKeyboard
 import dsqml
+DSAppBase {
+
+    childSrc: Qt.resolvedUrl("Sizer.qml");
+    Component.onCompleted: {
+        console.log(Qt.resolvedUrl("Sizer.qml"))
+    }
+}
+
+/*
 Window {
     id: window
     width: 640
     height: 480
     visible: true
     title: qsTr("Hello World")
+    flags: Qt.FramelessWindowHint
 
     DSSettingsProxy {
         id:colorProxy
@@ -58,4 +68,4 @@ Window {
             }
         }
     }
-}
+}*/

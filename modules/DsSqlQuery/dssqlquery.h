@@ -26,7 +26,7 @@ public:
 private:
     QSqlDatabase mDatabase;
     std::shared_ptr<model::DSContentModel*> mRoot;
-    std::unordered_map<int,DSResourceRef> mAllResources;
+    std::unordered_map<int,DSResource*> mAllResources;
     QString mResourceLocation;
     void queryTables();
 };

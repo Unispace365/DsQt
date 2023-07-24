@@ -3,7 +3,7 @@ get_filename_component(DIR_OF_DSQT_CMAKE_PARENT ".." ABSOLUTE BASE_DIR "${CMAKE_
 message("DIR_OF_DSQT_CMAKE_PARENT: ${DIR_OF_DSQT_CMAKE_PARENT} :")
 set(CMAKE_DIR_LOCATION "${CMAKE_CURRENT_LIST_DIR}")
 
-##Feth Tomlplusplus
+##Fetch Tomlplusplus
 FetchContent_Declare(
     tomlplusplus
     GIT_REPOSITORY https://github.com/marzer/tomlplusplus.git
@@ -51,7 +51,7 @@ function(downstream_modules)
     list(APPEND DS_IMPORT_PATH ${QML2_IMPORT_PATH} "${DSQT_BUILD_PATH}")
     list(REMOVE_DUPLICATES DS_IMPORT_PATH)
     set(QML2_IMPORT_PATH "${DS_IMPORT_PATH}" CACHE STRING "Qt Creator 4.1 extra qml import paths" FORCE)
-
+    set(QML_IMPORT_PATH "${DS_IMPORT_PATH}" CACHE STRING "Qt Creator 4.1 extra qml import paths" FORCE)
     foreach(MOD IN LISTS DOWNSTREAM_MOD_MODULES)
         #execute_process(COMMAND ${conan_program} install .
         #                    WORKING_DIRECTORY "${DSQT_PROJECT_PATH}/modules/${MOD}"

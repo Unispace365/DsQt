@@ -33,10 +33,12 @@ DSResource::DSResource(int id, ResourceType type, float duration, float width, f
 
 }
 
+/*
 DSResourceRef DSResource::create(int id, ResourceType type, float duration, float width, float height,QString url, int thumb_id, QObject *parent)
 {
 	return DSResourceRef(new DSResource(id,type,duration,width,height,url,thumb_id,parent));
 }
+*/
 
 bool DSResource::operator==(const DSResource & other) const
 {

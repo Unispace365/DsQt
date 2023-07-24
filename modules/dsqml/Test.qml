@@ -1,4 +1,5 @@
 import QtQuick
+import QtMultimedia
 import dsqml
 
 Item {
@@ -14,9 +15,35 @@ Item {
         color: root.color
     }
 
+    Image {
+        id: image
+        anchors.fill: parent
+        fillMode: Image.PreserveAspectFit
+    }
+
+    MediaPlayer {
+        id: video
+        videoOutput: mediaImgOut
+        onSourceChanged: video.play()
+        loops: MediaPlayer.Infinite
+    }
+
+    VideoOutput {
+        id: mediaImgOut
+        anchors.fill: parent
+        fillMode: Image.PreserveAspectFit
+    }
+
+    Rectangle {
+        id: backing
+        anchors.fill: tree
+        color: Qt.rgba(1,1,1,0.5);
+    }
+
     TreeView {
         id: tree
-        anchors.fill: parent
+        height: parent.height
+        width: childrenRect.width
         delegate: Item {
             id: treeDelegate
 
@@ -34,8 +61,22 @@ Item {
             required property int depth
 
             TapHandler {
-                onTapped: treeView.toggleExpanded(row)
+                onTapped: {
+                    treeView.toggleExpanded(row);
+                    var res = model.display.media_res
+                    if(res){
+                        if(res.resourceType === DSResource.VIDEO){
+                            video.source = model.display.media_res.url;
+                            image.source="";
+                        } else if(res.resourceType === DSResource.IMAGE){
+                            image.source = model.display.media_res.url;
+                            video.source="";
+                        }
+                    }
+                }
             }
+
+
 
             Text {
                 id: indicator
@@ -44,6 +85,7 @@ Item {
                 anchors.verticalCenter: label.verticalCenter
                 text: "▸"
                 rotation: treeDelegate.expanded ? 90 : 0
+
             }
 
             Text {
@@ -53,6 +95,8 @@ Item {
                 clip: true
                 text: model.display.name === undefined ? "Content Tree" : model.display.name
             }
+
+
         }
 
     }

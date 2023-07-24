@@ -1,0 +1,78 @@
+\hypertarget{dscontentmodel_8h_source}{}\doxysection{dscontentmodel.\+h}
+\label{dscontentmodel_8h_source}\index{C:/dev/projects/DsQt/modules/dsqml/model/dscontentmodel.h@{C:/dev/projects/DsQt/modules/dsqml/model/dscontentmodel.h}}
+
+\begin{DoxyCode}{0}
+\DoxyCodeLine{00001\ \textcolor{preprocessor}{\#ifndef\ DSCONTENTMODEL\_H}}
+\DoxyCodeLine{00002\ \textcolor{preprocessor}{\#define\ DSCONTENTMODEL\_H}}
+\DoxyCodeLine{00003\ }
+\DoxyCodeLine{00004\ \textcolor{preprocessor}{\#include\ <QLoggingCategory>}}
+\DoxyCodeLine{00005\ \textcolor{preprocessor}{\#include\ <QQmlPropertyMap>}}
+\DoxyCodeLine{00006\ \textcolor{preprocessor}{\#include\ <qqml.h>}}
+\DoxyCodeLine{00007\ \textcolor{preprocessor}{\#include\ <QtSql/QSql>}}
+\DoxyCodeLine{00008\ \textcolor{preprocessor}{\#include\ <QHash>}}
+\DoxyCodeLine{00009\ \textcolor{preprocessor}{\#include\ "{}dscontentmodelmodel.h"{}}}
+\DoxyCodeLine{00010\ }
+\DoxyCodeLine{00011\ Q\_DECLARE\_LOGGING\_CATEGORY(contentModel)}
+\DoxyCodeLine{00012\ Q\_DECLARE\_LOGGING\_CATEGORY(contentModelWarn)}
+\DoxyCodeLine{00013\ \textcolor{keyword}{namespace\ }dsqt::model\ \{}
+\DoxyCodeLine{00014\ \textcolor{keyword}{class\ }DSContentModel;}
+\DoxyCodeLine{00015\ }
+\DoxyCodeLine{00016\ \textcolor{keyword}{typedef}\ std::shared\_ptr<DSContentModel>\ DSContentModelPtr;}
+\DoxyCodeLine{00017\ \textcolor{keyword}{class\ }\mbox{\hyperlink{classdsqt_1_1model_1_1_d_s_content_model}{DSContentModel}}:\ \textcolor{keyword}{public}\ QQmlPropertyMap}
+\DoxyCodeLine{00018\ \{}
+\DoxyCodeLine{00019\ \ \ \ \ Q\_OBJECT}
+\DoxyCodeLine{00020\ \ \ \ \ Q\_PROPERTY(QQmlListProperty<DSContentModel>\ children\ READ\ getChildren\ NOTIFY\ childrenChanged)}
+\DoxyCodeLine{00021\ }
+\DoxyCodeLine{00022\ \ \ \ \ QML\_ELEMENT}
+\DoxyCodeLine{00023\ \textcolor{keyword}{public}:}
+\DoxyCodeLine{00024\ \ \ \ \ \textcolor{keyword}{explicit}\ \mbox{\hyperlink{classdsqt_1_1model_1_1_d_s_content_model}{DSContentModel}}(QObject\ *parent=\textcolor{keyword}{nullptr},\ QString\ name=\textcolor{stringliteral}{"{}"{}});}
+\DoxyCodeLine{00025\ \ \ \ \ Q\_INVOKABLE\ QQmlListProperty<dsqt::model::DSContentModel>\ getChildrenByName(QString\ name);}
+\DoxyCodeLine{00026\ \ \ \ \ Q\_INVOKABLE\ \mbox{\hyperlink{classdsqt_1_1model_1_1_d_s_content_model}{dsqt::model::DSContentModel}}*\ getChildByName(QString\ name);}
+\DoxyCodeLine{00027\ \ \ \ \ Q\_INVOKABLE\ \mbox{\hyperlink{classdsqt_1_1model_1_1_d_s_content_model_model}{dsqt::model::DSContentModelModel}}*\ getModel();}
+\DoxyCodeLine{00028\ \ \ \ \ QQmlListProperty<DSContentModel>\ getChildren();}
+\DoxyCodeLine{00029\ \ \ \ \ \textcolor{keyword}{static}\ DSContentModelPtr\ mContent;}
+\DoxyCodeLine{00030\ }
+\DoxyCodeLine{00031\ \ \ \ \ \textcolor{keywordtype}{void}\ lock()\ \{}
+\DoxyCodeLine{00032\ \ \ \ \ \ \ \ \ mImmutable\ =\ \textcolor{keyword}{true};}
+\DoxyCodeLine{00033\ \ \ \ \ \ \ \ \ \textcolor{keyword}{auto}\ children\ =\ findChildren<DSContentModel*>();}
+\DoxyCodeLine{00034\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}(\mbox{\hyperlink{classdsqt_1_1model_1_1_d_s_content_model}{DSContentModel}}*\ child:children)\{}
+\DoxyCodeLine{00035\ \ \ \ \ \ \ \ \ \ \ \ \ child-\/>mImmutable\ =\ \textcolor{keyword}{true};}
+\DoxyCodeLine{00036\ \ \ \ \ \ \ \ \ \}}
+\DoxyCodeLine{00037\ \ \ \ \ \}}
+\DoxyCodeLine{00038\ \ \ \ \ \textcolor{keywordtype}{void}\ unlock()\{}
+\DoxyCodeLine{00039\ \ \ \ \ \ \ \ \ mImmutable\ =\ \textcolor{keyword}{false};}
+\DoxyCodeLine{00040\ \ \ \ \ \ \ \ \ \textcolor{keyword}{auto}\ children\ =\ findChildren<DSContentModel*>();}
+\DoxyCodeLine{00041\ \ \ \ \ \ \ \ \ \textcolor{keywordflow}{for}(\mbox{\hyperlink{classdsqt_1_1model_1_1_d_s_content_model}{DSContentModel}}*\ child:children)\{}
+\DoxyCodeLine{00042\ \ \ \ \ \ \ \ \ \ \ \ \ child-\/>mImmutable\ =\ \textcolor{keyword}{false};}
+\DoxyCodeLine{00043\ \ \ \ \ \ \ \ \ \}}
+\DoxyCodeLine{00044\ \ \ \ \ \}}
+\DoxyCodeLine{00045\ }
+\DoxyCodeLine{00046\ \ \ signals:}
+\DoxyCodeLine{00047\ \ \ \ \ \textcolor{keywordtype}{void}\ childrenChanged();}
+\DoxyCodeLine{00048\ }
+\DoxyCodeLine{00049\ \ \ \textcolor{keyword}{protected}:}
+\DoxyCodeLine{00050\ }
+\DoxyCodeLine{00051\ }
+\DoxyCodeLine{00052\ \ \ \ \ \textcolor{comment}{//\ QQmlPropertyMap\ interface}}
+\DoxyCodeLine{00053\ \textcolor{keyword}{protected}:}
+\DoxyCodeLine{00054\ }
+\DoxyCodeLine{00055\ \ \ \ \ QVariant\ updateValue(\textcolor{keyword}{const}\ QString\ \&key,\ \textcolor{keyword}{const}\ QVariant\ \&input)\ \textcolor{keyword}{override};}
+\DoxyCodeLine{00056\ }
+\DoxyCodeLine{00057\ \textcolor{keyword}{private}:}
+\DoxyCodeLine{00058\ \ \ \ \ \textcolor{keyword}{static}\ \textcolor{keywordtype}{void}\ childrenAppend(QQmlListProperty<DSContentModel>*,\mbox{\hyperlink{classdsqt_1_1model_1_1_d_s_content_model}{DSContentModel}}*);}
+\DoxyCodeLine{00059\ \ \ \ \ \textcolor{keyword}{static}\ qsizetype\ childrenCount(QQmlListProperty<DSContentModel>*);}
+\DoxyCodeLine{00060\ \ \ \ \ \textcolor{keyword}{static}\ \mbox{\hyperlink{classdsqt_1_1model_1_1_d_s_content_model}{DSContentModel}}*\ child(QQmlListProperty<DSContentModel>*,\ qsizetype);}
+\DoxyCodeLine{00061\ \ \ \ \ \textcolor{keyword}{static}\ \textcolor{keywordtype}{void}\ childrenClear(QQmlListProperty<DSContentModel>*);}
+\DoxyCodeLine{00062\ \ \ \ \ \textcolor{keyword}{static}\ \textcolor{keywordtype}{void}\ childrenReplace(QQmlListProperty<DSContentModel>*,qsizetype,\mbox{\hyperlink{classdsqt_1_1model_1_1_d_s_content_model}{DSContentModel}}*);}
+\DoxyCodeLine{00063\ \ \ \ \ \textcolor{keyword}{static}\ \textcolor{keywordtype}{void}\ childrenRemoveLast(QQmlListProperty<DSContentModel>*);}
+\DoxyCodeLine{00064\ \ \ \ \ QHash<QString,QString>\ mSearchName;}
+\DoxyCodeLine{00065\ \ \ \ \ \textcolor{keywordtype}{bool}\ mImmutable\ =\ \textcolor{keyword}{true};}
+\DoxyCodeLine{00066\ \ \ \ \ QQmlListProperty<DSContentModel>\ m\_children;}
+\DoxyCodeLine{00067\ \ \ \ \ \mbox{\hyperlink{classdsqt_1_1model_1_1_d_s_content_model_model}{DSContentModelModel}}*\ mModel\ =\ \textcolor{keyword}{nullptr};}
+\DoxyCodeLine{00068\ \};}
+\DoxyCodeLine{00069\ }
+\DoxyCodeLine{00070\ \}\textcolor{comment}{//namespace\ ds::model}}
+\DoxyCodeLine{00071\ }
+\DoxyCodeLine{00072\ \textcolor{preprocessor}{\#endif\ }\textcolor{comment}{//\ DSCONTENTMODEL\_H}}
+
+\end{DoxyCode}

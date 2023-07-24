@@ -6,6 +6,9 @@
 #include "settings/dssettings.h"
 
 namespace dsqt {
+///
+/// \brief The DSSettingsProxy class
+///
 class DSSettingsProxy : public QObject
 {
 	Q_OBJECT

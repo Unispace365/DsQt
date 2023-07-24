@@ -10,7 +10,7 @@ namespace dsqt {
 class DSSettings;
 typedef std::shared_ptr<DSSettings> DSSettingsRef;
 /**
- * \class DSEnvironment
+ * @brief DSEnvironment
  * Access to the environment data, i.e. file paths etc.
  */
 class DSEnvironment {

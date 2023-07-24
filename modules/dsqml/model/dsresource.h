@@ -8,7 +8,7 @@
 namespace dsqt {
 using namespace std::literals::string_view_literals;
 class DSResource;
-using DSResourceRef = std::shared_ptr<DSResource>;
+//using DSResourceRef = std::shared_ptr<DSResource>;
 class DSResource : public QObject
 {
 
@@ -50,7 +50,7 @@ class DSResource : public QObject
 	explicit DSResource(QObject *parent = nullptr);
 	explicit DSResource(int id,ResourceType type,float duration, float width, float height, QString url, int thumb_id,QObject *parent = nullptr);
 
-	static DSResourceRef create(int id,ResourceType type, float duration, float width, float heightalso0, QString url,int thumb_id,QObject* parent);
+	//static DSResourceRef create(int id,ResourceType type, float duration, float width, float heightalso0, QString url,int thumb_id,QObject* parent);
 	bool operator==(const DSResource&) const;
 	bool operator!=(const DSResource&) const;
 	QUrl url() const;

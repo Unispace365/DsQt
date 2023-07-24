@@ -13,13 +13,14 @@ find_package(Qt6 6.2 COMPONENTS Quick REQUIRED Sql)
 
 
 qt_add_executable(appdsqt-development
+    base.qrc
     main.cpp
 )
 
 qt_add_qml_module(appdsqt-development
     URI dsqt-development
     VERSION 1.0
-    QML_FILES qml/main.qml
+    QML_FILES qml/main.qml qml/Sizer.qml
 )
 
 
@@ -28,8 +29,9 @@ downstream_modules(TARGET appdsqt-development MODULES dsqml DsSqlQuery)
 
 #get the settings to show up in the IDE
 file(GLOB_RECURSE DS_SETTINGS LIST_DIRECTORIES true "./settings/*")
-add_custom_target(ds-settings SOURCES ${DS_SETTINGS})
+LIST(APPEND DS_SETTINGS qt.conf)
 
+add_custom_target(ds-settings SOURCES ${DS_SETTINGS})
 #get the settings to show up in the IDE
 file(GLOB_RECURSE DS_DATA LIST_DIRECTORIES true "./data/*")
 add_custom_target(ds-data SOURCES ${DS_DATA})
@@ -58,7 +60,7 @@ install(TARGETS appdsqt-development
 
 qt_generate_deploy_qml_app_script(
     TARGET appdsqt-development
-    FILENAME_VARIABLE deploy_script
+    OUTPUT_SCRIPT deploy_script
     MACOS_BUNDLE_POST_BUILD
     NO_UNSUPPORTED_PLATFORM_ERROR
     DEPLOY_USER_QML_MODULES_ON_UNSUPPORTED_PLATFORM

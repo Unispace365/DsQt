@@ -1,0 +1,294 @@
+\hypertarget{classdsqt_1_1_d_s_settings}{}\doxysection{dsqt\+::DSSettings Class Reference}
+\label{classdsqt_1_1_d_s_settings}\index{dsqt::DSSettings@{dsqt::DSSettings}}
+
+
+The \mbox{\hyperlink{classdsqt_1_1_d_s_settings}{DSSettings}} class.  
+
+
+
+
+{\ttfamily \#include $<$dssettings.\+h$>$}
+
+Inheritance diagram for dsqt\+::DSSettings\+:\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[height=2.000000cm]{classdsqt_1_1_d_s_settings}
+\end{center}
+\end{figure}
+\doxysubsection*{Classes}
+\begin{DoxyCompactItemize}
+\item 
+struct \mbox{\hyperlink{structdsqt_1_1_d_s_settings_1_1_setting_file}{Setting\+File}}
+\begin{DoxyCompactList}\small\item\em struct to hold setting file \end{DoxyCompactList}\end{DoxyCompactItemize}
+\doxysubsection*{Public Member Functions}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\Hypertarget{classdsqt_1_1_d_s_settings_ad934363ca589ee8754abc10946e529f0}\label{classdsqt_1_1_d_s_settings_ad934363ca589ee8754abc10946e529f0}} 
+{\bfseries DSSettings} (QObject $\ast$parent=nullptr)=delete
+\item 
+bool \mbox{\hyperlink{classdsqt_1_1_d_s_settings_acce6d89a376d7b8fb52a8c0954e32486}{load\+Setting\+File}} (const std\+::string \&file)
+\item 
+void \mbox{\hyperlink{classdsqt_1_1_d_s_settings_a48bbd0da4e7c51c7abf1aad1d2add5b0}{set\+Date\+Format}} (Qt\+::\+Date\+Format format, bool clear\+Custom=true)
+\item 
+\mbox{\Hypertarget{classdsqt_1_1_d_s_settings_afbc37d2e9b0959f0163f44e968651f3c}\label{classdsqt_1_1_d_s_settings_afbc37d2e9b0959f0163f44e968651f3c}} 
+void {\bfseries set\+Custom\+Date\+Format} (QString format)
+\item 
+\mbox{\Hypertarget{classdsqt_1_1_d_s_settings_acb55c029817c0d4c2b5e5aa20ef6ec0d}\label{classdsqt_1_1_d_s_settings_acb55c029817c0d4c2b5e5aa20ef6ec0d}} 
+{\footnotesize template$<$class T $>$ }\\T {\bfseries get\+Or} (const std\+::string \&key, const T \&def)
+\begin{DoxyCompactList}\small\item\em Get a setting from the collection. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{classdsqt_1_1_d_s_settings_a6a14f240ee3c499f71dcbd829a5dbae9}\label{classdsqt_1_1_d_s_settings_a6a14f240ee3c499f71dcbd829a5dbae9}} 
+{\footnotesize template$<$class T $>$ }\\std\+::optional$<$ T $>$ {\bfseries get} (const std\+::string \&key)
+\item 
+std\+::optional$<$ Node\+WMeta $>$ \mbox{\hyperlink{classdsqt_1_1_d_s_settings_a7b11e109509331a39565c32104b26a12}{get\+Node\+View\+With\+Meta}} (const std\+::string \&key)
+\item 
+{\footnotesize template$<$class T $>$ }\\std\+::optional$<$ Value\+WMeta$<$ T $>$ $>$ \mbox{\hyperlink{classdsqt_1_1_d_s_settings_a90a2bc33fb1bd82a017d37da1368875a}{get\+With\+Meta}} (const std\+::string \&key)
+\item 
+\mbox{\Hypertarget{classdsqt_1_1_d_s_settings_a9bd961121b0651bf995b77973339384c}\label{classdsqt_1_1_d_s_settings_a9bd961121b0651bf995b77973339384c}} 
+{\footnotesize template$<$class T , class V $>$ }\\std\+::optional$<$ Value\+WMeta$<$ T $>$ $>$ {\bfseries original\+Value\+With\+Meta} (const std\+::string \&key, V \&\&overload)
+\item 
+\mbox{\Hypertarget{classdsqt_1_1_d_s_settings_a8a203a5b1b0f4e3527b4df11889ddc61}\label{classdsqt_1_1_d_s_settings_a8a203a5b1b0f4e3527b4df11889ddc61}} 
+{\footnotesize template$<$class T $>$ }\\std\+::optional$<$ Value\+WMeta$<$ T $>$ $>$ {\bfseries get\+With\+Process} (const std\+::string \&key, std\+::function$<$ std\+::optional$<$ Value\+WMeta$<$ T $>$ $>$(toml\+::node\+\_\+view$<$ toml\+::node $>$ node, toml\+::table $\ast$meta)$>$ process)
+\item 
+\mbox{\Hypertarget{classdsqt_1_1_d_s_settings_a0d354e0c4c55cbb99e605ca5021240e4}\label{classdsqt_1_1_d_s_settings_a0d354e0c4c55cbb99e605ca5021240e4}} 
+template$<$$>$ std\+::optional$<$ Value\+WMeta$<$ bool $>$ $>$ {\bfseries get\+With\+Meta} (const std\+::string \&key)
+\item 
+\mbox{\Hypertarget{classdsqt_1_1_d_s_settings_af2f8b268b8a55ee3b5ef756c6060c762}\label{classdsqt_1_1_d_s_settings_af2f8b268b8a55ee3b5ef756c6060c762}} 
+template$<$$>$ std\+::optional$<$ Value\+WMeta$<$ int64\+\_\+t $>$ $>$ {\bfseries get\+With\+Meta} (const std\+::string \&key)
+\item 
+\mbox{\Hypertarget{classdsqt_1_1_d_s_settings_a4c1ad6d981afb28378a481aaa20fcefc}\label{classdsqt_1_1_d_s_settings_a4c1ad6d981afb28378a481aaa20fcefc}} 
+template$<$$>$ std\+::optional$<$ Value\+WMeta$<$ int32\+\_\+t $>$ $>$ {\bfseries get\+With\+Meta} (const std\+::string \&key)
+\item 
+\mbox{\Hypertarget{classdsqt_1_1_d_s_settings_a854e091db77b79e13caa6f97612a83e1}\label{classdsqt_1_1_d_s_settings_a854e091db77b79e13caa6f97612a83e1}} 
+template$<$$>$ std\+::optional$<$ Value\+WMeta$<$ double $>$ $>$ {\bfseries get\+With\+Meta} (const std\+::string \&key)
+\item 
+\mbox{\Hypertarget{classdsqt_1_1_d_s_settings_aae4fbb3eb1468d9c189c1cfcd75b5c5e}\label{classdsqt_1_1_d_s_settings_aae4fbb3eb1468d9c189c1cfcd75b5c5e}} 
+template$<$$>$ std\+::optional$<$ Value\+WMeta$<$ float $>$ $>$ {\bfseries get\+With\+Meta} (const std\+::string \&key)
+\item 
+\mbox{\Hypertarget{classdsqt_1_1_d_s_settings_a3625aac77d819a4e2efc289afbef5da3}\label{classdsqt_1_1_d_s_settings_a3625aac77d819a4e2efc289afbef5da3}} 
+template$<$$>$ std\+::optional$<$ Value\+WMeta$<$ std\+::string $>$ $>$ {\bfseries get\+With\+Meta} (const std\+::string \&key)
+\item 
+\mbox{\Hypertarget{classdsqt_1_1_d_s_settings_a8eb97208aa3e8bdf96376d45c5eb113f}\label{classdsqt_1_1_d_s_settings_a8eb97208aa3e8bdf96376d45c5eb113f}} 
+template$<$$>$ std\+::optional$<$ Value\+WMeta$<$ QString $>$ $>$ {\bfseries get\+With\+Meta} (const std\+::string \&key)
+\item 
+\mbox{\Hypertarget{classdsqt_1_1_d_s_settings_abffaaf02feb42094d822ca44c313215b}\label{classdsqt_1_1_d_s_settings_abffaaf02feb42094d822ca44c313215b}} 
+template$<$$>$ std\+::optional$<$ Value\+WMeta$<$ toml\+::node $>$ $>$ {\bfseries get\+With\+Meta} (const std\+::string \&key)
+\item 
+\mbox{\Hypertarget{classdsqt_1_1_d_s_settings_a5de1a315aa386be75dd0f9432ce4fc3e}\label{classdsqt_1_1_d_s_settings_a5de1a315aa386be75dd0f9432ce4fc3e}} 
+template$<$$>$ std\+::optional$<$ Value\+WMeta$<$ QColor $>$ $>$ {\bfseries get\+With\+Meta} (const std\+::string \&key)
+\item 
+\mbox{\Hypertarget{classdsqt_1_1_d_s_settings_a5656ae7fcd6063e4d1d5840383dc532a}\label{classdsqt_1_1_d_s_settings_a5656ae7fcd6063e4d1d5840383dc532a}} 
+template$<$$>$ std\+::optional$<$ Value\+WMeta$<$ QDate $>$ $>$ {\bfseries get\+With\+Meta} (const std\+::string \&key)
+\item 
+\mbox{\Hypertarget{classdsqt_1_1_d_s_settings_ae2a13c3141d0022a6c50acf07b9f867b}\label{classdsqt_1_1_d_s_settings_ae2a13c3141d0022a6c50acf07b9f867b}} 
+template$<$$>$ std\+::optional$<$ Value\+WMeta$<$ QTime $>$ $>$ {\bfseries get\+With\+Meta} (const std\+::string \&key)
+\item 
+\mbox{\Hypertarget{classdsqt_1_1_d_s_settings_a0d9ceef08971165814f63221bf725ddd}\label{classdsqt_1_1_d_s_settings_a0d9ceef08971165814f63221bf725ddd}} 
+template$<$$>$ std\+::optional$<$ Value\+WMeta$<$ QDate\+Time $>$ $>$ {\bfseries get\+With\+Meta} (const std\+::string \&key)
+\item 
+\mbox{\Hypertarget{classdsqt_1_1_d_s_settings_ab7963b3f13cd5f671c58c571727a72e9}\label{classdsqt_1_1_d_s_settings_ab7963b3f13cd5f671c58c571727a72e9}} 
+template$<$$>$ std\+::optional$<$ Value\+WMeta$<$ QVector2D $>$ $>$ {\bfseries get\+With\+Meta} (const std\+::string \&key)
+\item 
+\mbox{\Hypertarget{classdsqt_1_1_d_s_settings_a6617ba2dfc4be0d942ffc3745504c497}\label{classdsqt_1_1_d_s_settings_a6617ba2dfc4be0d942ffc3745504c497}} 
+template$<$$>$ std\+::optional$<$ Value\+WMeta$<$ QVector3D $>$ $>$ {\bfseries get\+With\+Meta} (const std\+::string \&key)
+\item 
+\mbox{\Hypertarget{classdsqt_1_1_d_s_settings_adc771cf0561a50b5cfb729a9d8b65a06}\label{classdsqt_1_1_d_s_settings_adc771cf0561a50b5cfb729a9d8b65a06}} 
+template$<$$>$ std\+::optional$<$ Value\+WMeta$<$ QVector4D $>$ $>$ {\bfseries get\+With\+Meta} (const std\+::string \&key)
+\item 
+\mbox{\Hypertarget{classdsqt_1_1_d_s_settings_a342d519e5f1256b82da158e487844f92}\label{classdsqt_1_1_d_s_settings_a342d519e5f1256b82da158e487844f92}} 
+template$<$$>$ std\+::optional$<$ Value\+WMeta$<$ QRect $>$ $>$ {\bfseries get\+With\+Meta} (const std\+::string \&key)
+\item 
+\mbox{\Hypertarget{classdsqt_1_1_d_s_settings_a8a1d7d2c1c00167ed9cbe7a43cc7c1bf}\label{classdsqt_1_1_d_s_settings_a8a1d7d2c1c00167ed9cbe7a43cc7c1bf}} 
+template$<$$>$ std\+::optional$<$ Value\+WMeta$<$ QRectF $>$ $>$ {\bfseries get\+With\+Meta} (const std\+::string \&key)
+\item 
+\mbox{\Hypertarget{classdsqt_1_1_d_s_settings_a677cf3014bc9041a7bec19e36d48183a}\label{classdsqt_1_1_d_s_settings_a677cf3014bc9041a7bec19e36d48183a}} 
+template$<$$>$ std\+::optional$<$ Value\+WMeta$<$ QSize $>$ $>$ {\bfseries get\+With\+Meta} (const std\+::string \&key)
+\item 
+\mbox{\Hypertarget{classdsqt_1_1_d_s_settings_a13fb2fc732569a21a24ab6b6131df77d}\label{classdsqt_1_1_d_s_settings_a13fb2fc732569a21a24ab6b6131df77d}} 
+template$<$$>$ std\+::optional$<$ Value\+WMeta$<$ QSizeF $>$ $>$ {\bfseries get\+With\+Meta} (const std\+::string \&key)
+\item 
+\mbox{\Hypertarget{classdsqt_1_1_d_s_settings_af2c144da0eb23b209e7dd434c941dab8}\label{classdsqt_1_1_d_s_settings_af2c144da0eb23b209e7dd434c941dab8}} 
+template$<$$>$ std\+::optional$<$ Value\+WMeta$<$ QPoint $>$ $>$ {\bfseries get\+With\+Meta} (const std\+::string \&key)
+\item 
+\mbox{\Hypertarget{classdsqt_1_1_d_s_settings_a436f3a097d9fb9f8b0d2e09016a063bf}\label{classdsqt_1_1_d_s_settings_a436f3a097d9fb9f8b0d2e09016a063bf}} 
+template$<$$>$ std\+::optional$<$ Value\+WMeta$<$ QPointF $>$ $>$ {\bfseries get\+With\+Meta} (const std\+::string \&key)
+\item 
+\mbox{\Hypertarget{classdsqt_1_1_d_s_settings_a8d34db0a7e05000da71e4587f05df8c1}\label{classdsqt_1_1_d_s_settings_a8d34db0a7e05000da71e4587f05df8c1}} 
+template$<$$>$ std\+::optional$<$ Value\+WMeta$<$ glm\+::vec2 $>$ $>$ {\bfseries get\+With\+Meta} (const std\+::string \&key)
+\item 
+\mbox{\Hypertarget{classdsqt_1_1_d_s_settings_a5195e3f10ba09e493011264308ac79fa}\label{classdsqt_1_1_d_s_settings_a5195e3f10ba09e493011264308ac79fa}} 
+template$<$$>$ std\+::optional$<$ Value\+WMeta$<$ glm\+::vec3 $>$ $>$ {\bfseries get\+With\+Meta} (const std\+::string \&key)
+\item 
+\mbox{\Hypertarget{classdsqt_1_1_d_s_settings_a6cc6b11ba99604635c8036f771cc56cb}\label{classdsqt_1_1_d_s_settings_a6cc6b11ba99604635c8036f771cc56cb}} 
+template$<$$>$ std\+::optional$<$ Value\+WMeta$<$ glm\+::vec4 $>$ $>$ {\bfseries get\+With\+Meta} (const std\+::string \&key)
+\item 
+\mbox{\Hypertarget{classdsqt_1_1_d_s_settings_ae278f01709abe0c0a4e1d7c2b5fcfdc8}\label{classdsqt_1_1_d_s_settings_ae278f01709abe0c0a4e1d7c2b5fcfdc8}} 
+{\footnotesize template$<$class T $>$ }\\void {\bfseries set} (std\+::string \&key, T \&value)
+\end{DoxyCompactItemize}
+\doxysubsection*{Static Public Member Functions}
+\begin{DoxyCompactItemize}
+\item 
+static std\+::tuple$<$ bool, DSSettings\+Ref $>$ \mbox{\hyperlink{classdsqt_1_1_d_s_settings_a81609436f7726d01cdb337524e032a10}{get\+Settings\+Or\+Create}} (const std\+::string \&name, QObject $\ast$parent=nullptr)
+\item 
+static DSSettings\+Ref \mbox{\hyperlink{classdsqt_1_1_d_s_settings_a919e58bf21d79c29300673e54047af08}{get\+Settings}} (const std\+::string \&name)
+\item 
+static bool \mbox{\hyperlink{classdsqt_1_1_d_s_settings_ace95d44f6f4b676d1dc9f134d46d086b}{forget\+Settings}} (const std\+::string \&name)
+\end{DoxyCompactItemize}
+\doxysubsection*{Static Public Attributes}
+\begin{DoxyCompactItemize}
+\item 
+{\footnotesize template$<$typename T $>$ }\\static constexpr bool \mbox{\hyperlink{classdsqt_1_1_d_s_settings_a346c8a457b75b5d3adc8d1363aaefc40}{is\+\_\+valid\+\_\+setting\+\_\+type}}
+\end{DoxyCompactItemize}
+\doxysubsection*{Protected Member Functions}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\Hypertarget{classdsqt_1_1_d_s_settings_ac76e421c3960a7f67c8e9d87d68c3cfc}\label{classdsqt_1_1_d_s_settings_ac76e421c3960a7f67c8e9d87d68c3cfc}} 
+{\bfseries DSSettings} (std\+::string name=\char`\"{}\char`\"{}, QObject $\ast$parent=nullptr)
+\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+The \mbox{\hyperlink{classdsqt_1_1_d_s_settings}{DSSettings}} class. 
+
+\hypertarget{classdsqt_1_1_d_s_settings_autotoc_md0}{}\doxysubsubsection{Description}\label{classdsqt_1_1_d_s_settings_autotoc_md0}
+The Setting class represents a named collection of values that are drawn from toml files. As settings are loaded into the collection the form a stack with the first file loaded forming the bottom of the stack. when settings are recalled the object looks first at any setting that was set at runtime and then systematically goes down the stack looking for the setting until it reached the first file loaded. If it fails to find the setting it returns an error. You can use the static functions \mbox{\hyperlink{classdsqt_1_1_d_s_settings_a919e58bf21d79c29300673e54047af08}{get\+Settings}} or \mbox{\hyperlink{classdsqt_1_1_d_s_settings_a81609436f7726d01cdb337524e032a10}{get\+Settings\+Or\+Create}} to find or create a collection. a new collection has no settings in it. settings can be added to a stack of settings by calling \mbox{\hyperlink{classdsqt_1_1_d_s_settings_acce6d89a376d7b8fb52a8c0954e32486}{load\+Setting\+File}}\hypertarget{classdsqt_1_1_d_s_settings_autotoc_md1}{}\doxysubsubsection{todo}\label{classdsqt_1_1_d_s_settings_autotoc_md1}
+
+\begin{DoxyItemize}
+\item saving runtime values to a particular location in the stack
+\item updating setting stack from disk on demand.
+\end{DoxyItemize}\hypertarget{classdsqt_1_1_d_s_settings_autotoc_md2}{}\doxysubsubsection{DSCinder reference notes}\label{classdsqt_1_1_d_s_settings_autotoc_md2}
+This class was obviously inspired by the dscinder system, but hopefully it is more flexible. The actuall replication of the DSCinder system is done by the \mbox{\hyperlink{classdsqt_1_1_d_s_environment}{DSEnvironment}} class. Eventually it will be able to tell and editor where a setting comes from
+
+\begin{DoxySeeAlso}{See also}
+\mbox{\hyperlink{classdsqt_1_1_d_s_settings_proxy}{dsqt\+::\+DSSettings\+Proxy}} 
+
+\mbox{\hyperlink{classdsqt_1_1_d_s_environment}{dsqt\+::\+DSEnvironment}} 
+\end{DoxySeeAlso}
+
+
+\doxysubsection{Member Function Documentation}
+\mbox{\Hypertarget{classdsqt_1_1_d_s_settings_ace95d44f6f4b676d1dc9f134d46d086b}\label{classdsqt_1_1_d_s_settings_ace95d44f6f4b676d1dc9f134d46d086b}} 
+\index{dsqt::DSSettings@{dsqt::DSSettings}!forgetSettings@{forgetSettings}}
+\index{forgetSettings@{forgetSettings}!dsqt::DSSettings@{dsqt::DSSettings}}
+\doxysubsubsection{\texorpdfstring{forgetSettings()}{forgetSettings()}}
+{\footnotesize\ttfamily static bool dsqt\+::\+DSSettings\+::forget\+Settings (\begin{DoxyParamCaption}\item[{const std\+::string \&}]{name }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [static]}}
+
+remove a setting file from the list of known setting files. 
+\begin{DoxyParams}{Parameters}
+{\em name} & the name of the settings object to forget. \\
+\hline
+\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+a bool that indicates that a setting object was removed (true) or that no setting file existed (false) 
+\end{DoxyReturn}
+\mbox{\Hypertarget{classdsqt_1_1_d_s_settings_a7b11e109509331a39565c32104b26a12}\label{classdsqt_1_1_d_s_settings_a7b11e109509331a39565c32104b26a12}} 
+\index{dsqt::DSSettings@{dsqt::DSSettings}!getNodeViewWithMeta@{getNodeViewWithMeta}}
+\index{getNodeViewWithMeta@{getNodeViewWithMeta}!dsqt::DSSettings@{dsqt::DSSettings}}
+\doxysubsubsection{\texorpdfstring{getNodeViewWithMeta()}{getNodeViewWithMeta()}}
+{\footnotesize\ttfamily std\+::optional$<$ Node\+WMeta $>$ dsqt\+::\+DSSettings\+::get\+Node\+View\+With\+Meta (\begin{DoxyParamCaption}\item[{const std\+::string \&}]{key }\end{DoxyParamCaption})}
+
+Get a setting from the collection with the meta data. This is used for debuging and internal management. \mbox{\Hypertarget{classdsqt_1_1_d_s_settings_a919e58bf21d79c29300673e54047af08}\label{classdsqt_1_1_d_s_settings_a919e58bf21d79c29300673e54047af08}} 
+\index{dsqt::DSSettings@{dsqt::DSSettings}!getSettings@{getSettings}}
+\index{getSettings@{getSettings}!dsqt::DSSettings@{dsqt::DSSettings}}
+\doxysubsubsection{\texorpdfstring{getSettings()}{getSettings()}}
+{\footnotesize\ttfamily static DSSettings\+Ref dsqt\+::\+DSSettings\+::get\+Settings (\begin{DoxyParamCaption}\item[{const std\+::string \&}]{name }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [static]}}
+
+Get a setting collection by name. Get the DSSettings\+Ref (a std\+::shared\+\_\+ptr$<$\+DSSettings$>$ typedef)to a setting collection associated with {\bfseries{name}}. If the setting collection does not exist it will return an empty DSSettings\+Ref. 
+\begin{DoxyParams}{Parameters}
+{\em name} & the name of the settings object to search for. \\
+\hline
+\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+DSSettings\+Ref {\bfseries{settings}}. 
+\end{DoxyReturn}
+\mbox{\Hypertarget{classdsqt_1_1_d_s_settings_a81609436f7726d01cdb337524e032a10}\label{classdsqt_1_1_d_s_settings_a81609436f7726d01cdb337524e032a10}} 
+\index{dsqt::DSSettings@{dsqt::DSSettings}!getSettingsOrCreate@{getSettingsOrCreate}}
+\index{getSettingsOrCreate@{getSettingsOrCreate}!dsqt::DSSettings@{dsqt::DSSettings}}
+\doxysubsubsection{\texorpdfstring{getSettingsOrCreate()}{getSettingsOrCreate()}}
+{\footnotesize\ttfamily static std\+::tuple$<$ bool, DSSettings\+Ref $>$ dsqt\+::\+DSSettings\+::get\+Settings\+Or\+Create (\begin{DoxyParamCaption}\item[{const std\+::string \&}]{name,  }\item[{QObject $\ast$}]{parent = {\ttfamily nullptr} }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [static]}}
+
+Get a DSSettings\+Ref by name. Get the DSSetting\+Ref (a std\+::shared\+\_\+ptr$<$\+DSSettings$>$ typedef) to a setting collection associated with {\bfseries{name}}. If the setting collection does not exist it will create it and return a DSSettings\+Ref to it. 
+\begin{DoxyParams}{Parameters}
+{\em name} & name of the settings object to search for or create. \\
+\hline
+{\em parent} & a QObject derived parent. \\
+\hline
+\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+a tuple of \mbox{[}bool {\bfseries{exists}},DSSettings\+Ref {\bfseries{settings}}\mbox{]} 
+\end{DoxyReturn}
+\mbox{\Hypertarget{classdsqt_1_1_d_s_settings_a90a2bc33fb1bd82a017d37da1368875a}\label{classdsqt_1_1_d_s_settings_a90a2bc33fb1bd82a017d37da1368875a}} 
+\index{dsqt::DSSettings@{dsqt::DSSettings}!getWithMeta@{getWithMeta}}
+\index{getWithMeta@{getWithMeta}!dsqt::DSSettings@{dsqt::DSSettings}}
+\doxysubsubsection{\texorpdfstring{getWithMeta()}{getWithMeta()}}
+{\footnotesize\ttfamily template$<$class T $>$ \\
+std\+::optional$<$ Value\+WMeta$<$ T $>$ $>$ dsqt\+::\+DSSettings\+::get\+With\+Meta (\begin{DoxyParamCaption}\item[{const std\+::string \&}]{key }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [inline]}}
+
+Get a setting from the collection with the meta data. This is used for debuging and internal management. \mbox{\Hypertarget{classdsqt_1_1_d_s_settings_acce6d89a376d7b8fb52a8c0954e32486}\label{classdsqt_1_1_d_s_settings_acce6d89a376d7b8fb52a8c0954e32486}} 
+\index{dsqt::DSSettings@{dsqt::DSSettings}!loadSettingFile@{loadSettingFile}}
+\index{loadSettingFile@{loadSettingFile}!dsqt::DSSettings@{dsqt::DSSettings}}
+\doxysubsubsection{\texorpdfstring{loadSettingFile()}{loadSettingFile()}}
+{\footnotesize\ttfamily bool dsqt\+::\+DSSettings\+::load\+Setting\+File (\begin{DoxyParamCaption}\item[{const std\+::string \&}]{file }\end{DoxyParamCaption})}
+
+load a setting file into this setting object. 
+\begin{DoxyParams}{Parameters}
+{\em file} & the absolute file name of a settings file to add to the object. \\
+\hline
+\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+a bool the indecates the success or failure of loading the file. 
+\end{DoxyReturn}
+\mbox{\Hypertarget{classdsqt_1_1_d_s_settings_a48bbd0da4e7c51c7abf1aad1d2add5b0}\label{classdsqt_1_1_d_s_settings_a48bbd0da4e7c51c7abf1aad1d2add5b0}} 
+\index{dsqt::DSSettings@{dsqt::DSSettings}!setDateFormat@{setDateFormat}}
+\index{setDateFormat@{setDateFormat}!dsqt::DSSettings@{dsqt::DSSettings}}
+\doxysubsubsection{\texorpdfstring{setDateFormat()}{setDateFormat()}}
+{\footnotesize\ttfamily void dsqt\+::\+DSSettings\+::set\+Date\+Format (\begin{DoxyParamCaption}\item[{Qt\+::\+Date\+Format}]{format,  }\item[{bool}]{clear\+Custom = {\ttfamily true} }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [inline]}}
+
+Set the date format; 
+\begin{DoxyParams}{Parameters}
+{\em format} & the format to use for dates in this setting object. default is Qt\+::\+ISODate\+With\+Ms; \\
+\hline
+{\em clear\+Custom} & if this is set to true, then any custom date format is cleared. defaults to true. \\
+\hline
+\end{DoxyParams}
+
+
+\doxysubsection{Member Data Documentation}
+\mbox{\Hypertarget{classdsqt_1_1_d_s_settings_a346c8a457b75b5d3adc8d1363aaefc40}\label{classdsqt_1_1_d_s_settings_a346c8a457b75b5d3adc8d1363aaefc40}} 
+\index{dsqt::DSSettings@{dsqt::DSSettings}!is\_valid\_setting\_type@{is\_valid\_setting\_type}}
+\index{is\_valid\_setting\_type@{is\_valid\_setting\_type}!dsqt::DSSettings@{dsqt::DSSettings}}
+\doxysubsubsection{\texorpdfstring{is\_valid\_setting\_type}{is\_valid\_setting\_type}}
+{\footnotesize\ttfamily template$<$typename T $>$ \\
+constexpr bool dsqt\+::\+DSSettings\+::is\+\_\+valid\+\_\+setting\+\_\+type\hspace{0.3cm}{\ttfamily [static]}, {\ttfamily [constexpr]}}
+
+{\bfseries Initial value\+:}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{=\ std::is\_same\_v<T,\ toml::node>\ ||\ }
+\DoxyCodeLine{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ std::is\_same\_v<T,\ std::string>\ ||\ \ }
+\DoxyCodeLine{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ std::is\_same\_v<T,\ QString>\ ||\ \ \ \ \ \ }
+\DoxyCodeLine{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ std::is\_same\_v<T,\ int64\_t>\ ||\ \ \ \ \ \ }
+\DoxyCodeLine{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ std::is\_same\_v<T,\ int32\_t>\ ||\ \ \ \ \ \ }
+\DoxyCodeLine{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ std::is\_same\_v<T,\ double>\ ||\ \ \ \ \ \ \ }
+\DoxyCodeLine{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ std::is\_same\_v<T,\ float>\ ||\ \ \ \ \ \ \ \ }
+\DoxyCodeLine{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ std::is\_same\_v<T,\ bool>\ ||\ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ std::is\_same\_v<T,\ QDate>\ ||\ \ \ \ \ \ \ \ }
+\DoxyCodeLine{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ std::is\_same\_v<T,\ QTime>\ ||\ \ \ \ \ \ \ \ }
+\DoxyCodeLine{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ std::is\_same\_v<T,\ QDateTime>\ ||\ \ \ \ }
+\DoxyCodeLine{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ std::is\_same\_v<T,\ QRectF>\ ||\ \ \ \ \ \ \ }
+\DoxyCodeLine{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ std::is\_same\_v<T,\ QSizeF>\ ||\ \ \ \ \ \ \ }
+\DoxyCodeLine{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ std::is\_same\_v<T,\ QPointF>\ ||\ \ \ \ \ \ }
+\DoxyCodeLine{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ std::is\_same\_v<T,\ QVector2D>\ ||\ \ \ \ }
+\DoxyCodeLine{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ std::is\_same\_v<T,\ QVector3D>\ ||\ \ \ \ }
+\DoxyCodeLine{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ std::is\_same\_v<T,\ QVector4D>\ ||\ \ \ \ }
+\DoxyCodeLine{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ std::is\_same\_v<T,\ glm::vec2>\ ||\ \ \ \ }
+\DoxyCodeLine{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ std::is\_same\_v<T,\ glm::vec3>\ ||\ \ \ \ }
+\DoxyCodeLine{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ std::is\_same\_v<T,\ glm::vec4>\ ||\ \ \ \ }
+\DoxyCodeLine{\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ std::is\_same\_v<T,\ QColor>}
+
+\end{DoxyCode}
+
+
+The documentation for this class was generated from the following file\+:\begin{DoxyCompactItemize}
+\item 
+C\+:/dev/projects/\+Ds\+Qt/modules/dsqml/settings/dssettings.\+h\end{DoxyCompactItemize}

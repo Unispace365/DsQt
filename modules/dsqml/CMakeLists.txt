@@ -18,6 +18,7 @@ qt_add_qml_module(dsqml
     settings/dssettings.h settings/dssettings.cpp
     core/dsqmlapplicationengine.h core/dsqmlapplicationengine.cpp
     core/dsenvironment.h core/dsenvironment.cpp
+    core/dsguiapplication.h core/dsguiapplication.cpp
     settings/dssettings_qcolor.cpp
     settings/dssettings_base.cpp
     settings/dssettings_collections.cpp
@@ -27,8 +28,14 @@ qt_add_qml_module(dsqml
     settings/dssettings_geom_common.cpp
     settings/dssettings_proxy.h settings/dssettings_proxy.cpp
 
-    QML_FILES Test.qml
+    QML_FILES Test.qml qml/DSAppBase.qml
 )
+
+#docs
+include("$ENV{DS_QT_PLATFORM_100}/cmake/docs.cmake")
+set(DOCS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../docs/DsQt")
+downstream_docs(IN_DIR ${DOCS_DIR} OUT_DIR ${DOCS_DIR} DOCNAME "DsQt" DESC "Qt for Experience Projects")
+
 
 #link to the libaries that we are using
 target_link_libraries(dsqml PUBLIC tomlplusplus::tomlplusplus)

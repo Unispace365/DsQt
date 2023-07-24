@@ -42,6 +42,7 @@ void DSQmlApplicationEngine::init()
 
 	rootContext()->setContextProperty("contentRoot",mContentRoot.get());
 	rootContext()->setContextProperty("app_settings",&appProxy);
+    rootContext()->setContextProperty("$QmlEngine", this);
 }
 
 void DSQmlApplicationEngine::postInit()

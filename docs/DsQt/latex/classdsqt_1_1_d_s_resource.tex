@@ -1,0 +1,159 @@
+\hypertarget{classdsqt_1_1_d_s_resource}{}\doxysection{dsqt\+::DSResource Class Reference}
+\label{classdsqt_1_1_d_s_resource}\index{dsqt::DSResource@{dsqt::DSResource}}
+Inheritance diagram for dsqt\+::DSResource\+:\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[height=2.000000cm]{classdsqt_1_1_d_s_resource}
+\end{center}
+\end{figure}
+\doxysubsection*{Public Types}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\Hypertarget{classdsqt_1_1_d_s_resource_af8c21bcb4ab1c7df67c545176e9366e7}\label{classdsqt_1_1_d_s_resource_af8c21bcb4ab1c7df67c545176e9366e7}} 
+enum class {\bfseries Resource\+Type} \{ \newline
+{\bfseries ERROR}
+, {\bfseries FONT}
+, {\bfseries IMAGE}
+, {\bfseries IMAGE\+\_\+\+SEQUENCE}
+, \newline
+{\bfseries PDF}
+, {\bfseries VIDEO}
+, {\bfseries WEB}
+, {\bfseries VIDEO\+\_\+\+STREAM}
+, \newline
+{\bfseries ZIP}
+, {\bfseries VIDEO\+\_\+\+PANORAMIC}
+, {\bfseries YOUTUBE}
+ \}
+\item 
+\mbox{\Hypertarget{classdsqt_1_1_d_s_resource_a91267b5c18c31ca0d5c51d6a6f95eb56}\label{classdsqt_1_1_d_s_resource_a91267b5c18c31ca0d5c51d6a6f95eb56}} 
+enum class {\bfseries Origin} \{ {\bfseries UNKNOWN}
+, {\bfseries NETWORK}
+, {\bfseries LOCAL}
+ \}
+\end{DoxyCompactItemize}
+\doxysubsection*{Signals}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\Hypertarget{classdsqt_1_1_d_s_resource_a5dc20bfae5b0ac4a2686d526e51861e0}\label{classdsqt_1_1_d_s_resource_a5dc20bfae5b0ac4a2686d526e51861e0}} 
+void {\bfseries url\+Changed} ()
+\item 
+\mbox{\Hypertarget{classdsqt_1_1_d_s_resource_a15983f3e3851bf0d0b282af1b31a2c8b}\label{classdsqt_1_1_d_s_resource_a15983f3e3851bf0d0b282af1b31a2c8b}} 
+void {\bfseries width\+Changed} ()
+\item 
+\mbox{\Hypertarget{classdsqt_1_1_d_s_resource_a0947c3479e206d978c84c9ac35204cf2}\label{classdsqt_1_1_d_s_resource_a0947c3479e206d978c84c9ac35204cf2}} 
+void {\bfseries height\+Changed} ()
+\item 
+\mbox{\Hypertarget{classdsqt_1_1_d_s_resource_a5a7296b2c2bd68b57b37a20cd1f07fb3}\label{classdsqt_1_1_d_s_resource_a5a7296b2c2bd68b57b37a20cd1f07fb3}} 
+void {\bfseries origin\+Changed} ()
+\item 
+\mbox{\Hypertarget{classdsqt_1_1_d_s_resource_a7cef5527841a41f2b8203e4c7ad87ee4}\label{classdsqt_1_1_d_s_resource_a7cef5527841a41f2b8203e4c7ad87ee4}} 
+void {\bfseries duration\+Changed} ()
+\item 
+\mbox{\Hypertarget{classdsqt_1_1_d_s_resource_ae2d6a1df4981ec6e783f1163b934eeaf}\label{classdsqt_1_1_d_s_resource_ae2d6a1df4981ec6e783f1163b934eeaf}} 
+void {\bfseries resource\+Type\+Changed} ()
+\item 
+\mbox{\Hypertarget{classdsqt_1_1_d_s_resource_a265499bb5422886d87ca7cae2f0422ca}\label{classdsqt_1_1_d_s_resource_a265499bb5422886d87ca7cae2f0422ca}} 
+void {\bfseries id\+Changed} ()
+\end{DoxyCompactItemize}
+\doxysubsection*{Public Member Functions}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\Hypertarget{classdsqt_1_1_d_s_resource_a4b51f2d43c89970948335834453ca96d}\label{classdsqt_1_1_d_s_resource_a4b51f2d43c89970948335834453ca96d}} 
+{\bfseries DSResource} (QObject $\ast$parent=nullptr)
+\item 
+\mbox{\Hypertarget{classdsqt_1_1_d_s_resource_a5dd1a5f2eea96620f1acde80402f039a}\label{classdsqt_1_1_d_s_resource_a5dd1a5f2eea96620f1acde80402f039a}} 
+{\bfseries DSResource} (int id, Resource\+Type type, float duration, float width, float height, QString url, int thumb\+\_\+id, QObject $\ast$parent=nullptr)
+\item 
+\mbox{\Hypertarget{classdsqt_1_1_d_s_resource_aa76c0f501d601288901849d9ae18f3d3}\label{classdsqt_1_1_d_s_resource_aa76c0f501d601288901849d9ae18f3d3}} 
+bool {\bfseries operator==} (const \mbox{\hyperlink{classdsqt_1_1_d_s_resource}{DSResource}} \&) const
+\item 
+\mbox{\Hypertarget{classdsqt_1_1_d_s_resource_ac94557245b50170b3c041c511209383e}\label{classdsqt_1_1_d_s_resource_ac94557245b50170b3c041c511209383e}} 
+bool {\bfseries operator!=} (const \mbox{\hyperlink{classdsqt_1_1_d_s_resource}{DSResource}} \&) const
+\item 
+\mbox{\Hypertarget{classdsqt_1_1_d_s_resource_a9ff46408fb3fca1f14a8a1fc8646e3d6}\label{classdsqt_1_1_d_s_resource_a9ff46408fb3fca1f14a8a1fc8646e3d6}} 
+QUrl {\bfseries url} () const
+\item 
+\mbox{\Hypertarget{classdsqt_1_1_d_s_resource_a01740d56da72ea14e075d6f471e19535}\label{classdsqt_1_1_d_s_resource_a01740d56da72ea14e075d6f471e19535}} 
+void {\bfseries set\+Url} (const QUrl \&new\+Url)
+\item 
+\mbox{\Hypertarget{classdsqt_1_1_d_s_resource_a5720554a620eade2e909e8b4bbc7628f}\label{classdsqt_1_1_d_s_resource_a5720554a620eade2e909e8b4bbc7628f}} 
+float {\bfseries width} () const
+\item 
+\mbox{\Hypertarget{classdsqt_1_1_d_s_resource_a2e591ecf27db8defd36b42dcd12b7259}\label{classdsqt_1_1_d_s_resource_a2e591ecf27db8defd36b42dcd12b7259}} 
+void {\bfseries set\+Width} (float new\+Width)
+\item 
+\mbox{\Hypertarget{classdsqt_1_1_d_s_resource_a59335bc86e36b475ee44d20e45c1313c}\label{classdsqt_1_1_d_s_resource_a59335bc86e36b475ee44d20e45c1313c}} 
+float {\bfseries height} () const
+\item 
+\mbox{\Hypertarget{classdsqt_1_1_d_s_resource_afdb1706e1f6c3fdb99a2907c49f7cd67}\label{classdsqt_1_1_d_s_resource_afdb1706e1f6c3fdb99a2907c49f7cd67}} 
+void {\bfseries set\+Height} (float new\+Height)
+\item 
+\mbox{\Hypertarget{classdsqt_1_1_d_s_resource_a7bc780c45e1a99893cb439bf2ce3e0e3}\label{classdsqt_1_1_d_s_resource_a7bc780c45e1a99893cb439bf2ce3e0e3}} 
+double {\bfseries duration} () const
+\item 
+\mbox{\Hypertarget{classdsqt_1_1_d_s_resource_a640585dcc8c33c05b0858c281dcf7038}\label{classdsqt_1_1_d_s_resource_a640585dcc8c33c05b0858c281dcf7038}} 
+void {\bfseries set\+Duration} (double new\+Duration)
+\item 
+\mbox{\Hypertarget{classdsqt_1_1_d_s_resource_a809a9731f6ad75c4ab6ba2b1ee8f6565}\label{classdsqt_1_1_d_s_resource_a809a9731f6ad75c4ab6ba2b1ee8f6565}} 
+Resource\+Type {\bfseries resource\+Type} () const
+\item 
+\mbox{\Hypertarget{classdsqt_1_1_d_s_resource_aebe01f9771c2b26be667daa23fe357fd}\label{classdsqt_1_1_d_s_resource_aebe01f9771c2b26be667daa23fe357fd}} 
+void {\bfseries set\+Resource\+Type} (Resource\+Type new\+Resource\+Type)
+\item 
+\mbox{\Hypertarget{classdsqt_1_1_d_s_resource_a9d0fa8b9c92f6e8fd6fb135c302c3d67}\label{classdsqt_1_1_d_s_resource_a9d0fa8b9c92f6e8fd6fb135c302c3d67}} 
+long {\bfseries id} () const
+\item 
+\mbox{\Hypertarget{classdsqt_1_1_d_s_resource_ae1f914f70717a91477ed69ef91f7a3f7}\label{classdsqt_1_1_d_s_resource_ae1f914f70717a91477ed69ef91f7a3f7}} 
+void {\bfseries set\+Id} (long new\+Id)
+\item 
+\mbox{\Hypertarget{classdsqt_1_1_d_s_resource_ae1b415272c81888f5e372e98e228afa4}\label{classdsqt_1_1_d_s_resource_ae1b415272c81888f5e372e98e228afa4}} 
+Origin {\bfseries origin} () const
+\item 
+\mbox{\Hypertarget{classdsqt_1_1_d_s_resource_a0b9db2fde10bf0748508dc8c929da033}\label{classdsqt_1_1_d_s_resource_a0b9db2fde10bf0748508dc8c929da033}} 
+void {\bfseries set\+Origin} (Origin new\+Origin)
+\item 
+\mbox{\Hypertarget{classdsqt_1_1_d_s_resource_a5b7b074312f115d6c8187358bcc39b7b}\label{classdsqt_1_1_d_s_resource_a5b7b074312f115d6c8187358bcc39b7b}} 
+void {\bfseries set\+Type\+From\+String} (const QString \&type\+Char)
+\end{DoxyCompactItemize}
+\doxysubsection*{Static Public Member Functions}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\Hypertarget{classdsqt_1_1_d_s_resource_a36e3005953a71fde5ca17323a987820e}\label{classdsqt_1_1_d_s_resource_a36e3005953a71fde5ca17323a987820e}} 
+static const Resource\+Type {\bfseries make\+Type\+From\+String} (const QString \&type\+Char)
+\end{DoxyCompactItemize}
+\doxysubsection*{Static Public Attributes}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\Hypertarget{classdsqt_1_1_d_s_resource_a10b3fe432eb57aee4f4edca86c63dc68}\label{classdsqt_1_1_d_s_resource_a10b3fe432eb57aee4f4edca86c63dc68}} 
+static const QMap$<$ QString, Resource\+Type $>$ {\bfseries s\+Db\+To\+Type\+Map}
+\end{DoxyCompactItemize}
+\doxysubsection*{Properties}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\Hypertarget{classdsqt_1_1_d_s_resource_a7fa12802b5b671d8f1a942d4ec8f3aaf}\label{classdsqt_1_1_d_s_resource_a7fa12802b5b671d8f1a942d4ec8f3aaf}} 
+QUrl {\bfseries url}
+\item 
+\mbox{\Hypertarget{classdsqt_1_1_d_s_resource_a0939bd1a99bf744b27347fcb599cd09b}\label{classdsqt_1_1_d_s_resource_a0939bd1a99bf744b27347fcb599cd09b}} 
+float {\bfseries width}
+\item 
+\mbox{\Hypertarget{classdsqt_1_1_d_s_resource_a830a2a607771ea8f1d3c45cb99937a82}\label{classdsqt_1_1_d_s_resource_a830a2a607771ea8f1d3c45cb99937a82}} 
+float {\bfseries height}
+\item 
+\mbox{\Hypertarget{classdsqt_1_1_d_s_resource_a6c67916e53ed6145209b33b9a555b794}\label{classdsqt_1_1_d_s_resource_a6c67916e53ed6145209b33b9a555b794}} 
+double {\bfseries duration}
+\item 
+\mbox{\Hypertarget{classdsqt_1_1_d_s_resource_a17f4670eac4a7d9af283170bcb6baaa3}\label{classdsqt_1_1_d_s_resource_a17f4670eac4a7d9af283170bcb6baaa3}} 
+Resource\+Type {\bfseries resource\+Type}
+\item 
+\mbox{\Hypertarget{classdsqt_1_1_d_s_resource_aaaa839442799f8af8e1eba451588a84b}\label{classdsqt_1_1_d_s_resource_aaaa839442799f8af8e1eba451588a84b}} 
+long {\bfseries id}
+\item 
+\mbox{\Hypertarget{classdsqt_1_1_d_s_resource_a19f80d5d25857b49375bb6e9f8fafbfe}\label{classdsqt_1_1_d_s_resource_a19f80d5d25857b49375bb6e9f8fafbfe}} 
+Origin {\bfseries origin}
+\end{DoxyCompactItemize}
+
+
+The documentation for this class was generated from the following file\+:\begin{DoxyCompactItemize}
+\item 
+C\+:/dev/projects/\+Ds\+Qt/modules/dsqml/model/dsresource.\+h\end{DoxyCompactItemize}
