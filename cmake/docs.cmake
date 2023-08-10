@@ -85,5 +85,7 @@ if(BUILD_DOC)
             SOURCES ${DS_DOCS})
 
     endfunction()
-
+else()
+    function(downstream_docs)
+    endfunction()
 endif() #BUILD_DOC
