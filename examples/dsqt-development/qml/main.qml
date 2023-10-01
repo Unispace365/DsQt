@@ -3,7 +3,7 @@ import QtQuick.VirtualKeyboard
 import dsqml
 DSAppBase {
 
-    childSrc: Qt.resolvedUrl("Sizer.qml");
+    rootSrc: Qt.resolvedUrl("Sizer.qml");
     Component.onCompleted: {
         console.log(Qt.resolvedUrl("Sizer.qml"))
     }

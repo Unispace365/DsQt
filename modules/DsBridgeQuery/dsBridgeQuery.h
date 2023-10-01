@@ -1,5 +1,5 @@
-#ifndef DSSQLQUERY_H
-#define DSSQLQUERY_H
+#ifndef DSBRIDGEQUERY_H
+#define DSBRIDGEQUERY_H
 
 #include <QObject>
 #include <QLoggingCategory>
@@ -16,13 +16,13 @@ Q_DECLARE_LOGGING_CATEGORY(settingsParserWarn)
 
 namespace dsqt {
 
-class DsSqlQuery : public QObject
+class DsBridgeSqlQuery : public QObject
 {
     Q_OBJECT
-    Q_DISABLE_COPY(DsSqlQuery)
+    Q_DISABLE_COPY(DsBridgeSqlQuery)
 public:
-    explicit DsSqlQuery(DSQmlApplicationEngine *parent = nullptr);
-    ~DsSqlQuery() override;
+    explicit DsBridgeSqlQuery(DSQmlApplicationEngine *parent = nullptr);
+    ~DsBridgeSqlQuery() override;
 private:
     QSqlDatabase mDatabase;
     std::shared_ptr<model::DSContentModel*> mRoot;
@@ -31,4 +31,4 @@ private:
     void queryTables();
 };
 }
-#endif // DSSQLQUERY_H
+#endif // DSBRIDGEQUERY_H

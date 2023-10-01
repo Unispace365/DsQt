@@ -5,9 +5,9 @@
 #include <dsqmlimportpath.h>
 
 #include <core/dsqmlapplicationengine.h>
-#include <dssqlquery.h>
-
-
+#include <dsBridgeQuery.h>
+#include <dsnodewatcher.h>
+#include <QIcon>
 
 int main(int argc, char *argv[])
 {
@@ -19,11 +19,12 @@ int main(int argc, char *argv[])
 
     dsqt::DSQmlApplicationEngine engine;
     engine.addImportPath(DS_QML_IMPORT_PATH);
-
-     auto query = new dsqt::DsSqlQuery(&engine);
+    
+    auto query = new dsqt::DsBridgeSqlQuery(&engine);
     //this initalizes and reads in the settings files.
     engine.initialize();
-
+    auto nw = dsqt::network::DsNodeWatcher(&engine);
+    nw.start();
 
     const QUrl url("dsqt-development/qml/main.qml");
     QObject::connect(&engine, &QQmlApplicationEngine::objectCreated,
@@ -35,6 +36,8 @@ int main(int argc, char *argv[])
 
     engine.load(url);
 
-    return app.exec();
+    auto exitcode =  app.exec();
+    delete query;
+    return exitcode;
 }
 

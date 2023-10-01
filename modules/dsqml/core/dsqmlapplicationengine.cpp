@@ -25,6 +25,11 @@ void DSQmlApplicationEngine::initialize()
 	emit onPostInit();
 }
 
+DSSettingsRef DSQmlApplicationEngine::getSettings()
+{
+	return mSettings;
+}
+
 void DSQmlApplicationEngine::preInit()
 {
 
@@ -35,7 +40,7 @@ void DSQmlApplicationEngine::init()
 	mContentRoot = model::DSContentModel::mContent;
 	mContentRoot->unlock();
 	dsqt::DSEnvironment::loadEngineSettings();
-	dsqt::DSSettingsRef appSettings = dsqt::DSEnvironment::loadSettings("app_settings","app_settings.toml");
+	mSettings = dsqt::DSEnvironment::loadSettings("app_settings","app_settings.toml");
 	dsqt::DSSettingsProxy appProxy;
 
 	appProxy.setTarget("app_settings");

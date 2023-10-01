@@ -10,9 +10,9 @@ Window {
     height:  windowProxy.getRect("destination").height;
     visible: true
     title: qsTr("Hello World")
-    flags: Qt.FramelessWindowHint
+    flags: Qt.FramelessWindowHint | Qt.Window
     ///The path to the QML object to load as the root
-    property url childSrc:"";
+    property url rootSrc:"";
     Shortcut {
         sequences: ["ESCAPE","CTRL+Q"]
         autoRepeat: false;
@@ -46,7 +46,7 @@ Window {
 
        width: windowProxy.getSize("world_dimensions").width;
        height: windowProxy.getSize("world_dimensions").height;
-       source: childSrc;
+       source: rootSrc;
        transform: [
             Scale {
                id: loaderScale

@@ -1,4 +1,4 @@
-﻿#include "dssqlquery.h"
+﻿#include "dsNueWafflesQuery.h"
 
 #include <QSharedPointer>
 #include <QString>
@@ -15,7 +15,7 @@ Q_LOGGING_CATEGORY(sqlQueryWarn, "sqlQuery.warning")
 using namespace dsqt::model;
 namespace dsqt {
 
-DsSqlQuery::DsSqlQuery(DSQmlApplicationEngine *parent)
+DsNueWafflesSqlQuery::DsNueWafflesSqlQuery(DSQmlApplicationEngine *parent)
     : QObject(parent)
 {
     using namespace Qt::StringLiterals;
@@ -50,9 +50,9 @@ DsSqlQuery::DsSqlQuery(DSQmlApplicationEngine *parent)
         Qt::ConnectionType::DirectConnection);
 }
 
-DsSqlQuery::~DsSqlQuery() {}
+DsNueWafflesSqlQuery::~DsNueWafflesSqlQuery() {}
 
-void DsSqlQuery::queryTables()
+void DsNueWafflesSqlQuery::queryTables()
 {
     QSqlQuery query(mDatabase);
     query.setForwardOnly(true);

@@ -8,13 +8,14 @@ project(dsqt-development VERSION 0.1 LANGUAGES CXX)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-
+set(app_icon_resource_windows "${CMAKE_CURRENT_SOURCE_DIR}/dsqt-development.rc")
 find_package(Qt6 6.2 COMPONENTS Quick REQUIRED Sql)
 
 
 qt_add_executable(appdsqt-development
     base.qrc
     main.cpp
+    ${app_icon_resource_windows}
 )
 
 qt_add_qml_module(appdsqt-development
@@ -24,7 +25,7 @@ qt_add_qml_module(appdsqt-development
 )
 
 
-downstream_modules(TARGET appdsqt-development MODULES dsqml DsSqlQuery)
+downstream_modules(TARGET appdsqt-development MODULES dsqml DsBridgeQuery)
 ##find_package(tomlplusplus)
 
 #get the settings to show up in the IDE

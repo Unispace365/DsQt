@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 include("$ENV{DS_QT_PLATFORM_100}/cmake/dsqt.cmake")
-#project(DsSqlQuery VERSION 0.1 LANGUAGES CXX)
+#project(DsBridgeQuery VERSION 0.1 LANGUAGES CXX)
 
 #set(CMAKE_AUTOMOC ON)
 #set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -10,17 +10,18 @@ include("$ENV{DS_QT_PLATFORM_100}/cmake/dsqt.cmake")
 find_package(Qt6 6.4 REQUIRED COMPONENTS Quick Core Sql)
 
 
-qt_add_qml_module(DsSqlQuery
-    URI DsSqlQuery
+qt_add_qml_module(DsBridgeQuery
+    URI DsBridgeQuery
     STATIC
     VERSION 1.0
-    QML_FILES DsSqlQueryControls.qml
-    SOURCES dsNueWafflesQuery.cpp dsNueWafflesQuery.h nw_sql_queries.h
+    QML_FILES DsBridgeQueryControls.qml
+    SOURCES dsBridgeQuery.cpp dsBridgeQuery.h nw_sql_queries.h
     IMPORTS dsqml
+    #SOURCES bridge_service.cpp bridge_service.h
 )
 
-target_compile_definitions(DsSqlQuery
+target_compile_definitions(DsBridgeQuery
     PRIVATE $<$<OR:$<CONFIG:Debug>,$<CONFIG:RelWithDebInfo>>:QT_QML_DEBUG>)
-target_link_libraries(DsSqlQuery
+target_link_libraries(DsBridgeQuery
     PRIVATE Qt6::Core Qt6::Quick Qt6::Sql dsqml)
-target_include_directories(DsSqlQuery PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} dsqml )
+target_include_directories(DsBridgeQuery PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} dsqml )

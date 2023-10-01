@@ -27,7 +27,7 @@ qt_add_qml_module(dsqml
     settings/dssettings_geom_glm.cpp
     settings/dssettings_geom_common.cpp
     settings/dssettings_proxy.h settings/dssettings_proxy.cpp
-
+    network/dsnodewatcher.h network/dsnodewatcher.cpp
     QML_FILES Test.qml qml/DSAppBase.qml
 )
 
@@ -39,7 +39,7 @@ downstream_docs(IN_DIR ${DOCS_DIR} OUT_DIR ${DOCS_DIR} DOCNAME "DsQt" DESC "Qt f
 
 #link to the libaries that we are using
 target_link_libraries(dsqml PUBLIC tomlplusplus::tomlplusplus)
-target_include_directories(dsqml PUBLIC tomlplusplus::tomlplusplus settings model core)
+target_include_directories(dsqml PUBLIC tomlplusplus::tomlplusplus settings model core network)
 target_include_directories(dsqml PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} glm)
 target_link_libraries(dsqml PUBLIC glm Qt6::Gui)
 set(DS_LIB_FILES dsqml.qmltypes dsqmlplugin.lib qmldir)
