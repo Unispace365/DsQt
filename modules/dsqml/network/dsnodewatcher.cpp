@@ -96,25 +96,49 @@ Loop::~Loop()
 void Loop::run()
 {
     static const int    BUF_SIZE = 512;
-    char                buf[BUF_SIZE];
-    
-    QUdpSocket theSocket;
-    
-    try {
-        theSocket.bind(QHostAddress(mHost),mPort);
-		QObject connectionLife;
-		mEngine->connect(&theSocket,&QUdpSocket::readyRead,&connectionLife,[&](){
+	char                buf[BUF_SIZE];
+
+	QUdpSocket* theSocket = new QUdpSocket();
+	QObject* connectionLife = new QObject();;
+	try {
+		connect(theSocket, &QUdpSocket::connected, this, [&](){
+				qDebug()<<"connected";
+			});
+		connect(theSocket, &QUdpSocket::errorOccurred, this, [&](){
+				qDebug()<<"error";
+			});
+		connect(theSocket,&QUdpSocket::readyRead,this,[&](){
 			qDebug()<<"Got Message in Lambda"<<QThread::currentThreadId();
-            int length = theSocket.readDatagram(buf,BUF_SIZE);
-            if(length > 0){
-                QString msg = QString::fromUtf8(buf,length);
-                QMutexLocker l(&mMutex);
-                mMsg.mData.emplace_back(msg);
-            }
-         
-        });
+			int length = theSocket->readDatagram(buf,BUF_SIZE);
+			if(length > 0){
+				QString msg = QString::fromUtf8(buf,length);
+				QMutexLocker l(&mMutex);
+				mMsg.mData.emplace_back(msg);
+			}
+
+		});
+
+		theSocket->bind(QHostAddress::LocalHost,7788,QUdpSocket::ReuseAddressHint);
+		//theSocket->open(QIODevice::ReadOnly);
+
+		//theSocket->setTextModeEnabled(true);
+		//theSocket->connectToHost(QHostAddress::LocalHost,mPort);
+		//qDebug()<<"socket: "<<theSocket->set();
+
+
+
 
         while(true){
+			while(theSocket->hasPendingDatagrams()){
+				int length = theSocket->readDatagram(buf,BUF_SIZE);
+				if(length > 0){
+					QString msg = QString::fromUtf8(buf,length);
+					QMutexLocker l(&mMutex);
+					mMsg.mData.emplace_back(msg);
+				}
+
+			}
+			//qDebug()<<"looping";
             if(mMsg.mData.size()>0){
 				qDebug()<<"emitting messageAvailable "<<QThread::currentThreadId();
                 emit messageAvailable();
@@ -127,7 +151,7 @@ void Loop::run()
             }
 
         }
-    } catch(std::exception e){
+	} catch(QException ex){
 
     }
 }

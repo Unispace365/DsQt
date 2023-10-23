@@ -7,6 +7,7 @@
 #include <QFuture>
 #include <QtConcurrent/QtConcurrent>
 #include <QQmlApplicationEngine>
+#include <QHostAddress>
 
 Q_DECLARE_LOGGING_CATEGORY(nodeWatcher)
 
@@ -54,9 +55,9 @@ public:
 class DsNodeWatcher : public QObject
 {
     Q_OBJECT
-    QML_ELEMENT
+
 public:
-    DsNodeWatcher(DSQmlApplicationEngine *parent,QString host="localhost",int port=7788,bool autoStart=true);
+	DsNodeWatcher(DSQmlApplicationEngine *parent,QString host="127.0.0.1",int port=7788,bool autoStart=true);
 
     void handleMessage();
     void start();

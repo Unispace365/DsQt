@@ -13,7 +13,7 @@ class DSContentModelModel : public QAbstractItemModel
 	QML_ELEMENT
 
   public:
-	explicit DSContentModelModel(DSContentModel* data, QObject *parent = nullptr);
+	explicit DSContentModelModel(DSContentModel* data=nullptr, QObject *parent = nullptr);
 	~DSContentModelModel();
 
 	// QAbstractItemModel interface
