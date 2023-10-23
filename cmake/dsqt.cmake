@@ -29,6 +29,19 @@ if(NOT glm_POPULATED)
   FetchContent_Populate(glm)
 endif()
 
+##Fetch qRhiImgui2
+FetchContent_Declare(
+    qtimgui
+    GIT_REPOSITORY https://github.com/alpqr/qrhiimgui2.git
+    GIT_TAG        204a8a34cb26f2e22b2c4c23dce7bbde7aad0ca7
+    #PREFIX ${CMAKE_DIR_LOCATION}/_deps
+)
+FetchContent_GetProperties(qtimgui)
+if(NOT qtimgui_POPULATED)
+  FetchContent_Populate(qtimgui)
+endif()
+#FetchContent_MakeAvailable(qtimgui)
+
 function(downstream_modules)
     set(options)
     set(oneValueArgs TARGET)
@@ -74,4 +87,10 @@ function(downstream_modules)
 
     ##connect toml++
     target_include_directories(${DOWNSTREAM_MOD_TARGET} PUBLIC tomlplusplus::tomlplusplus)
+
+    ##connect qrhiimgui
+    set(imgui_base ${qtimgui_SOURCE_DIR}/imgui)
+    set(imgui_target ${DOWNSTREAM_MOD_TARGET})
+    include(${imgui_base}/imgui.cmakeinc)
+    include(${imgui_base}/imguiquick.cmakeinc)
 endfunction()
