@@ -100,8 +100,8 @@ void Loop::run()
     
     QUdpSocket theSocket;
     
-    try {
-        theSocket.bind(QHostAddress(mHost),mPort);
+	try {
+		theSocket.bind(QHostAddress::AnyIPv4,mPort);
 		QObject connectionLife;
 		mEngine->connect(&theSocket,&QUdpSocket::readyRead,&connectionLife,[&](){
 			qDebug()<<"Got Message in Lambda"<<QThread::currentThreadId();
