@@ -1,5 +1,5 @@
-#ifndef NW_SQL_QUERIES_H
-#define NW_SQL_QUERIES_H
+#ifndef BRIDGE_SQL_QUERIES_H
+#define BRIDGE_SQL_QUERIES_H
 
 #include <QMap>
 QString resources = R"query(
@@ -119,4 +119,4 @@ SELECT wf.id, wf.node_id, cf.app_key, wms.location, wms.stream_res, r.resourcesf
 )query";
 
 
-#endif // NW_SQL_QUERIES_H
+#endif // BRIDGE_SQL_QUERIES_H

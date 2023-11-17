@@ -3,15 +3,15 @@
 #include <QSharedPointer>
 #include <QString>
 #include <QtSql/QtSql>
+#include "bridge_sql_queries.h"
 #include "core/dsenvironment.h"
-#include "settings/dssettings.h"
-#include "settings/dssettings_proxy.h"
 #include "model/dscontentmodel.h"
 #include "model/dsresource.h"
-#include "nw_sql_queries.h"
+#include "settings/dssettings.h"
+#include "settings/dssettings_proxy.h"
 
-Q_LOGGING_CATEGORY(sqlQuery, "sqlQuery")
-Q_LOGGING_CATEGORY(sqlQueryWarn, "sqlQuery.warning")
+Q_LOGGING_CATEGORY(bridgeSyncApp, "bridgeSync.app")
+Q_LOGGING_CATEGORY(bridgeSyncQuery, "bridgeSync.query")
 using namespace dsqt::model;
 namespace dsqt {
 
@@ -19,11 +19,17 @@ DsBridgeSqlQuery::DsBridgeSqlQuery(DSQmlApplicationEngine *parent)
     : QObject(parent)
 {
     using namespace Qt::StringLiterals;
+
     connect(
         parent,
         &DSQmlApplicationEngine::onInit,
         this,
         [this]() {
+            if (!isBridgeSyncRunning()) {
+                tryLaunchBridgeSync();
+                return;
+            }
+
             mDatabase = QSqlDatabase::addDatabase("QSQLITE");
             DSSettingsProxy engSettings;
             engSettings.setTarget("engine");
@@ -39,7 +45,7 @@ DsBridgeSqlQuery::DsBridgeSqlQuery(DSQmlApplicationEngine *parent)
                 mDatabase.setDatabaseName(file);
 
                 if (!mDatabase.open()) {
-                    qCWarning(sqlQueryWarn) << "Could not open database at " << file;
+                    qCWarning(bridgeSyncQuery) << "Could not open database at " << file;
                 } else {
                     //get the raw nodes
 
@@ -51,6 +57,121 @@ DsBridgeSqlQuery::DsBridgeSqlQuery(DSQmlApplicationEngine *parent)
 }
 
 DsBridgeSqlQuery::~DsBridgeSqlQuery() {}
+
+DsBridgeSyncSettings DsBridgeSqlQuery::getBridgeSyncSettings()
+{
+    DsBridgeSyncSettings settings;
+    DSSettingsProxy engSettings;
+    engSettings.setTarget("engine");
+    engSettings.setPrefix("engine.bridgesync");
+    auto launchBridgeSync = engSettings.getBool("launch_bridgesync", false);
+    auto appPath = engSettings.getString("app_path", "%SHARE%/bridgesync/bridge_sync_console.exe")
+                       .toString();
+
+    settings.server = engSettings.getString("connection.server");
+    settings.authServer = engSettings.getString("connection.auth_server");
+    settings.clientId = engSettings.getString("connection.client_id");
+    settings.clientSecret = engSettings.getString("connection.client_secret");
+    settings.directory = engSettings.getString("connection.directory");
+    settings.interval = engSettings.getInt("connection.interval");
+    settings.verbose = engSettings.getBool("connection.verbose");
+
+    settings.appPath = DSEnvironment::expandq(appPath);
+    settings.doLaunch = launchBridgeSync.toBool();
+    return settings;
+}
+
+bool DsBridgeSqlQuery::tryLaunchBridgeSync()
+{
+    //static int tries = 0;
+
+    //check if process is running
+    if (mBridgeSyncProcess.state() == QProcess::Running) {
+        qCInfo(bridgeSyncApp) << "BridgeSync is already running";
+        return true;
+    }
+
+    auto bridgeSyncSettings = getBridgeSyncSettings();
+    bool launch = true;
+    if (!bridgeSyncSettings.doLaunch) {
+        qCInfo(bridgeSyncApp) << "BridgeSync is not configured to launch";
+        return false;
+    }
+    if (bridgeSyncSettings.appPath.isEmpty()) {
+        qCWarning(bridgeSyncApp) << "BridgeSync's app path is empty. BridgeSync will not launch";
+        return false;
+    }
+    if (bridgeSyncSettings.server.toString().isEmpty()) {
+        qCWarning(bridgeSyncApp) << "BridgeSync's server is empty. BridgeSync will not launch";
+        return false;
+    }
+    if (bridgeSyncSettings.directory.toString().isEmpty()) {
+        qCWarning(bridgeSyncApp) << "BridgeSync's directory is empty. BridgeSync will not launch";
+        return false;
+    }
+
+    //check that appPath exist
+    auto appPath = DSEnvironment::expandq(bridgeSyncSettings.appPath);
+    if (!QFile::exists(appPath)) {
+        qCWarning(bridgeSyncApp)
+            << "BridgeSync's app path does not exist. BridgeSync will not launch\n"
+            << appPath;
+        return false;
+    }
+
+    mBridgeSyncProcess.setProgram(appPath);
+    QStringList args;
+
+    args << "--server" << bridgeSyncSettings.server.toString();
+    if (!bridgeSyncSettings.authServer.toString().isEmpty()) {
+        args << "--authServer" << bridgeSyncSettings.authServer.toString();
+    }
+    if (!bridgeSyncSettings.clientId.toString().isEmpty()) {
+        args << "--clientId" << bridgeSyncSettings.clientId.toString();
+    }
+    if (!bridgeSyncSettings.clientSecret.toString().isEmpty()) {
+        args << "--clientSecret" << bridgeSyncSettings.clientSecret.toString();
+    }
+    if (!bridgeSyncSettings.directory.toString().isEmpty()) {
+        args << "--directory" << DSEnvironment::expandq(bridgeSyncSettings.directory.toString());
+    }
+    if (bridgeSyncSettings.interval.toFloat() > 0) {
+        args << "--interval" << bridgeSyncSettings.interval.toString();
+    }
+    if (bridgeSyncSettings.verbose.toBool()) {
+        args << "--verbose";
+    }
+    mBridgeSyncProcess.setArguments(args);
+    qCInfo(bridgeSyncApp) << "BridgeSync is launching with args: "
+                          << mBridgeSyncProcess.arguments();
+
+    //connect to possible outcomes for start.
+    connect(&mBridgeSyncProcess, &QProcess::started, this, [this]() {
+        qCInfo(bridgeSyncApp) << "BridgeSync has started";
+    });
+    connect(&mBridgeSyncProcess,
+            &QProcess::errorOccurred,
+            this,
+            [this](QProcess::ProcessError error) {
+                qCWarning(bridgeSyncApp) << "BridgeSync has encountered an error: " << error;
+            });
+    connect(&mBridgeSyncProcess, &QProcess::finished, this, [this](int exitCode) {
+        qCInfo(bridgeSyncApp) << mBridgeSyncProcess.readAllStandardOutput();
+        qCInfo(bridgeSyncApp) << "BridgeSync has finished with exit code: " << exitCode;
+    });
+    connect(&mBridgeSyncProcess, &QProcess::stateChanged, this, [this](QProcess::ProcessState state) {
+        qCInfo(bridgeSyncApp) << "BridgeSync has changed state: " << state;
+    });
+
+    mBridgeSyncProcess.start();
+    return true;
+}
+
+//checks to see if process is started
+bool DsBridgeSqlQuery::isBridgeSyncRunning()
+{
+    return mBridgeSyncProcess.state() == QProcess::Running;
+}
 
 void DsBridgeSqlQuery::queryTables()
 {

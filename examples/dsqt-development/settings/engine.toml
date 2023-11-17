@@ -16,6 +16,28 @@ destination={x=0,y=0,w=1920,h=1080}#,{type="rect"}] #The output window size and 
 location="%LOCAL%/linkedin/resources/"
 resource_db="../db/db.sqlite"
 
+[engine.bridgesync]
+#whether to use the local path to the shared path to find downsync.
+launch_bridgesync=true
+app_path="%SHARE%/bridgesync/bridge_sync_console.exe"
+
+#unimplemented, but the idea is to allow these settings to live is seperate
+#toml files
+#use_settings_file=false
+#settings_file="bridgesync.toml"
+
+[engine.bridgesync.connection]
+server = "http://localhost:7080"
+#auth_server = "https://hpi1-api-userpool.auth.us-east-2.amazoncognito.com"
+#client_id = ""
+#client_secret= ""
+directory="%LOCAL%/hpi1/"
+interval = 5
+verbose = true
+
+
+
+
 [engine.examples]
 #this is the same as example_simple = [450,{}] and should take the same code path
 example_simple = 450 #simple example makes an int

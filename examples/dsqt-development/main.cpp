@@ -11,7 +11,8 @@
 
 int main(int argc, char *argv[])
 {
-
+    QLoggingCategory::setFilterRules("*.debug=false\n"
+                                     "driver.usb.debug=true");
     qputenv("QT_IM_MODULE", QByteArray("qtvirtualkeyboard"));
     qputenv("QT_ENABLE_HIGHDPI_SCALING", QByteArray("0"));
 
@@ -19,8 +20,14 @@ int main(int argc, char *argv[])
 
     dsqt::DSQmlApplicationEngine engine;
     engine.addImportPath(DS_QML_IMPORT_PATH);
-    
+
+    //create the query object
+    //the query object will create the database connection and
+    //the root content model.
+    //it will also try to start the bridge sync process
+    //if it is configured to do so.
     auto query = new dsqt::DsBridgeSqlQuery(&engine);
+
     //this initalizes and reads in the settings files.
     engine.initialize();
     auto nw = dsqt::network::DsNodeWatcher(&engine);
