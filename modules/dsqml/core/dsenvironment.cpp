@@ -16,6 +16,7 @@ std::string DSEnvironment::sDocumentsDownstream = "%LOCAL%";
 std::string DSEnvironment::sProjectPath = "%PP%";
 std::string DSEnvironment::sAppRootFolder="";
 std::string DSEnvironment::sConfigFolder = "%CFG_FOLDER%";
+std::string DSEnvironment::sSharedFolder = "%SHARED%";
 
 std::string DSEnvironment::expand(const std::string &_path)
 {
@@ -40,7 +41,8 @@ std::string DSEnvironment::expand(const std::string &_path)
         p.replace("%LOCAL%",QString::fromStdString(sDocumentsDownstream));//        boost::replace_all(p, "%LOCAL%", getDownstreamDocumentsFolder());
         p.replace("%CFG_FOLDER%",QString::fromStdString(sConfigFolder));//        boost::replace_all(p, "%CFG_FOLDER%", EngineSettings::getConfigurationFolder());
         p.replace("%DOCUMENTS%",QString::fromStdString(sDocuments));//        boost::replace_all(p, "%DOCUMENTS%", DOCUMENTS);
-//        // This can result in double path separators, so flatten
+		p.replace("%SHARE%",QString::fromStdString(sSharedFolder));
+		//        // This can result in double path separators, so flatten
 //        return Poco::Path(p).toString();
         p = QDir::cleanPath(p);
         return p.toStdString();
@@ -112,8 +114,27 @@ bool DSEnvironment::initialize(){
         p.append("downstream");
         sDocumentsDownstream = p.string();
 
-        //app folder
+		//programData/Downstream ifAvailable
+		QStringList dataPaths = QStandardPaths::standardLocations(QStandardPaths::GenericDataLocation);
+		{
+			bool found = false;
+			QString sharedPath;
+			for(auto path:dataPaths){
+				if(path.contains("ProgramData")){
+					sharedPath = path;
+					found = true;
+					break;
+				}
+			}
+			if(!found){
+				sharedPath = QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation);
+			}
+			sharedPath = QDir::cleanPath(sharedPath+"/Downstream");
+			sSharedFolder = sharedPath.toStdString();
 
+		}
+
+		//app folder
         auto subParent = [](const std::string& sub, const std::filesystem::path& parent){
             auto p = std::filesystem::path(parent);
             //auto f = p.append(sub);
@@ -138,8 +159,6 @@ bool DSEnvironment::initialize(){
             if(count++ >=5 || !checkPath.has_parent_path()) break;
         }
         sAppRootFolder = appDataPath;
-
-
 
         return true;
 }

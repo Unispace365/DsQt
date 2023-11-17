@@ -69,6 +69,8 @@ public:
     static std::string sAppRootFolder;
     static std::string sProjectPath;
     static std::string sConfigFolder;
+	static std::string sSharedFolder;
+
     static bool sInitialized;
 };
 
