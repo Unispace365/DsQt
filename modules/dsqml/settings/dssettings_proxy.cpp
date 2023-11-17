@@ -139,5 +139,19 @@ QVariant DSSettingsProxy::getColor(const QString& key, QVariant def) {
 	return result;
 }
 
+QVariant DSSettingsProxy::getBool(const QString& key, QVariant def) {
+	QVariant	result;
+	std::string keyPath = _prefix_str + "." + key.toStdString();
+	if (def.canConvert<bool>()) {
+		result = _settings->getOr(keyPath, def.toBool());
+	} else {
+		auto strOpt = _settings->get<bool>(keyPath);
+		if (strOpt) {
+			result = strOpt.value();
+		}
+	}
+	return result;
+}
+
 
 }  // namespace dsqt

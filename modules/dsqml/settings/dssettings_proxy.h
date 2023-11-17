@@ -33,6 +33,7 @@ class DSSettingsProxy : public QObject
 	Q_INVOKABLE QVariant getRect(const QString& key,QVariant def = QVariant{});
 	Q_INVOKABLE QVariant getSize(const QString& key,QVariant def = QVariant{});
 	Q_INVOKABLE QVariant getColor(const QString& key,QVariant def = QVariant{});
+	Q_INVOKABLE QVariant getBool(const QString& key, QVariant def = QVariant{});
 
   signals:
 	void targetChanged(QString target);
