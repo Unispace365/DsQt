@@ -1,6 +1,6 @@
 #include "dscontentmodel.h"
-#include "dscontentmodelmodel.h"
 #include <QQmlEngine>
+#include "dscontentItemmodel.h"
 
 Q_LOGGING_CATEGORY(contentModel, "content.model")
 Q_LOGGING_CATEGORY(contentModelWarn, "content.model.warning")
@@ -30,10 +30,9 @@ DSContentModel *DSContentModel::getChildByName(QString name)
 	return findChild<DSContentModel*>(name,Qt::FindDirectChildrenOnly);
 }
 
-DSContentModelModel *DSContentModel::getModel()
-{
+DSContentItemModel *DSContentModel::getModel() {
 	if(!mModel){
-		mModel = new DSContentModelModel(this,this);
+		mModel = new DSContentItemModel(this, this);
 	}
 	return mModel;
 }
@@ -62,6 +61,16 @@ QQmlListProperty<DSContentModel> DSContentModel::getChildren()
 											);
 }
 
+void DSContentModel::addChild(DSContentModelPtr child) {}
+
+DSContentModelPtr DSContentModel::create(QString name, QObject *parent) {
+	return DSContentModelPtr(new DSContentModel(parent, name));
+}
+
+DSContentModelPtr DSContentModel::getRoot() {
+	return mContent;
+}
+
 void DSContentModel::childrenAppend(QQmlListProperty<DSContentModel> *l, DSContentModel *m)
 {
 	qmlEngine(l->object)->throwError(tr("You can append children to content model in QML"));
@@ -88,20 +97,26 @@ DSContentModel *DSContentModel::child(QQmlListProperty<DSContentModel> *l, qsize
 void DSContentModel::childrenClear(QQmlListProperty<DSContentModel> *l)
 {
 
-	qmlEngine(l->object)->throwError(tr("You can clear children of a content model in QML"));
+	qmlEngine(l->object)->throwError(tr("You can not clear children of a content model in QML"));
 }
 
 void DSContentModel::childrenReplace(QQmlListProperty<DSContentModel> *l, qsizetype, DSContentModel *)
 {
-	qmlEngine(l->object)->throwError(tr("You can replace children of a content model in QML"));
+	qmlEngine(l->object)->throwError(tr("You can not replace children of a content model in QML"));
 }
 
 void DSContentModel::childrenRemoveLast(QQmlListProperty<DSContentModel> *l)
 {
-	qmlEngine(l->object)->throwError(tr("You can remove children of a content model in QML"));
+	qmlEngine(l->object)->throwError(tr("You can not remove children of a content model in QML"));
 }
 
+QString DSContentModel::id() const {
+	return m_id;
+}
 
-
-
+void DSContentModel::setId(const QString &newId) {
+	if (m_id == newId) return;
+	m_id = newId;
+	emit idChanged();
+}
 }

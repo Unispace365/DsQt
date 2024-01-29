@@ -13,7 +13,7 @@
 Q_LOGGING_CATEGORY(bridgeSyncApp, "bridgeSync.app")
 Q_LOGGING_CATEGORY(bridgeSyncQuery, "bridgeSync.query")
 using namespace dsqt::model;
-namespace dsqt {
+namespace dsqt::bridge {
 
 DsBridgeSqlQuery::DsBridgeSqlQuery(DSQmlApplicationEngine *parent)
     : QObject(parent)
@@ -171,6 +171,441 @@ bool DsBridgeSqlQuery::tryLaunchBridgeSync()
 bool DsBridgeSqlQuery::isBridgeSyncRunning()
 {
     return mBridgeSyncProcess.state() == QProcess::Running;
+}
+
+void DsBridgeSqlQuery::loadContent()
+{
+    qCDebug(bridgeSyncQuery) << "BridgeService::Loop is loading content.";
+
+    //const ds::Resource::Id cms(ds::Resource::Id::CMS_TYPE, 0);
+
+    std::unordered_map<QString, DSContentModelPtr> recordMap;
+    std::unordered_map<QString, QString> selectMap;
+
+    QSqlQuery query(mDatabase);
+    query.setForwardOnly(true);
+
+    std::unordered_map<QString, std::pair<QString, bool>> slotReverseOrderingMap;
+    {
+        QString slotQuery = "SELECT "             //
+                            " l.uid,"             // 0
+                            " l.app_key,"         // 1
+                            " l.reverse_ordering" // 2
+                            " FROM lookup AS l"
+                            " WHERE l.type = 'slot' ";
+        query.exec(slotQuery);
+        if (query.lastError().isValid()) {
+            qCDebug(bridgeSyncQuery) << "Query Error: " << query.lastError();
+        } else {
+            while (query.next()) {
+                auto result = query.record();
+                bool ok_val2;
+                auto uid = result.value(0).toString();
+                auto app_key = result.value(1).toString();
+                auto reverse_ordering = result.value(2).toInt(&ok_val2);
+                slotReverseOrderingMap[uid] = {app_key, reverse_ordering};
+            }
+        }
+    }
+
+    std::vector<DSContentModelPtr> rankOrderedRecords;
+    {
+        QString recordQuery
+            = "SELECT "                 //
+              " r.uid,"                 // 0
+              " r.type_uid,"            // 1
+              " l.name as type_name,"   // 2
+              " l.app_key as type_key," // 3
+              " r.parent_uid,"          // 4
+              " r.parent_slot,"         // 5
+              " r.variant,"             // 6
+              " r.name,"                // 7
+              " r.span_type,"           // 8
+              " r.span_start_date,"     // 9
+              " r.span_end_date,"       // 10
+              " r.start_time,"          // 11
+              " r.end_time,"            // 12
+              " r.effective_days"       // 13
+              " FROM record AS r"
+              " INNER JOIN lookup AS l ON l.uid = r.type_uid"
+              " WHERE r.complete = 1 AND r.visible = 1 AND (r.span_end_date IS NULL OR "
+              " date(r.span_end_date, '+5 day') > date('now'))"
+              " ORDER BY r.parent_slot ASC, r.rank ASC;";
+
+        query.exec(recordQuery);
+        if (query.lastError().isValid()) {
+            qCDebug(bridgeSyncQuery) << "Query Error: " << query.lastError();
+        } else {
+            int recordId = 1;
+            while (query.next()) {
+                auto result = query.record();
+                auto record = DSContentModel::create(result.value(7).toString() + "("
+                                                     + result.value(0).toString() + ")");
+                record->setId(result.value(0).toString());
+
+                record->setProperty("record_name", result.value(7));
+                record->setProperty("uid", result.value(0));
+                record->setProperty("type_uid", result.value(1));
+                record->setProperty("type_name", result.value(2));
+                record->setProperty("type_key", result.value(3));
+                if (!result.value(4).toString().isEmpty())
+                    record->setProperty("parent_uid", result.value(4));
+                if (!result.value(5).toString().isEmpty()) {
+                    record->setProperty("parent_slot", result.value(5));
+                    record->setProperty("label",
+                                        slotReverseOrderingMap[result.value(5).toString()].first);
+                    record->setProperty("reverse_ordered",
+                                        slotReverseOrderingMap[result.value(5).toString()].second);
+                }
+
+                const auto &variant = result.value(6).toString();
+                record->setProperty("variant", variant);
+                if (variant == "SCHEDULE") {
+                    record->setProperty("span_type", result.value(8).toString());
+                    record->setProperty("start_date", result.value(9).toString());
+                    record->setProperty("end_date", result.value(10).toString());
+                    record->setProperty("start_time", result.value(11).toString());
+                    record->setProperty("end_time", result.value(12).toString());
+                    record->setProperty("effective_days", result.value(13).toInt());
+                }
+
+                // Put it in the map so we can wire everything up into the tree
+                recordMap[result.value(0).toString()] = record;
+
+                rankOrderedRecords.push_back(record);
+                //++it;
+            }
+
+            DSContentModelPtr root = DSContentModel::getRoot();
+
+            mContent = DSContentModel::create("content");
+            mPlatforms = DSContentModel::create("platform");
+            mEvents = DSContentModel::create("all_events");
+            mRecords = DSContentModel::create("all_records");
+
+            for (const auto &record : rankOrderedRecords) {
+                mRecords->addChild(record);
+                auto type = record->property("variant").toString();
+                if (type == "ROOT_CONTENT") {
+                    mContent->addChild(record);
+                } else if (type == "ROOT_PLATFORM") {
+                    mPlatforms->addChild(record);
+                } else if (type == "SCHEDULE") {
+                    for (const auto &parentUid :
+                         ds::split(record->property("parent_uid").toString(), ",")) {
+                        // Create/Add the event to its specific platform
+                        auto platformEvents = recordMap[parentUid].getChildByName(
+                            "scheduled_events");
+                        platformEvents.setName("scheduled_events");
+                        platformEvents.addChild(record);
+                        recordMap[parentUid].replaceChild(platformEvents);
+                    }
+
+                    // Also add to the 'all_events' table in case an application needs events not specifically
+                    // assigned to it
+                    mEvents.addChild(record);
+                } else if (type == "RECORD") {
+                    // it's has a record for a parent!
+                    recordMap[record.getPropertyString("parent_uid")].addChild(record);
+                } else {
+                    DS_LOG_INFO("TYPE: " << type)
+                }
+            }
+        }
+    }
+
+    //get the select table
+    {
+        ds::query::Result result;
+        std::string selectQuery = "SELECT "
+                                  " lookup.uid,"    // 0
+                                  " lookup.app_key" // 1
+                                  " FROM lookup"
+                                  " WHERE lookup.type = 'select'";
+        if (ds::query::Client::query(cms.getDatabasePath(), selectQuery, result)) {
+            ds::query::Result::RowIterator it(result);
+            while (it.hasValue()) {
+                selectMap[result.value(0).toString()] = result.value(1).toString();
+                ++it;
+            }
+        }
+    }
+
+    // Insert default values
+    {
+        ds::query::Result result;
+
+        /* select defaults and the type they belong to (from traits) */
+        std::string defaultsQuery
+            = "SELECT "
+              " record.uid,"                  // 0
+              " defaults.field_uid,"          // 1
+              " lookup.app_key,"              // 2
+              " defaults.field_type,"         // 3
+              " defaults.checked,"            // 4
+              " defaults.color,"              // 5
+              " defaults.text_value,"         // 6
+              " defaults.rich_text,"          // 7
+              " defaults.number,"             // 8
+              " defaults.number_min,"         // 9
+              " defaults.number_max,"         // 10
+              " defaults.option_type,"        // 11
+              " defaults.option_value,"       // 12
+              " lookup.app_key AS option_key" // 13
+              " FROM record"
+              " LEFT JOIN trait_map ON trait_map.type_uid = record.type_uid"
+              " LEFT JOIN lookup ON record.type_uid = lookup.parent_uid OR trait_map.trait_uid = "
+              "lookup.parent_uid "
+              " LEFT JOIN defaults ON lookup.uid = defaults.field_uid"
+              " WHERE EXISTS (select * from defaults where defaults.field_uid = lookup.uid);";
+
+        if (ds::query::Client::query(cms.getDatabasePath(), defaultsQuery, result)) {
+            ds::query::Result::RowIterator it(result);
+            while (it.hasValue()) {
+                auto recordUid = result.value(0).toString();
+                if (recordMap.find(recordUid) == recordMap.end()) {
+                    ++it;
+                    continue;
+                }
+                auto &record = recordMap[recordUid];
+
+                auto field_uid = result.value(1).toString();
+                auto field_key = result.value(2).toString();
+                if (!field_key.empty()) {
+                    field_uid = field_key;
+                }
+                auto type = result.value(3).toString();
+
+                if (type == "TEXT") {
+                    record.setProperty(field_uid, result.value(6).toString());
+                } else if (type == "RICH_TEXT") {
+                    record.setProperty(field_uid, result.value(7).toString());
+                } else if (type == "NUMBER") {
+                    record.setProperty(field_uid, it.getFloat(8));
+                } else if (type == "OPTIONS") {
+                    auto key = result.value(12).toString();
+                    auto value = selectMap[key];
+                    record.setProperty(field_uid, value);
+                    record.setProperty(field_uid + "_value_uid", key);
+                } else if (type == "CHECKBOX") {
+                    record.setProperty(field_uid, bool(it.getInt(4)));
+                } else {
+                    DS_LOG_INFO("UNHANDLED(1): " << type)
+                }
+                record.setProperty(field_uid + "_field_uid", result.value(1).toString());
+                ++it;
+            }
+        }
+    }
+
+    {
+        ds::query::Result result;
+
+        std::string valueQuery
+            = "SELECT "
+              " v.uid,"                   // 0
+              " v.field_uid,"             // 1
+              " v.record_uid,"            // 2
+              " v.field_type,"            // 3
+              " v.is_default,"            // 4
+              " v.is_empty,"              // 5
+              " v.checked,"               // 6
+              " v.color,"                 // 7
+              " v.text_value,"            // 8
+              " v.rich_text,"             // 9
+              " v.number,"                // 10
+              " v.number_min,"            // 11
+              " v.number_max,"            // 12
+              " v.datetime,"              // 13
+              " v.resource_hash,"         // 14
+              " v.crop_x,"                // 15
+              " v.crop_y,"                // 16
+              " v.crop_w,"                // 17
+              " v.crop_h,"                // 18
+              " v.composite_frame,"       // 19
+              " v.composite_x,"           // 20
+              " v.composite_y,"           // 21
+              " v.composite_w,"           // 22
+              " v.composite_h,"           // 23
+              " v.option_type,"           // 24
+              " v.option_value,"          // 25
+              " v.link_url,"              // 26
+              " v.link_target_uid,"       // 27
+              " res.hash,"                // 28
+              " res.type,"                // 29
+              " res.uri,"                 // 30
+              " res.width,"               // 31
+              " res.height,"              // 32
+              " res.duration,"            // 33
+              " res.pages,"               // 34
+              " res.file_size,"           // 35
+              " l.name AS field_name,"    // 36
+              " l.app_key AS field_key,"  // 37
+              " v.preview_resource_hash," // 38
+              " preview_res.hash,"        // 39
+              " preview_res.type,"        // 40
+              " preview_res.uri,"         // 41
+              " preview_res.width,"       // 42
+              " preview_res.height,"      // 43
+              " preview_res.duration,"    // 44
+              " preview_res.pages,"       // 45
+              " preview_res.file_size,"   // 46
+              " v.hotspot_x,"             // 47
+              " v.hotspot_y,"             // 48
+              " v.hotspot_w,"             // 49
+              " v.hotspot_h,"             // 50
+              " res.filename"             // 51
+              " FROM value AS v"
+              " LEFT JOIN lookup AS l ON l.uid = v.field_uid"
+              " LEFT JOIN resource AS res ON res.hash = v.resource_hash"
+              " LEFT JOIN resource AS preview_res ON preview_res.hash = v.preview_resource_hash;";
+
+        if (ds::query::Client::query(cms.getDatabasePath(), valueQuery, result)) {
+            ds::query::Result::RowIterator it(result);
+            while (it.hasValue()) {
+                const auto &recordUid = result.value(2).toString();
+                if (recordMap.find(recordUid) == recordMap.end()) {
+                    ++it;
+                    continue;
+                }
+                auto &record = recordMap[recordUid];
+
+                auto field_uid = result.value(1).toString();
+                auto field_key = result.value(37).toString();
+                if (!field_key.empty()) {
+                    field_uid = field_key;
+                }
+                auto type = result.value(3).toString();
+
+                if (type == "TEXT") {
+                    record.setProperty(field_uid, result.value(8).toString());
+                } else if (type == "RICH_TEXT") {
+                    record.setProperty(field_uid, result.value(9).toString());
+                } else if (type == "FILE_IMAGE" || type == "FILE_VIDEO" || type == "FILE_PDF") {
+                    if (!result.value(28).empty().toString()) {
+                        auto res = ds::Resource(mResourceId,
+                                                ds::Resource::Id::CMS_TYPE,
+                                                double(it.getFloat(33)),
+                                                float(it.getInt(31)),
+                                                float(it.getInt(32)),
+                                                result.value(51).toString(),
+                                                result.value(30).toString(),
+                                                -1,
+                                                cms.getResourcePath() + result.value(30).toString());
+                        if (type == "FILE_IMAGE")
+                            res.setType(ds::Resource::IMAGE_TYPE);
+                        else if (type == "FILE_VIDEO")
+                            res.setType(ds::Resource::VIDEO_TYPE);
+                        else if (type == "FILE_PDF")
+                            res.setType(ds::Resource::PDF_TYPE);
+                        else
+                            continue;
+
+                        auto cropX = it.getFloat(15);
+                        auto cropY = it.getFloat(16);
+                        auto cropW = it.getFloat(17);
+                        auto cropH = it.getFloat(18);
+                        if (cropX > 0.f || cropY > 0.f || cropW > 0.f || cropH > 0.f) {
+                            res.setCrop(cropX, cropY, cropW, cropH);
+                        }
+
+                        record.setPropertyResource(field_uid, res);
+                    }
+
+                    if (!result.value(38).empty().toString()) {
+                        const auto &previewType = result.value(40).toString();
+
+                        auto res = ds::Resource(mResourceId,
+                                                ds::Resource::Id::CMS_TYPE,
+                                                double(it.getFloat(44)),
+                                                float(it.getInt(42)),
+                                                float(it.getInt(43)),
+                                                result.value(41).toString(),
+                                                result.value(41).toString(),
+                                                -1,
+                                                cms.getResourcePath() + result.value(41).toString());
+                        res.setType(previewType == "FILE_IMAGE" ? ds::Resource::IMAGE_TYPE
+                                                                : ds::Resource::VIDEO_TYPE);
+
+                        auto preview_uid = field_uid + "_preview";
+                        record.setPropertyResource(preview_uid, res);
+                    }
+
+                } else if (type == "LINKS") {
+                    auto toUpdate = record.getPropertyString(field_uid);
+                    if (!toUpdate.empty()) {
+                        toUpdate.append(", ");
+                    }
+                    toUpdate.append(result.value(27).toString());
+                    record.setProperty(field_uid, toUpdate);
+                } else if (type == "LINK_WEB") {
+                    const auto &linkUrl = result.value(30).toString();
+                    auto res = ds::Resource(mResourceId,
+                                            ds::Resource::Id::CMS_TYPE,
+                                            double(it.getFloat(33)),
+                                            float(it.getInt(31)),
+                                            float(it.getInt(32)),
+                                            linkUrl,
+                                            linkUrl,
+                                            -1,
+                                            linkUrl);
+
+                    // Assumes app settings are not changed concurrently on another thread.
+                    auto webSize = mEngine.getAppSettings().getVec2("web:default_size",
+                                                                    0,
+                                                                    ci::vec2(1920.f, 1080.f));
+                    res.setWidth(webSize.x);
+                    res.setHeight(webSize.y);
+                    res.setType(ds::Resource::WEB_TYPE);
+                    record.setPropertyResource(field_uid, res);
+
+                    if (!result.value(38).empty().toString()) {
+                        const auto &previewType = result.value(40).toString();
+                        auto res = ds::Resource(mResourceId,
+                                                ds::Resource::Id::CMS_TYPE,
+                                                double(it.getFloat(44)),
+                                                float(it.getInt(42)),
+                                                float(it.getInt(43)),
+                                                result.value(41).toString(),
+                                                result.value(41).toString(),
+                                                -1,
+                                                cms.getResourcePath() + result.value(41).toString());
+                        res.setType(type == "FILE_IMAGE" ? ds::Resource::IMAGE_TYPE
+                                                         : ds::Resource::VIDEO_TYPE);
+
+                        auto preview_uid = field_uid + "_preview";
+                        record.setPropertyResource(preview_uid, res);
+                    }
+                } else if (type == "NUMBER") {
+                    record.setProperty(field_uid, it.getFloat(10));
+                } else if (type == "COMPOSITE_AREA") {
+                    const auto &frameUid = result.value(19).toString();
+                    record.setProperty(frameUid + "_x", it.getFloat(20));
+                    record.setProperty(frameUid + "_y", it.getFloat(21));
+                    record.setProperty(frameUid + "_w", it.getFloat(22));
+                    record.setProperty(frameUid + "_h", it.getFloat(23));
+                } else if (type == "IMAGE_AREA" || type == "IMAGE_SPOT") {
+                    record.setProperty("hotspot_x", it.getFloat(47));
+                    record.setProperty("hotspot_y", it.getFloat(48));
+                    record.setProperty("hotspot_w", it.getFloat(49));
+                    record.setProperty("hotspot_h", it.getFloat(50));
+                } else if (type == "OPTIONS") {
+                    //this should be the following
+                    auto key = result.value(25).toString();
+                    auto value = selectMap[key];
+                    record.setProperty(field_uid, value);
+                    record.setProperty(field_uid + "_value_uid", key);
+                } else if (type == "CHECKBOX") {
+                    record.setProperty(field_uid, bool(it.getInt(6)));
+                } else {
+                    DS_LOG_INFO("UNHANDLED(2): " << type)
+                }
+                record.setProperty(field_uid + "_field_uid", result.value(1).toString());
+
+                ++it;
+            }
+        }
+    }
 }
 
 void DsBridgeSqlQuery::queryTables()
@@ -612,4 +1047,4 @@ void DsBridgeSqlQuery::queryTables()
     }
 }
 
-} //namespace dsqt
+} // namespace dsqt::bridge

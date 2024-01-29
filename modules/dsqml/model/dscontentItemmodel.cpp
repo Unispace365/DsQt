@@ -1,7 +1,7 @@
 #include "dscontentmodelmodel.h"
 #include "dscontentmodel.h"
 namespace dsqt::model {
-DSContentModelModel::DSContentModelModel(DSContentModel* data, QObject *parent)
+DSContentItemModel::DSContentItemModel(DSContentModel* data, QObject *parent)
   : QAbstractItemModel{parent}
 {
 	mRoot = data;
@@ -9,12 +9,12 @@ DSContentModelModel::DSContentModelModel(DSContentModel* data, QObject *parent)
 
 
 
-DSContentModelModel::~DSContentModelModel()
+DSContentItemModel::~DSContentItemModel()
 {
    //
 }
 
-QVariant DSContentModelModel::data(const QModelIndex &index, int role) const
+QVariant DSContentItemModel::data(const QModelIndex &index, int role) const
 {
 	if(!index.isValid()){
 		return QVariant();
@@ -29,7 +29,7 @@ QVariant DSContentModelModel::data(const QModelIndex &index, int role) const
 	return QVariant::fromValue(content);
 }
 
-Qt::ItemFlags DSContentModelModel::flags(const QModelIndex &index) const
+Qt::ItemFlags DSContentItemModel::flags(const QModelIndex &index) const
 {
 	if (!index.isValid())
 		return Qt::NoItemFlags;
@@ -37,7 +37,7 @@ Qt::ItemFlags DSContentModelModel::flags(const QModelIndex &index) const
 	return QAbstractItemModel::flags(index);
 }
 
-QVariant DSContentModelModel::headerData(int section, Qt::Orientation orientation, int role) const
+QVariant DSContentItemModel::headerData(int section, Qt::Orientation orientation, int role) const
 {
 	if (orientation == Qt::Horizontal && role == Qt::DisplayRole)
 		return QVariant(QString("name"));
@@ -45,7 +45,7 @@ QVariant DSContentModelModel::headerData(int section, Qt::Orientation orientatio
 	return QVariant();
 }
 
-QModelIndex DSContentModelModel::index(int row, int column, const QModelIndex &parent) const
+QModelIndex DSContentItemModel::index(int row, int column, const QModelIndex &parent) const
 {
 	if (!hasIndex(row, column, parent))
 		return QModelIndex();
@@ -63,7 +63,7 @@ QModelIndex DSContentModelModel::index(int row, int column, const QModelIndex &p
 	return QModelIndex();
 }
 
-QModelIndex DSContentModelModel::parent(const QModelIndex &index) const
+QModelIndex DSContentItemModel::parent(const QModelIndex &index) const
 {
 	if (!index.isValid())
 		return QModelIndex();
@@ -83,7 +83,7 @@ QModelIndex DSContentModelModel::parent(const QModelIndex &index) const
 	return createIndex(row, 0, parentItem);
 }
 
-int DSContentModelModel::rowCount(const QModelIndex &parent) const
+int DSContentItemModel::rowCount(const QModelIndex &parent) const
 {
 	DSContentModel *parentItem;
 	if (parent.column() > 0)
@@ -97,7 +97,7 @@ int DSContentModelModel::rowCount(const QModelIndex &parent) const
 	return parentItem->findChildren<DSContentModel*>(Qt::FindDirectChildrenOnly).length();
 }
 
-int DSContentModelModel::columnCount(const QModelIndex &parent) const
+int DSContentItemModel::columnCount(const QModelIndex &parent) const
 {
 	return 1;
 }

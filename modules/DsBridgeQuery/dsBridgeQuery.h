@@ -8,14 +8,15 @@
 #include <QtSql/QSql>
 #include <QtSql/QSqlDatabase>
 #include "core/dsqmlapplicationengine.h"
-#include <model/dscontentmodel.h>
+//#include <model/dscontentmodel.h>
+#include <model/content_model.h>
 #include <model/dsresource.h>
 #include <settings/dssettings_proxy.h>
 
 Q_DECLARE_LOGGING_CATEGORY(bridgeSyncApp)
 Q_DECLARE_LOGGING_CATEGORY(bridgeSyncQuery)
 
-namespace dsqt {
+namespace dsqt::bridge {
 
 struct DsBridgeSyncSettings
 {
@@ -43,7 +44,11 @@ public:
 
 private:
     QSqlDatabase mDatabase;
-    std::shared_ptr<model::DSContentModel*> mRoot;
+    model::DSContentModelPtr mContent;
+    model::DSContentModelPtr mPlatforms;
+    model::DSContentModelPtr mEvents;
+    model::DSContentModelPtr mRecords;
+
     std::unordered_map<int,DSResource*> mAllResources;
     QString mResourceLocation;
 
@@ -57,5 +62,5 @@ private:
     bool startConnection();
     void queryTables();
 };
-} // namespace dsqt
+} // namespace dsqt::bridge
 #endif // DSBRIDGEQUERY_H

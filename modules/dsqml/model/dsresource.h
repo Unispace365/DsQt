@@ -106,5 +106,11 @@ class DSResource : public QObject
 	void resourceTypeChanged();
 	void idChanged();
 };
+
+class DSResourceRef {
+
+  private:
+	std::shared_ptr<DSResource> mData;
+};
 } //namespace dsqt
 #endif // DSRESOURCE_H

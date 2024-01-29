@@ -1,5 +1,5 @@
-#ifndef DSCONTENTMODELMODEL_H
-#define DSCONTENTMODELMODEL_H
+#ifndef DSCONTENTITEMMODEL_H
+#define DSCONTENTITEMMODEL_H
 
 #include <QObject>
 #include <QAbstractItemModel>
@@ -7,14 +7,13 @@
 #include <qqml.h>
 namespace dsqt::model {
 class DSContentModel;
-class DSContentModelModel : public QAbstractItemModel
-{
+class DSContentItemModel : public QAbstractItemModel {
 	Q_OBJECT
 	QML_ELEMENT
 
   public:
-	explicit DSContentModelModel(DSContentModel* data, QObject *parent = nullptr);
-	~DSContentModelModel();
+	explicit DSContentItemModel(DSContentModel *data, QObject *parent = nullptr);
+	~DSContentItemModel();
 
 	// QAbstractItemModel interface
   public:
@@ -31,4 +30,4 @@ class DSContentModelModel : public QAbstractItemModel
 };
 }
 
-#endif // DSCONTENTMODELMODEL_H
+#endif // DSCONTENTITEMMODEL_H
