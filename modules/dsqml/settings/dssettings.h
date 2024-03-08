@@ -15,7 +15,7 @@
 #include <typeindex>
 
 Q_DECLARE_LOGGING_CATEGORY(settingsParser)
-Q_DECLARE_LOGGING_CATEGORY(settingsParserWarn)
+
 
 /// @brief main dsqt namespace
 namespace dsqt {

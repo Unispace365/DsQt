@@ -61,10 +61,10 @@ public:
 	static void					setConfigDirFileExpandOverride(const bool doOverride);
 	static bool					initialize();
 	static DSSettingsRef		engineSettings();
-  private:
+	static std::string			getDownstreamDocumentsFolder();
 
-    static std::string getDownstreamDocumentsFolder();
-    static std::string sDocuments;
+  private:
+	static std::string sDocuments;
     static std::string sDocumentsDownstream;
     static std::string sAppRootFolder;
     static std::string sProjectPath;

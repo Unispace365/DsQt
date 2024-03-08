@@ -4,7 +4,7 @@
 #include <QObject>
 #include <QQmlApplicationEngine>
 
-#include "model/dscontentmodel.h"
+#include "model/content_model.h"
 #include "settings/dssettings.h"
 
 namespace dsqt{
@@ -14,7 +14,12 @@ class DSQmlApplicationEngine : public QQmlApplicationEngine {
   public:
 	explicit DSQmlApplicationEngine(QObject *parent = nullptr);
 	void initialize();
-	DSSettingsRef getSettings();
+	DSSettingsRef				   getAppSettings();
+	model::ContentModelRef		   getContentRoot();
+	void						   setDefaultEngine(DSQmlApplicationEngine* engine);
+	static DSQmlApplicationEngine* DefEngine();
+	void						   updateContentRoot(model::ContentModelRef newRoot);
+
   private:
 	virtual void preInit();
 	virtual void init();
@@ -27,8 +32,11 @@ class DSQmlApplicationEngine : public QQmlApplicationEngine {
 	void onPostInit();
 
   protected:
-	model::DSContentModelPtr mContentRoot;
+	model::ContentModelRef		   mContentRoot;
+	QJsonModel*					   mRootModel;
+	static DSQmlApplicationEngine* sDefaultEngine;
 };
+
 
 }// namespace dsqt
 #endif	// DSQMLAPPLICATIONENGINE_H

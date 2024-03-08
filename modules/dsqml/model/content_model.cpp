@@ -2,30 +2,34 @@
 
 #include "content_model.h"
 
+#include <dsqmlapplicationengine.h>
 #include <utility/string_util.h>
+#include <QJsonArray>
+#include <QJsonObject>
+#include <QJsonValue>
 #include "qdebug.h"
-
+Q_LOGGING_CATEGORY(lgContentModel, "model.contentmodel")
 
 namespace dsqt::model {
 
 namespace {
 	const int												  EMPTY_INT = 0;
-	const std::string										  EMPTY_STRING;
+	const QString											  EMPTY_STRING;
 	const QUrl												  EMPTY_URL;
 	const std::vector<ContentModelRef>						  EMPTY_DATAMODELREF_VECTOR;
 	const ContentModelRef									  EMPTY_DATAMODEL;
 	const ContentProperty									  EMPTY_PROPERTY;
-	const DSResourceRef										  EMPTY_RESOURCE;
+	const Resource											  EMPTY_RESOURCE;
 	const std::vector<ContentProperty>						  EMPTY_PROPERTY_LIST;
-	const std::map<std::string, ContentProperty>			  EMPTY_PROPERTY_MAP;
-	const std::map<std::string, std::vector<ContentProperty>> EMPTY_PROPERTY_LIST_MAP;
+	const std::map<QString, ContentProperty>				  EMPTY_PROPERTY_MAP;
+	const std::map<QString, std::vector<ContentProperty>>	  EMPTY_PROPERTY_LIST_MAP;
 	const std::map<int, ContentModelRef>					  EMPTY_REFERENCE;
 
 	const std::vector<bool>			EMPTY_BOOL_LIST;
 	const std::vector<int>			EMPTY_INT_LIST;
 	const std::vector<float>		EMPTY_FLOAT_LIST;
 	const std::vector<double>		EMPTY_DOUBLE_LIST;
-	const std::vector<std::string>	EMPTY_STRING_LIST;
+	const std::vector<QString>		EMPTY_STRING_LIST;
 	const std::vector<std::wstring> EMPTY_WSTRING_LIST;
 	const std::vector<QColor>		EMPTY_COLOR_LIST;
 	const std::vector<QColor>		EMPTY_COLORA_LIST;
@@ -37,36 +41,34 @@ namespace {
 
 ContentProperty::ContentProperty() : mName(""), mValue(""), mIntValue(0), mDoubleValue(0) {}
 
-ContentProperty::ContentProperty(const std::string& name, const std::string& value) {
+ContentProperty::ContentProperty(const QString& name, const QString& value) {
 	setValue(value);
 	setName(name);
 }
 
-ContentProperty::ContentProperty(const std::string& name, const std::string& value, const int& valueInt,
-								 const double& valueDouble) {
+ContentProperty::ContentProperty(const QString& name, const QString& value, const int& valueInt, const double& valueDouble) {
 	mName		 = name;
 	mValue		 = value;
 	mIntValue	 = valueInt;
 	mDoubleValue = valueDouble;
 }
 
-const std::string& ContentProperty::getName() const {
+const QString& ContentProperty::getName() const {
 	return mName;
 }
 
-void ContentProperty::setName(const std::string& name) {
+void ContentProperty::setName(const QString& name) {
 	mName = name;
 }
 
-const std::string& ContentProperty::getValue() const {
+const QString& ContentProperty::getValue() const {
 	return mValue;
 }
 
-void ContentProperty::setValue(const std::string& value) {
+void ContentProperty::setValue(const QString& value) {
 	mValue		 = value;
-	mQValue		 = QString::fromStdString(value);
-	mIntValue	 = mQValue.toInt();
-	mDoubleValue = mQValue.toDouble();
+	mIntValue	 = mValue.toInt();
+	mDoubleValue = mValue.toDouble();
 }
 
 // void ContentProperty::setValue(const std::wstring& value) {
@@ -76,56 +78,51 @@ void ContentProperty::setValue(const std::string& value) {
 // }
 
 void ContentProperty::setValue(const int& value) {
-	mQValue		 = mQValue.setNum(value);
-	mValue		 = mQValue.toStdString();
+	mValue		 = mValue.setNum(value);
 	mIntValue	 = value;
 	mDoubleValue = (double)mIntValue;
 }
 
 void ContentProperty::setValue(const double& value) {
-	mQValue		 = mQValue.setNum(value);
-	mValue		 = mQValue.toStdString();
+	mValue		 = mValue.setNum(value);
 	mIntValue	 = (int)round(value);
 	mDoubleValue = value;
 }
 
 void ContentProperty::setValue(const float& value) {
-	mQValue		 = mQValue.setNum(value);
-	mValue		 = mQValue.toStdString();
+	mValue		 = mValue.setNum(value);
 	mIntValue	 = (int)roundf(value);
 	mDoubleValue = (double)(value);
 }
 
 void ContentProperty::setValue(const QColor& value) {
-	mQValue		 = value.name(QColor::HexArgb);
-	mValue		 = mQValue.toStdString();
+	mValue		 = value.name(QColor::HexArgb);
 	mIntValue	 = 0;
 	mDoubleValue = 0.0;
 }
 
 // Start here with creating utility.h/.cpp file for conversions.
 void ContentProperty::setValue(const glm::vec2& value) {
-	mValue		 = dsqt::unparseVector(value);
-	mQValue		 = QString::fromStdString(mValue);
+	mValue		 = QString::fromStdString(dsqt::unparseVector(value));
 	mIntValue	 = 0;
 	mDoubleValue = 0.0;
 }
 
 void ContentProperty::setValue(const glm::vec3& value) {
-	mValue		 = dsqt::unparseVector(value);
-	mQValue		 = QString::fromStdString(mValue);
+	auto v		 = dsqt::unparseVector(value);
+	mValue		 = QString::fromStdString(v);
 	mIntValue	 = 0;
 	mDoubleValue = 0.0;
 }
 
 void ContentProperty::setValue(const QRectF& value) {
-	mValue		 = dsqt::unparseRect(value);
-	mQValue		 = QString::fromStdString(mValue);
+	auto v		 = dsqt::unparseRect(value);
+	mValue		 = QString::fromStdString(v);
 	mIntValue	 = 0;
 	mDoubleValue = 0.0;
 }
 
-DSResource ContentProperty::getResource() const {
+Resource ContentProperty::getResource() const {
 	if (mResource) return *mResource;
 	return EMPTY_RESOURCE;
 }
@@ -135,11 +132,11 @@ DSResource ContentProperty::getResource() const {
 // 	mResource		   = std::make_shared<ds::Resource>(reccy);
 // }
 void ContentProperty::setValue(const QUrl& value) {
-	mValue = value.toString(QUrl::FormattingOptions(QUrl::FullyEncoded)).toStdString();
+	mValue = value.toString(QUrl::FormattingOptions(QUrl::FullyEncoded));
 }
 
 QUrl ContentProperty::getUrl() const {
-	QUrl url(mValue.c_str());
+	QUrl url(mValue);
 	if (url.isValid()) {
 		return url;
 	} else {
@@ -158,11 +155,11 @@ bool ContentProperty::operator==(const ContentProperty& b) const {
 }
 
 bool ContentProperty::empty() const {
-	return mName.empty();
+	return mName.isEmpty();
 }
 
 bool ContentProperty::getBool() const {
-	return dsqt::parseBoolean(mValue);
+	return dsqt::parseBoolean(mValue.toStdString());
 }
 
 int ContentProperty::getInt() const {
@@ -182,79 +179,85 @@ QColor ContentProperty::getColor() const {
 }
 
 
-const std::string& ContentProperty::getString() const {
+const QString& ContentProperty::getString() const {
 	return getValue();
 }
 
 
 glm::vec2 ContentProperty::getVec2() const {
-	return glm::vec2(dsqt::parseVector(mValue));
+	return glm::vec2(dsqt::parseVector(mValue.toStdString()));
 }
 
 glm::vec3 ContentProperty::getVec3() const {
-	return dsqt::parseVector(mValue);
+	return dsqt::parseVector(mValue.toStdString());
 }
 
 QRectF ContentProperty::getRect() const {
-	return dsqt::parseRect(mValue);
+	return dsqt::parseRect(mValue.toStdString());
 }
 
 
 class ContentModelRef::Data : public QSharedData {
   public:
-	Data()
-	  : mName(EMPTY_STRING)
-	  , mLabel(EMPTY_STRING)
-	  , mUserData(nullptr)
-	  , mId(EMPTY_INT) {}
+	Data() : mName(EMPTY_STRING), mLabel(EMPTY_STRING), mUserData(nullptr), mId(EMPTY_STRING) {}
+	Data(const Data& other)
+	  : QSharedData(other)
+	  , mName(other.mName)
+	  , mLabel(other.mLabel)
+	  , mUserData(other.mUserData)
+	  , mId(other.mId)
+	  , mProperties(other.mProperties)
+	  , mPropertyLists(other.mPropertyLists)
+	  , mChildren(other.mChildren)
+	  , mReferences(other.mReferences) {}
+	~Data() {}
 
-	std::string											  mName;
-	std::string											  mLabel;
+
+	QString												  mName;
+	QString												  mLabel;
 	void*												  mUserData;
-	int													  mId;
-	std::map<std::string, ContentProperty>				  mProperties;
-	std::map<std::string, std::vector<ContentProperty>>	  mPropertyLists;
+	QString												  mId;
+	std::map<QString, ContentProperty>					  mProperties;
+	std::map<QString, std::vector<ContentProperty>>		  mPropertyLists;
 	std::vector<ContentModelRef>						  mChildren;
-	std::map<std::string, std::map<int, ContentModelRef>> mReferences;
+	std::map<QString, std::map<int, ContentModelRef>>	  mReferences;
 };
 
 ContentModelRef::ContentModelRef() {}
 
 
-ContentModelRef::ContentModelRef(const std::string& name, const int id, const std::string& label) {
+ContentModelRef::ContentModelRef(const QString& name, const QString& id, const QString& label) {
 	setName(name);
 	setId(id);
 	setLabel(label);
 }
 
-const int& ContentModelRef::getId() const {
-	if (!mData) return EMPTY_INT;
+const QString& ContentModelRef::getId() const {
+	if (!mData) return EMPTY_STRING;
 	return mData->mId;
 }
 
-void ContentModelRef::setId(const int& id) {
-	auto hash = std::hash<std::string>();
-	// hash("woot");
+void ContentModelRef::setId(const QString& id) {
 	createData();
 	mData->mId = id;
 }
 
-const std::string& ContentModelRef::getName() const {
+const QString& ContentModelRef::getName() const {
 	if (!mData) return EMPTY_STRING;
 	return mData->mName;
 }
 
-void ContentModelRef::setName(const std::string& name) {
+void ContentModelRef::setName(const QString& name) {
 	createData();
 	mData->mName = name;
 }
 
-const std::string& ContentModelRef::getLabel() const {
+const QString& ContentModelRef::getLabel() const {
 	if (!mData) return EMPTY_STRING;
 	return mData->mLabel;
 }
 
-void ContentModelRef::setLabel(const std::string& name) {
+void ContentModelRef::setLabel(const QString& name) {
 	createData();
 	mData->mLabel = name;
 }
@@ -271,9 +274,9 @@ void ContentModelRef::setUserData(void* userData) {
 
 bool ContentModelRef::empty() const {
 	if (!mData) return true;
-	if (mData->mId == EMPTY_INT && mData->mName == EMPTY_STRING && mData->mLabel == EMPTY_STRING &&
-		mData->mUserData == nullptr && mData->mChildren.empty() && mData->mProperties.empty() &&
-		mData->mReferences.empty() && mData->mPropertyLists.empty()) {
+	if (mData->mId == EMPTY_STRING && mData->mName == EMPTY_STRING && mData->mLabel == EMPTY_STRING &&
+		mData->mUserData == nullptr && mData->mChildren.empty() && mData->mProperties.empty() && mData->mReferences.empty() &&
+		mData->mPropertyLists.empty()) {
 		return true;
 	}
 
@@ -284,17 +287,17 @@ void ContentModelRef::clear() {
 	mData.reset(new Data());
 }
 
-ds::model::ContentModelRef ContentModelRef::duplicate() const {
+dsqt::model::ContentModelRef ContentModelRef::duplicate() const {
 	if (empty()) {
-		return ds::model::ContentModelRef();
+		return dsqt::model::ContentModelRef();
 	}
 
-	ds::model::ContentModelRef newModel(getName(), getId(), getLabel());
+	dsqt::model::ContentModelRef newModel(getName(), getId(), getLabel());
 	newModel.setUserData(getUserData());
 
 	if (!mData) return newModel;
 
-	std::map<std::string, ContentProperty> props = mData->mProperties;
+	std::map<QString, ContentProperty> props = mData->mProperties;
 	newModel.setProperties(props);
 
 	std::vector<ContentModelRef> newChildren;
@@ -318,7 +321,7 @@ namespace {
 } // namespace
 
 bool ContentModelRef::operator==(const ContentModelRef& b) const {
-	std::vector<std::pair<void*, void*>> alreadyChecked;
+	std::vector<std::pair<const void*, const void*>> alreadyChecked;
 
 	// if (weakEqual(b)) {
 	try {
@@ -385,13 +388,13 @@ bool ContentModelRef::weakEqual(const ContentModelRef& b) const {
 }
 
 // Predicate: this & b have equal size children and references
-bool ContentModelRef::equalChildrenAndReferences(const ContentModelRef&				   b,
-												 std::vector<std::pair<void*, void*>>& alreadyChecked) const {
+bool ContentModelRef::equalChildrenAndReferences(const ContentModelRef&							   b,
+												 std::vector<std::pair<const void*, const void*>>& alreadyChecked) const {
 	if (weakEqual(b)) {
 		if (!mData) return true;
 
-		auto* max = static_cast<void*>(std::max(mData.get(), b.mData.get()));
-		auto* min = static_cast<void*>(std::min(mData.get(), b.mData.get()));
+		auto* max = static_cast<const void*>(std::max(mData.get(), b.mData.get()));
+		auto* min = static_cast<const void*>(std::min(mData.get(), b.mData.get()));
 		if (std::find(alreadyChecked.begin(), alreadyChecked.end(), std::make_pair(min, max)) != alreadyChecked.end()) {
 			return true;
 		}
@@ -440,17 +443,17 @@ bool ContentModelRef::operator!=(const ContentModelRef& b) const {
 	}
 }
 
-const std::map<std::string, ContentProperty>& ContentModelRef::getProperties() const {
+const std::map<QString, ContentProperty>& ContentModelRef::getProperties() const {
 	if (!mData) return EMPTY_PROPERTY_MAP;
 	return mData->mProperties;
 }
 
-void ContentModelRef::setProperties(const std::map<std::string, ContentProperty>& newProperties) {
+void ContentModelRef::setProperties(const std::map<QString, ContentProperty>& newProperties) {
 	createData();
 	mData->mProperties = newProperties;
 }
 
-ds::model::ContentProperty ContentModelRef::getProperty(const std::string& propertyName) const {
+dsqt::model::ContentProperty ContentModelRef::getProperty(const QString& propertyName) const {
 	if (!mData) return EMPTY_PROPERTY;
 	auto findy = mData->mProperties.find(propertyName);
 	if (findy != mData->mProperties.end()) {
@@ -460,98 +463,98 @@ ds::model::ContentProperty ContentModelRef::getProperty(const std::string& prope
 	return EMPTY_PROPERTY;
 }
 
-std::string ContentModelRef::getPropertyValue(const std::string& propertyName) const {
+QString ContentModelRef::getPropertyValue(const QString& propertyName) const {
 	return getProperty(propertyName).getValue();
 }
 
-bool ContentModelRef::getPropertyBool(const std::string& propertyName) const {
+bool ContentModelRef::getPropertyBool(const QString& propertyName) const {
 	return getProperty(propertyName).getBool();
 }
 
-int ContentModelRef::getPropertyInt(const std::string& propertyName) const {
+int ContentModelRef::getPropertyInt(const QString& propertyName) const {
 	return getProperty(propertyName).getInt();
 }
 
-float ContentModelRef::getPropertyFloat(const std::string& propertyName) const {
+float ContentModelRef::getPropertyFloat(const QString& propertyName) const {
 	return getProperty(propertyName).getFloat();
 }
 
-double ContentModelRef::getPropertyDouble(const std::string& propertyName) const {
+double ContentModelRef::getPropertyDouble(const QString& propertyName) const {
 	return getProperty(propertyName).getDouble();
 }
 
-QColor ContentModelRef::getPropertyColor(const std::string& propertyName) const {
+QColor ContentModelRef::getPropertyColor(const QString& propertyName) const {
 	return getProperty(propertyName).getColor();
 }
 
-std::string ContentModelRef::getPropertyString(const std::string& propertyName) const {
+QString ContentModelRef::getPropertyString(const QString& propertyName) const {
 	return getProperty(propertyName).getString();
 }
 
-glm::vec2 ContentModelRef::getPropertyVec2(const std::string& propertyName) const {
+glm::vec2 ContentModelRef::getPropertyVec2(const QString& propertyName) const {
 	return getProperty(propertyName).getVec2();
 }
 
-glm::vec3 ContentModelRef::getPropertyVec3(const std::string& propertyName) const {
+glm::vec3 ContentModelRef::getPropertyVec3(const QString& propertyName) const {
 	return getProperty(propertyName).getVec3();
 }
 
-QRectF ContentModelRef::getPropertyRect(const std::string& propertyName) const {
+QRectF ContentModelRef::getPropertyRect(const QString& propertyName) const {
 	return getProperty(propertyName).getRect();
 }
 
-QUrl ContentModelRef::getPropertyUrl(const std::string& propertyName) const {
+QUrl ContentModelRef::getPropertyUrl(const QString& propertyName) const {
 	return getProperty(propertyName).getUrl();
 }
 
-void ContentModelRef::setProperty(const std::string& propertyName, ContentProperty& datamodel) {
+void ContentModelRef::setProperty(const QString& propertyName, ContentProperty& datamodel) {
 	createData();
 
 	mData->mProperties[propertyName] = datamodel;
 }
 
-void ContentModelRef::setProperty(const std::string& propertyName, const std::string& propertyValue) {
+void ContentModelRef::setProperty(const QString& propertyName, const QString& propertyValue) {
 	createData();
 	mData->mProperties[propertyName] = ContentProperty(propertyName, propertyValue);
 }
 
-void ContentModelRef::setProperty(const std::string& propertyName, const int& value) {
-	ContentProperty dp(propertyName, std::to_string(value), value, (double)value);
+void ContentModelRef::setProperty(const QString& propertyName, const int& value) {
+	ContentProperty dp(propertyName, QString::number(value), value, (double)value);
 	setProperty(propertyName, dp);
 }
 
-void ContentModelRef::setProperty(const std::string& propertyName, const double& value) {
-	ContentProperty dp(propertyName, std::to_string(value), (int)round(value), value);
+void ContentModelRef::setProperty(const QString& propertyName, const double& value) {
+	ContentProperty dp(propertyName, QString::number(value), (int)round(value), value);
 	setProperty(propertyName, dp);
 }
 
-void ContentModelRef::setProperty(const std::string& propertyName, const float& value) {
-	ContentProperty dp(propertyName, std::to_string(value), (int)round(value), (double)value);
+void ContentModelRef::setProperty(const QString& propertyName, const float& value) {
+	ContentProperty dp(propertyName, QString::number(value), (int)round(value), (double)value);
 	setProperty(propertyName, dp);
 }
 
-void ContentModelRef::setProperty(const std::string& propertyName, const QColor& value) {
+void ContentModelRef::setProperty(const QString& propertyName, const QColor& value) {
 	ContentProperty dp;
 	dp.setName(propertyName);
 	dp.setValue(value);
 	setProperty(propertyName, dp);
 }
 
-void ContentModelRef::setProperty(const std::string& propertyName, const glm::vec2& value) {
+void ContentModelRef::setProperty(const QString& propertyName, const glm::vec2& value) {
 	ContentProperty dp;
 	dp.setName(propertyName);
 	dp.setValue(value);
 	setProperty(propertyName, dp);
 }
 
-void ContentModelRef::setProperty(const std::string& propertyName, const glm::vec3& value) {
+void ContentModelRef::setProperty(const QString& propertyName, const glm::vec3& value) {
 	ContentProperty dp;
 	dp.setName(propertyName);
 	dp.setValue(value);
 	setProperty(propertyName, dp);
 }
 
-void ContentModelRef::setProperty(const std::string& propertyName, const QRectF& value) {
+void ContentModelRef::setProperty(const QString& propertyName, const QRectF& value) {
 	ContentProperty dp;
 	dp.setName(propertyName);
 	dp.setValue(value);
@@ -559,23 +562,23 @@ void ContentModelRef::setProperty(const std::string& propertyName, const QRectF&
 }
 
 
-void ContentModelRef::setProperty(const std::string& propertyName, char* value) {
-	setProperty(propertyName, std::string(value));
+void ContentModelRef::setProperty(const QString& propertyName, char* value) {
+	setProperty(propertyName, QString(value));
 }
 
-void ContentModelRef::setProperty(const std::string& propertyName, const QUrl& value) {
+void ContentModelRef::setProperty(const QString& propertyName, const QUrl& value) {
 	ContentProperty dp;
 	dp.setName(propertyName);
 	dp.setValue(value);
 	setProperty(propertyName, dp);
 }
 
-const std::map<std::string, std::vector<ContentProperty>>& ContentModelRef::getAllPropertyLists() const {
+const std::map<QString, std::vector<ContentProperty>>& ContentModelRef::getAllPropertyLists() const {
 	if (!mData) return EMPTY_PROPERTY_LIST_MAP;
 	return mData->mPropertyLists;
 }
 
-const std::vector<ds::model::ContentProperty>& ContentModelRef::getPropertyList(const std::string& propertyName) const {
+const std::vector<dsqt::model::ContentProperty>& ContentModelRef::getPropertyList(const QString& propertyName) const {
 	if (!mData) return EMPTY_PROPERTY_LIST;
 	auto findy = mData->mPropertyLists.find(propertyName);
 	if (findy != mData->mPropertyLists.end()) {
@@ -585,7 +588,7 @@ const std::vector<ds::model::ContentProperty>& ContentModelRef::getPropertyList(
 	return EMPTY_PROPERTY_LIST;
 }
 
-std::vector<bool> ContentModelRef::getPropertyListBool(const std::string& propertyName) const {
+std::vector<bool> ContentModelRef::getPropertyListBool(const QString& propertyName) const {
 	if (!mData) return EMPTY_BOOL_LIST;
 
 	std::vector<bool> returnList;
@@ -599,7 +602,7 @@ std::vector<bool> ContentModelRef::getPropertyListBool(const std::string& proper
 	return returnList;
 }
 
-std::vector<int> ContentModelRef::getPropertyListInt(const std::string& propertyName) const {
+std::vector<int> ContentModelRef::getPropertyListInt(const QString& propertyName) const {
 	if (!mData) return EMPTY_INT_LIST;
 
 	std::vector<int> returnList;
@@ -613,7 +616,7 @@ std::vector<int> ContentModelRef::getPropertyListInt(const std::string& property
 	return returnList;
 }
 
-std::vector<float> ContentModelRef::getPropertyListFloat(const std::string& propertyName) const {
+std::vector<float> ContentModelRef::getPropertyListFloat(const QString& propertyName) const {
 	if (!mData) return EMPTY_FLOAT_LIST;
 
 	std::vector<float> returnList;
@@ -627,7 +630,7 @@ std::vector<float> ContentModelRef::getPropertyListFloat(const std::string& prop
 	return returnList;
 }
 
-std::vector<double> ContentModelRef::getPropertyListDouble(const std::string& propertyName) const {
+std::vector<double> ContentModelRef::getPropertyListDouble(const QString& propertyName) const {
 	if (!mData) return EMPTY_DOUBLE_LIST;
 
 	std::vector<double> returnList;
@@ -641,7 +644,7 @@ std::vector<double> ContentModelRef::getPropertyListDouble(const std::string& pr
 	return returnList;
 }
 
-std::vector<QColor> ContentModelRef::getPropertyListColor(const std::string& propertyName) const {
+std::vector<QColor> ContentModelRef::getPropertyListColor(const QString& propertyName) const {
 	if (!mData) return EMPTY_COLOR_LIST;
 
 	std::vector<QColor>	   returnList;
@@ -655,10 +658,10 @@ std::vector<QColor> ContentModelRef::getPropertyListColor(const std::string& pro
 	return returnList;
 }
 
-std::vector<std::string> ContentModelRef::getPropertyListString(const std::string& propertyName) const {
+std::vector<QString> ContentModelRef::getPropertyListString(const QString& propertyName) const {
 	if (!mData) return EMPTY_STRING_LIST;
 
-	std::vector<std::string> returnList;
+	std::vector<QString>	 returnList;
 	auto					 findy = mData->mPropertyLists.find(propertyName);
 	if (findy != mData->mPropertyLists.end()) {
 		for (const auto& it : findy->second) {
@@ -670,7 +673,7 @@ std::vector<std::string> ContentModelRef::getPropertyListString(const std::strin
 }
 
 
-std::vector<glm::vec2> ContentModelRef::getPropertyListVec2(const std::string& propertyName) const {
+std::vector<glm::vec2> ContentModelRef::getPropertyListVec2(const QString& propertyName) const {
 	if (!mData) return EMPTY_VEC2_LIST;
 
 	std::vector<glm::vec2> returnList;
@@ -684,7 +687,7 @@ std::vector<glm::vec2> ContentModelRef::getPropertyListVec2(const std::string& p
 	return returnList;
 }
 
-std::vector<glm::vec3> ContentModelRef::getPropertyListVec3(const std::string& propertyName) const {
+std::vector<glm::vec3> ContentModelRef::getPropertyListVec3(const QString& propertyName) const {
 	if (!mData) return EMPTY_VEC3_LIST;
 
 	std::vector<glm::vec3> returnList;
@@ -698,7 +701,7 @@ std::vector<glm::vec3> ContentModelRef::getPropertyListVec3(const std::string& p
 	return returnList;
 }
 
-std::vector<QRectF> ContentModelRef::getPropertyListRect(const std::string& propertyName) const {
+std::vector<QRectF> ContentModelRef::getPropertyListRect(const QString& propertyName) const {
 	if (!mData) return EMPTY_RECTF_LIST;
 
 	std::vector<QRectF>	   returnList;
@@ -712,10 +715,10 @@ std::vector<QRectF> ContentModelRef::getPropertyListRect(const std::string& prop
 	return returnList;
 }
 
-std::string ContentModelRef::getPropertyListAsString(const std::string& propertyName, const std::string& delimiter) const {
+QString ContentModelRef::getPropertyListAsString(const QString& propertyName, const QString& delimiter) const {
 	if (!mData) return EMPTY_STRING;
 
-	std::string returnString;
+	QString		returnString;
 	auto		findy = mData->mPropertyLists.find(propertyName);
 	if (findy != mData->mPropertyLists.end()) {
 		for (const auto& it : findy->second) {
@@ -727,13 +730,13 @@ std::string ContentModelRef::getPropertyListAsString(const std::string& property
 	return returnString;
 }
 
-void ContentModelRef::addPropertyToList(const std::string& propertyListName, const std::string& value) {
+void ContentModelRef::addPropertyToList(const QString& propertyListName, const QString& value) {
 	createData();
 
 	mData->mPropertyLists[propertyListName].emplace_back(ContentProperty(propertyListName, value));
 }
 
-void ContentModelRef::setPropertyList(const std::string& propertyListName, const std::vector<std::string>& value) {
+void ContentModelRef::setPropertyList(const QString& propertyListName, const std::vector<QString>& value) {
 	createData();
 
 	std::vector<ContentProperty> propertyList;
@@ -744,13 +747,13 @@ void ContentModelRef::setPropertyList(const std::string& propertyListName, const
 	mData->mPropertyLists[propertyListName] = propertyList;
 }
 
-void ContentModelRef::setPropertyList(const std::string& propertyListName, const std::vector<ContentProperty>& value) {
+void ContentModelRef::setPropertyList(const QString& propertyListName, const std::vector<ContentProperty>& value) {
 	createData();
 
 	mData->mPropertyLists[propertyListName] = value;
 }
 
-void ContentModelRef::clearPropertyList(const std::string& propertyName) {
+void ContentModelRef::clearPropertyList(const QString& propertyName) {
 	if (!mData) return;
 
 	auto findy = mData->mPropertyLists.find(propertyName);
@@ -776,7 +779,7 @@ ContentModelRef ContentModelRef::getChild(const size_t index) {
 	return EMPTY_DATAMODEL;
 }
 
-ContentModelRef ContentModelRef::getChildById(const int id) {
+ContentModelRef ContentModelRef::getChildById(const QString& id) {
 	createData();
 
 	for (auto it : mData->mChildren) {
@@ -786,11 +789,11 @@ ContentModelRef ContentModelRef::getChildById(const int id) {
 	return EMPTY_DATAMODEL;
 }
 
-ContentModelRef ContentModelRef::getChildByName(const std::string& childName) const {
+ContentModelRef ContentModelRef::getChildByName(const QString& childName) const {
 	if (!mData || mData->mChildren.empty()) return EMPTY_DATAMODEL;
 
-	if (childName.find(".") != std::string::npos) {
-		auto childrens = dsqt::split(childName, ".", true);
+	if (childName.contains(".")) {
+		auto childrens = childName.split(".", Qt::SkipEmptyParts);
 		if (childrens.empty()) {
 			qWarning() << "ContentModelRef::getChild() Cannot find a child with the name \".\"";
 		} else {
@@ -809,7 +812,7 @@ ContentModelRef ContentModelRef::getChildByName(const std::string& childName) co
 	return EMPTY_DATAMODEL;
 }
 
-dsqt::model::ContentModelRef ContentModelRef::getDescendant(const std::string& childName, const int childId) const {
+dsqt::model::ContentModelRef ContentModelRef::getDescendant(const QString& childName, const QString& childId) const {
 	for (auto it : getChildren()) {
 		if (it.getId() == childId && it.getName() == childName) {
 			return it;
@@ -824,7 +827,7 @@ dsqt::model::ContentModelRef ContentModelRef::getDescendant(const std::string& c
 	return ContentModelRef();
 }
 
-std::vector<ContentModelRef> ContentModelRef::getChildrenWithLabel(const std::string& label) const {
+std::vector<ContentModelRef> ContentModelRef::getChildrenWithLabel(const QString& label) const {
 	std::vector<ContentModelRef> childrenWithLabel;
 	for (auto& it : getChildren()) {
 		if (it.getLabel() == label) {
@@ -834,8 +837,7 @@ std::vector<ContentModelRef> ContentModelRef::getChildrenWithLabel(const std::st
 	return childrenWithLabel;
 }
 
-ContentModelRef ContentModelRef::findChildByPropertyValue(const std::string& propertyName,
-														  const std::string& propertyValue) const {
+ContentModelRef ContentModelRef::findChildByPropertyValue(const QString& propertyName, const QString& propertyValue) const {
 	for (auto it : getChildren()) {
 		if (it.getPropertyString(propertyName) == propertyValue) {
 			return it;
@@ -844,7 +846,7 @@ ContentModelRef ContentModelRef::findChildByPropertyValue(const std::string& pro
 	return ContentModelRef();
 }
 
-bool ContentModelRef::hasChild(const std::string& name) const {
+bool ContentModelRef::hasChild(const QString& name) const {
 	return !getChildByName(name).empty();
 }
 
@@ -864,11 +866,11 @@ void ContentModelRef::addChild(const ContentModelRef& datamodel, const size_t in
 	}
 }
 
-void ContentModelRef::replaceChild(const ds::model::ContentModelRef &datamodel) {
+void ContentModelRef::replaceChild(const dsqt::model::ContentModelRef& datamodel) {
 	createData();
 
 	const auto& name = datamodel.getName();
-	std::vector<ds::model::ContentModelRef> allChillins;
+	std::vector<dsqt::model::ContentModelRef> allChillins;
 	for (const auto& it : mData->mChildren) {
 		if (it.getName() == name) continue;
 		allChillins.emplace_back(it);
@@ -878,7 +880,7 @@ void ContentModelRef::replaceChild(const ds::model::ContentModelRef &datamodel) 
 	setChildren(allChillins);
 }
 
-bool ContentModelRef::hasDirectChild(const std::string& name) const {
+bool ContentModelRef::hasDirectChild(const QString& name) const {
 	if (!mData || mData->mChildren.empty()) return false;
 
 	for (const auto& it : mData->mChildren) {
@@ -893,24 +895,23 @@ bool ContentModelRef::hasChildren() const {
 	return !mData->mChildren.empty();
 }
 
-void ContentModelRef::setChildren(const std::vector<ds::model::ContentModelRef> &children) {
+void ContentModelRef::setChildren(const std::vector<dsqt::model::ContentModelRef>& children) {
 	createData();
 	mData->mChildren = children;
 }
 
-void ContentModelRef::clearChildren() const {
+void ContentModelRef::clearChildren() {
 	if (!mData) return;
 	mData->mChildren.clear();
 }
 
 
-void ContentModelRef::setReferences(const std::string&						   referenceName,
-									std::map<int, ds::model::ContentModelRef>& reference) {
+void ContentModelRef::setReferences(const QString& referenceName, std::map<int, dsqt::model::ContentModelRef>& reference) {
 	createData();
 	mData->mReferences[referenceName] = reference;
 }
 
-const std::map<int, ds::model::ContentModelRef>& ContentModelRef::getReferences(const std::string& name) const {
+const std::map<int, dsqt::model::ContentModelRef>& ContentModelRef::getReferences(const QString& name) const {
 	if (!mData) return EMPTY_REFERENCE;
 	auto findy = mData->mReferences.find(name);
 	if (findy != mData->mReferences.end()) {
@@ -921,7 +922,7 @@ const std::map<int, ds::model::ContentModelRef>& ContentModelRef::getReferences(
 }
 
 
-ds::model::ContentModelRef ContentModelRef::getReference(const std::string& referenceName, const int nodeId) const {
+dsqt::model::ContentModelRef ContentModelRef::getReference(const QString& referenceName, const int nodeId) const {
 	if (!mData) return EMPTY_DATAMODEL;
 	auto theReference = getReferences(referenceName);
 	if (theReference.empty()) return EMPTY_DATAMODEL;
@@ -935,7 +936,7 @@ ds::model::ContentModelRef ContentModelRef::getReference(const std::string& refe
 }
 
 
-void ContentModelRef::clearReferences(const std::string& name) const {
+void ContentModelRef::clearReferences(const QString& name) {
 	if (!mData) return;
 	auto findy = mData->mReferences.find(name);
 	if (findy != mData->mReferences.end()) {
@@ -944,12 +945,12 @@ void ContentModelRef::clearReferences(const std::string& name) const {
 }
 
 
-void ContentModelRef::clearAllReferences() const {
+void ContentModelRef::clearAllReferences() {
 	if (!mData) return;
 	mData->mReferences.clear();
 }
 
-void ContentModelRef::printTree(const bool verbose, const std::string& indent) const {
+void ContentModelRef::printTree(const bool verbose, const QString& indent) const {
 	if (empty() || !mData) {
 		qWarning() << indent << "Empty ContentModel.";
 	} else {
@@ -978,10 +979,32 @@ void ContentModelRef::printTree(const bool verbose, const std::string& indent) c
 	}
 }
 
+QJsonModel* ContentModelRef::getModel(QObject* parent) {
+	QJsonModel* model = new QJsonModel(parent);
+	model->loadJson(getJson().toString().toUtf8());
+	return model;
+}
+
 
 //----------- PRIVATE --------------//
 void ContentModelRef::createData() {
 	if (!mData) mData.reset(new Data());
+}
+
+QJsonValue ContentModelRef::getJson() {
+	QJsonObject obj;
+	obj.insert("id", mData->mId);
+	obj.insert("name", mData->mName);
+	obj.insert("label", mData->mLabel);
+	for (const auto& prop : mData->mProperties) {
+		obj.insert(prop.first, prop.second.getValue());
+	}
+	QJsonArray children;
+	for (auto child : mData->mChildren) {
+		children.append(child.getJson());
+	}
+	obj.insert("children", children);
+	return obj;
 }
 
 }  // namespace dsqt::model

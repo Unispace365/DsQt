@@ -1,18 +1,22 @@
 #include "dsqmlapplicationengine.h"
-#include "dsenvironment.h"
-#include "settings/dssettings_proxy.h"
-#include "model/dscontentmodel.h"
 #include <QQmlContext>
 #include <QStringLiteral>
-
+#include "dsenvironment.h"
+#include "model/content_model.h"
+#include "settings/dssettings_proxy.h"
 
 
 namespace dsqt {
 using namespace Qt::Literals::StringLiterals;
+
+DSQmlApplicationEngine* DSQmlApplicationEngine::sDefaultEngine = nullptr;
+
 DSQmlApplicationEngine::DSQmlApplicationEngine(QObject *parent)
     : QQmlApplicationEngine{parent}
 {
-
+	if (sDefaultEngine == nullptr) {
+		setDefaultEngine(this);
+	}
 }
 
 void DSQmlApplicationEngine::initialize()
@@ -25,8 +29,7 @@ void DSQmlApplicationEngine::initialize()
 	emit onPostInit();
 }
 
-DSSettingsRef DSQmlApplicationEngine::getSettings()
-{
+DSSettingsRef DSQmlApplicationEngine::getAppSettings() {
 	return mSettings;
 }
 
@@ -37,15 +40,14 @@ void DSQmlApplicationEngine::preInit()
 
 void DSQmlApplicationEngine::init()
 {
-	mContentRoot = model::DSContentModel::mContent;
-	mContentRoot->unlock();
+	mContentRoot = model::ContentModelRef("root");
 	dsqt::DSEnvironment::loadEngineSettings();
 	mSettings = dsqt::DSEnvironment::loadSettings("app_settings","app_settings.toml");
 	dsqt::DSSettingsProxy appProxy;
 
 	appProxy.setTarget("app_settings");
-
-	rootContext()->setContextProperty("contentRoot",mContentRoot.get());
+	mRootModel = mContentRoot.getModel(this);
+	rootContext()->setContextProperty("contentRoot", mRootModel);
 	rootContext()->setContextProperty("app_settings",&appProxy);
     rootContext()->setContextProperty("$QmlEngine", this);
 }
@@ -55,4 +57,22 @@ void DSQmlApplicationEngine::postInit()
 
 }
 
-} //namespace dsqt
+void DSQmlApplicationEngine::setDefaultEngine(DSQmlApplicationEngine* engine) {
+	sDefaultEngine = engine;
+}
+
+DSQmlApplicationEngine* DSQmlApplicationEngine::DefEngine() {
+	return sDefaultEngine;
+}
+
+void DSQmlApplicationEngine::updateContentRoot(model::ContentModelRef newRoot) {
+	mContentRoot	  = newRoot;
+	auto oldRootModel = mRootModel;
+	mRootModel		  = mContentRoot.getModel(this);
+	rootContext()->setContextProperty("contentRoot", mRootModel);
+	if (oldRootModel) {
+		delete oldRootModel;
+	}
+}
+
+}  // namespace dsqt

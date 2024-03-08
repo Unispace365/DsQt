@@ -3,16 +3,20 @@
 #define DS_CONTENT_CONTENT_MODEL
 
 
+#include <qjsonmodel.h>
 #include <QColor>
+#include <QLoggingCategory>
 #include <QRect>
 #include <QUrl>
+#include <glm/glm.hpp>
 #include <map>
 #include <memory>
 #include <string>
 #include <vector>
 
-#include <dsresource.h>
-#include <glm/glm.hpp>
+#include <dsqmlapplicationengine.h>
+#include "resource.h"
+Q_DECLARE_LOGGING_CATEGORY(lgContentModel)
 
 namespace dsqt::model {
 
@@ -26,15 +30,22 @@ namespace dsqt::model {
 class ContentProperty {
   public:
 	ContentProperty();
-	ContentProperty(const std::string& name, const std::string& value);
-	ContentProperty(const std::string& name, const std::string& value, const int& valueInt, const double& valueDouble);
+	ContentProperty(const QString& name, const QString& value);
+	ContentProperty(const QString& name, const QString& value, const int& valueInt, const double& valueDouble);
+	ContentProperty(const ContentProperty& prop)
+	  : mName(prop.mName)
+	  , mValue(prop.mValue)
+	  , mIntValue(prop.mIntValue)
+	  , mDoubleValue(prop.mDoubleValue)
+	  , mResource(prop.mResource){};
+	~ContentProperty() = default;
 
 	/// Get the name of this property
-	const std::string& getName() const;
-	void			   setName(const std::string& name);
+	const QString& getName() const;
+	void		   setName(const QString& name);
 
-	const std::string& getValue() const;
-	void			   setValue(const std::string& value);
+	const QString&	   getValue() const;
+	void			   setValue(const QString& value);
 	void			   setValue(const std::wstring& value);
 	void			   setValue(const int& value);
 	void			   setValue(const double& value);
@@ -49,7 +60,7 @@ class ContentProperty {
 
 	// im guesing we don't need to worry about
 	// resources as we'll rely on QML's system.
-	DSResource getResource() const;
+	Resource getResource() const;
 	// void		 setResource(const ds::Resource& resource);
 
 	// replace resources with urls
@@ -70,7 +81,7 @@ class ContentProperty {
 	/// The Engine is supplied to look up named colors
 	QColor getColor() const;
 
-	const std::string& getString() const; // same as getValue(), but supplied here for convenience
+	const QString&	   getString() const;  // same as getValue(), but supplied here for convenience
 	const QString&	   getQString() const;
 	// std::wstring       getWString() const;
 
@@ -79,12 +90,11 @@ class ContentProperty {
 	QRectF	  getRect() const;
 
   protected:
-	std::string	  mName;
-	std::string	  mValue;  // this should always be valid.
-	QString		  mQValue;
+	QString					  mName;
+	QString					  mValue;  // this should always be valid.
 	int			  mIntValue;
 	double		  mDoubleValue;
-	DSResourceRef mResource;
+	std::shared_ptr<Resource> mResource;
 };
 
 
@@ -106,25 +116,25 @@ class ContentModelRef {
 	/// TODO: remove child
 
 	ContentModelRef();
-	ContentModelRef(const std::string& name, const int id = 0, const std::string& label = "");
+	ContentModelRef(const QString& name, const QString& id = 0, const QString& label = "");
 
 	/// Enables doing `if (mModel) ...` to check if model is valid
 	operator bool() const { return !empty(); }
 
 	/// Get the id for this item
-	const int& getId() const;
-	void	   setId(const int& id);
+	const QString& getId() const;
+	void		   setId(const QString& id);
 
 	/// Get the name of this item
 	/// Name is generally inherited by the table or thing this belongs to
 	/// This is used in the getChildByName()
-	const std::string& getName() const;
-	void			   setName(const std::string& name);
+	const QString& getName() const;
+	void		   setName(const QString& name);
 
 	/// Get the label for this item
 	/// This is a helpful name or display name for this thing
-	const std::string& getLabel() const;
-	void			   setLabel(const std::string& label);
+	const QString& getLabel() const;
+	void		   setLabel(const QString& label);
 
 	/// Get the user data pointer.
 	void* getUserData() const;
@@ -146,86 +156,85 @@ class ContentModelRef {
 
 	bool weakEqual(const ContentModelRef& b) const;
 
-	bool equalChildrenAndReferences(const ContentModelRef&				  b,
-									std::vector<std::pair<void*, void*>>& alreadyChecked) const;
+	bool equalChildrenAndReferences(const ContentModelRef&							  b,
+									std::vector<std::pair<const void*, const void*>>& alreadyChecked) const;
 
 	bool operator!=(const ContentModelRef&) const;
 
 	/// Use this for looking stuff up only. Recommend using the other functions to manage the list
-	const std::map<std::string, ContentProperty>& getProperties() const;
-	void                                          setProperties(const std::map<std::string, ContentProperty>& newProperties);
+	const std::map<QString, ContentProperty>& getProperties() const;
+	void									  setProperties(const std::map<QString, ContentProperty>& newProperties);
 	/// This can return an empty property, which is why it's const.
 	/// If you want to modify a property, use the setProperty() function
 
-	ContentProperty getProperty(const std::string& propertyName) const;
-	std::string     getPropertyValue(const std::string& propertyName) const;
-	// std::string		getPropertyValue(const QString& propertyName) const;
+	ContentProperty getProperty(const QString& propertyName) const;
+	QString			getPropertyValue(const QString& propertyName) const;
+	// QString		getPropertyValue(const QString& propertyName) const;
 
-	bool getPropertyBool(const std::string& propertyName) const;
+	bool getPropertyBool(const QString& propertyName) const;
 	// bool			getPropertyBool(const QString& propertyName) const;
 
-	int				getPropertyInt(const std::string& propertyName) const;
-	float           getPropertyFloat(const std::string& propertyName) const;
-	double          getPropertyDouble(const std::string& propertyName) const;
+	int	   getPropertyInt(const QString& propertyName) const;
+	float  getPropertyFloat(const QString& propertyName) const;
+	double getPropertyDouble(const QString& propertyName) const;
 
 	/// The Engine is supplied to look up named colors
-	QColor getPropertyColor(const std::string& propertyName) const;
+	QColor getPropertyColor(const QString& propertyName) const;
 
-	std::string getPropertyString(const std::string& propertyName) const;
-	QString		getPropertyQString(const std::string& propertyName) const;
-	glm::vec2	getPropertyVec2(const std::string& propertyName) const;
-	glm::vec3	getPropertyVec3(const std::string& propertyName) const;
-	glm::vec4	getPropertyVec4(const std::string& propertyName) const;
-	QRectF		getPropertyRect(const std::string& propertyName) const;
-	QUrl		getPropertyUrl(const std::string& propertyName) const;
-	DSResource	getPropertyResource(const std::string& propertyName) const;
+	QString	  getPropertyString(const QString& propertyName) const;
+	QString	  getPropertyQString(const QString& propertyName) const;
+	glm::vec2 getPropertyVec2(const QString& propertyName) const;
+	glm::vec3 getPropertyVec3(const QString& propertyName) const;
+	glm::vec4 getPropertyVec4(const QString& propertyName) const;
+	QRectF	  getPropertyRect(const QString& propertyName) const;
+	QUrl	  getPropertyUrl(const QString& propertyName) const;
+	Resource  getPropertyResource(const QString& propertyName) const;
 
 	/// Set the property with a given name
-	void setProperty(const std::string& propertyName, ContentProperty& theProp);
-	void setProperty(const std::string& propertyName, char* value);
-	void setProperty(const std::string& propertyName, const std::string& value);
-	void setProperty(const std::string& propertyName, const QString value);
-	void setProperty(const std::string& propertyName, const int& value);
-	void setProperty(const std::string& propertyName, const double& value);
-	void setProperty(const std::string& propertyName, const float& value);
-	void setProperty(const std::string& propertyName, const QColor& value);
+	void setProperty(const QString& propertyName, ContentProperty& theProp);
+	void setProperty(const QString& propertyName, char* value);
+	void setProperty(const QString& propertyName, const QString& value);
+	void setProperty(const QString& propertyName, const int& value);
+	void setProperty(const QString& propertyName, const double& value);
+	void setProperty(const QString& propertyName, const float& value);
+	void setProperty(const QString& propertyName, const QColor& value);
 
-	void setProperty(const std::string& propertyName, const glm::vec2& value);
-	void setProperty(const std::string& propertyName, const glm::vec3& value);
-	void setProperty(const std::string& propertyName, const glm::vec4& value);
-	void setProperty(const std::string& propertyName, const QRectF& value);
-	void setProperty(const std::string& propertyName, const QUrl& value);
-	void setPropertyResource(const std::string& propertyName, const DSResource& resource);
+	void setProperty(const QString& propertyName, const glm::vec2& value);
+	void setProperty(const QString& propertyName, const glm::vec3& value);
+	void setProperty(const QString& propertyName, const glm::vec4& value);
+	void setProperty(const QString& propertyName, const QRectF& value);
+	void setProperty(const QString& propertyName, const QUrl& value);
+	void setPropertyResource(const QString& propertyName, const Resource& resource);
 
 	/// property lists are stored separately from regular properties
-	const std::map<std::string, std::vector<ContentProperty>>& getAllPropertyLists() const;
-	const std::vector<ContentProperty>&                        getPropertyList(const std::string& propertyName) const;
-	std::vector<bool>                                          getPropertyListBool(const std::string& propertyName) const;
-	std::vector<int>                                           getPropertyListInt(const std::string& propertyName) const;
-	std::vector<float>                                         getPropertyListFloat(const std::string& propertyName) const;
-	std::vector<double>                                        getPropertyListDouble(const std::string& propertyName) const;
-	std::vector<QColor>										   getPropertyListColor(const std::string& propertyName) const;
-	// std::vector<ci::ColorA>                                    getPropertyListColorA(ds::ui::SpriteEngine&, const std::string&
+	const std::map<QString, std::vector<ContentProperty>>& getAllPropertyLists() const;
+	const std::vector<ContentProperty>&					   getPropertyList(const QString& propertyName) const;
+	std::vector<bool>									   getPropertyListBool(const QString& propertyName) const;
+	std::vector<int>									   getPropertyListInt(const QString& propertyName) const;
+	std::vector<float>									   getPropertyListFloat(const QString& propertyName) const;
+	std::vector<double>									   getPropertyListDouble(const QString& propertyName) const;
+	std::vector<QColor>									   getPropertyListColor(const QString& propertyName) const;
+	// std::vector<ci::ColorA>                                    getPropertyListColorA(ds::ui::SpriteEngine&, const QString&
 	// propertyName) const;
-	std::vector<std::string>                                   getPropertyListString(const std::string& propertyName) const;
-	std::vector<QString>									   getPropertyListQString(const std::string& propertyName) const;
-	std::vector<glm::vec2>									   getPropertyListVec2(const std::string& propertyName) const;
-	std::vector<glm::vec3>									   getPropertyListVec3(const std::string& propertyName) const;
-	std::vector<QRectF>										   getPropertyListRect(const std::string& propertyName) const;
+	std::vector<QString>   getPropertyListString(const QString& propertyName) const;
+	std::vector<QString>   getPropertyListQString(const QString& propertyName) const;
+	std::vector<glm::vec2> getPropertyListVec2(const QString& propertyName) const;
+	std::vector<glm::vec3> getPropertyListVec3(const QString& propertyName) const;
+	std::vector<QRectF>	   getPropertyListRect(const QString& propertyName) const;
 
 	/// Returns the list as a delimiter-separated string
-	std::string getPropertyListAsString(const std::string& propertyName, const std::string& delimiter = "; ") const;
-	QString		getPropertyListAsQString(const std::string& propertyName, const std::string& delimiter = "; ") const;
+	QString getPropertyListAsString(const QString& propertyName, const QString& delimiter = "; ") const;
+	QString getPropertyListAsQString(const QString& propertyName, const QString& delimiter = "; ") const;
 
 	/// Adds this to a property list
-	void addPropertyToList(const std::string& propertyListName, const std::string& value);
+	void addPropertyToList(const QString& propertyListName, const QString& value);
 
 	/// Replaces a property list
-	void setPropertyList(const std::string& propertyListName, const std::vector<std::string>& value);
-	void setPropertyList(const std::string& propertyListName, const std::vector<ContentProperty>& value);
+	void setPropertyList(const QString& propertyListName, const std::vector<QString>& value);
+	void setPropertyList(const QString& propertyListName, const std::vector<ContentProperty>& value);
 
 	/// Clears the list for a specific property
-	void clearPropertyList(const std::string& propertyName);
+	void clearPropertyList(const QString& propertyName);
 
 	/// Gets all of the children
 	/// Don't modify the children here, use the other functions
@@ -237,27 +246,27 @@ class ContentModelRef {
 
 	/// Get the first child that matches this id
 	/// If no children exist or match that id, returns an empty data model
-	ContentModelRef getChildById(const int id);
+	ContentModelRef getChildById(const QString& id);
 
 	/// Get the first child that matches this name
 	/// Can get nested children using dot notation. for example:
 	/// getChildByName("the_stories.chapter_one.first_paragraph"); If no children exist or match that id, returns an
 	/// empty data model
-	ContentModelRef getChildByName(const std::string& childName) const;
+	ContentModelRef getChildByName(const QString& childName) const;
 
 	/// Looks through the entire tree to find a child that matches the name and id.
 	/// For instance, if you have a branched tree several levels deep and need to find a specific node.
 	/// Depends on children having a consistent name and unique id.
-	ContentModelRef getDescendant(const std::string& childName, const int childId) const;
+	ContentModelRef getDescendant(const QString& childName, const QString& childId) const;
 
 	/// Looks through all direct children, and returns all children that have a given label.
 	/// Useful for models that have children from more than one table
 	/// \note By default, labels are in the form "sql_table_name row"
-	std::vector<ContentModelRef> getChildrenWithLabel(const std::string& label) const;
+	std::vector<ContentModelRef> getChildrenWithLabel(const QString& label) const;
 
 	/// Get first direct decendant where 'propertyName' has a value of 'propertyValue'
 	/// Returns an empty model if no match is found
-	ContentModelRef findChildByPropertyValue(const std::string& propertyName, const std::string& propertyValue) const;
+	ContentModelRef findChildByPropertyValue(const QString& propertyName, const QString& propertyValue) const;
 
 	/// Adds this child to the end of this children list, or at the index supplied
 	void addChild(const ContentModelRef& datamodel);
@@ -267,8 +276,8 @@ class ContentModelRef {
 	void replaceChild(const dsqt::model::ContentModelRef& datamodel);
 
 	/// Is there a child with this name?
-	bool hasChild(const std::string& name) const;
-	bool hasDirectChild(const std::string& name) const;
+	bool hasChild(const QString& name) const;
+	bool hasDirectChild(const QString& name) const;
 
 	/// Is there at least one child?
 	bool hasChildren() const;
@@ -277,32 +286,35 @@ class ContentModelRef {
 	void setChildren(const std::vector<dsqt::model::ContentModelRef>& children);
 
 	/// Removes all children
-	void clearChildren() const;
+	void clearChildren();
 
 	/// Adds a reference map with the corresponding string name
-	void setReferences(const std::string& referenceName, std::map<int, dsqt::model::ContentModelRef>& reference);
+	void setReferences(const QString& referenceName, std::map<int, dsqt::model::ContentModelRef>& reference);
 
 	/// Gets a map of all the references for the given name. If you need to modify the map, make a copy and set it
 	/// again using setReference
-	const std::map<int, dsqt::model::ContentModelRef>& getReferences(const std::string& referenceName) const;
+	const std::map<int, dsqt::model::ContentModelRef>& getReferences(const QString& referenceName) const;
 
 	/// Returns a content model from a specific reference by the reference name and the node id
-	dsqt::model::ContentModelRef getReference(const std::string& referenceName, const int nodeId) const;
+	dsqt::model::ContentModelRef getReference(const QString& referenceName, const int nodeId) const;
 
 	/// Clears the reference map at the specified name
-	void clearReferences(const std::string& name) const;
+	void clearReferences(const QString& name);
 
 	/// Removes all references
-	void clearAllReferences() const;
+	void clearAllReferences();
 
 	/// Logs this, it's properties, and all it's children recursively
-	void printTree(const bool verbose, const std::string& indent = "") const;
+	void printTree(const bool verbose, const QString& indent = "") const;
 
+	/// get a json model for this content model and its children;
+	QJsonModel* getModel(QObject* parent = nullptr);
 	/// break this content model from other copies. (copy on write behavior)
-	void detach();
+	// void detach();
 
   private:
-	void createData();
+	void	   createData();
+	QJsonValue getJson();
 	class Data;
 	QSharedDataPointer<Data> mData;
 };

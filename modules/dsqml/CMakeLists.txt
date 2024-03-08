@@ -11,11 +11,9 @@ qt_add_qml_module(dsqml
     URI dsqml
     VERSION 1.0
     SOURCES
-    model/dscontentmodel.h model/dscontentmodel.cpp
-    model/content_model.h model/content_model.cpp
-    model/dscontexthash.h model/dscontexthash.cpp
-    model/dsresource.h model/dsresource.cpp
-    model/dscontentitemmodel.h model/dscontentitemmodel.cpp
+
+    model/content_model.h model/content_model.cpp 
+    model/resource.h model/resource.cpp
     settings/dssettings.h settings/dssettings.cpp
     core/dsqmlapplicationengine.h core/dsqmlapplicationengine.cpp
     core/dsenvironment.h core/dsenvironment.cpp
@@ -30,7 +28,13 @@ qt_add_qml_module(dsqml
     settings/dssettings_proxy.h settings/dssettings_proxy.cpp
     network/dsnodewatcher.h network/dsnodewatcher.cpp
     utility/string_util.h utility/string_util.cpp
+    utility/image_meta_data.h utility/image_meta_data.cpp
+    utility/file_meta_data.h utility/file_meta_data.cpp
+    utility/exif_reader.h utility/exif.h utility/exif.cpp
+    model/qjsonmodel.cpp model/qjsonmodel.h
     QML_FILES Test.qml qml/DSAppBase.qml
+    SOURCES model/dscontentmodeldata.h model/dscontentmodeldata.cpp
+    SOURCES utility/url_image_loader.h utility/url_image_loader.cpp
 )
 
 #docs

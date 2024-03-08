@@ -6,7 +6,7 @@
 #include "core/dsenvironment.h"
 
 Q_LOGGING_CATEGORY(settingsParser, "settings.parser")
-Q_LOGGING_CATEGORY(settingsParserWarn, "settings.parser.warning")
+
 namespace dsqt {
 struct GeomElements;
 
@@ -24,15 +24,15 @@ bool DSSettings::loadSettingFile(const std::string& file) {
 
 	std::string fullFile = DSEnvironment::expand(file);
 	if (!std::filesystem::exists(fullFile)) {
-		qCWarning(settingsParserWarn) << "File doesn't exist warning: Attempting to load file \"" << fullFile.c_str()
-									  << "\" but it does not exist";
+		qCWarning(settingsParser) << "File doesn't exist warning: Attempting to load file \"" << fullFile.c_str()
+								  << "\" but it does not exist";
 		return false;
 	}
 	auto		 clearItr	= mResultStack.end();
 	SettingFile* loadResult = nullptr;
 	for (auto resultItr = mResultStack.begin(); resultItr != mResultStack.end(); ++resultItr) {
 		if (resultItr->filepath == fullFile) {
-			qCWarning(settingsParserWarn) << "File already loaded warning: Updating already loaded file";
+			qCWarning(settingsParser) << "File already loaded warning: Updating already loaded file";
 			loadResult = &(*resultItr);
 		}
 	}
@@ -48,7 +48,7 @@ bool DSSettings::loadSettingFile(const std::string& file) {
 		loadResult->data  = toml::parse_file(fullFile);
 		loadResult->valid = true;
 	} catch (const toml::parse_error& e) {
-		qCWarning(settingsParserWarn) << "Faild to parse setting file \"" << fullFile.c_str() << "\n:" << e.what();
+		qCWarning(settingsParser) << "Faild to parse setting file \"" << fullFile.c_str() << "\n:" << e.what();
 		return false;
 	}
 

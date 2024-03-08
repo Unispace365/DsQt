@@ -2,8 +2,7 @@
 #include <QQmlEngine>
 #include "dscontentItemmodel.h"
 
-Q_LOGGING_CATEGORY(contentModel, "content.model")
-Q_LOGGING_CATEGORY(contentModelWarn, "content.model.warning")
+
 namespace dsqt::model {
 DSContentModelPtr DSContentModel::mContent = DSContentModelPtr(new DSContentModel(nullptr,"root"));
 
@@ -27,7 +26,8 @@ QQmlListProperty<DSContentModel> DSContentModel::getChildrenByName(QString name)
 
 DSContentModel *DSContentModel::getChildByName(QString name)
 {
-	return findChild<DSContentModel*>(name,Qt::FindDirectChildrenOnly);
+
+	return findChild<DSContentModel *>(name, Qt::FindDirectChildrenOnly);
 }
 
 DSContentItemModel *DSContentModel::getModel() {
@@ -40,7 +40,7 @@ DSContentItemModel *DSContentModel::getModel() {
 QVariant DSContentModel::updateValue(const QString &key, const QVariant &input)
 {
 	if(mImmutable){
-		qWarning()<<"Attempting to set value for '"<<key<<"' but DSContentModel is immutable";
+		qCWarning(lgContentModel) << "Attempting to set value for '" << key << "' but DSContentModel is immutable";
 		return this->value(key);
 	} else {
 		return QQmlPropertyMap::updateValue(key,input);

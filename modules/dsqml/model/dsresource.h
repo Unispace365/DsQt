@@ -1,9 +1,10 @@
 #ifndef DSRESOURCE_H
 #define DSRESOURCE_H
 
-#include <QObject>
 #include <QtQml/qqml.h>
-#include <string_view>
+#include <QLoggingCategory>
+#include <QObject>
+
 
 namespace dsqt {
 using namespace std::literals::string_view_literals;

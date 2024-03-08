@@ -8,8 +8,7 @@
 #include <QtSql/QSql>
 #include "dscontentItemmodel.h"
 
-Q_DECLARE_LOGGING_CATEGORY(contentModel)
-Q_DECLARE_LOGGING_CATEGORY(contentModelWarn)
+
 namespace dsqt::model {
 class DSContentModel;
 

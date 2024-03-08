@@ -216,7 +216,7 @@ std::vector<S> split_tmpl(const S& str, const S& delimiters, bool dropEmpty) {
 
 	auto delimiter = delimiters;
 	std::replace(delimiter.begin(), delimiter.end(), S{' '}, S{});
-	// ds::replace(delimiter, S{' '}, S{});
+	// dsqt::replace(delimiter, S{' '}, S{});
 
 	while (true) {
 		pos = str.find(delimiter, lastPos);
@@ -291,7 +291,7 @@ std::vector<std::string> partition(const std::string& str, const std::vector<std
 	for (auto it = partitioners.begin(), it2 = partitioners.end(); it != it2; ++it) {
 		std::vector<std::string> tPartitions;
 		for (auto itt = partitions.begin(), itt2 = partitions.end(); itt != itt2; ++itt) {
-			std::vector<std::string> splitWords = ds::partition(*itt, *it);
+			std::vector<std::string> splitWords = dsqt::partition(*itt, *it);
 
 			for (auto ittt = splitWords.begin(), ittt2 = splitWords.end(); ittt != ittt2; ++ittt) {
 				tPartitions.push_back(*ittt);
@@ -387,7 +387,7 @@ void loadFileIntoStringByLine(const std::string& filename, const std::function<v
 
 	//	std::cout << "Reading file " << filename << std::endl;
 	std::string f;
-	ds::loadFileIntoString(filename, f);
+	dsqt::loadFileIntoString(filename, f);
 	std::istringstream lineBuf(f);
 	if (f.empty()) {
 		//		std::cout << "\tERROR file does not exist or is empty" << std::endl;
@@ -438,33 +438,33 @@ void to_uppercase(std::wstring& str) {
 }
 
 glm::vec3 parseVector(const std::string& s) {
-	auto	 tokens = ds::split(s, ", ", true);
+	auto	  tokens = dsqt::split(s, ", ", true);
 	glm::vec3 v;
-	v.x = tokens.size() > 0 ? ds::string_to_float(tokens[0]) : 0.0f;
-	v.y = tokens.size() > 1 ? ds::string_to_float(tokens[1]) : 0.0f;
-	v.z = tokens.size() > 2 ? ds::string_to_float(tokens[2]) : 0.0f;
+	v.x = tokens.size() > 0 ? dsqt::string_to_float(tokens[0]) : 0.0f;
+	v.y = tokens.size() > 1 ? dsqt::string_to_float(tokens[1]) : 0.0f;
+	v.z = tokens.size() > 2 ? dsqt::string_to_float(tokens[2]) : 0.0f;
 
 	return v;
 }
 
 glm::vec4 parseVector4(const std::string& s) {
-	auto	 tokens = ds::split(s, ", ", true);
+	auto	  tokens = dsqt::split(s, ", ", true);
 	glm::vec4 v;
-	v.x = tokens.size() > 0 ? ds::string_to_float(tokens[0]) : 0.0f;
-	v.y = tokens.size() > 1 ? ds::string_to_float(tokens[1]) : 0.0f;
-	v.z = tokens.size() > 2 ? ds::string_to_float(tokens[2]) : 0.0f;
-	v.w = tokens.size() > 3 ? ds::string_to_float(tokens[3]) : 0.0f;
+	v.x = tokens.size() > 0 ? dsqt::string_to_float(tokens[0]) : 0.0f;
+	v.y = tokens.size() > 1 ? dsqt::string_to_float(tokens[1]) : 0.0f;
+	v.z = tokens.size() > 2 ? dsqt::string_to_float(tokens[2]) : 0.0f;
+	v.w = tokens.size() > 3 ? dsqt::string_to_float(tokens[3]) : 0.0f;
 
 	return v;
 }
 
 QRectF parseRect(const std::string& s) {
-	auto	  tokens = ds::split(s, ", ", true);
+	auto	  tokens = dsqt::split(s, ", ", true);
 	QRectF	  v;
-	float	  x1 = tokens.size() > 0 ? ds::string_to_float(tokens[0]) : 0.0f;
-	float	  y1 = tokens.size() > 1 ? ds::string_to_float(tokens[1]) : 0.0f;
-	float	  x2 = tokens.size() > 2 ? ds::string_to_float(tokens[2]) : 0.0f;
-	float	  y2 = tokens.size() > 3 ? ds::string_to_float(tokens[3]) : 0.0f;
+	float	  x1 = tokens.size() > 0 ? dsqt::string_to_float(tokens[0]) : 0.0f;
+	float	  y1 = tokens.size() > 1 ? dsqt::string_to_float(tokens[1]) : 0.0f;
+	float	  x2 = tokens.size() > 2 ? dsqt::string_to_float(tokens[2]) : 0.0f;
+	float	  y2 = tokens.size() > 3 ? dsqt::string_to_float(tokens[3]) : 0.0f;
 
 	x2 += x1;
 	y2 += y1;
