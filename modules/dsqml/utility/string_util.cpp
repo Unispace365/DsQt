@@ -215,8 +215,8 @@ std::vector<S> split_tmpl(const S& str, const S& delimiters, bool dropEmpty) {
 	std::vector<S> splitWords;
 
 	auto delimiter = delimiters;
-	std::replace(delimiter.begin(), delimiter.end(), S{' '}, S{});
-	// dsqt::replace(delimiter, S{' '}, S{});
+	// std::replace(delimiter.begin(), delimiter.end(), S{' '}, S{});
+	dsqt::replace(delimiter, S{' '}, S{});
 
 	while (true) {
 		pos = str.find(delimiter, lastPos);

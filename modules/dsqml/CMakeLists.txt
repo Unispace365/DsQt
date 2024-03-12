@@ -1,8 +1,11 @@
+cmake_minimum_required(VERSION 3.16)
 ## find the tomlplusplus package
 ## this needs to be in the projects conanfile.txt
 ## find_package(tomlplusplus)
-
-find_package(Qt6 REQUIRED COMPONENTS Gui)
+set(CMAKE_AUTOMOC ON)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(QT_QML_OUTPUT_DIRECTORY  ${CMAKE_BINARY_DIR})
+find_package(Qt6 6.4 REQUIRED COMPONENTS Quick Core)
 
 #create the modules
 ## this adds the qml and c++ files to the module
@@ -28,14 +31,15 @@ qt_add_qml_module(dsqml
     settings/dssettings_proxy.h settings/dssettings_proxy.cpp
     network/dsnodewatcher.h network/dsnodewatcher.cpp
     utility/string_util.h utility/string_util.cpp
-    utility/image_meta_data.h utility/image_meta_data.cpp
     utility/file_meta_data.h utility/file_meta_data.cpp
     utility/exif_reader.h utility/exif.h utility/exif.cpp
     model/qjsonmodel.cpp model/qjsonmodel.h
     QML_FILES Test.qml qml/DSAppBase.qml
     SOURCES model/dscontentmodeldata.h model/dscontentmodeldata.cpp
     SOURCES utility/url_image_loader.h utility/url_image_loader.cpp
+    SOURCES model/content_model_data.h model/content_model_data.cpp
 )
+
 
 #docs
 include("$ENV{DS_QT_PLATFORM_100}/cmake/docs.cmake")

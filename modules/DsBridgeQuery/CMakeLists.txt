@@ -2,9 +2,9 @@ cmake_minimum_required(VERSION 3.16)
 include("$ENV{DS_QT_PLATFORM_100}/cmake/dsqt.cmake")
 #project(DsBridgeQuery VERSION 0.1 LANGUAGES CXX)
 
-#set(CMAKE_AUTOMOC ON)
-#set(CMAKE_CXX_STANDARD_REQUIRED ON)
-#set(QT_QML_OUTPUT_DIRECTORY  ${CMAKE_BINARY_DIR})
+set(CMAKE_AUTOMOC ON)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(QT_QML_OUTPUT_DIRECTORY  ${CMAKE_BINARY_DIR})
 
 ##find_package(tomlplusplus)
 find_package(Qt6 6.4 REQUIRED COMPONENTS Quick Core Sql)
@@ -19,7 +19,8 @@ qt_add_qml_module(DsBridgeQuery
     IMPORTS dsqml
     #SOURCES bridge_service.cpp bridge_service.h
 )
-
+add_dependencies(DsBridgeQuery dsqml)
+qt_import_qml_plugins(DsBridgeQuery)
 target_compile_definitions(DsBridgeQuery
     PRIVATE $<$<OR:$<CONFIG:Debug>,$<CONFIG:RelWithDebInfo>>:QT_QML_DEBUG>)
 target_link_libraries(DsBridgeQuery

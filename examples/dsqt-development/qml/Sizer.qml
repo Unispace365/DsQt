@@ -42,4 +42,16 @@ Item {
         }
     }
 
+    SequentialAnimation on x {
+        id: anim
+        property int initScale;
+        loops: Animation.Infinite
+        NumberAnimation { to: sizer.width; duration: 10000 * initScale; onStopped: { anim.initScale=1; }}
+        NumberAnimation { to: -sizer.width; duration: 10000 }
+        Component.onCompleted: {
+            initScale = 1.0 - (x-(-sizer.width)/(sizer.width - (-sizer.width)));
+            console.log(initScale)
+        }
+    }
+
 }

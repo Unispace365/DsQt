@@ -120,7 +120,7 @@ class Resource {
   public:
 	/// Mainly for debugging
 	static Resource fromImage(const QString& full_path);
-	static Resource fromQuery(const Resource::Id&);
+
 
 	Resource();
 	Resource(const Resource::Id& dbId, const int type);
@@ -236,10 +236,11 @@ class Resource {
 
 	/// Query the database set as the resources database for my contents. Obviously, this is also an expensive
 	/// operation.
-	bool query(const Resource::Id&);
+	/// I don't think we need these any longer.
+	// bool query(const Resource::Id&);
 
 	/// The argument is the full thumbnail, if you want it.
-	bool query(const Resource::Id&, Resource* outThumb);
+	// bool query(const Resource::Id&, Resource* outThumb);
 
   private:
 	friend class ResourceList;

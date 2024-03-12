@@ -33,6 +33,13 @@ DSSettingsRef DSQmlApplicationEngine::getAppSettings() {
 	return mSettings;
 }
 
+model::ContentModelRef DSQmlApplicationEngine::getContentRoot() {
+	if (mContentRoot.empty()) {
+		mContentRoot = model::ContentModelRef("root");
+	}
+	return mContentRoot;
+}
+
 void DSQmlApplicationEngine::preInit()
 {
 
@@ -40,13 +47,13 @@ void DSQmlApplicationEngine::preInit()
 
 void DSQmlApplicationEngine::init()
 {
-	mContentRoot = model::ContentModelRef("root");
+	mContentRoot = getContentRoot();
 	dsqt::DSEnvironment::loadEngineSettings();
 	mSettings = dsqt::DSEnvironment::loadSettings("app_settings","app_settings.toml");
 	dsqt::DSSettingsProxy appProxy;
 
 	appProxy.setTarget("app_settings");
-	mRootModel = mContentRoot.getModel(this);
+	updateContentRoot(model::ContentModelRef("root"));
 	rootContext()->setContextProperty("contentRoot", mRootModel);
 	rootContext()->setContextProperty("app_settings",&appProxy);
     rootContext()->setContextProperty("$QmlEngine", this);
@@ -66,12 +73,19 @@ DSQmlApplicationEngine* DSQmlApplicationEngine::DefEngine() {
 }
 
 void DSQmlApplicationEngine::updateContentRoot(model::ContentModelRef newRoot) {
+	qInfo("Updating Content Root");
 	mContentRoot	  = newRoot;
 	auto oldRootModel = mRootModel;
+	auto oldRootMap	  = mRootMap;
 	mRootModel		  = mContentRoot.getModel(this);
-	rootContext()->setContextProperty("contentRoot", mRootModel);
+	mRootMap		  = mContentRoot.getMap(this);
+	rootContext()->setContextProperty("contentRootModel", mRootModel);
+	rootContext()->setContextProperty("contentRootMap", mRootMap);
 	if (oldRootModel) {
 		delete oldRootModel;
+	}
+	if (oldRootMap) {
+		delete oldRootMap;
 	}
 }
 

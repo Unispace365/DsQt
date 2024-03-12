@@ -3,10 +3,11 @@
 
 #include "core/dsqmlapplicationengine.h"
 
-#include <QMutex>
 #include <QFuture>
-#include <QtConcurrent/QtConcurrent>
+#include <QMutex>
 #include <QQmlApplicationEngine>
+#include <QUdpSocket>
+#include <QtConcurrent/QtConcurrent>
 
 Q_DECLARE_LOGGING_CATEGORY(nodeWatcher)
 
@@ -56,11 +57,11 @@ class DsNodeWatcher : public QObject
     Q_OBJECT
     QML_ELEMENT
 public:
-    DsNodeWatcher(DSQmlApplicationEngine *parent,QString host="localhost",int port=7788,bool autoStart=true);
+  DsNodeWatcher(DSQmlApplicationEngine* parent = nullptr, QString host = "localhost", int port = 7788, bool autoStart = true);
 
-    void handleMessage();
-    void start();
-    void stop();
+  void handleMessage();
+  void start();
+  void stop();
 
 public:
     /// A generic class that stores info received from the node.
@@ -70,12 +71,18 @@ signals:
     void stopped();
     void started();
 
-private:
-    Message mMsg;
-    Loop    mLoop;
-    QFuture<void> mWatcher;
-    QMutex mMutex;
-    DSQmlApplicationEngine* mEngine;
+  public slots:
+	void processPendingDatagrams();
+
+  private:
+	Message mMsg;
+	Loop	mLoop;
+	int		mPort;
+
+	QFuture<void>			mWatcher;
+	QMutex					mMutex;
+	DSQmlApplicationEngine* mEngine;
+	QUdpSocket*				mSocket = nullptr;
 };
 }
 

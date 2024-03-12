@@ -547,16 +547,16 @@ QJsonValue QJsonModel::genJson(QJsonTreeItem *item) const
         return arr;
     } else {
         QJsonValue va;
-        switch(item->value().type()) {
-        case QVariant::Bool: {
-            va = item->value().toBool();
-            break;
-        }
-        default:
-            va = item->value().toString();
-            break;
-        }
-        (item->value());
+		switch (item->value().typeId()) {
+			case QMetaType::Bool: {
+				va = item->value().toBool();
+				break;
+			}
+			default:
+				va = item->value().toString();
+				break;
+		}
+		(item->value());
         return va;
     }
 }

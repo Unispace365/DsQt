@@ -48,6 +48,34 @@ std::string DSEnvironment::expand(const std::string &_path)
         return p.toStdString();
 }
 
+std::string DSEnvironment::contract(const std::string &_path) {
+	if (!sInitialized) DSEnvironment::initialize();
+
+	QString p = QString::fromStdString(_path);
+
+	// boost::replace_all(p, ds::App::envAppDataPath(), "%APP%");
+	// boost::replace_all(p, EngineSettings::envProjectPath(), "%PP%");
+	// boost::replace_all(p, getDownstreamDocumentsFolder(), "%LOCAL%");
+	// boost::replace_all(p, EngineSettings::getConfigurationFolder(), "%CFG_FOLDER%");
+	// boost::replace_all(p, DOCUMENTS, "%DOCUMENTS%");
+	// // This can result in double path separators, so flatten
+	// return Poco::Path(p).toString();
+
+	p.replace(QString::fromStdString(sAppRootFolder), "%APP%");
+	p.replace(QString::fromStdString(sProjectPath),
+			  "%PP%");	//        boost::replace_all(p, "%PP%", DSEngineSettings::envProjectPath());
+	p.replace(QString::fromStdString(sDocumentsDownstream),
+			  "%LOCAL%");  //        boost::replace_all(p, "%LOCAL%", getDownstreamDocumentsFolder());
+	p.replace(QString::fromStdString(sConfigFolder),
+			  "%CFG_FOLDER%");	//        boost::replace_all(p, "%CFG_FOLDER%", EngineSettings::getConfigurationFolder());
+	p.replace(QString::fromStdString(sDocuments), "%DOCUMENTS%");  //        boost::replace_all(p, "%DOCUMENTS%", DOCUMENTS);
+	p.replace(QString::fromStdString(sSharedFolder), "%SHARE%");
+	//        // This can result in double path separators, so flatten
+	//        return Poco::Path(p).toString();
+	p = QDir::cleanPath(p);
+	return p.toStdString();
+}
+
 bool DSEnvironment::loadEngineSettings(){
 	auto baseConfigFile = expand("%APP%/settings/configuration.toml");
 	auto docConfigFile = expand("%LOCAL%/settings/%PP%/configuration.toml");

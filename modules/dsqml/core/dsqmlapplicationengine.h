@@ -1,9 +1,9 @@
 #ifndef DSQMLAPPLICATIONENGINE_H
 #define DSQMLAPPLICATIONENGINE_H
 
+#include <qjsonmodel.h>
 #include <QObject>
 #include <QQmlApplicationEngine>
-
 #include "model/content_model.h"
 #include "settings/dssettings.h"
 
@@ -33,7 +33,8 @@ class DSQmlApplicationEngine : public QQmlApplicationEngine {
 
   protected:
 	model::ContentModelRef		   mContentRoot;
-	QJsonModel*					   mRootModel;
+	QJsonModel*					   mRootModel = nullptr;
+	QQmlPropertyMap*			   mRootMap	  = nullptr;
 	static DSQmlApplicationEngine* sDefaultEngine;
 };
 

@@ -3,6 +3,7 @@
 
 
 #include <core/dsenvironment.h>
+#include <utility/string_util.h>
 
 Q_LOGGING_CATEGORY(lgFileMetaData, "file_meta_data")
 namespace dsqt {
@@ -104,7 +105,7 @@ std::string filePathRelativeTo(const std::string& base, const std::string& relat
 
 std::string getNormalizedPath(const std::string& path) {
 	auto ret = path;
-	std::replace(ret.begin(), ret.end(), '\\', '/');
+	dsqt::replace(ret, "\\", "/");
 
 	ret = fs::path(ret).string();
 

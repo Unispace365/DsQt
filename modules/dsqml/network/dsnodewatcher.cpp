@@ -3,17 +3,14 @@
 #include <QHostAddress>
 #include <QTcpSocket>
 #include <QUdpSocket>
+#include "dsenvironment.h"
 namespace dsqt::network {
-DsNodeWatcher::DsNodeWatcher(DSQmlApplicationEngine* parent,QString url,int port,bool autoStart):
-    QObject(parent),
-    mLoop(parent,url,port),
-    mEngine(parent)
-{
+DsNodeWatcher::DsNodeWatcher(DSQmlApplicationEngine* parent, QString url, int port, bool autoStart)
+  : QObject(parent), mLoop(parent, url, port), mPort(port), mEngine(parent) {
 
-    if(autoStart){
-        start();
-    }
-
+	if (autoStart) {
+		start();
+	}
 }
 
 void DsNodeWatcher::handleMessage()
@@ -29,13 +26,51 @@ void DsNodeWatcher::handleMessage()
 
 void DsNodeWatcher::start()
 {
-    if(mWatcher.isRunning()) return;
-    connect(
-        &mLoop,&Loop::messageAvailable,
-        this,&DsNodeWatcher::handleMessage,
-        static_cast<Qt::ConnectionType>(Qt::QueuedConnection | Qt::UniqueConnection) );
-    mWatcher = QtConcurrent::run(&Loop::run,&mLoop);
 
+	if (mSocket) {
+		mSocket->close();
+		delete mSocket;
+	}
+
+	mSocket		= new QUdpSocket(this);
+	bool result = mSocket->bind(QHostAddress::AnyIPv4, mPort);
+	qDebug() << result;
+	if (result) {
+		qDebug() << "PASS";
+	} else {
+		qDebug() << "FAIL";
+	}
+	processPendingDatagrams();
+	connect(mSocket, &QUdpSocket::readyRead, this, &DsNodeWatcher::processPendingDatagrams, Qt::QueuedConnection);
+
+	// if (mWatcher.isRunning()) return;
+	// qInfo() << "Starting NodeWatcher";
+	// connect(&mLoop, &Loop::messageAvailable, this, &DsNodeWatcher::handleMessage,
+	// 		static_cast<Qt::ConnectionType>(Qt::QueuedConnection | Qt::UniqueConnection));
+	// mWatcher = QtConcurrent::run(&Loop::run, &mLoop);
+}
+
+void DsNodeWatcher::processPendingDatagrams() {
+	qDebug() << "in !";
+	QHostAddress sender;
+	uint16_t	 port;
+	mMsg.clear();
+	QByteArray datagram;
+	while (mSocket->hasPendingDatagrams()) {
+
+		datagram.resize(mSocket->pendingDatagramSize());
+		mSocket->readDatagram(datagram.data(), datagram.size(), &sender, &port);
+		qDebug() << "Message From :: " << sender.toString();
+		qDebug() << "Port From :: " << port;
+		qDebug() << "Message :: " << datagram;
+		mMsg.mData.emplace_back(QString::fromUtf8(datagram));
+	}
+	datagram.resize(mSocket->pendingDatagramSize());
+	mSocket->readDatagram(datagram.data(), datagram.size(), &sender, &port);
+	if (mMsg.mData.size() > 0) {
+		emit messageArrived(mMsg);
+	}
+	qDebug() << "out !";
 }
 
 void DsNodeWatcher::stop()
@@ -67,15 +102,15 @@ void Message::swap(Message &o)
 }
 
 static long get_refresh_rate(DSQmlApplicationEngine* engine){
-    auto settings = engine->getSettings();
-    float rate = settings->getOr("node.refresh_rate",.1f);
-    long ans = static_cast<long>(rate * 1000.0f);
-    if(ans<10) {
-        return 10;
-    } else if (ans > 1000 * 10) {
-        return 1000 * 10;
-    }
-    return ans;
+	auto  settings = DSEnvironment::engineSettings();
+	float rate	   = settings->getOr("node.refresh_rate", .1f);
+	long  ans	   = static_cast<long>(rate * 1000.0f);
+	if (ans < 10) {
+		return 10;
+	} else if (ans > 1000 * 10) {
+		return 1000 * 10;
+	}
+	return ans;
 }
 
 Loop::Loop(DSQmlApplicationEngine* engine,const QString host, const int port):QObject(engine),
@@ -99,9 +134,8 @@ void Loop::run()
     char                buf[BUF_SIZE];
     
     QUdpSocket theSocket;
-    
 	try {
-		theSocket.bind(QHostAddress::AnyIPv4,mPort);
+
 		QObject connectionLife;
 		mEngine->connect(&theSocket,&QUdpSocket::readyRead,&connectionLife,[&](){
 			qDebug()<<"Got Message in Lambda"<<QThread::currentThreadId();
@@ -114,22 +148,27 @@ void Loop::run()
          
         });
 
-        while(true){
-            if(mMsg.mData.size()>0){
+		auto good = theSocket.bind(QHostAddress::AnyIPv4, mPort);
+		if (!good) {
+			qDebug() << "Failed to bind to port:" << mPort << "(" << theSocket.errorString() << ")";
+		} else {
+			qDebug() << "Bound to port:" << mPort;
+		}
+
+
+		while (true) {
+			if (mMsg.mData.size() > 0) {
 				qDebug()<<"emitting messageAvailable "<<QThread::currentThreadId();
                 emit messageAvailable();
-            }
+			}
 
-            QThread::msleep(mRefreshRateMs);
-            {
-                QMutexLocker l(&mMutex);
-                if(mAbort) break;
-            }
-
-        }
-    } catch(std::exception e){
-
-    }
+			QThread::msleep(mRefreshRateMs);
+			{
+				QMutexLocker l(&mMutex);
+				if (mAbort) break;
+			}
+		}
+	} catch (std::exception e) {}
 }
 
 }

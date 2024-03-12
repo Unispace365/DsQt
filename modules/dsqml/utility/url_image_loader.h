@@ -25,7 +25,7 @@ class UrlImageLoader : public QObject {
 	void errorOccurred(QString errorString);
 
   private slots:
-	void onFinished(QNetworkReply *reply);
+	void onFinished();
 
   private:
 	QNetworkAccessManager *m_manager;

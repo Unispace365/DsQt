@@ -1,4 +1,5 @@
 #pragma once
+#include "qqmlpropertymap.h"
 #ifndef DS_CONTENT_CONTENT_MODEL
 #define DS_CONTENT_CONTENT_MODEL
 
@@ -7,6 +8,8 @@
 #include <QColor>
 #include <QLoggingCategory>
 #include <QRect>
+#include <QSharedData>
+#include <QSharedDataPointer>
 #include <QUrl>
 #include <glm/glm.hpp>
 #include <map>
@@ -14,7 +17,7 @@
 #include <string>
 #include <vector>
 
-#include <dsqmlapplicationengine.h>
+
 #include "resource.h"
 Q_DECLARE_LOGGING_CATEGORY(lgContentModel)
 
@@ -27,6 +30,7 @@ namespace dsqt::model {
  *		 For instance, this could be ContentProperty("longitude", 123.456); or ContentProperty("title", "The title
  *of this thing")
  */
+
 class ContentProperty {
   public:
 	ContentProperty();
@@ -61,7 +65,7 @@ class ContentProperty {
 	// im guesing we don't need to worry about
 	// resources as we'll rely on QML's system.
 	Resource getResource() const;
-	// void		 setResource(const ds::Resource& resource);
+	void	 setResource(const dsqt::Resource& resource);
 
 	// replace resources with urls
 	void setValue(const QUrl& value);
@@ -96,7 +100,23 @@ class ContentProperty {
 	double		  mDoubleValue;
 	std::shared_ptr<Resource> mResource;
 };
+class ContentModelRef;
+class Data : public QSharedData {
+  public:
+	Data();
+	Data(const Data& other);
+	~Data();
 
+
+	QString											  mName;
+	QString											  mLabel;
+	void*											  mUserData;
+	QString											  mId;
+	std::map<QString, ContentProperty>				  mProperties;
+	std::map<QString, std::vector<ContentProperty>>	  mPropertyLists;
+	std::vector<ContentModelRef>					  mChildren;
+	std::map<QString, std::map<int, ContentModelRef>> mReferences;
+};
 
 /**
  * \class ContentModelRef
@@ -116,6 +136,8 @@ class ContentModelRef {
 	/// TODO: remove child
 
 	ContentModelRef();
+	ContentModelRef(const ContentModelRef& other);
+	ContentModelRef& operator=(const ContentModelRef& other);
 	ContentModelRef(const QString& name, const QString& id = 0, const QString& label = "");
 
 	/// Enables doing `if (mModel) ...` to check if model is valid
@@ -311,12 +333,13 @@ class ContentModelRef {
 	QJsonModel* getModel(QObject* parent = nullptr);
 	/// break this content model from other copies. (copy on write behavior)
 	// void detach();
+	/// get a property map for this content model
+	QQmlPropertyMap* getMap(QObject* parent = nullptr) const;
 
   private:
-	void	   createData();
-	QJsonValue getJson();
-	class Data;
-	QSharedDataPointer<Data> mData;
+	void								  createData();
+	QJsonValue							  getJson();
+	QSharedDataPointer<dsqt::model::Data> mData;
 };
 
 }  // namespace dsqt::model

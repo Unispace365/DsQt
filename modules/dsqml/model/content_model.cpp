@@ -13,31 +13,32 @@ Q_LOGGING_CATEGORY(lgContentModel, "model.contentmodel")
 namespace dsqt::model {
 
 namespace {
-	const int												  EMPTY_INT = 0;
-	const QString											  EMPTY_STRING;
-	const QUrl												  EMPTY_URL;
-	const std::vector<ContentModelRef>						  EMPTY_DATAMODELREF_VECTOR;
-	const ContentModelRef									  EMPTY_DATAMODEL;
-	const ContentProperty									  EMPTY_PROPERTY;
-	const Resource											  EMPTY_RESOURCE;
-	const std::vector<ContentProperty>						  EMPTY_PROPERTY_LIST;
-	const std::map<QString, ContentProperty>				  EMPTY_PROPERTY_MAP;
-	const std::map<QString, std::vector<ContentProperty>>	  EMPTY_PROPERTY_LIST_MAP;
-	const std::map<int, ContentModelRef>					  EMPTY_REFERENCE;
+const int											  EMPTY_INT = 0;
+const QString										  EMPTY_STRING;
+const QUrl											  EMPTY_URL;
+const std::vector<ContentModelRef>					  EMPTY_DATAMODELREF_VECTOR;
+const ContentModelRef								  EMPTY_DATAMODEL;
+const ContentProperty								  EMPTY_PROPERTY;
+const Resource										  EMPTY_RESOURCE;
+const std::vector<ContentProperty>					  EMPTY_PROPERTY_LIST;
+const std::map<QString, ContentProperty>			  EMPTY_PROPERTY_MAP;
+const std::map<QString, std::vector<ContentProperty>> EMPTY_PROPERTY_LIST_MAP;
+const std::map<int, ContentModelRef>				  EMPTY_REFERENCE;
 
-	const std::vector<bool>			EMPTY_BOOL_LIST;
-	const std::vector<int>			EMPTY_INT_LIST;
-	const std::vector<float>		EMPTY_FLOAT_LIST;
-	const std::vector<double>		EMPTY_DOUBLE_LIST;
-	const std::vector<QString>		EMPTY_STRING_LIST;
-	const std::vector<std::wstring> EMPTY_WSTRING_LIST;
-	const std::vector<QColor>		EMPTY_COLOR_LIST;
-	const std::vector<QColor>		EMPTY_COLORA_LIST;
-	const std::vector<glm::vec2>	EMPTY_VEC2_LIST;
-	const std::vector<glm::vec3>	EMPTY_VEC3_LIST;
-	const std::vector<QRectF>		EMPTY_RECTF_LIST;
+const std::vector<bool>			EMPTY_BOOL_LIST;
+const std::vector<int>			EMPTY_INT_LIST;
+const std::vector<float>		EMPTY_FLOAT_LIST;
+const std::vector<double>		EMPTY_DOUBLE_LIST;
+const std::vector<QString>		EMPTY_STRING_LIST;
+const std::vector<std::wstring> EMPTY_WSTRING_LIST;
+const std::vector<QColor>		EMPTY_COLOR_LIST;
+const std::vector<QColor>		EMPTY_COLORA_LIST;
+const std::vector<glm::vec2>	EMPTY_VEC2_LIST;
+const std::vector<glm::vec3>	EMPTY_VEC3_LIST;
+const std::vector<QRectF>		EMPTY_RECTF_LIST;
 
-} // namespace
+}  // namespace
+
 
 ContentProperty::ContentProperty() : mName(""), mValue(""), mIntValue(0), mDoubleValue(0) {}
 
@@ -127,10 +128,10 @@ Resource ContentProperty::getResource() const {
 	return EMPTY_RESOURCE;
 }
 
-// void ContentProperty::setResource(const ds::Resource& resource) {
-// 	ds::Resource reccy = resource;
-// 	mResource		   = std::make_shared<ds::Resource>(reccy);
-// }
+void ContentProperty::setResource(const dsqt::Resource& resource) {
+	dsqt::Resource reccy = resource;
+	mResource			 = std::make_shared<dsqt::Resource>(reccy);
+}
 void ContentProperty::setValue(const QUrl& value) {
 	mValue = value.toString(QUrl::FormattingOptions(QUrl::FullyEncoded));
 }
@@ -197,39 +198,33 @@ QRectF ContentProperty::getRect() const {
 }
 
 
-class ContentModelRef::Data : public QSharedData {
-  public:
-	Data() : mName(EMPTY_STRING), mLabel(EMPTY_STRING), mUserData(nullptr), mId(EMPTY_STRING) {}
-	Data(const Data& other)
-	  : QSharedData(other)
-	  , mName(other.mName)
-	  , mLabel(other.mLabel)
-	  , mUserData(other.mUserData)
-	  , mId(other.mId)
-	  , mProperties(other.mProperties)
-	  , mPropertyLists(other.mPropertyLists)
-	  , mChildren(other.mChildren)
-	  , mReferences(other.mReferences) {}
-	~Data() {}
+Data::Data() : mName(EMPTY_STRING), mLabel(EMPTY_STRING), mUserData(nullptr), mId(EMPTY_STRING) {}
+Data::Data(const Data& other)
+  : QSharedData(other)
+  , mName(other.mName)
+  , mLabel(other.mLabel)
+  , mUserData(other.mUserData)
+  , mId(other.mId)
+  , mProperties(other.mProperties)
+  , mPropertyLists(other.mPropertyLists)
+  , mChildren(other.mChildren)
+  , mReferences(other.mReferences) {}
+Data::~Data() {}
 
-
-	QString												  mName;
-	QString												  mLabel;
-	void*												  mUserData;
-	QString												  mId;
-	std::map<QString, ContentProperty>					  mProperties;
-	std::map<QString, std::vector<ContentProperty>>		  mPropertyLists;
-	std::vector<ContentModelRef>						  mChildren;
-	std::map<QString, std::map<int, ContentModelRef>>	  mReferences;
-};
 
 ContentModelRef::ContentModelRef() {}
 
+ContentModelRef::ContentModelRef(const ContentModelRef& other) : mData(other.mData) {}
 
 ContentModelRef::ContentModelRef(const QString& name, const QString& id, const QString& label) {
 	setName(name);
 	setId(id);
 	setLabel(label);
+}
+
+ContentModelRef& ContentModelRef::operator=(const ContentModelRef& other) {
+	mData = other.mData;
+	return *this;
 }
 
 const QString& ContentModelRef::getId() const {
@@ -570,6 +565,13 @@ void ContentModelRef::setProperty(const QString& propertyName, const QUrl& value
 	ContentProperty dp;
 	dp.setName(propertyName);
 	dp.setValue(value);
+	setProperty(propertyName, dp);
+}
+
+void ContentModelRef::setPropertyResource(const QString& propertyName, const Resource& value) {
+	ContentProperty dp;
+	dp.setName(propertyName);
+	dp.setResource(value);
 	setProperty(propertyName, dp);
 }
 
@@ -981,8 +983,37 @@ void ContentModelRef::printTree(const bool verbose, const QString& indent) const
 
 QJsonModel* ContentModelRef::getModel(QObject* parent) {
 	QJsonModel* model = new QJsonModel(parent);
-	model->loadJson(getJson().toString().toUtf8());
+
+	QJsonDocument doc;
+	doc.setObject(getJson().toObject());
+
+	QString json = doc.toJson();
+	qDebug() << "ContentModelRef::getModel() json:\n" << json;
+	model->loadJson(doc.toJson());
 	return model;
+}
+
+QQmlPropertyMap* ContentModelRef::getMap(QObject* parent) const {
+	QQmlPropertyMap* map = new QQmlPropertyMap(parent);
+	map->insert("id", QVariant::fromValue(mData->mId));
+	map->insert("name", QVariant::fromValue(mData->mName));
+	map->insert("label", QVariant::fromValue(mData->mLabel));
+	for (const auto& prop : mData->mProperties) {
+		map->insert(prop.first, QVariant::fromValue(prop.second.getValue()));
+	}
+	for (const auto& propList : mData->mPropertyLists) {
+		QVariantList list;
+		for (const auto& prop : propList.second) {
+			list.append(QVariant::fromValue(prop.getValue()));
+		}
+		map->insert(propList.first, list);
+	}
+	QVariantList children;
+	for (const auto& child : mData->mChildren) {
+		children.append(QVariant::fromValue(child.getMap(map)));
+	}
+	map->insert("children", children);
+	return map;
 }
 
 

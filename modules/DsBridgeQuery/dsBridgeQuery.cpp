@@ -26,11 +26,12 @@ DsBridgeSqlQuery::DsBridgeSqlQuery(DSQmlApplicationEngine *parent)
         &DSQmlApplicationEngine::onInit,
         this,
         [this]() {
+            // if bridge sync is not running, try to launch it.
             if (!isBridgeSyncRunning()) {
                 tryLaunchBridgeSync();
-                return;
             }
 
+            qCDebug(lgBridgeSyncQuery) << "Starting Query";
             mDatabase = QSqlDatabase::addDatabase("QSQLITE");
             DSSettingsProxy engSettings;
             engSettings.setTarget("engine");
@@ -85,6 +86,7 @@ DsBridgeSyncSettings DsBridgeSqlQuery::getBridgeSyncSettings()
 bool DsBridgeSqlQuery::tryLaunchBridgeSync()
 {
     //static int tries = 0;
+    qCInfo(lgBridgeSyncApp) << "Launching BridgeSync";
 
     //check if process is running
     if (mBridgeSyncProcess.state() == QProcess::Running) {
@@ -150,16 +152,25 @@ bool DsBridgeSqlQuery::tryLaunchBridgeSync()
     connect(&mBridgeSyncProcess, &QProcess::started, this, [this]() {
         qCInfo(lgBridgeSyncApp) << "BridgeSync has started";
     });
-    connect(&mBridgeSyncProcess,
-            &QProcess::errorOccurred,
-            this,
-            [this](QProcess::ProcessError error) {
-                qCWarning(lgBridgeSyncApp) << "BridgeSync has encountered an error: " << error;
-            });
-    connect(&mBridgeSyncProcess, &QProcess::finished, this, [this](int exitCode) {
-        qCInfo(lgBridgeSyncApp) << mBridgeSyncProcess.readAllStandardOutput();
-        qCInfo(lgBridgeSyncApp) << "BridgeSync has finished with exit code: " << exitCode;
-    });
+    connect(
+        &mBridgeSyncProcess,
+        &QProcess::errorOccurred,
+        this,
+        [this](QProcess::ProcessError error) {
+            qCWarning(lgBridgeSyncApp) << "BridgeSync has encountered an error: " << error;
+            tryLaunchBridgeSync();
+        },
+        Qt::QueuedConnection);
+    connect(
+        &mBridgeSyncProcess,
+        &QProcess::finished,
+        this,
+        [this](int exitCode) {
+            qCInfo(lgBridgeSyncApp) << mBridgeSyncProcess.readAllStandardOutput();
+            qCInfo(lgBridgeSyncApp) << "BridgeSync has finished with exit code: " << exitCode;
+            tryLaunchBridgeSync();
+        },
+        Qt::QueuedConnection);
     connect(&mBridgeSyncProcess, &QProcess::stateChanged, this, [this](QProcess::ProcessState state) {
         qCInfo(lgBridgeSyncApp) << "BridgeSync has changed state: " << state;
     });
@@ -281,8 +292,6 @@ void DsBridgeSqlQuery::queryTables()
                 //++it;
             }
 
-            ContentModelRef root("root");
-
             mContent = ContentModelRef("content");
             mPlatforms = ContentModelRef("platform");
             mEvents = ContentModelRef("all_events");
@@ -403,7 +412,7 @@ void DsBridgeSqlQuery::queryTables()
             }
         }
     }
-
+    // Insert values
     {
         QString valueQuery
             = "SELECT "
@@ -616,6 +625,14 @@ void DsBridgeSqlQuery::queryTables()
             }
         }
     }
+    //update root
+    ContentModelRef root = DSQmlApplicationEngine::DefEngine()->getContentRoot();
+    root.replaceChild(mContent);
+    root.replaceChild(mEvents);
+    root.replaceChild(mPlatforms);
+    root.replaceChild(mRecords);
+
+    DSQmlApplicationEngine::DefEngine()->updateContentRoot(root);
 }
 
 } // namespace dsqt::bridge

@@ -11,7 +11,7 @@ void UrlImageLoader::loadImage(const QUrl& url) {
 	QNetworkReply*	reply = m_manager->get(request);
 
 	connect(reply, &QNetworkReply::downloadProgress, this, &UrlImageLoader::downloadProgress);
-	connect(reply, &QNetworkReply::finished, this, &UrlImageLoader::downloadFinished);
+	connect(reply, &QNetworkReply::finished, this, &UrlImageLoader::onFinished);
 
 	emit downloadStarted();
 }
@@ -38,7 +38,8 @@ QImage dsqt::UrlImageLoader::loadImageSync(const QUrl& url) {
 	return image;
 }
 
-void UrlImageLoader::onFinished(QNetworkReply* reply) {
+void UrlImageLoader::onFinished() {
+	QNetworkReply* reply = qobject_cast<QNetworkReply*>(sender());
 	if (reply->error()) {
 		emit errorOccurred(reply->errorString());
 	} else {

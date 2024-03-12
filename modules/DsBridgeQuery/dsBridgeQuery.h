@@ -41,6 +41,9 @@ public:
 public:
     bool isBridgeSyncRunning();
 
+public slots:
+    void QueryDatabase() { queryTables(); }
+
 private:
     QSqlDatabase mDatabase;
     model::ContentModelRef mContent;
