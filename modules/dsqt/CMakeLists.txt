@@ -5,7 +5,7 @@ cmake_minimum_required(VERSION 3.16)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(QT_QML_OUTPUT_DIRECTORY  ${CMAKE_BINARY_DIR})
-find_package(Qt6 6.4 REQUIRED COMPONENTS Quick Core)
+find_package(Qt6 6.4 REQUIRED COMPONENTS Quick Core Gui ShaderTools)
 
 #create the modules
 ## this adds the qml and c++ files to the module
@@ -35,6 +35,7 @@ qt_add_qml_module(dsqt
     utility/url_image_loader.h utility/url_image_loader.cpp
     model/qjsonmodel.cpp model/qjsonmodel.h
     QML_FILES Test.qml qml/DSAppBase.qml
+    SOURCES core/dsimgui_item.h
 )
 
 
@@ -45,6 +46,12 @@ downstream_docs(IN_DIR ${DOCS_DIR} OUT_DIR ${DOCS_DIR} DOCNAME "DsQt" DESC "Qt f
 
 
 #link to the libaries that we are using
+#message("****************************************************** ${qtimgui_SOURCE_DIR}")
+set(imgui_base ${qtimgui_SOURCE_DIR}/imgui)
+#set(imgui_target dsqml)
+#include(${imgui_base}/imgui.cmakeinc)
+#include(${imgui_base}/imguiquick.cmakeinc)
+
 target_link_libraries(dsqt PUBLIC tomlplusplus::tomlplusplus)
 target_include_directories(dsqt PUBLIC tomlplusplus::tomlplusplus settings model core network)
 target_include_directories(dsqt PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} glm)

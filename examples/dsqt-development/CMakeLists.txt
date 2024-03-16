@@ -10,7 +10,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 SET(QT_QML_DEBUG 1)
 set(app_icon_resource_windows "${CMAKE_CURRENT_SOURCE_DIR}/dsqt-development.rc")
-find_package(Qt6 6.2 COMPONENTS Quick Gui REQUIRED Sql)
+find_package(Qt6 6.2 COMPONENTS Quick Gui REQUIRED Sql ShaderTools)
 
 
 qt_add_executable(appdsqt-development
@@ -25,6 +25,9 @@ qt_add_qml_module(appdsqt-development
     QML_FILES qml/main.qml qml/Sizer.qml
 )
 
+target_link_libraries(appdsqt-development
+    PRIVATE Qt6::Quick Qt::Gui Qt::GuiPrivate
+    Qt::QuickPrivate)
 
 downstream_modules(TARGET appdsqt-development MODULES  DsBridgeQuery dsqt)
 ##find_package(tomlplusplus)
@@ -50,6 +53,7 @@ set_target_properties(appdsqt-development PROPERTIES
 
 target_link_libraries(appdsqt-development
     PRIVATE Qt6::Quick Qt6::Gui Qt6::Sql)
+
 
 #install(TARGETS appdsqt-development
 #    BUNDLE DESTINATION .

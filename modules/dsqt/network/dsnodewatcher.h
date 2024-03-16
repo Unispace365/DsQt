@@ -55,7 +55,7 @@ public:
 class DsNodeWatcher : public QObject
 {
     Q_OBJECT
-    QML_ELEMENT
+
 public:
   DsNodeWatcher(DSQmlApplicationEngine* parent = nullptr, QString host = "localhost", int port = 7788, bool autoStart = true);
 
