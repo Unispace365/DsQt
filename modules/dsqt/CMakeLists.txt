@@ -9,13 +9,13 @@ find_package(Qt6 6.4 REQUIRED COMPONENTS Quick Core)
 
 #create the modules
 ## this adds the qml and c++ files to the module
-qt_add_qml_module(dsqml
+qt_add_qml_module(dsqt
     STATIC
-    URI dsqml
+    URI dsqt
     VERSION 1.0
     SOURCES
 
-    model/content_model.h model/content_model.cpp 
+    model/content_model.h model/content_model.cpp
     model/resource.h model/resource.cpp
     settings/dssettings.h settings/dssettings.cpp
     core/dsqmlapplicationengine.h core/dsqmlapplicationengine.cpp
@@ -32,12 +32,9 @@ qt_add_qml_module(dsqml
     network/dsnodewatcher.h network/dsnodewatcher.cpp
     utility/string_util.h utility/string_util.cpp
     utility/file_meta_data.h utility/file_meta_data.cpp
-    utility/exif_reader.h utility/exif.h utility/exif.cpp
+    utility/url_image_loader.h utility/url_image_loader.cpp
     model/qjsonmodel.cpp model/qjsonmodel.h
     QML_FILES Test.qml qml/DSAppBase.qml
-    SOURCES model/dscontentmodeldata.h model/dscontentmodeldata.cpp
-    SOURCES utility/url_image_loader.h utility/url_image_loader.cpp
-    SOURCES model/content_model_data.h model/content_model_data.cpp
 )
 
 
@@ -48,11 +45,11 @@ downstream_docs(IN_DIR ${DOCS_DIR} OUT_DIR ${DOCS_DIR} DOCNAME "DsQt" DESC "Qt f
 
 
 #link to the libaries that we are using
-target_link_libraries(dsqml PUBLIC tomlplusplus::tomlplusplus)
-target_include_directories(dsqml PUBLIC tomlplusplus::tomlplusplus settings model core network)
-target_include_directories(dsqml PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} glm)
-target_link_libraries(dsqml PUBLIC glm Qt6::Gui)
-set(DS_LIB_FILES dsqml.qmltypes dsqmlplugin.lib qmldir)
+target_link_libraries(dsqt PUBLIC tomlplusplus::tomlplusplus)
+target_include_directories(dsqt PUBLIC tomlplusplus::tomlplusplus settings model core network)
+target_include_directories(dsqt PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} glm)
+target_link_libraries(dsqt PUBLIC glm Qt6::Gui)
+set(DS_LIB_FILES dsqt.qmltypes dsqtplugin.lib qmldir)
 list(TRANSFORM DS_LIB_FILES PREPEND ${CMAKE_CURRENT_BINARY_DIR}/ )
 message("${DS_LIB_FILES}")
-set(DSQML_QML_LIB_FILES ${DS_LIB_FILES} PARENT_SCOPE)
+set(DSQT_QML_LIB_FILES ${DS_LIB_FILES} PARENT_SCOPE)

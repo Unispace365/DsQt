@@ -26,7 +26,7 @@ qt_add_qml_module(appdsqt-development
 )
 
 
-downstream_modules(TARGET appdsqt-development MODULES  DsBridgeQuery dsqml)
+downstream_modules(TARGET appdsqt-development MODULES  DsBridgeQuery dsqt)
 ##find_package(tomlplusplus)
 
 #get the settings to show up in the IDE

@@ -1,6 +1,6 @@
 import QtQuick
 import QtQuick.VirtualKeyboard
-import dsqml
+import dsqt
 /// \brief main window for DsQt QML applications.
 /// Takes a url to a qml file to use as the world root.
 /// \ingroup QML

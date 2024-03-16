@@ -16,13 +16,13 @@ qt_add_qml_module(DsBridgeQuery
     VERSION 1.0
     QML_FILES DsBridgeQueryControls.qml
     SOURCES dsBridgeQuery.cpp dsBridgeQuery.h bridge_sql_queries.h
-    IMPORTS dsqml
+    IMPORTS dsqt
     #SOURCES bridge_service.cpp bridge_service.h
 )
-add_dependencies(DsBridgeQuery dsqml)
+add_dependencies(DsBridgeQuery dsqt)
 qt_import_qml_plugins(DsBridgeQuery)
 target_compile_definitions(DsBridgeQuery
     PRIVATE $<$<OR:$<CONFIG:Debug>,$<CONFIG:RelWithDebInfo>>:QT_QML_DEBUG>)
 target_link_libraries(DsBridgeQuery
-    PRIVATE Qt6::Core Qt6::Quick Qt6::Sql dsqml)
-target_include_directories(DsBridgeQuery PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} dsqml )
+    PRIVATE Qt6::Core Qt6::Quick Qt6::Sql dsqt)
+target_include_directories(DsBridgeQuery PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} dsqt )

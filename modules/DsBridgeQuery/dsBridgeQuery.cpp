@@ -187,7 +187,7 @@ bool DsBridgeSqlQuery::isBridgeSyncRunning()
 
 void DsBridgeSqlQuery::queryTables()
 {
-    qCDebug(lgBridgeSyncQuery) << "BridgeService::Loop is loading content.";
+    qCInfo(lgBridgeSyncQuery) << "BridgeService is loading content.";
 
     const dsqt::Resource::Id cms(dsqt::Resource::Id::CMS_TYPE, 0);
 
@@ -210,7 +210,7 @@ void DsBridgeSqlQuery::queryTables()
                             " WHERE l.type = 'slot' ";
         query.exec(slotQuery);
         if (query.lastError().isValid()) {
-            qCDebug(lgBridgeSyncQuery) << "Query Error: " << query.lastError();
+            qCCritical(lgBridgeSyncQuery) << "Slot Query Error: " << query.lastError();
         } else {
             while (query.next()) {
                 auto result = query.record();
@@ -249,7 +249,7 @@ void DsBridgeSqlQuery::queryTables()
 
         query.exec(recordQuery);
         if (query.lastError().isValid()) {
-            qCDebug(lgBridgeSyncQuery) << "Query Error: " << query.lastError();
+            qCCritical(lgBridgeSyncQuery) << "Record Query Error: " << query.lastError();
         } else {
             while (query.next()) {
                 auto result = query.record();
@@ -337,7 +337,7 @@ void DsBridgeSqlQuery::queryTables()
                               " WHERE lookup.type = 'select'";
         query.exec(selectQuery);
         if (query.lastError().isValid()) {
-            qCDebug(lgBridgeSyncQuery) << "Select Query - Query Error: " << query.lastError();
+            qCCritical(lgBridgeSyncQuery) << "Select Query - Query Error: " << query.lastError();
         } else {
             while (query.next()) {
                 auto result = query.record();
@@ -374,8 +374,7 @@ void DsBridgeSqlQuery::queryTables()
 
         query.exec(defaultsQuery);
         if (query.lastError().isValid()) {
-            qCWarning(lgBridgeSyncApp) << "Defaults Query - Query Error";
-            qCDebug(lgBridgeSyncQuery) << "Query error:" << query.lastError();
+            qCCritical(lgBridgeSyncQuery) << "Defaults Query error:" << query.lastError();
         } else {
             while (query.next()) {
                 auto result = query.record();
@@ -406,7 +405,7 @@ void DsBridgeSqlQuery::queryTables()
                 } else if (type == "CHECKBOX") {
                     record.setProperty(field_uid, bool(result.value(4).toInt()));
                 } else {
-                    qCInfo(lgBridgeSyncApp) << "UNHANDLED(Defaults): " << type;
+                    qCWarning(lgBridgeSyncApp) << "UNHANDLED(Defaults): " << type;
                 }
                 record.setProperty(field_uid + "_field_uid", result.value(1).toString());
             }
@@ -475,8 +474,7 @@ void DsBridgeSqlQuery::queryTables()
 
         query.exec(valueQuery);
         if (query.lastError().isValid()) {
-            qCWarning(lgBridgeSyncApp) << "Value Query - Query Error";
-            qCDebug(lgBridgeSyncQuery) << "Query error:" << query.lastError();
+            qCCritical(lgBridgeSyncQuery) << "Value Query error:" << query.lastError();
         } else {
             while (query.next()) {
                 auto result = query.record();
@@ -619,7 +617,7 @@ void DsBridgeSqlQuery::queryTables()
                 } else if (type == "CHECKBOX") {
                     record.setProperty(field_uid, bool(result.value(6).toInt()));
                 } else {
-                    qCInfo(lgBridgeSyncApp) << "UNHANDLED( values): " << type;
+                    qCWarning(lgBridgeSyncApp) << "UNHANDLED( values): " << type;
                 }
                 record.setProperty(field_uid + "_field_uid", result.value(1).toString());
             }

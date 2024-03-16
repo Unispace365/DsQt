@@ -2,7 +2,7 @@
 #include <QQmlApplicationEngine>
 #include <QShortcut>
 
-#include <dsqmlimportpath.h>
+#include <dsqtimportpath.h>
 
 #include <core/dsqmlapplicationengine.h>
 #include <dsBridgeQuery.h>
