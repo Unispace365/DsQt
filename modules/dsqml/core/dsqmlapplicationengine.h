@@ -6,6 +6,7 @@
 
 #include "model/dscontentmodel.h"
 #include "settings/dssettings.h"
+#include "dsimgui_item.h"
 
 namespace dsqt{
 
@@ -15,6 +16,7 @@ class DSQmlApplicationEngine : public QQmlApplicationEngine {
 	explicit DSQmlApplicationEngine(QObject *parent = nullptr);
 	void initialize();
 	DSSettingsRef getSettings();
+	DsImguiItem* imgui();
   private:
 	virtual void preInit();
 	virtual void init();
@@ -28,6 +30,7 @@ class DSQmlApplicationEngine : public QQmlApplicationEngine {
 
   protected:
 	model::DSContentModelPtr mContentRoot;
+	DsImguiItem* mImgui;
 };
 
 }// namespace dsqt
