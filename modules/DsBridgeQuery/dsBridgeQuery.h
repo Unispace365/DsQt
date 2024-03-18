@@ -7,14 +7,13 @@
 #include <QQmlPropertyMap>
 #include <QtSql/QSql>
 #include <QtSql/QSqlDatabase>
-#include "core/dsqmlapplicationengine.h"
-//#include <model/dscontentmodel.h>
+#include <core/dsqmlapplicationengine.h>
 #include <model/content_model.h>
-#include <model/dsresource.h>
+#include <model/resource.h>
 #include <settings/dssettings_proxy.h>
 
-Q_DECLARE_LOGGING_CATEGORY(bridgeSyncApp)
-Q_DECLARE_LOGGING_CATEGORY(bridgeSyncQuery)
+Q_DECLARE_LOGGING_CATEGORY(lgBridgeSyncApp)
+Q_DECLARE_LOGGING_CATEGORY(lgBridgeSyncQuery)
 
 namespace dsqt::bridge {
 
@@ -42,14 +41,17 @@ public:
 public:
     bool isBridgeSyncRunning();
 
+public slots:
+    void QueryDatabase() { queryTables(); }
+
 private:
     QSqlDatabase mDatabase;
-    model::DSContentModelPtr mContent;
-    model::DSContentModelPtr mPlatforms;
-    model::DSContentModelPtr mEvents;
-    model::DSContentModelPtr mRecords;
+    model::ContentModelRef mContent;
+    model::ContentModelRef mPlatforms;
+    model::ContentModelRef mEvents;
+    model::ContentModelRef mRecords;
 
-    std::unordered_map<int,DSResource*> mAllResources;
+    std::unordered_map<int, Resource> mAllResources;
     QString mResourceLocation;
 
     QProcess mBridgeSyncProcess;

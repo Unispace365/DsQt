@@ -9,12 +9,12 @@ project_path=["dsqt_development",{type="string", test="", restart="full"}]
 
 [engine.window]
 world_dimensions=[{w=3840,h=2160},{type="size"}] #The size of the overall app space.
-source={x=0,y=0,w=3840,h=2160} #the rectangle of the world space to render.
+source={x=0,y=540,w=500,h=1080} #the rectangle of the world space to render.
 destination={x=0,y=0,w=1920,h=1080}#,{type="rect"}] #The output window size and position to render.
 
 [engine.resource]
-location="%LOCAL%/hpi1/"
-resource_db="db.sqlite"
+location="%LOCAL%/linkedin/resources/"
+resource_db="../db/db.sqlite"
 
 [engine.bridgesync]
 #whether to use the local path to the shared path to find downsync.
@@ -27,8 +27,7 @@ app_path="%SHARE%/bridgesync/bridge_sync_console.exe"
 #settings_file="bridgesync.toml"
 
 [engine.bridgesync.connection]
-server = "http://localhost:7080"
-#server = "https://app.hpi1.dev.bridge.downstream.com"
+server = "https://app.hpi1.dev.bridge.downstream.com"
 #auth_server = "https://hpi1-api-userpool.auth.us-east-2.amazoncognito.com"
 #client_id = ""
 #client_secret= ""

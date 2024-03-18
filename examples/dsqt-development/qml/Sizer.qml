@@ -1,5 +1,5 @@
 import QtQuick
-
+import QtMultimedia
 Item {
     id:sizer
     Component.onCompleted: {
@@ -41,5 +41,35 @@ Item {
             color: "#000000"
         }
     }
+
+    // SequentialAnimation on x {
+    //     id: anim
+    //     property int initScale;
+    //     loops: Animation.Infinite
+    //     NumberAnimation { to: sizer.width; duration: 10000 * initScale; onStopped: { anim.initScale=1; }}
+    //     NumberAnimation { to: -sizer.width; duration: 10000 }
+    //     Component.onCompleted: {
+    //         initScale = 1.0 - (x-(-sizer.width)/(sizer.width - (-sizer.width)));
+    //         console.log(initScale)
+    //     }
+    // }
+
+
+        VideoOutput {
+            id: output
+            anchors.fill: parent
+        }
+
+        CaptureSession {
+            videoOutput: output
+
+            camera: Camera {
+                id: camera
+                active: true
+                cameraDevice: CameraDevice.getCamera(0)
+                // You can adjust various settings in here
+            }
+        }
+
 
 }

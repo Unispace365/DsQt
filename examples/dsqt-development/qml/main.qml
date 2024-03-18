@@ -5,7 +5,9 @@ DSAppBase {
 
     rootSrc: Qt.resolvedUrl("Sizer.qml");
     Component.onCompleted: {
-        console.log(Qt.resolvedUrl("Sizer.qml"))
+        //console.log("WOOOT!")
+       // console.log(Qt.resolvedUrl("Sizer.qml"))
+       // console.log(contentRoot["cms_root"]);
     }
 }
 

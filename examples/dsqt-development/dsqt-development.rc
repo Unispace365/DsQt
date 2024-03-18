@@ -27,31 +27,23 @@
 
 // Icon with lowest ID value placed first to ensure application icon
 // remains consistent on all systems.
-IDI_ICON1               ICON                    "..\\modules\\dsqml\\ds_app_icon.ico"
-
+IDI_ICON1 ICON "..\\modules\\dsqt\\ds_app_icon.ico"
 
 #ifdef APSTUDIO_INVOKED
-/////////////////////////////////////////////////////////////////////////////
-//
-// TEXTINCLUDE
-//
+    /////////////////////////////////////////////////////////////////////////////
+    //
+    // TEXTINCLUDE
+    //
 
-1 TEXTINCLUDE 
-BEGIN
-    "resource.h\0"
-END
+    1 TEXTINCLUDE BEGIN "resource.h\0" END
 
-2 TEXTINCLUDE 
-BEGIN
-    "#include ""afxres.h""\r\n"
-    "\0"
-END
+    2 TEXTINCLUDE BEGIN "#include "
+                        "afxres.h"
+                        "\r\n"
+                        "\0" END
 
-3 TEXTINCLUDE 
-BEGIN
-    "\r\n"
-    "\0"
-END
+    3 TEXTINCLUDE BEGIN "\r\n"
+                        "\0" END
 
 #endif    // APSTUDIO_INVOKED
 
