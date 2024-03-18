@@ -1,10 +1,11 @@
 #ifndef DSENVIRONMENT_H
 #define DSENVIRONMENT_H
 
-#include <string>
-#include <vector>
 #include <QDebug>
+#include <string>
+#include "qloggingcategory.h"
 
+Q_DECLARE_LOGGING_CATEGORY(lgEnv)
 namespace dsqt {
 
 class DSSettings;

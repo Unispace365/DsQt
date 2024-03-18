@@ -3,13 +3,11 @@
 #include <QSharedPointer>
 #include <QString>
 #include <QtSql/QtSql>
-#include "bridge_sql_queries.h"
 #include "core/dsenvironment.h"
 #include "model/content_model.h"
 #include "model/resource.h"
 #include "settings/dssettings.h"
 #include "settings/dssettings_proxy.h"
-#include "utility/string_util.h"
 
 Q_LOGGING_CATEGORY(lgBridgeSyncApp, "bridgeSync.app")
 Q_LOGGING_CATEGORY(lgBridgeSyncQuery, "bridgeSync.query")
@@ -292,9 +290,13 @@ void DsBridgeSqlQuery::queryTables()
                 //++it;
             }
 
+            //this is the content placed in a tree
             mContent = ContentModelRef("content");
+            //this is the matched platform
             mPlatforms = ContentModelRef("platform");
+            //this is all the event records
             mEvents = ContentModelRef("all_events");
+            //this is all the content records in a flat list
             mRecords = ContentModelRef("all_records");
 
             for (const auto &record : rankOrderedRecords) {

@@ -81,7 +81,7 @@ Window {
        }
     }
 
-    Imgui {
+    /*Imgui {
         id: imgui
         objectName: "imgui"
         anchors.fill: parent
@@ -91,5 +91,5 @@ Window {
             NumberAnimation { from: 1; to: 0; duration: 3000 }
             NumberAnimation { from: 0; to: 1; duration: 3000 }
         }
-    }
+    }*/
 }

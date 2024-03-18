@@ -784,7 +784,7 @@ ContentModelRef ContentModelRef::getChild(const size_t index) {
 ContentModelRef ContentModelRef::getChildById(const QString& id) {
 	createData();
 
-	for (auto it : mData->mChildren) {
+	for (auto& it : mData->mChildren) {
 		if (it.getId() == id) return it;
 	}
 
@@ -807,7 +807,7 @@ ContentModelRef ContentModelRef::getChildByName(const QString& childName) const 
 		}
 	}
 
-	for (auto it : mData->mChildren) {
+	for (auto& it : mData->mChildren) {
 		if (it.getName() == childName) return it;
 	}
 
@@ -815,7 +815,7 @@ ContentModelRef ContentModelRef::getChildByName(const QString& childName) const 
 }
 
 dsqt::model::ContentModelRef ContentModelRef::getDescendant(const QString& childName, const QString& childId) const {
-	for (auto it : getChildren()) {
+	for (auto& it : getChildren()) {
 		if (it.getId() == childId && it.getName() == childName) {
 			return it;
 		} else {
@@ -840,7 +840,7 @@ std::vector<ContentModelRef> ContentModelRef::getChildrenWithLabel(const QString
 }
 
 ContentModelRef ContentModelRef::findChildByPropertyValue(const QString& propertyName, const QString& propertyValue) const {
-	for (auto it : getChildren()) {
+	for (auto& it : getChildren()) {
 		if (it.getPropertyString(propertyName) == propertyValue) {
 			return it;
 		}
@@ -988,7 +988,6 @@ QJsonModel* ContentModelRef::getModel(QObject* parent) {
 	doc.setObject(getJson().toObject());
 
 	QString json = doc.toJson();
-	qDebug() << "ContentModelRef::getModel() json:\n" << json;
 	model->loadJson(doc.toJson());
 	return model;
 }

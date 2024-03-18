@@ -6,8 +6,8 @@
 #include <qapplicationstatic.h>
 #include "settings/dssettings.h"
 
+Q_LOGGING_CATEGORY(lgEnv, "Environment");
 /// \defgroup QML QML Elements
-
 namespace dsqt {
 using namespace Qt::Literals::StringLiterals;
 bool DSEnvironment::sInitialized = false;
@@ -85,8 +85,8 @@ bool DSEnvironment::loadEngineSettings(){
         std::optional<std::string> projectPath = setting->get<std::string>(std::string("engine.project_path"));
         if(projectPath.has_value()){
             sProjectPath = projectPath.value();
-            qDebug()<<"Project Path:"<<sProjectPath.c_str();
-        }
+			qCDebug(lgEnv) << "Project Path:" << sProjectPath.c_str();
+		}
 
         auto [cfgFound,config] = DSSettings::getSettingsOrCreate("config",nullptr);
         config->loadSettingFile(baseConfigFile);
@@ -95,8 +95,8 @@ bool DSEnvironment::loadEngineSettings(){
         auto cfgFolder = config->get<std::string>("config_folder");
         if(cfgFolder.has_value()){
             sConfigFolder = cfgFolder.value();
-            qDebug()<<"Config Folder:"<<sConfigFolder.c_str();
-        }
+			qCDebug(lgEnv) << "Config Folder:" << sConfigFolder.c_str();
+		}
         loadSettings("engine","engine.toml");
         return true;
     }

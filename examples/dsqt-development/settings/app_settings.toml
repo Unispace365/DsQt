@@ -9,3 +9,6 @@ box = {r=0,g=0.56,b=0.78,a=1.0}
 
 [colors.superFancy]
 box = {r=0,g=0.56,b=0.78,a=1.0}
+
+[platform]
+id = "CniWJvnMsq3d"
