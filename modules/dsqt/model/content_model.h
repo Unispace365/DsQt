@@ -23,6 +23,7 @@ Q_DECLARE_LOGGING_CATEGORY(lgContentModel)
 
 namespace dsqt::model {
 
+class QContentModel;
 
 /**
  * \class ContentProperty
@@ -100,6 +101,7 @@ class ContentProperty {
 	double		  mDoubleValue;
 	std::shared_ptr<Resource> mResource;
 };
+
 class ContentModelRef;
 class Data : public QSharedData {
   public:
@@ -279,7 +281,7 @@ class ContentModelRef {
 	/// Looks through the entire tree to find a child that matches the name and id.
 	/// For instance, if you have a branched tree several levels deep and need to find a specific node.
 	/// Depends on children having a consistent name and unique id.
-	ContentModelRef getDescendant(const QString& childName, const QString& childId) const;
+	ContentModelRef getDescendant(const QString& childId) const;
 
 	/// Looks through all direct children, and returns all children that have a given label.
 	/// Useful for models that have children from more than one table

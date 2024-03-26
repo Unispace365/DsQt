@@ -7,6 +7,7 @@
 #include <QQmlPropertyMap>
 #include <QtSql/QSql>
 #include <QtSql/QSqlDatabase>
+#include <bridge_utility.h>
 #include <core/dsqmlapplicationengine.h>
 #include <model/content_model.h>
 #include <model/resource.h>
@@ -40,14 +41,16 @@ public:
 
 public:
     bool isBridgeSyncRunning();
-
+    const BridgeUtility *getBridgeUtility() { return mBridgeUtility; }
 public slots:
-    void QueryDatabase() { queryTables(); }
+    void QueryDatabase();
 
 private:
+    BridgeUtility *mBridgeUtility = nullptr;
     QSqlDatabase mDatabase;
     model::ContentModelRef mContent;
     model::ContentModelRef mPlatforms;
+    model::ContentModelRef mPlatform;
     model::ContentModelRef mEvents;
     model::ContentModelRef mRecords;
 

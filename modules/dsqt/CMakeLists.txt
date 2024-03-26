@@ -7,6 +7,10 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(QT_QML_OUTPUT_DIRECTORY  ${CMAKE_BINARY_DIR})
 find_package(Qt6 6.4 REQUIRED COMPONENTS Quick Core Gui ShaderTools)
 
+#tell cmake what to call the javascript files in the qml module
+set_source_files_properties(qml/js/moment-with-locals.js PROPERTIES  QT_QML_SOURCE_TYPENAME "Moment")
+
+
 #create the modules
 ## this adds the qml and c++ files to the module
 qt_add_qml_module(dsqt
@@ -34,8 +38,10 @@ qt_add_qml_module(dsqt
     utility/file_meta_data.h utility/file_meta_data.cpp
     utility/url_image_loader.h utility/url_image_loader.cpp
     model/qjsonmodel.cpp model/qjsonmodel.h
-    QML_FILES Test.qml qml/DSAppBase.qml
-    SOURCES core/dsimgui_item.h
+    core/dsimgui_item.h
+    QML_FILES
+    Test.qml qml/DSAppBase.qml
+    qml/js/moment-with-locals.js
 )
 
 

@@ -6,6 +6,7 @@
 #include "core/dsenvironment.h"
 #include "model/content_model.h"
 #include "model/resource.h"
+#include "qqmlcontext.h"
 #include "settings/dssettings.h"
 #include "settings/dssettings_proxy.h"
 
@@ -49,7 +50,7 @@ DsBridgeSqlQuery::DsBridgeSqlQuery(DSQmlApplicationEngine *parent)
                 } else {
                     //get the raw nodes
 
-                    queryTables();
+                    QueryDatabase();
                 }
             }
         },
@@ -183,6 +184,20 @@ bool DsBridgeSqlQuery::isBridgeSyncRunning()
     return mBridgeSyncProcess.state() == QProcess::Running;
 }
 
+void DsBridgeSqlQuery::QueryDatabase()
+{
+    queryTables();
+    ContentModelRef root = DSQmlApplicationEngine::DefEngine()->getContentRoot();
+    if (mBridgeUtility == nullptr) {
+        mBridgeUtility = new BridgeUtility(this, root);
+        DSQmlApplicationEngine::DefEngine()->rootContext()->setContextProperty("BridgeUtility",
+                                                                               mBridgeUtility);
+    } else {
+        //probably don't need this as we don't replace the root.
+        //mBridgeUtility->setRoot(root);
+    }
+}
+
 void DsBridgeSqlQuery::queryTables()
 {
     qCInfo(lgBridgeSyncQuery) << "BridgeService is loading content.";
@@ -256,7 +271,9 @@ void DsBridgeSqlQuery::queryTables()
                 auto val = QCryptographicHash::hash(result.value(0).toString().toUtf8(),
                                                     QCryptographicHash::Md5);
                 record.setId(result.value(0).toString());
-
+                if (record.getId() == "CniWJvnMsq3d") {
+                    qDebug() << "found it";
+                }
                 record.setProperty("record_name", result.value(7).toString());
                 record.setProperty("uid", result.value(0).toString());
                 record.setProperty("type_uid", result.value(1).toString());
@@ -293,7 +310,8 @@ void DsBridgeSqlQuery::queryTables()
             //this is the content placed in a tree
             mContent = ContentModelRef("content");
             //this is the matched platform
-            mPlatforms = ContentModelRef("platform");
+            mPlatforms = ContentModelRef("platforms");
+            mPlatform = ContentModelRef("platform");
             //this is all the event records
             mEvents = ContentModelRef("all_events");
             //this is all the content records in a flat list
@@ -305,6 +323,10 @@ void DsBridgeSqlQuery::queryTables()
                 if (type == "ROOT_CONTENT") {
                     mContent.addChild(record);
                 } else if (type == "ROOT_PLATFORM") {
+                    if (record.getPropertyString("uid")
+                        == appsettings->getOr("platform.id", QString(""))) {
+                        mPlatform.addChild(record);
+                    }
                     mPlatforms.addChild(record);
                 } else if (type == "SCHEDULE") {
                     for (const auto &parentUid :
@@ -630,6 +652,7 @@ void DsBridgeSqlQuery::queryTables()
     root.replaceChild(mContent);
     root.replaceChild(mEvents);
     root.replaceChild(mPlatforms);
+    root.replaceChild(mPlatform);
     root.replaceChild(mRecords);
 
     DSQmlApplicationEngine::DefEngine()->updateContentRoot(root);

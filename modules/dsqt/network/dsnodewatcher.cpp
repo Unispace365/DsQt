@@ -56,7 +56,7 @@ void DsNodeWatcher::processPendingDatagrams() {
 	uint16_t	 port;
 	mMsg.clear();
 	QByteArray datagram;
-	while (mSocket->hasPendingDatagrams()) {
+	while (sender == QHostAddress::LocalHost && mSocket->hasPendingDatagrams()) {
 
 		datagram.resize(mSocket->pendingDatagramSize());
 		mSocket->readDatagram(datagram.data(), datagram.size(), &sender, &port);

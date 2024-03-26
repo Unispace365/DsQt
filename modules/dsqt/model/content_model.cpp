@@ -814,12 +814,12 @@ ContentModelRef ContentModelRef::getChildByName(const QString& childName) const 
 	return EMPTY_DATAMODEL;
 }
 
-dsqt::model::ContentModelRef ContentModelRef::getDescendant(const QString& childName, const QString& childId) const {
+dsqt::model::ContentModelRef ContentModelRef::getDescendant(const QString& childId) const {
 	for (auto& it : getChildren()) {
-		if (it.getId() == childId && it.getName() == childName) {
+		if (it.getId() == childId) {
 			return it;
 		} else {
-			auto chillin = it.getDescendant(childName, childId);
+			auto chillin = it.getDescendant(childId);
 			if (!chillin.empty()) {
 				return chillin;
 			}
@@ -994,6 +994,7 @@ QJsonModel* ContentModelRef::getModel(QObject* parent) {
 
 QQmlPropertyMap* ContentModelRef::getMap(QObject* parent) const {
 	QQmlPropertyMap* map = new QQmlPropertyMap(parent);
+	map->insert("uid", QVariant::fromValue(mData->mId));
 	map->insert("id", QVariant::fromValue(mData->mId));
 	map->insert("name", QVariant::fromValue(mData->mName));
 	map->insert("label", QVariant::fromValue(mData->mLabel));

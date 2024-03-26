@@ -1,8 +1,11 @@
 import QtQuick
 import QtMultimedia
+import dsqt
 Item {
     id:sizer
     Component.onCompleted: {
+        console.log("platform id is "+BridgeUtility.platform["uid"])
+        console.log("Moment is "+Moment)
         console.log("Sizer size:"+sizer.width+","+sizer.height)
     }
 
