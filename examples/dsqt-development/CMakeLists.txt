@@ -37,7 +37,8 @@ file(GLOB_RECURSE DS_SETTINGS LIST_DIRECTORIES true "./settings/*")
 LIST(APPEND DS_SETTINGS qt.conf)
 
 add_custom_target(ds-settings SOURCES ${DS_SETTINGS})
-#get the settings to show up in the IDE
+
+#get the data to show up in the IDE
 file(GLOB_RECURSE DS_DATA LIST_DIRECTORIES true "./data/*")
 add_custom_target(ds-data SOURCES ${DS_DATA})
 
@@ -63,6 +64,9 @@ install(TARGETS appdsqt-development
     BUNDLE  DESTINATION .
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
+
+install(FILES ${DS_SETTINGS} DESTINATION ${CMAKE_INSTALL_BINDIR}/../settings)
+install(FILES ${DS_DATA} DESTINATION ${CMAKE_INSTALL_BINDIR}/../data)
 
 qt_generate_deploy_qml_app_script(
     TARGET appdsqt-development

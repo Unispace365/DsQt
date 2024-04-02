@@ -110,14 +110,14 @@ class Data : public QSharedData {
 	~Data();
 
 
-	QString											  mName;
-	QString											  mLabel;
-	void*											  mUserData;
-	QString											  mId;
-	std::map<QString, ContentProperty>				  mProperties;
-	std::map<QString, std::vector<ContentProperty>>	  mPropertyLists;
-	std::vector<ContentModelRef>					  mChildren;
-	std::map<QString, std::map<int, ContentModelRef>> mReferences;
+	QString															mName;
+	QString															mLabel;
+	void*															mUserData;
+	QString															mId;
+	std::map<QString, ContentProperty>								mProperties;
+	std::map<QString, std::vector<ContentProperty>>					mPropertyLists;
+	std::vector<ContentModelRef>									mChildren;
+	std::map<QString, std::unordered_map<QString, ContentModelRef>> mReferences;
 };
 
 /**
@@ -206,7 +206,7 @@ class ContentModelRef {
 	QColor getPropertyColor(const QString& propertyName) const;
 
 	QString	  getPropertyString(const QString& propertyName) const;
-	QString	  getPropertyQString(const QString& propertyName) const;
+	// QString	  getPropertyQString(const QString& propertyName) const;
 	glm::vec2 getPropertyVec2(const QString& propertyName) const;
 	glm::vec3 getPropertyVec3(const QString& propertyName) const;
 	glm::vec4 getPropertyVec4(const QString& propertyName) const;
@@ -313,14 +313,14 @@ class ContentModelRef {
 	void clearChildren();
 
 	/// Adds a reference map with the corresponding string name
-	void setReferences(const QString& referenceName, std::map<int, dsqt::model::ContentModelRef>& reference);
+	void setReferences(const QString& referenceName, std::unordered_map<QString, dsqt::model::ContentModelRef>& reference);
 
 	/// Gets a map of all the references for the given name. If you need to modify the map, make a copy and set it
 	/// again using setReference
-	const std::map<int, dsqt::model::ContentModelRef>& getReferences(const QString& referenceName) const;
+	const std::unordered_map<QString, dsqt::model::ContentModelRef>& getReferences(const QString& referenceName) const;
 
 	/// Returns a content model from a specific reference by the reference name and the node id
-	dsqt::model::ContentModelRef getReference(const QString& referenceName, const int nodeId) const;
+	dsqt::model::ContentModelRef getReference(const QString& referenceName, const QString nodeId) const;
 
 	/// Clears the reference map at the specified name
 	void clearReferences(const QString& name);
@@ -338,10 +338,12 @@ class ContentModelRef {
 	/// get a property map for this content model
 	QQmlPropertyMap* getMap(QObject* parent = nullptr) const;
 
+	void detach();
+
   private:
 	void								  createData();
 	QJsonValue							  getJson();
-	QSharedDataPointer<dsqt::model::Data> mData;
+	QExplicitlySharedDataPointer<dsqt::model::Data> mData;
 };
 
 }  // namespace dsqt::model

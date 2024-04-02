@@ -15,8 +15,9 @@ qt_add_qml_module(DsBridgeQuery
     STATIC
     VERSION 1.0
     QML_FILES DsBridgeQueryControls.qml
-    SOURCES dsBridgeQuery.cpp dsBridgeQuery.h
-    SOURCES bridge_utility.h bridge_utility.cpp
+    SOURCES
+    dsBridgeQuery.cpp dsBridgeQuery.h
+    bridge_utility.h bridge_utility.cpp
     IMPORTS dsqt
 
 

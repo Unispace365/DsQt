@@ -36,9 +36,10 @@ DsBridgeSqlQuery::DsBridgeSqlQuery(DSQmlApplicationEngine *parent)
             engSettings.setTarget("engine");
             engSettings.setPrefix("engine.resource");
 
-            mResourceLocation = DSEnvironment::expandq(engSettings.getString("location","").value<QString>());
-            auto opFile = engSettings.getString("resource_db","").value<QString>();
-            if (opFile!="") {
+            mResourceLocation = DSEnvironment::expandq(
+                engSettings.getString("location", "").value<QString>());
+            auto opFile = engSettings.getString("resource_db", "").value<QString>();
+            if (opFile != "") {
                 auto file = DSEnvironment::expandq(opFile);
                 if (QDir::isRelativePath(file)) {
                     file = QDir::cleanPath(mResourceLocation + "/" + file);
@@ -654,6 +655,7 @@ void DsBridgeSqlQuery::queryTables()
     root.replaceChild(mPlatforms);
     root.replaceChild(mPlatform);
     root.replaceChild(mRecords);
+    root.setReferences("all_records", recordMap);
 
     DSQmlApplicationEngine::DefEngine()->updateContentRoot(root);
 }

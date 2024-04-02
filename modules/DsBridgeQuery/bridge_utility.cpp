@@ -1,5 +1,8 @@
 #include "bridge_utility.h"
 #include <QDateTime>
+
+Q_LOGGING_CATEGORY(lgBrUt, "bridgeSync.utility")
+Q_LOGGING_CATEGORY(lgBrUtVerbose, "bridgeSync.utility.verbose")
 namespace dsqt::bridge {
 BridgeUtility::BridgeUtility(QObject *parent, model::ContentModelRef contentRoot)
     : QObject(parent)
@@ -11,34 +14,42 @@ bool BridgeUtility::isEventNow(model::ContentModelRef event, QDateTime ldt)
     int tzd = 0;
 
     /// ---------- Check the effective dates
-    auto startDate = QDateTime::fromString(event.getPropertyQString("start_date"), "yyyy-MM-dd");
-    auto endDate = QDateTime::fromString(event.getPropertyQString("end_date"), "yyyy-MM-dd");
+    auto startDate = QDateTime::fromString(event.getPropertyString("start_date"), "yyyy-MM-dd");
+    auto endDate = QDateTime::fromString(event.getPropertyString("end_date"), "yyyy-MM-dd");
 
     if (!startDate.isValid()) {
-        qWarning() << "Couldn't parse the start date for an event!";
+        qCWarning(lgBrUt) << "Couldn't parse the start date for an event!";
+        qCWarning(lgBrUtVerbose) << "Start Date of event: "
+                                 << event.getPropertyString("start_date");
         return false;
     }
     if (!endDate.isValid()) {
-        qWarning() << "Couldn't parse the end date for an event!";
+        qCWarning(lgBrUt) << "Couldn't parse the end date for an event!";
+        qCWarning(lgBrUtVerbose) << "End Date of event:" << event.getPropertyString("end_date");
         return false;
     }
 
     //do we need to manipulate the end date?
     if (ldt.date() < startDate.date() || ldt.date() > endDate.date()) {
-        qWarning() << "Event happens outside the current date: " << event.getPropertyString("name");
+        qCWarning(lgBrUtVerbose) << "Event happens outside the current date: " << event.getName()
+                                 << "(" << event.getId() << ")";
         return false;
     }
 
     /// ---------- Check the effective times of day
     if (!event.getPropertyString("start_time").isEmpty()) {
-        auto startTime = QDateTime::fromString(event.getPropertyQString("start_time"), "HH:mm:ss");
-        auto endTime = QDateTime::fromString(event.getPropertyQString("end_time"), "HH:mm:ss");
+        auto startTime = QDateTime::fromString(event.getPropertyString("start_time"), "HH:mm:ss");
+        auto endTime = QDateTime::fromString(event.getPropertyString("end_time"), "HH:mm:ss");
         if (!startTime.isValid()) {
-            qWarning() << "Couldn't parse the start time for an event!";
+            qCWarning(lgBrUt) << "Couldn't parse the start time for an event!";
+            qCWarning(lgBrUtVerbose)
+                << "Start Time of event: " << event.getPropertyString("start_time");
             return false;
         }
         if (!endTime.isValid()) {
-            qWarning() << "Couldn't parse the end time for an event!";
+            qCWarning(lgBrUt) << "Couldn't parse the end time for an event!";
+            qCWarning(lgBrUtVerbose)
+                << "End Time of event: " << event.getPropertyString("end_time");
             return false;
         }
 
@@ -48,8 +59,8 @@ bool BridgeUtility::isEventNow(model::ContentModelRef event, QDateTime ldt)
         int endDaySeconds = endTime.time().msecsSinceStartOfDay() / 1000;
 
         if (daySeconds < startDaySeconds || daySeconds > endDaySeconds) {
-            qWarning() << "Event happens outside the current time: "
-                       << event.getPropertyString("name");
+            qCWarning(lgBrUt) << "Event happens outside the current time: " << event.getName()
+                              << "(" << event.getId() << ")";
             return false;
         }
     }
@@ -101,15 +112,59 @@ bool BridgeUtility::isEventNow(QString id, QString ldt)
 
 QVariantList BridgeUtility::getEventsForSpan(QString start, QString end)
 {
-    Q_UNIMPLEMENTED();
     auto retval = QVariantList();
+    QDateTime startObj = QDateTime::fromString(start, "yyyy-MM-ddTHH:mm:ss");
+    QDateTime endObj = QDateTime::fromString(end, "yyyy-MM-ddTHH:mm:ss");
+    auto events = getEventsForSpan(startObj, endObj);
+    for (auto &event : events) {
+        QVariant eventVariant;
+        eventVariant.setValue(event.getMap(nullptr));
+        retval.append(eventVariant);
+    }
     return retval;
 }
 
-std::vector<model::ContentModelRef> BridgeUtility::getEventsForSpan(QDateTime start, QDateTime end)
+std::vector<model::ContentModelRef> BridgeUtility::getEventsForSpan(QDateTime startObj,
+                                                                    QDateTime endObj)
 {
-    Q_UNIMPLEMENTED();
     auto retval = std::vector<model::ContentModelRef>();
+    auto platformHolder = m_contentRoot.getChildByName("platform");
+    if (platformHolder.hasChildren()) {
+        auto platform = platformHolder.getChildren()[0];
+        auto events = platform.getChildByName("scheduled_events");
+        if (events.hasChildren()) {
+            auto eventsList = events.getChildren();
+
+            for (auto event : eventsList) {
+                if (isEventNow(event, startObj)) {
+                    retval.push_back(event);
+                    break;
+                }
+                if (isEventNow(event, endObj)) {
+                    retval.push_back(event);
+                    break;
+                }
+                //check if event is between startObj and endObj
+                auto startDate = QDateTime::fromString(event.getPropertyString("start_date"),
+                                                       "yyyy-MM-dd");
+                auto endDate = QDateTime::fromString(event.getPropertyString("end_date"),
+                                                     "yyyy-MM-dd");
+                auto startTime = QDateTime::fromString(event.getPropertyString("start_time"),
+                                                       "HH:mm:ss");
+                auto endTime = QDateTime::fromString(event.getPropertyString("end_time"),
+                                                     "HH:mm:ss");
+                startDate.setTime(startTime.time());
+                endDate.setTime(endTime.time());
+                if (startDate.isValid() && endDate.isValid()) {
+                    if (startDate.date() >= startObj.date() && startDate.date() <= endObj.date()
+                        && endDate.date() >= startObj.date() && endDate.date() <= endObj.date()) {
+                        retval.push_back(event);
+                    }
+                }
+            }
+            return retval;
+        }
+    }
     return retval;
 }
 
@@ -124,6 +179,29 @@ QQmlPropertyMap *BridgeUtility::platform() const
         QQmlEngine::setObjectOwnership(outmap, QQmlEngine::JavaScriptOwnership);
     }
     return outmap;
+}
+
+QQmlPropertyMap *BridgeUtility::getRecord(QString id, QString name)
+{
+    if (id.isEmpty() && name.isEmpty()) {
+        qCWarning(lgBrUt) << "Both ID and Name are empty!";
+        return nullptr;
+    }
+
+    auto base = m_contentRoot;
+    if (!id.isEmpty()) {
+        base = m_contentRoot.getReference("all_records", id);
+    }
+
+    auto record = model::ContentModelRef();
+    if (!name.isEmpty()) {
+        record = base.getChildByName(name);
+    }
+    auto retval = record.getMap(nullptr);
+    if (retval) {
+        QQmlEngine::setObjectOwnership(retval, QQmlEngine::JavaScriptOwnership);
+    }
+    return retval;
 }
 
 void BridgeUtility::setRoot(model::ContentModelRef root)

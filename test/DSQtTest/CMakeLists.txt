@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.16)
 
 include("$ENV{DS_QT_PLATFORM_100}/cmake/dsqt.cmake")
 #Set Install location as a relative location to the source dir -AOF
@@ -27,7 +27,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 add_executable(DSSettingsTest tst_dssettingstest.cpp)
 
-downstream_modules(TARGET DSSettingsTest MODULES dsqml DsSqlQuery)
+downstream_modules(TARGET DSSettingsTest MODULES dsqt DsBridgeQuery)
 ##find_package(tomlplusplus)
 
 add_test(NAME DSSettingsTest COMMAND DSSettingsTest)

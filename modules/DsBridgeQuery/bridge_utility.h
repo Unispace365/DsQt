@@ -4,7 +4,10 @@
 #include <QObject>
 #include <QQmlEngine>
 #include <QQmlPropertyMap>
-#include <content_model.h>
+#include <model/content_model.h>
+
+Q_DECLARE_LOGGING_CATEGORY(lgBrUt)
+Q_DECLARE_LOGGING_CATEGORY(lgBrUtVerbose)
 
 namespace dsqt::bridge {
 class BridgeUtility : public QObject
@@ -31,6 +34,7 @@ public:
     getQmlContentModel();
     */
     QQmlPropertyMap *platform() const;
+    QQmlPropertyMap *getRecord(QString id = "", QString name = "");
     void setRoot(model::ContentModelRef root);
 
 signals:

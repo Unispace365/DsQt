@@ -63,3 +63,5 @@ compile_commands.json
 
 *_qmlcache.qrc
 cmake/_deps/
+
+cmake/dsqtimportpath.h

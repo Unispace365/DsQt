@@ -5,8 +5,10 @@ Item {
     id:sizer
     Component.onCompleted: {
         console.log("platform id is "+BridgeUtility.platform["uid"])
-        console.log("Moment is "+Moment)
+        console.log("Moment is "+moment().format("YYYY-MM-DDTHH:mm:ss"))
         console.log("Sizer size:"+sizer.width+","+sizer.height)
+        var events = BridgeUtility.getEventsForSpan("1970-01-01T00:00:00","2088-01-01T00:00:00");
+        console.log("events size:"+events.length);
     }
 
     Rectangle {

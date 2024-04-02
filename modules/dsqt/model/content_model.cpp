@@ -23,7 +23,7 @@ const Resource										  EMPTY_RESOURCE;
 const std::vector<ContentProperty>					  EMPTY_PROPERTY_LIST;
 const std::map<QString, ContentProperty>			  EMPTY_PROPERTY_MAP;
 const std::map<QString, std::vector<ContentProperty>> EMPTY_PROPERTY_LIST_MAP;
-const std::map<int, ContentModelRef>				  EMPTY_REFERENCE;
+const std::unordered_map<QString, ContentModelRef>	  EMPTY_REFERENCE;
 
 const std::vector<bool>			EMPTY_BOOL_LIST;
 const std::vector<int>			EMPTY_INT_LIST;
@@ -908,12 +908,13 @@ void ContentModelRef::clearChildren() {
 }
 
 
-void ContentModelRef::setReferences(const QString& referenceName, std::map<int, dsqt::model::ContentModelRef>& reference) {
+void ContentModelRef::setReferences(const QString&											   referenceName,
+									std::unordered_map<QString, dsqt::model::ContentModelRef>& reference) {
 	createData();
 	mData->mReferences[referenceName] = reference;
 }
 
-const std::map<int, dsqt::model::ContentModelRef>& ContentModelRef::getReferences(const QString& name) const {
+const std::unordered_map<QString, dsqt::model::ContentModelRef>& ContentModelRef::getReferences(const QString& name) const {
 	if (!mData) return EMPTY_REFERENCE;
 	auto findy = mData->mReferences.find(name);
 	if (findy != mData->mReferences.end()) {
@@ -924,7 +925,7 @@ const std::map<int, dsqt::model::ContentModelRef>& ContentModelRef::getReference
 }
 
 
-dsqt::model::ContentModelRef ContentModelRef::getReference(const QString& referenceName, const int nodeId) const {
+dsqt::model::ContentModelRef ContentModelRef::getReference(const QString& referenceName, const QString nodeId) const {
 	if (!mData) return EMPTY_DATAMODEL;
 	auto theReference = getReferences(referenceName);
 	if (theReference.empty()) return EMPTY_DATAMODEL;
@@ -986,8 +987,6 @@ QJsonModel* ContentModelRef::getModel(QObject* parent) {
 
 	QJsonDocument doc;
 	doc.setObject(getJson().toObject());
-
-	QString json = doc.toJson();
 	model->loadJson(doc.toJson());
 	return model;
 }
@@ -1014,6 +1013,10 @@ QQmlPropertyMap* ContentModelRef::getMap(QObject* parent) const {
 	}
 	map->insert("children", children);
 	return map;
+}
+
+void ContentModelRef::detach() {
+	mData.detach();
 }
 
 

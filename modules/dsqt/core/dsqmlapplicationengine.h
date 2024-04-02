@@ -2,11 +2,12 @@
 #define DSQMLAPPLICATIONENGINE_H
 
 #include <qjsonmodel.h>
+#include <QFileSystemWatcher>
 #include <QObject>
 #include <QQmlApplicationEngine>
+#include "dsimgui_item.h"
 #include "model/content_model.h"
 #include "settings/dssettings.h"
-#include "dsimgui_item.h"
 
 namespace dsqt{
 
@@ -21,6 +22,8 @@ class DSQmlApplicationEngine : public QQmlApplicationEngine {
 	static DSQmlApplicationEngine* DefEngine();
 	void						   updateContentRoot(model::ContentModelRef newRoot);
 	DsImguiItem* imgui();
+	Q_INVOKABLE void			   clearCache();
+
   private:
 	virtual void preInit();
 	virtual void init();
@@ -37,7 +40,8 @@ class DSQmlApplicationEngine : public QQmlApplicationEngine {
 	QJsonModel*					   mRootModel = nullptr;
 	QQmlPropertyMap*			   mRootMap	  = nullptr;
 	static DSQmlApplicationEngine* sDefaultEngine;
-	DsImguiItem* mImgui;
+	DsImguiItem*				   mImgui;
+	QFileSystemWatcher*			   mWatcher = nullptr;
 };
 
 

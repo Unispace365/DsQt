@@ -1,19 +1,18 @@
 #include "dsqmlapplicationengine.h"
+#include <toml++/toml.h>
 #include <QQmlContext>
 #include <QStringLiteral>
 #include "dsenvironment.h"
 #include "model/content_model.h"
 #include "settings/dssettings_proxy.h"
 
-
 namespace dsqt {
 using namespace Qt::Literals::StringLiterals;
 
 DSQmlApplicationEngine* DSQmlApplicationEngine::sDefaultEngine = nullptr;
 
-DSQmlApplicationEngine::DSQmlApplicationEngine(QObject *parent)
-    : QQmlApplicationEngine{parent}
-{
+DSQmlApplicationEngine::DSQmlApplicationEngine(QObject* parent)
+  : QQmlApplicationEngine{parent}, mWatcher{new QFileSystemWatcher(this)} {
 	if (sDefaultEngine == nullptr) {
 		setDefaultEngine(this);
 	}
@@ -51,10 +50,12 @@ void DSQmlApplicationEngine::init()
 	dsqt::DSEnvironment::loadEngineSettings();
 	mSettings = dsqt::DSEnvironment::loadSettings("app_settings","app_settings.toml");
 	dsqt::DSSettingsProxy appProxy;
-
+	dsqt::DSEnvironment::engineSettings()->getWithProcess<QString>(
+		"engine.reload", [](toml::node_view<toml::node> node, toml::table* meta) -> std::optional<ValueWMeta<QString>> {
+			return std::optional<ValueWMeta<QString>>();
+		});
 	appProxy.setTarget("app_settings");
 	updateContentRoot(model::ContentModelRef("root"));
-	rootContext()->setContextProperty("contentRoot", mRootModel);
 	rootContext()->setContextProperty("app_settings",&appProxy);
     rootContext()->setContextProperty("$QmlEngine", this);
 }
@@ -87,6 +88,10 @@ void DSQmlApplicationEngine::updateContentRoot(model::ContentModelRef newRoot) {
 	if (oldRootMap) {
 		delete oldRootMap;
 	}
+}
+
+void DSQmlApplicationEngine::clearCache() {
+	this->clearComponentCache();
 }
 
 }  // namespace dsqt
