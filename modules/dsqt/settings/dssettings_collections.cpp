@@ -10,7 +10,7 @@ template<> std::optional<ValueWMeta<toml_nv>> DSSettings::getWithMeta(const std:
 
     auto val = getNodeViewWithMeta(key);
     if(!val.has_value()){
-        qDebug(settingsParser)<<"Failed to find value at key "<<key.c_str();
+		qDebug(lgSettingsParser)<<"Failed to find value at key "<<key.c_str();
         return std::optional<ValueWMeta<toml_nv>>();
     }
 

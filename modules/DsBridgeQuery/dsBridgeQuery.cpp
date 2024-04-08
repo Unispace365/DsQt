@@ -12,6 +12,8 @@
 
 Q_LOGGING_CATEGORY(lgBridgeSyncApp, "bridgeSync.app")
 Q_LOGGING_CATEGORY(lgBridgeSyncQuery, "bridgeSync.query")
+Q_LOGGING_CATEGORY(lgBridgeSyncAppVerbose, "bridgeSync.app.verbose")
+Q_LOGGING_CATEGORY(lgBridgeSyncQueryVerbose, "bridgeSync.query.verbose")
 using namespace dsqt::model;
 namespace dsqt::bridge {
 

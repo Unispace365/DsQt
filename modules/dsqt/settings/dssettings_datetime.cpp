@@ -25,7 +25,7 @@ template<> std::optional<ValueWMeta<QDate>> DSSettings::getWithMeta(const std::s
 
     auto val = getNodeViewWithMeta(key);
     if(!val.has_value()){
-        qDebug(settingsParser)<<"Failed to find value at key "<<key.c_str();
+		qDebug(lgSettingsParser)<<"Failed to find value at key "<<key.c_str();
         return std::optional<ValueWMeta<QDate>>();
     }
 
@@ -58,7 +58,7 @@ template<> std::optional<ValueWMeta<QTime>> DSSettings::getWithMeta(const std::s
 
     auto val = getNodeViewWithMeta(key);
     if(!val.has_value()){
-        qDebug(settingsParser)<<"Failed to find value at key "<<key.c_str();
+		qDebug(lgSettingsParser)<<"Failed to find value at key "<<key.c_str();
         return std::optional<ValueWMeta<QTime>>();
     }
 
@@ -73,7 +73,7 @@ template<> std::optional<ValueWMeta<QTime>> DSSettings::getWithMeta(const std::s
         if(datetime_node){
             auto time = datetime_node.value().time;
 			if(!datetime_node.value().is_local()){
-				qCWarning(settingsParser)<<"The time setting has an offset but QTime won't capture it. Try using QDateTime.";
+				qCWarning(lgSettingsParser)<<"The time setting has an offset but QTime won't capture it. Try using QDateTime.";
 			}
 			retval.setHMS(time.hour,time.minute,time.second,time.nanosecond/1000000);
         }
@@ -94,7 +94,7 @@ template<> std::optional<ValueWMeta<QDateTime>> DSSettings::getWithMeta(const st
 
     auto val = getNodeViewWithMeta(key);
     if(!val.has_value()){
-        qDebug(settingsParser)<<"Failed to find value at key "<<key.c_str();
+		qDebug(lgSettingsParser)<<"Failed to find value at key "<<key.c_str();
         return std::optional<ValueWMeta<QDateTime>>();
     }
 

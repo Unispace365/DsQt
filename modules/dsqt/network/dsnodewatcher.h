@@ -9,7 +9,8 @@
 #include <QUdpSocket>
 #include <QtConcurrent/QtConcurrent>
 
-Q_DECLARE_LOGGING_CATEGORY(nodeWatcher)
+Q_DECLARE_LOGGING_CATEGORY(lgNodeWatcher)
+Q_DECLARE_LOGGING_CATEGORY(lgNodeWatcherVerbose)
 
 namespace dsqt::network {
 

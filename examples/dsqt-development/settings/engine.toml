@@ -8,8 +8,11 @@
 project_path=["dsqt_development",{type="string", test="", restart="full"}]
 
 [engine.reload]
-data=["%APP%/data/", {type="string" recurse="true"}] #reload path to data
-qml=["",{type="string" recurse="true"}] #reload path to qml
+paths=[
+{path="%APP%/data/", recurse=true},
+{path="%APP%/qml/", recurse=true}
+] #reload path to data
+
 
 
 [engine.window]

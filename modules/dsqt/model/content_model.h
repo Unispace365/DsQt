@@ -20,7 +20,7 @@
 
 #include "resource.h"
 Q_DECLARE_LOGGING_CATEGORY(lgContentModel)
-
+Q_DECLARE_LOGGING_CATEGORY(lgContentModelVerbose)
 namespace dsqt::model {
 
 class QContentModel;

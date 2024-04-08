@@ -14,8 +14,8 @@
 #include <type_traits>
 #include <typeindex>
 
-Q_DECLARE_LOGGING_CATEGORY(settingsParser)
-
+Q_DECLARE_LOGGING_CATEGORY(lgSettingsParser)
+Q_DECLARE_LOGGING_CATEGORY(lgSPVerbose)
 
 /// @brief main dsqt namespace
 namespace dsqt {
@@ -146,8 +146,8 @@ class DSSettings : public QObject {
 	void setDateFormat(Qt::DateFormat format, bool clearCustom = true) {
 		mDateFormat = format;
 		if (clearCustom && !mCustomDateFormat.isEmpty()) {
-			qWarning(settingsParser) << "setDateFormat is clearing a custom date format for " << QString::fromStdString(mName)
-									 << " settings.";
+			qWarning(lgSettingsParser) << "setDateFormat is clearing a custom date format for " << QString::fromStdString(mName)
+									   << " settings.";
 			mCustomDateFormat = "";
 		}
 	}
@@ -185,7 +185,7 @@ class DSSettings : public QObject {
 	std::optional<ValueWMeta<T>> getWithMeta(const std::string& key) {
 		auto val = getNodeViewWithMeta(key);
 		if (!val.has_value()) {
-			qDebug(settingsParser) << "Failed to find value at key " << key.c_str();
+			qDebug(lgSettingsParser) << "Failed to find value at key " << key.c_str();
 			return std::nullopt;
 		}
 		// auto [node,meta,place] = val.value();
@@ -197,7 +197,7 @@ class DSSettings : public QObject {
 	std::optional<ValueWMeta<T>> originalValueWithMeta(const std::string& key, V&& overload) {
 		auto val = getNodeViewWithMeta(key);
 		if (!val.has_value()) {
-			qDebug(settingsParser) << "Failed to find value at key " << key.c_str();
+			qDebug(lgSettingsParser) << "Failed to find value at key " << key.c_str();
 			return std::nullopt;
 		}
 
@@ -241,7 +241,7 @@ class DSSettings : public QObject {
 		const std::string&																				 key,
 		std::function<std::optional<ValueWMeta<T>>(toml::node_view<toml::node> node, toml::table* meta)> process) {
 		auto val = getNodeViewWithMeta(key);
-		if (!val.has_value()) return process(std::optional<ValueWMeta<T>>());
+		if (!val.has_value()) return process(toml::node_view<toml::node>(), nullptr);
 		auto [node, meta, place] = val.value();
 		return process(node, meta);
 	}
@@ -331,6 +331,8 @@ class DSSettings : public QObject {
 
 
 	// QQmlPropertyMap interface
+	toml::node* getRawNode(const std::string& key);
+
   private:
 	// meta data
 	Qt::DateFormat										  mDateFormat		= Qt::ISODateWithMs;

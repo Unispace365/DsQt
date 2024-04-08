@@ -9,7 +9,7 @@
 #include <QJsonValue>
 #include "qdebug.h"
 Q_LOGGING_CATEGORY(lgContentModel, "model.contentmodel")
-
+Q_LOGGING_CATEGORY(lgContentModelVerbose, "model.contentmodel.verbose")
 namespace dsqt::model {
 
 namespace {

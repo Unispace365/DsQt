@@ -4,6 +4,10 @@
 #include <QTcpSocket>
 #include <QUdpSocket>
 #include "dsenvironment.h"
+
+Q_LOGGING_CATEGORY(lgNodeWatcher, "network.nodewatcher")
+Q_LOGGING_CATEGORY(lgNodeWatcherVerbose, "network.nodewatcher.verbose")
+
 namespace dsqt::network {
 DsNodeWatcher::DsNodeWatcher(DSQmlApplicationEngine* parent, QString url, int port, bool autoStart)
   : QObject(parent), mLoop(parent, url, port), mPort(port), mEngine(parent) {
@@ -15,7 +19,6 @@ DsNodeWatcher::DsNodeWatcher(DSQmlApplicationEngine* parent, QString url, int po
 
 void DsNodeWatcher::handleMessage()
 {
-	qDebug()<<"in handleMessage "<<QThread::currentThreadId();
     mMsg.clear();
     {
         QMutexLocker l(&mLoop.mMutex);
@@ -34,12 +37,6 @@ void DsNodeWatcher::start()
 
 	mSocket		= new QUdpSocket(this);
 	bool result = mSocket->bind(QHostAddress::AnyIPv4, mPort);
-	qDebug() << result;
-	if (result) {
-		qDebug() << "PASS";
-	} else {
-		qDebug() << "FAIL";
-	}
 	processPendingDatagrams();
 	connect(mSocket, &QUdpSocket::readyRead, this, &DsNodeWatcher::processPendingDatagrams, Qt::QueuedConnection);
 
@@ -51,7 +48,7 @@ void DsNodeWatcher::start()
 }
 
 void DsNodeWatcher::processPendingDatagrams() {
-	qDebug() << "in !";
+
 	QHostAddress sender;
 	uint16_t	 port;
 	mMsg.clear();
@@ -60,9 +57,9 @@ void DsNodeWatcher::processPendingDatagrams() {
 
 		datagram.resize(mSocket->pendingDatagramSize());
 		mSocket->readDatagram(datagram.data(), datagram.size(), &sender, &port);
-		qDebug() << "Message From :: " << sender.toString();
-		qDebug() << "Port From :: " << port;
-		qDebug() << "Message :: " << datagram;
+		qCDebug(lgNodeWatcherVerbose) << "Message From :: " << sender.toString();
+		qCDebug(lgNodeWatcherVerbose) << "Port From :: " << port;
+		qCDebug(lgNodeWatcherVerbose) << "Message :: " << datagram;
 		mMsg.mData.emplace_back(QString::fromUtf8(datagram));
 	}
 	datagram.resize(mSocket->pendingDatagramSize());
@@ -70,7 +67,6 @@ void DsNodeWatcher::processPendingDatagrams() {
 	if (mMsg.mData.size() > 0) {
 		emit messageArrived(mMsg);
 	}
-	qDebug() << "out !";
 }
 
 void DsNodeWatcher::stop()
@@ -138,7 +134,7 @@ void Loop::run()
 
 		QObject connectionLife;
 		mEngine->connect(&theSocket,&QUdpSocket::readyRead,&connectionLife,[&](){
-			qDebug()<<"Got Message in Lambda"<<QThread::currentThreadId();
+			
             int length = theSocket.readDatagram(buf,BUF_SIZE);
             if(length > 0){
                 QString msg = QString::fromUtf8(buf,length);
@@ -150,15 +146,14 @@ void Loop::run()
 
 		auto good = theSocket.bind(QHostAddress::AnyIPv4, mPort);
 		if (!good) {
-			qDebug() << "Failed to bind to port:" << mPort << "(" << theSocket.errorString() << ")";
+			qCWarning(lgNodeWatcher) << "Failed to bind to port:" << mPort << "(" << theSocket.errorString() << ")";
 		} else {
-			qDebug() << "Bound to port:" << mPort;
+			qCInfo(lgNodeWatcherVerbose) << "Bound to port:" << mPort;
 		}
 
 
 		while (true) {
 			if (mMsg.mData.size() > 0) {
-				qDebug()<<"emitting messageAvailable "<<QThread::currentThreadId();
                 emit messageAvailable();
 			}
 

@@ -1,5 +1,9 @@
 #include "dsqmlapplicationengine.h"
 #include <toml++/toml.h>
+#include <QDir>
+#include <QDirIterator>
+#include <QFileInfo>
+#include <QImageReader>
 #include <QQmlContext>
 #include <QStringLiteral>
 #include "dsenvironment.h"
@@ -16,6 +20,34 @@ DSQmlApplicationEngine::DSQmlApplicationEngine(QObject* parent)
 	if (sDefaultEngine == nullptr) {
 		setDefaultEngine(this);
 	}
+
+	qInfo() << "connecting file watcher";
+	connect(
+		mWatcher, &QFileSystemWatcher::directoryChanged, this,
+		[this](const QString& path) {
+			qInfo() << "Directory changed " << path;
+
+			// addRecursive(path);
+			mTrigger.setSingleShot(true);
+			mTrigger.stop();
+			mTrigger.start(1000);
+		},
+		Qt::QueuedConnection);
+
+	connect(
+		&mTrigger, &QTimer::timeout, this,
+		[this]() {
+			qInfo() << "Triggered";
+			emit fileChanged("triggered");
+		},
+		Qt::QueuedConnection);
+
+	connect(
+		mWatcher, &QFileSystemWatcher::fileChanged, this,
+		[](const QString& path) {
+			qInfo() << "Directory changed " << path;
+		},
+		Qt::QueuedConnection);
 }
 
 void DSQmlApplicationEngine::initialize()
@@ -50,10 +82,30 @@ void DSQmlApplicationEngine::init()
 	dsqt::DSEnvironment::loadEngineSettings();
 	mSettings = dsqt::DSEnvironment::loadSettings("app_settings","app_settings.toml");
 	dsqt::DSSettingsProxy appProxy;
-	dsqt::DSEnvironment::engineSettings()->getWithProcess<QString>(
-		"engine.reload", [](toml::node_view<toml::node> node, toml::table* meta) -> std::optional<ValueWMeta<QString>> {
-			return std::optional<ValueWMeta<QString>>();
-		});
+
+	// get watcher elements
+	auto node = dsqt::DSEnvironment::engineSettings()->getRawNode("engine.reload.paths");
+	if (node) {
+
+
+		auto& paths = *node->as_array();
+
+		for (auto&& path_node : paths) {
+			auto path	 = path_node.as_table();
+			auto oval	 = QString::fromStdString((*path)["path"].as_string()->value_or<std::string>(""));
+			auto val	 = DSEnvironment::expandq(oval);
+			auto recurse = (*path)["recurse"].as_boolean()->value_or(false);
+			if (QFileInfo::exists(val)) {
+				mWatcher->addPath(val);
+				qInfo() << "Added " << val << " to watcher";
+				auto fi = QFileInfo(val);
+				if (fi.isDir()) {
+					addRecursive(val, recurse);
+				}
+			}
+		}
+	}
+
 	appProxy.setTarget("app_settings");
 	updateContentRoot(model::ContentModelRef("root"));
 	rootContext()->setContextProperty("app_settings",&appProxy);
@@ -63,6 +115,17 @@ void DSQmlApplicationEngine::init()
 void DSQmlApplicationEngine::postInit()
 {
 
+}
+
+void DSQmlApplicationEngine::addRecursive(const QString& path, bool recurse) {
+	auto		 flags = recurse ? QDirIterator::Subdirectories : QDirIterator::NoIteratorFlags;
+	QDirIterator it(path, QDir::Dirs | QDir::NoDotAndDotDot, flags);
+	while (it.hasNext()) {
+		auto fi = QFileInfo(it.next());
+
+		qInfo() << "Added " << fi.filePath() << " to watcherr";
+		mWatcher->addPath(fi.filePath());
+	}
 }
 
 void DSQmlApplicationEngine::setDefaultEngine(DSQmlApplicationEngine* engine) {
@@ -90,7 +153,7 @@ void DSQmlApplicationEngine::updateContentRoot(model::ContentModelRef newRoot) {
 	}
 }
 
-void DSQmlApplicationEngine::clearCache() {
+void DSQmlApplicationEngine::clearQmlCache() {
 	this->clearComponentCache();
 }
 

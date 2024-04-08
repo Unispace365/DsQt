@@ -5,10 +5,14 @@
 #include <QFileSystemWatcher>
 #include <QObject>
 #include <QQmlApplicationEngine>
+#include <QTimer>
 #include "dsimgui_item.h"
 #include "model/content_model.h"
 #include "settings/dssettings.h"
 
+
+Q_DECLARE_LOGGING_CATEGORY(lgAppEngine)
+Q_DECLARE_LOGGING_CATEGORY(lgAppEngineVerbose)
 namespace dsqt{
 
 class DSQmlApplicationEngine : public QQmlApplicationEngine {
@@ -22,18 +26,20 @@ class DSQmlApplicationEngine : public QQmlApplicationEngine {
 	static DSQmlApplicationEngine* DefEngine();
 	void						   updateContentRoot(model::ContentModelRef newRoot);
 	DsImguiItem* imgui();
-	Q_INVOKABLE void			   clearCache();
+	Q_INVOKABLE void			   clearQmlCache();
 
   private:
-	virtual void preInit();
-	virtual void init();
-	virtual void postInit();
+	virtual void  preInit();
+	virtual void  init();
+	virtual void  postInit();
+	void		  addRecursive(const QString& path, bool recurse = true);
 	DSSettingsRef mSettings;
 
   signals:
 	void onPreInit();
 	void onInit();
 	void onPostInit();
+	void fileChanged(const QString& path);
 
   protected:
 	model::ContentModelRef		   mContentRoot;
@@ -42,6 +48,8 @@ class DSQmlApplicationEngine : public QQmlApplicationEngine {
 	static DSQmlApplicationEngine* sDefaultEngine;
 	DsImguiItem*				   mImgui;
 	QFileSystemWatcher*			   mWatcher = nullptr;
+	QElapsedTimer				   mLastUpdate;
+	QTimer						   mTrigger;
 };
 
 

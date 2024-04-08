@@ -11,7 +11,7 @@
 
 int main(int argc, char *argv[])
 {
-    QLoggingCategory::setFilterRules(""
+    QLoggingCategory::setFilterRules("*.verbose=false"
                                      "");
     qputenv("QT_IM_MODULE", QByteArray("qtvirtualkeyboard"));
     qputenv("QT_ENABLE_HIGHDPI_SCALING", QByteArray("0"));
@@ -37,7 +37,7 @@ int main(int argc, char *argv[])
                      &dsqt::bridge::DsBridgeSqlQuery::QueryDatabase,
                      Qt::QueuedConnection);
 
-    const QUrl url("dsqt-development/qml/main.qml");
+    const QUrl url("../../qml/main.qml");
     QObject::connect(&engine, &QQmlApplicationEngine::objectCreated,
                      &app, [url](QObject *obj, const QUrl &objUrl) {
         //check that we actually loaded our main.qml

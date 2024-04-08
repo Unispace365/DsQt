@@ -18,6 +18,7 @@ std::string SSQS(const QString& in) {
 
 namespace fs = std::filesystem;
 Q_LOGGING_CATEGORY(lgResource, "model.resource")
+Q_LOGGING_CATEGORY(lgResourceVerbose, "model.resource.verbose")
 namespace {
 const QString FONT_TYPE_SZ("f");
 const QString IMAGE_TYPE_SZ("i");

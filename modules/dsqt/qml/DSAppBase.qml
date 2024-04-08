@@ -60,6 +60,11 @@ Window {
                   id: loaderTrans
             }
        ]
+       function reload() {
+                   source = "";
+                   $QmlEngine.clearQmlCache();
+                   source = rootSrc;
+               }
        Component.onCompleted: {
            //resize the loader to fit in the destination
            var src = windowProxy.getRect("source");
@@ -80,6 +85,16 @@ Window {
            //loader.yTrans = -offset.y + 0.5*dst.height;
 
        }
+
+    }
+
+    Connections {
+        target: $QmlEngine
+        function onFileChanged(path) {
+            console.log("file changed qml");
+            loader.reload();
+        }
+
     }
 
     /*Imgui {

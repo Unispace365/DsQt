@@ -3,8 +3,10 @@ include("$ENV{DS_QT_PLATFORM_100}/cmake/dsqt.cmake")
 #Set Install location as a relative location to the source dir -AOF
 set(CMAKE_INSTALL_PREFIX ${CMAKE_SOURCE_DIR}/install/ CACHE PATH "Install Prefix" FORCE)
 
+
 project(dsqt-development VERSION 0.1 LANGUAGES CXX)
 
+add_compile_options(/Zm20)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -23,6 +25,7 @@ qt_add_qml_module(appdsqt-development
     URI dsqt-development
     VERSION 1.0
     QML_FILES qml/main.qml qml/Sizer.qml
+    NO_CACHEGEN
 )
 
 target_link_libraries(appdsqt-development
@@ -31,6 +34,8 @@ target_link_libraries(appdsqt-development
 
 downstream_modules(TARGET appdsqt-development MODULES  DsBridgeQuery dsqt)
 ##find_package(tomlplusplus)
+
+LIST(APPEND DIR_FOR_INSTALL "./settings/*" "./data/*")
 
 #get the settings to show up in the IDE
 file(GLOB_RECURSE DS_SETTINGS LIST_DIRECTORIES true "./settings/*")
@@ -65,8 +70,8 @@ install(TARGETS appdsqt-development
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
 
-install(FILES ${DS_SETTINGS} DESTINATION ${CMAKE_INSTALL_BINDIR}/../settings)
-install(FILES ${DS_DATA} DESTINATION ${CMAKE_INSTALL_BINDIR}/../data)
+install(DIRECTORY ${DIR_FOR_INSTALL} DESTINATION ${CMAKE_INSTALL_BINDIR}/../settings OPTIONAL)
+#install(FILES ${DS_DATA} DESTINATION ${CMAKE_INSTALL_BINDIR}/../data OPTIONAL EXCLUDE_FROM_ALL)
 
 qt_generate_deploy_qml_app_script(
     TARGET appdsqt-development

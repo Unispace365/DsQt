@@ -15,7 +15,8 @@
 
 Q_DECLARE_LOGGING_CATEGORY(lgBridgeSyncApp)
 Q_DECLARE_LOGGING_CATEGORY(lgBridgeSyncQuery)
-
+Q_DECLARE_LOGGING_CATEGORY(lgBridgeSyncAppVerbose)
+Q_DECLARE_LOGGING_CATEGORY(lgBridgeSyncQueryVerbose)
 namespace dsqt::bridge {
 
 struct DsBridgeSyncSettings

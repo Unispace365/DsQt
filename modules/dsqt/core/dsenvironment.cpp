@@ -6,7 +6,8 @@
 #include <qapplicationstatic.h>
 #include "settings/dssettings.h"
 
-Q_LOGGING_CATEGORY(lgEnv, "Environment");
+Q_LOGGING_CATEGORY(lgEnv, "environment");
+Q_LOGGING_CATEGORY(lgEnvVerbose, "environment.verbose");
 /// \defgroup QML QML Elements
 namespace dsqt {
 using namespace Qt::Literals::StringLiterals;

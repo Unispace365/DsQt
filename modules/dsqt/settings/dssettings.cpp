@@ -5,7 +5,8 @@
 #include <string>
 #include "core/dsenvironment.h"
 
-Q_LOGGING_CATEGORY(settingsParser, "settings.parser")
+Q_LOGGING_CATEGORY(lgSettingsParser, "settings.parser")
+Q_LOGGING_CATEGORY(lgSPVerbose, "settings.parser.verbose")
 
 namespace dsqt {
 struct GeomElements;
@@ -24,15 +25,15 @@ bool DSSettings::loadSettingFile(const std::string& file) {
 
 	std::string fullFile = DSEnvironment::expand(file);
 	if (!std::filesystem::exists(fullFile)) {
-		qCWarning(settingsParser) << "File doesn't exist warning: Attempting to load file \"" << fullFile.c_str()
-								  << "\" but it does not exist";
+		qCWarning(lgSPVerbose) << "File doesn't exist warning: Attempting to load file \"" << fullFile.c_str()
+							   << "\" but it does not exist";
 		return false;
 	}
 	auto		 clearItr	= mResultStack.end();
 	SettingFile* loadResult = nullptr;
 	for (auto resultItr = mResultStack.begin(); resultItr != mResultStack.end(); ++resultItr) {
 		if (resultItr->filepath == fullFile) {
-			qCWarning(settingsParser) << "File already loaded warning: Updating already loaded file";
+			qCWarning(lgSPVerbose) << "File already loaded warning: Updating already loaded file";
 			loadResult = &(*resultItr);
 		}
 	}
@@ -48,7 +49,7 @@ bool DSSettings::loadSettingFile(const std::string& file) {
 		loadResult->data  = toml::parse_file(fullFile);
 		loadResult->valid = true;
 	} catch (const toml::parse_error& e) {
-		qCWarning(settingsParser) << "Faild to parse setting file \"" << fullFile.c_str() << "\n:" << e.what();
+		qCWarning(lgSettingsParser) << "Faild to parse setting file \"" << fullFile.c_str() << "\n:" << e.what();
 		return false;
 	}
 
@@ -59,7 +60,7 @@ bool DSSettings::loadSettingFile(const std::string& file) {
 std::tuple<bool, DSSettingsRef> DSSettings::getSettingsOrCreate(const std::string& name, QObject* parent) {
 
 	if (sSettings.find(name) != sSettings.end()) {
-		qCDebug(settingsParser) << "getSettingsOrCreate: Found Setting " << QString::fromStdString(name);
+		qCDebug(lgSPVerbose) << "getSettingsOrCreate: Found Setting " << QString::fromStdString(name);
 		return {true, sSettings[name]};
 	}
 
@@ -104,6 +105,19 @@ bool DSSettings::forgetSettings(const std::string& name) {
 //      return std::optional<std::string>();
 // }
 
+toml::node* DSSettings::getRawNode(const std::string& key) {
+	if (mRuntimeResult.data.at_path(key)) {
+		return mRuntimeResult.data.at_path(key).node();
+	}
+
+	for (auto iter = mResultStack.rbegin(); iter != mResultStack.rend(); ++iter) {
+		auto& stackItem = *iter;
+		if (stackItem.data.at_path(key)) {
+			return stackItem.data.at_path(key).node();
+		}
+	}
+	return nullptr;
+}
 
 std::optional<NodeWMeta> DSSettings::getNodeViewWithMeta(const std::string& key) {
 	std::string returnPath = "";
@@ -146,7 +160,7 @@ std::optional<NodeWMeta> DSSettings::getNodeViewWithMeta(const std::string& key)
 			return std::optional(NodeWMeta({value, metaTable, returnPath}));
 		}
 	}
-	qCDebug(settingsParser) << "Did not find setting for key \"" << key.c_str() << "\"";
+	qCDebug(lgSettingsParser) << "Did not find setting for key \"" << key.c_str() << "\"";
 	return std::nullopt;  //{toml::node_view<toml::node>(),nullptr,""};
 }
 

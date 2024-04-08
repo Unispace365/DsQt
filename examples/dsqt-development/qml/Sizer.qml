@@ -14,7 +14,8 @@ Item {
     Rectangle {
         id:baseRect
         anchors.fill: parent
-        color: "#001080"
+        color: "#0000ff"
+        enabled: false;
     }
 
     Rectangle {
@@ -22,7 +23,7 @@ Item {
         y:baseRect.y+20;
         width:baseRect.width-40;
         height:baseRect.height-40;
-        color: "#ff1080"
+        color: "#80ff0000"
     }
 
     Rectangle {
@@ -47,23 +48,23 @@ Item {
         }
     }
 
-    SequentialAnimation on x {
+    /*SequentialAnimation on x {
         id: anim
-        property int initScale;
+        property real initScale: 0.5;
         loops: Animation.Infinite
-        NumberAnimation { to: sizer.width; duration: 10000 * initScale; onStopped: { anim.initScale=1; }}
+        NumberAnimation { to: sizer.width; duration: 10000 * anim.initScale; onStopped: { anim.initScale=1; }}
         NumberAnimation { to: -sizer.width; duration: 10000 }
         Component.onCompleted: {
-            initScale = 1.0 - (x-(-sizer.width)/(sizer.width - (-sizer.width)));
-            console.log(initScale)
+            anim.initScale = 1.0 - (x-(-sizer.width)/(sizer.width - (-sizer.width)));
+            console.log(anim.initScale)
         }
-    }
+    }*/
 
     MultiPointTouchArea {
         id: touchArea
         anchors.fill: parent
-        minimumTouchPoints: 0
-        maximumTouchPoints: 1
+        minimumTouchPoints: 5
+        maximumTouchPoints: 5
         mouseEnabled: true
         onPressed: {
             console.log("onPressed")

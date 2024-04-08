@@ -10,7 +10,7 @@
 #include <vector>
 
 Q_DECLARE_LOGGING_CATEGORY(lgFileMetaData)
-
+Q_DECLARE_LOGGING_CATEGORY(lgFileMetaDataVerbose)
 namespace fs = std::filesystem;
 namespace dsqt {
 

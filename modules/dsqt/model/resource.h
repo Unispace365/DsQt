@@ -10,7 +10,7 @@
 #include <vector>
 
 Q_DECLARE_LOGGING_CATEGORY(lgResource)
-
+Q_DECLARE_LOGGING_CATEGORY(lgResourceVerbose)
 namespace dsqt {
 class DataBuffer;
 class ResourceList;

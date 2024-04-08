@@ -6,6 +6,7 @@
 #include <utility/string_util.h>
 
 Q_LOGGING_CATEGORY(lgFileMetaData, "file_meta_data")
+Q_LOGGING_CATEGORY(lgFileMetaDataVerbose, "file_meta_data.verbose")
 namespace dsqt {
 
 namespace {

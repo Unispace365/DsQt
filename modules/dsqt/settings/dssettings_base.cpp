@@ -10,7 +10,7 @@ template<> std::optional<ValueWMeta<std::string>> DSSettings::getWithMeta(const 
 
     auto val = getNodeViewWithMeta(key);
     if(!val.has_value()){
-        qDebug(settingsParser)<<"Failed to find value at key "<<key.c_str();
+		qDebug(lgSettingsParser)<<"Failed to find value at key "<<key.c_str();
         return std::nullopt;
     }
 
@@ -64,8 +64,8 @@ template<> std::optional<ValueWMeta<QString>> DSSettings::getWithMeta(const std:
 }
 
 template<> std::optional<ValueWMeta<int64_t>> DSSettings::getWithMeta(const std::string& key){
-    qCDebug(settingsParser)<<"RUNNING int64";
-    auto val = getNodeViewWithMeta(key);
+	qCDebug(lgSPVerbose) << "RUNNING int64";
+	auto val = getNodeViewWithMeta(key);
     if(!val.has_value()) return std::optional<ValueWMeta<int64_t>>();
 
     auto [node,meta,place] = val.value();
@@ -88,8 +88,8 @@ template<> std::optional<ValueWMeta<int64_t>> DSSettings::getWithMeta(const std:
 }
 
 template<> std::optional<ValueWMeta<int32_t>> DSSettings::getWithMeta(const std::string& key){
-    qCDebug(settingsParser)<<"RUNNING int32";
-    auto val = getNodeViewWithMeta(key);
+	qCDebug(lgSPVerbose) << "RUNNING int32";
+	auto val = getNodeViewWithMeta(key);
     if(!val.has_value()) return std::optional<ValueWMeta<int32_t>>();
 
     auto [node,meta,place] = val.value();
@@ -112,8 +112,8 @@ template<> std::optional<ValueWMeta<int32_t>> DSSettings::getWithMeta(const std:
 }
 
 template<> std::optional<ValueWMeta<double>> DSSettings::getWithMeta(const std::string& key){
-    qCDebug(settingsParser)<<"RUNNING double";
-    auto val = getNodeViewWithMeta(key);
+	qCDebug(lgSPVerbose) << "RUNNING double";
+	auto val = getNodeViewWithMeta(key);
     if(!val.has_value()) return std::optional<ValueWMeta<double>>();
 
     auto [node,meta,place] = val.value();
@@ -137,8 +137,8 @@ template<> std::optional<ValueWMeta<double>> DSSettings::getWithMeta(const std::
 }
 
 template<> std::optional<ValueWMeta<float>> DSSettings::getWithMeta(const std::string& key){
-    qCDebug(settingsParser)<<"RUNNING float";
-    auto val = getNodeViewWithMeta(key);
+	qCDebug(lgSPVerbose) << "RUNNING float";
+	auto val = getNodeViewWithMeta(key);
     if(!val.has_value()) return std::optional<ValueWMeta<float>>();
 
     auto [node,meta,place] = val.value();
@@ -163,8 +163,8 @@ template<> std::optional<ValueWMeta<float>> DSSettings::getWithMeta(const std::s
 }
 
 template<> std::optional<ValueWMeta<bool>> DSSettings::getWithMeta(const std::string& key){
-    qCDebug(settingsParser)<<"RUNNING float";
-    auto val = getNodeViewWithMeta(key);
+	qCDebug(lgSPVerbose) << "RUNNING float";
+	auto val = getNodeViewWithMeta(key);
     if(!val.has_value()) return std::optional<ValueWMeta<float>>();
 
     auto [node,meta,place] = val.value();

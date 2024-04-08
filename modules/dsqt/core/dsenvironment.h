@@ -6,6 +6,7 @@
 #include "qloggingcategory.h"
 
 Q_DECLARE_LOGGING_CATEGORY(lgEnv)
+Q_DECLARE_LOGGING_CATEGORY(lgEnvVerbose)
 namespace dsqt {
 
 class DSSettings;

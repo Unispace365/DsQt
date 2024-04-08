@@ -42,6 +42,7 @@ qt_add_qml_module(dsqt
     QML_FILES
     Test.qml qml/DSAppBase.qml
     qml/js/moment-with-locals.js
+    qml/DSTransition.qml
 )
 
 
