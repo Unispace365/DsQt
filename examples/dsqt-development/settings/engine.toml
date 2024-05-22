@@ -25,7 +25,7 @@ location="%LOCAL%/hpi1/"
 resource_db="db.sqlite"
 
 [engine.bridgesync]
-#whether to use the local path to the shared path to find downsync.
+#whether to use the local path to the shared path to find bridgesync.
 launch_bridgesync=true
 app_path="%SHARE%/bridgesync/bridge_sync_console.exe"
 
