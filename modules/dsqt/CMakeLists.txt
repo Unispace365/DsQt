@@ -18,7 +18,6 @@ qt_add_qml_module(dsqt
     URI dsqt
     VERSION 1.0
     SOURCES
-
     model/content_model.h model/content_model.cpp
     model/resource.h model/resource.cpp
     settings/dssettings.h settings/dssettings.cpp
@@ -39,10 +38,17 @@ qt_add_qml_module(dsqt
     utility/url_image_loader.h utility/url_image_loader.cpp
     model/qjsonmodel.cpp model/qjsonmodel.h
     core/dsimgui_item.h
+    ##UI Sources
+    ui/dsradialmenu.h ui/dsradialmenu.cpp
+    ui/dsmenuitem.h ui/dsmenuitem.cpp
     QML_FILES
     Test.qml qml/DSAppBase.qml
     qml/js/moment-with-locals.js
     QML_FILES qml/DSScaleLoader.qml
+    QML_FILES
+    QML_FILES qml/waffles/menu_launcher/Section.qml
+    QML_FILES qml/waffles/DSRadialMenu2.qml
+    QML_FILES qml/waffles/DSRadialMenuIconItem.qml
 )
 
 
@@ -60,7 +66,7 @@ set(imgui_base ${qtimgui_SOURCE_DIR}/imgui)
 #include(${imgui_base}/imguiquick.cmakeinc)
 
 target_link_libraries(dsqt PUBLIC tomlplusplus::tomlplusplus  Qt6::GuiPrivate Qt::QuickPrivate)
-target_include_directories(dsqt PUBLIC tomlplusplus::tomlplusplus settings model core network Qt::Quick Qt6::Gui Qt6::GuiPrivate Qt::QuickPrivate ${imgui_base})
+target_include_directories(dsqt PUBLIC tomlplusplus::tomlplusplus settings model core network ui Qt::Quick Qt6::Gui Qt6::GuiPrivate Qt::QuickPrivate ${imgui_base})
 target_include_directories(dsqt PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} glm)
 target_link_libraries(dsqt PUBLIC glm Qt6::Gui)
 set(DS_LIB_FILES dsqt.qmltypes dsqtplugin.lib qmldir)

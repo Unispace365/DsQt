@@ -11,9 +11,17 @@
 
 Q_DECLARE_LOGGING_CATEGORY(lgResource)
 Q_DECLARE_LOGGING_CATEGORY(lgResourceVerbose)
+
+#ifdef QT_SUPPORTS_INT128
+typedef qint128 valType__;
+#else
+typedef qint64 valType__;
+#endif
+
 namespace dsqt {
 class DataBuffer;
 class ResourceList;
+
 
 /**
  * \class Resource
@@ -39,12 +47,12 @@ class Resource {
 		/// All framework-defined types will be positive.  Negative values
 		/// are reserved for applications to create fake resource_ids.
 		char mType;
-		qint64 mValue;
+		valType__ mValue;
 
 		Id();
-		Id(const qint64 value);
+		Id(const valType__ value);
 		Id(const QString value);
-		Id(const char type, const qint64 value);
+		Id(const char type, const valType__ value);
 		Id(const char type, const QString value);
 
 		bool operator==(const Id&) const;
@@ -52,10 +60,10 @@ class Resource {
 		bool operator>(const Id&) const;
 		bool operator<(const Id&) const;
 		/// Comparison with a raw value
-		bool operator>(const qint64 value) const;
-		bool operator>=(const qint64 value) const;
-		bool operator<(const qint64 value) const;
-		bool operator<=(const qint64 value) const;
+		bool operator>(const valType__ value) const;
+		bool operator>=(const valType__ value) const;
+		bool operator<(const valType__ value) const;
+		bool operator<=(const valType__ value) const;
 
 		bool operator>(const QString value) const;
 		bool operator>=(const QString value) const;

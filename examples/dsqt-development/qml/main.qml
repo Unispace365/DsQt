@@ -1,15 +1,20 @@
 import QtQuick
 import QtQuick.VirtualKeyboard
 import dsqt
+
+
 DSAppBase {
 
     rootSrc: Qt.resolvedUrl("Sizer.qml");
     Component.onCompleted: {
+
         //console.log("WOOOT!")
        // console.log(Qt.resolvedUrl("Sizer.qml"))
        // console.log(contentRoot["cms_root"]);
     }
+
 }
+
 
 /*
 Window {

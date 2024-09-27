@@ -11,6 +11,12 @@ Loader {
    property alias xTrans: loaderTrans.x;
    property alias yTrans: loaderTrans.y;
 
+   DSSettingsProxy {
+       id:windowProxy
+       target:"engine"
+       prefix: "engine.window"
+   }
+
    width: windowProxy.getSize("world_dimensions").width;
    height: windowProxy.getSize("world_dimensions").height;
 

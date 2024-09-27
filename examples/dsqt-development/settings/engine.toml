@@ -18,10 +18,10 @@ paths=[
 [engine.window]
 world_dimensions=[{w=3840,h=2160},{type="size"}] #The size of the overall app space.
 source={x=0,y=0,w=3840,h=2160} #the rectangle of the world space to render.
-destination={x=0,y=0,w=1920,h=1080}#,{type="rect"}] #The output window size and position to render.
+destination={x=0,y=0,w=3008,h=1692}#,{type="rect"}] #The output window size and position to render.
 
 [engine.resource]
-location="%LOCAL%/hpi1/"
+location="%LOCAL%/dsdemo/"
 resource_db="db.sqlite"
 
 [engine.bridgesync]
@@ -40,7 +40,7 @@ server = "http://localhost:7080"
 #auth_server = "https://hpi1-api-userpool.auth.us-east-2.amazoncognito.com"
 #client_id = ""
 #client_secret= ""
-directory="%LOCAL%/hpi1/"
+directory="%LOCAL%/dsdemo/"
 interval = 5
 verbose = true
 

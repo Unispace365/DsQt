@@ -993,25 +993,27 @@ QJsonModel* ContentModelRef::getModel(QObject* parent) {
 
 QQmlPropertyMap* ContentModelRef::getMap(QObject* parent) const {
 	QQmlPropertyMap* map = new QQmlPropertyMap(parent);
-	map->insert("uid", QVariant::fromValue(mData->mId));
-	map->insert("id", QVariant::fromValue(mData->mId));
-	map->insert("name", QVariant::fromValue(mData->mName));
-	map->insert("label", QVariant::fromValue(mData->mLabel));
-	for (const auto& prop : mData->mProperties) {
-		map->insert(prop.first, QVariant::fromValue(prop.second.getValue()));
-	}
-	for (const auto& propList : mData->mPropertyLists) {
-		QVariantList list;
-		for (const auto& prop : propList.second) {
-			list.append(QVariant::fromValue(prop.getValue()));
+	if (mData) {
+		map->insert("uid", QVariant::fromValue(mData->mId));
+		map->insert("id", QVariant::fromValue(mData->mId));
+		map->insert("name", QVariant::fromValue(mData->mName));
+		map->insert("label", QVariant::fromValue(mData->mLabel));
+		for (const auto& prop : mData->mProperties) {
+			map->insert(prop.first, QVariant::fromValue(prop.second.getValue()));
 		}
-		map->insert(propList.first, list);
+		for (const auto& propList : mData->mPropertyLists) {
+			QVariantList list;
+			for (const auto& prop : propList.second) {
+				list.append(QVariant::fromValue(prop.getValue()));
+			}
+			map->insert(propList.first, list);
+		}
+		QVariantList children;
+		for (const auto& child : mData->mChildren) {
+			children.append(QVariant::fromValue(child.getMap(map)));
+		}
+		map->insert("children", children);
 	}
-	QVariantList children;
-	for (const auto& child : mData->mChildren) {
-		children.append(QVariant::fromValue(child.getMap(map)));
-	}
-	map->insert("children", children);
 	return map;
 }
 
@@ -1027,17 +1029,19 @@ void ContentModelRef::createData() {
 
 QJsonValue ContentModelRef::getJson() {
 	QJsonObject obj;
-	obj.insert("id", mData->mId);
-	obj.insert("name", mData->mName);
-	obj.insert("label", mData->mLabel);
-	for (const auto& prop : mData->mProperties) {
-		obj.insert(prop.first, prop.second.getValue());
+	if (mData) {
+		obj.insert("id", mData->mId);
+		obj.insert("name", mData->mName);
+		obj.insert("label", mData->mLabel);
+		for (const auto& prop : mData->mProperties) {
+			obj.insert(prop.first, prop.second.getValue());
+		}
+		QJsonArray children;
+		for (auto child : mData->mChildren) {
+			children.append(child.getJson());
+		}
+		obj.insert("children", children);
 	}
-	QJsonArray children;
-	for (auto child : mData->mChildren) {
-		children.append(child.getJson());
-	}
-	obj.insert("children", children);
 	return obj;
 }
 

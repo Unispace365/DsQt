@@ -60,6 +60,42 @@ Item {
         }
     }*/
 
+    DSRadialMenu2 {
+        id: radialMenu
+        radius: 250
+        width: 500
+        height: 500
+        model: [
+            {
+                text: "Menu",
+                icon: "qrc:/icons/menu.svg",
+                action: function() {
+                    console.log("Menu clicked");
+                }
+            },
+            {
+                text: "Settings",
+                icon: "qrc:/icons/settings.svg",
+                action: function() {
+                    console.log("Settings clicked");
+                }
+            },
+            {
+                text: "what",
+                icon: "qrc:/icons/close.svg",
+                action: function() {
+                    console.log("Close clicked");
+                }
+            }
+        ]
+        delegate: DSRadialMenuIconItem {
+            text: modelData.text
+        }
+        DragHandler {
+            target: radialMenu
+        }
+    }
+
     MultiPointTouchArea {
         id: touchArea
         anchors.fill: parent

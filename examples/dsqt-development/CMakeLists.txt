@@ -45,6 +45,7 @@ add_custom_target(ds-settings SOURCES ${DS_SETTINGS})
 
 #get the data to show up in the IDE
 file(GLOB_RECURSE DS_DATA LIST_DIRECTORIES true "./data/*")
+
 add_custom_target(ds-data SOURCES ${DS_DATA})
 
 

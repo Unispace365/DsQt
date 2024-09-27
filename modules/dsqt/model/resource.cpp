@@ -9,6 +9,20 @@
 #include "core/dsenvironment.h"
 #include "utility/file_meta_data.h"
 
+
+// if we don't support 128bits we make a unsigned 32bit hash because value is a signed 64bit int
+// and we don't want negative values for the value; if we do support 128bits we use the 64bit hash
+#ifdef QT_SUPPORTS_INT128
+inline quint64 qHashHalf(const QString& in) {
+	return qHash(in);
+}
+#else
+inline quint32 qHashHalf(const QString& in) {
+	size_t h = qHash(in);
+	return h - (h >> 32);
+}
+#endif
+
 QString QSSS(const std::string& in) {
 	return QString::fromStdString(in);
 }
@@ -58,13 +72,14 @@ Resource::Id::Id()
   : mType(CMS_TYPE)
   , mValue(0) {}
 
-Resource::Id::Id(const qint64 value) : mType(CMS_TYPE), mValue(value) {}
 
-Resource::Id::Id(const QString value) : mType(CMS_TYPE), mValue(qHash(value)) {}
+Resource::Id::Id(const valType__ value) : mType(CMS_TYPE), mValue(value) {}
 
-Resource::Id::Id(const char type, const qint64 value) : mType(type), mValue(value) {}
+Resource::Id::Id(const QString value) : mType(CMS_TYPE), mValue(qHashHalf(value)) {}
 
-Resource::Id::Id(const char type, const QString value) : mType(type), mValue(qHash(value)) {}
+Resource::Id::Id(const char type, const valType__ value) : mType(type), mValue(value) {}
+
+Resource::Id::Id(const char type, const QString value) : mType(type), mValue(qHashHalf(value)) {}
 
 bool Resource::Id::operator==(const Id& o) const {
 	return mType == o.mType && mValue == o.mValue;
@@ -84,36 +99,36 @@ bool Resource::Id::operator<(const Id& o) const {
 	return mType < o.mType;
 }
 
-bool Resource::Id::operator>(const qint64 value) const {
+bool Resource::Id::operator>(const valType__ value) const {
 	return mValue > value;
 }
 
-bool Resource::Id::operator>=(const qint64 value) const {
+bool Resource::Id::operator>=(const valType__ value) const {
 	return mValue >= value;
 }
 
-bool Resource::Id::operator<(const qint64 value) const {
+bool Resource::Id::operator<(const valType__ value) const {
 	return mValue < value;
 }
 
-bool Resource::Id::operator<=(const qint64 value) const {
+bool Resource::Id::operator<=(const valType__ value) const {
 	return mValue <= value;
 }
 
 bool Resource::Id::operator>(const QString value) const {
-	return mValue > qHash(value);
+	return mValue > qHashHalf(value);
 }
 
 bool Resource::Id::operator>=(const QString value) const {
-	return mValue >= qHash(value);
+	return mValue >= qHashHalf(value);
 }
 
 bool Resource::Id::operator<(const QString value) const {
-	return mValue < qHash(value);
+	return mValue < qHashHalf(value);
 }
 
 bool Resource::Id::operator<=(const QString value) const {
-	return mValue <= qHash(value);
+	return mValue <= qHashHalf(value);
 }
 
 bool Resource::Id::empty() const {
@@ -599,22 +614,68 @@ const int Resource::parseTypeFromFilename(const QString& newMedia) {
 /**
  * ds::resource_id stream printing
  */
+std::string convert_to_str(valType__ val) {
+	std::string result;
+	bool		is_negative = val < 0;
+	if (is_negative) {
+		val *= -1;
+	}
+
+	do {
+		result.push_back((val % 10) + '0');
+		val /= 10;
+	} while (val != 0);
+
+	if (is_negative) {
+		result.push_back('-');
+	}
+
+	std::reverse(result.begin(), result.end());
+	return (result);
+}
+
+
+std::wstring convert_to_wstr(const valType__ cval) {
+	valType__	 val = cval;
+	std::wstring result;
+	bool		 is_negative = val < 0;
+
+	if (is_negative) {
+		val *= -1;
+	}
+
+	do {
+		result.push_back((val % 10) + '0');
+		val /= 10;
+	} while (val != 0);
+
+	if (is_negative) {
+		result.push_back('-');
+	}
+
+	std::reverse(result.begin(), result.end());
+	return (result);
+}
+
 std::ostream& operator<<(std::ostream& os, const dsqt::Resource::Id& o) {
+
 	if (o.mType == o.CMS_TYPE)
 		os << "cms:";
 	else if (o.mType == o.APP_TYPE)
 		os << "app:";
 	else
 		os << "error:";
-	return os << o.mValue;
+	return os << convert_to_str(o.mValue);
 }
 
+using ::operator<<;
 std::wostream& operator<<(std::wostream& os, const dsqt::Resource::Id& o) {
+
 	if (o.mType == o.CMS_TYPE)
 		os << L"cms:";
 	else if (o.mType == o.APP_TYPE)
 		os << L"app:";
 	else
 		os << L"error:";
-	return os << o.mValue;
+	return os << convert_to_wstr(o.mValue);
 }

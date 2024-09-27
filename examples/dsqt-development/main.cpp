@@ -30,7 +30,10 @@ int main(int argc, char *argv[])
 
     //this initalizes and reads in the settings files.
     engine.initialize();
+
+    //set up the node watcher to listen for messages from BridgeSync
     auto nw = dsqt::network::DsNodeWatcher(&engine);
+    //connect the messageArrived signal to the queryDatabase slot
     QObject::connect(&nw,
                      &dsqt::network::DsNodeWatcher::messageArrived,
                      query,

@@ -1,6 +1,8 @@
 import QtQuick
 import QtQuick.VirtualKeyboard
 import dsqt
+import "waffles/menu_launcher"
+
 /// \brief main window for DsQt QML applications.
 /// Takes a url to a qml file to use as the world root.
 /// \ingroup QML
@@ -13,14 +15,13 @@ Window {
     flags: Qt.FramelessWindowHint | Qt.Window
     ///The path to the QML object to load as the root
     property url rootSrc:"";
-    property Loader frontLoader: loadera;
+    
     Shortcut {
         sequences: ["ESCAPE","CTRL+Q"]
         autoRepeat: false;
         onActivated: Qt.quit();
         context: Qt.ApplicationShortcut
     }
-
 
     Component.onCompleted: {
     }
@@ -51,6 +52,7 @@ Window {
         }
 
     }
+
 
     /*Imgui {
         id: imgui
