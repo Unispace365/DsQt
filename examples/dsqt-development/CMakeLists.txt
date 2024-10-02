@@ -10,6 +10,7 @@ add_compile_options(/Zm20)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
 SET(QT_QML_DEBUG 1)
 set(app_icon_resource_windows "${CMAKE_CURRENT_SOURCE_DIR}/dsqt-development.rc")
 find_package(Qt6 6.2 COMPONENTS Quick Gui REQUIRED Sql ShaderTools)
@@ -38,17 +39,21 @@ downstream_modules(TARGET appdsqt-development MODULES  DsBridgeQuery dsqt)
 LIST(APPEND DIR_FOR_INSTALL "./settings/*" "./data/*")
 
 #get the settings to show up in the IDE
-file(GLOB_RECURSE DS_SETTINGS LIST_DIRECTORIES true "./settings/*")
+file(GLOB_RECURSE DS_SETTINGS LIST_DIRECTORIES true ./settings/*)
 LIST(APPEND DS_SETTINGS qt.conf)
 
 add_custom_target(ds-settings SOURCES ${DS_SETTINGS})
 
 #get the data to show up in the IDE
-file(GLOB_RECURSE DS_DATA LIST_DIRECTORIES true "./data/*")
+file(GLOB_RECURSE DS_DATA LIST_DIRECTORIES false ./data/*)
 
 add_custom_target(ds-data SOURCES ${DS_DATA})
 
-
+list(REMOVE_DUPLICATES QML_PATHS)
+set(QML_IMPORT_PATH ${QML_PATHS}
+    CACHE STRING "Qt Creator 4.1 extra qml import paths"
+    FORCE
+)
 
 set_target_properties(appdsqt-development PROPERTIES
     MACOSX_BUNDLE_GUI_IDENTIFIER my.example.com

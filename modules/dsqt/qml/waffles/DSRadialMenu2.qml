@@ -53,7 +53,7 @@ Item {
         MouseArea {
             id: mouseArea
             required property int index
-            property var item: buttonRepeater.itemAt(index)
+            //property var item: buttonRepeater.itemAt(index)
             anchors.fill: parent
             onClicked: {
                 console.log("Clicked on item", index);

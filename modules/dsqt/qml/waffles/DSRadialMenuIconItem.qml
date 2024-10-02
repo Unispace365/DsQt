@@ -14,9 +14,18 @@ Item {
         anchors.fill: parent
     }
 
+    Image {
+        id:icon
+        source: iconItem.modelData.icon
+        fillMode: Image.PreserveAspectFit
+        anchors.fill: parent
+    }
+
     Text{
+        id:text
         horizontalAlignment: Text.AlignHCenter
-        anchors.horizontalCenter: parent.horizontalCenter
-        text: modelData.text
+        anchors.top: icon.bottom
+        width:icon.width
+        text: iconItem.modelData.text
     }
 }

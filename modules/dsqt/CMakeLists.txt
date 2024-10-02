@@ -3,6 +3,7 @@ cmake_minimum_required(VERSION 3.16)
 ## this needs to be in the projects conanfile.txt
 ## find_package(tomlplusplus)
 set(CMAKE_AUTOMOC ON)
+set(CMAKE_AUTORCC ON)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(QT_QML_OUTPUT_DIRECTORY  ${CMAKE_BINARY_DIR})
 find_package(Qt6 6.4 REQUIRED COMPONENTS Quick Core Gui ShaderTools)
@@ -10,6 +11,7 @@ find_package(Qt6 6.4 REQUIRED COMPONENTS Quick Core Gui ShaderTools)
 #tell cmake what to call the javascript files in the qml module
 set_source_files_properties(qml/js/moment-with-locals.js PROPERTIES  QT_QML_SOURCE_TYPENAME "Moment")
 
+set(QML_PATHS ${QML_PATHS} ${CMAKE_CURRENT_SOURCE_DIR}/qml PARENT_SCOPE)
 
 #create the modules
 ## this adds the qml and c++ files to the module
@@ -49,13 +51,25 @@ qt_add_qml_module(dsqt
     QML_FILES qml/waffles/menu_launcher/Section.qml
     QML_FILES qml/waffles/DSRadialMenu2.qml
     QML_FILES qml/waffles/DSRadialMenuIconItem.qml
+    RESOURCES waffles.qrc
 )
+
+
+
+
+#get the settings to show up in the IDE
+file(GLOB_RECURSE DSQT_SETTINGS LIST_DIRECTORIES true ./res/default_settings/*)
+
+add_custom_target(dsqt-settings SOURCES ${DSQT_SETTINGS})
+
 
 
 #docs
 include("$ENV{DS_QT_PLATFORM_100}/cmake/docs.cmake")
 set(DOCS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../docs/DsQt")
 downstream_docs(IN_DIR ${DOCS_DIR} OUT_DIR ${DOCS_DIR} DOCNAME "DsQt" DESC "Qt for Experience Projects")
+
+
 
 
 #link to the libaries that we are using

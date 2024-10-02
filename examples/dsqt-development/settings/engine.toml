@@ -27,7 +27,7 @@ resource_db="db.sqlite"
 [engine.bridgesync]
 #whether to use the local path to the shared path to find bridgesync.
 launch_bridgesync=true
-app_path="%SHARE%/bridgesync/bridge_sync_console.exe"
+app_path="c:/downstream/bridgesync/bridge_sync_console.exe"
 
 #unimplemented, but the idea is to allow these settings to live is seperate
 #toml files

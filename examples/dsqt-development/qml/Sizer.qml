@@ -1,3 +1,5 @@
+pragma ComponentBehavior: Bound
+
 import QtQuick
 import QtMultimedia
 import dsqt
@@ -38,6 +40,7 @@ Item {
         id: repline
         model: sizer.width/150.0
         Text {
+            required property var modelData
             y:sizer.height*0.5+20;
             x:modelData*150
             width:contentWidth
@@ -68,7 +71,7 @@ Item {
         model: [
             {
                 text: "Menu",
-                icon: "qrc:/icons/menu.svg",
+                icon: "qrc:/res/data/waffles/icons/1x/Home_64.png",
                 action: function() {
                     console.log("Menu clicked");
                 }

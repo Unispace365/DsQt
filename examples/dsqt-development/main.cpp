@@ -11,6 +11,7 @@
 
 int main(int argc, char *argv[])
 {
+    Q_INIT_RESOURCE(waffles);
     QLoggingCategory::setFilterRules("*.verbose=false"
                                      "");
     qputenv("QT_IM_MODULE", QByteArray("qtvirtualkeyboard"));
