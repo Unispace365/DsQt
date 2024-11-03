@@ -1,4 +1,0 @@
-{
-    "cmake.sourceDirectory": "${workspaceFolder}/examples/dsqt-development",
-    "C_Cpp.default.compilerPath": "cl.exe"
-}

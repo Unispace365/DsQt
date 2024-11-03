@@ -1,6 +1,0 @@
-#ifndef QMLPATH_H
-#define QMLPATH_H
-
-#define DS_QML_IMPORT_PATH "${DSQT_BUILD_PATH}"
-#define DS_QML_SOURCE_PATH "${DS_QML_SRC_PATH}"
-#endif // QMLPATH_H
