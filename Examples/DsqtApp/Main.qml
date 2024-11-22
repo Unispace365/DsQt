@@ -3,7 +3,6 @@ import QtQuick.VirtualKeyboard
 
 import Dsqt
 
-
 DSAppBase {
 
     rootSrc: Qt.resolvedUrl("qml/Sizer.qml");

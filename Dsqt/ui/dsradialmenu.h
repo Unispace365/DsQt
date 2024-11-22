@@ -3,6 +3,7 @@
 
 #include <QQmlComponent>
 #include <QQuickItem>
+namespace dsqt::ui {
 class DSRadialMenu : public QQuickItem {
 	Q_OBJECT
 	QML_ELEMENT
@@ -28,5 +29,5 @@ class DSRadialMenu : public QQuickItem {
 	QList<QObject *> m_data;
 	QQmlComponent	*m_itemDelegate = nullptr;
 };
-
+}
 #endif	// DSRADIALMENU_H

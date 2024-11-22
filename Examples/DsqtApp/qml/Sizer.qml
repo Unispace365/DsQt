@@ -1,8 +1,8 @@
-pragma ComponentBehavior: Bound
-
 import QtQuick
-import QtMultimedia
 import Dsqt
+import QtMultimedia
+
+
 Item {
     id:sizer
     Component.onCompleted: {
@@ -99,7 +99,7 @@ Item {
         }
     }
 
-    MultiPointTouchArea {
+    /*MultiPointTouchArea {
         id: touchArea
         anchors.fill: parent
         minimumTouchPoints: 5
@@ -113,8 +113,37 @@ Item {
             console.log("onReleased")
             //anim.running = false
         }
+    }*/
+
+    Repeater {
+        id: rep
+        model: wookie.clusters
+        Rectangle {
+            id: chiken
+            required property TouchCluster cluster
+            width: 50
+            height: 50
+            radius: 10
+            x: cluster.clusterCenter.x
+            y: cluster.clusterCenter.y
+            color: "red"
+
+            Behavior on x {
+
+                NumberAnimation {
+                    duration: 200
+                }
+            }
+        }
     }
 
 
+    ClusterManager {
+        id: wookie
+        enabled:true;
+        minClusterTouchCount: 3
+        minClusterSeperation: 500
+        anchors.fill: parent
+    }
 
 }

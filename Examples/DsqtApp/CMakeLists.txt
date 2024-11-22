@@ -10,9 +10,9 @@ qt_standard_project_setup(REQUIRES 6.8)
 
 
 list(APPEND CMAKE_MODULE_PATH
-    "$ENV{DS_QT_PLATFORM_100}/../Dsqt/cmake/")
+    "$ENV{DS_QT_PLATFORM_100}/Dsqt/cmake/")
 
-add_subdirectory("$ENV{DS_QT_PLATFORM_100}/../Dsqt" "${CMAKE_BINARY_DIR}/Dsqt")
+add_subdirectory("$ENV{DS_QT_PLATFORM_100}/Dsqt" "${CMAKE_BINARY_DIR}/Dsqt")
 
 qt_add_executable(appDsqtApp
     main.cpp
@@ -25,6 +25,22 @@ qt_add_qml_module(appDsqtApp
         Main.qml
         qml/Sizer.qml
 )
+
+
+LIST(APPEND DIR_FOR_INSTALL "./settings/" "./data/")
+
+#get the settings to show up in the IDE
+file(GLOB_RECURSE DS_SETTINGS LIST_DIRECTORIES false ./settings/*)
+#LIST(APPEND DS_SETTINGS qt.conf)
+
+add_custom_target(ds-settings SOURCES ${DS_SETTINGS})
+
+#get the data to show up in the IDE
+file(GLOB_RECURSE DS_DATA LIST_DIRECTORIES false ./data/*)
+
+add_custom_target(ds-data SOURCES ${DS_DATA})
+
+
 
 # Qt for iOS sets MACOSX_BUNDLE_GUI_IDENTIFIER automatically since Qt 6.1.
 # If you are developing for iOS or macOS you should consider setting an
@@ -92,8 +108,21 @@ target_link_libraries(appDsqtApp
 
 message("HEADERS ${Dsqt_INCLUDES}")
 include(GNUInstallDirs)
+
 install(TARGETS appDsqtApp
     BUNDLE DESTINATION .
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
+
+install(DIRECTORY "settings/" DESTINATION ${CMAKE_INSTALL_BINDIR}/settings OPTIONAL)
+install(DIRECTORY "data/" DESTINATION ${CMAKE_INSTALL_BINDIR}/data OPTIONAL)
+
+qt_generate_deploy_qml_app_script(
+    TARGET appDsqtApp
+    OUTPUT_SCRIPT deploy_script
+    NO_UNSUPPORTED_PLATFORM_ERROR
+    DEPLOY_USER_QML_MODULES_ON_UNSUPPORTED_PLATFORM
+)
+
+install(SCRIPT ${deploy_script})

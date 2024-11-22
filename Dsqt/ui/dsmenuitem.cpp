@@ -1,5 +1,5 @@
 #include "dsmenuitem.h"
-
+namespace dsqt::ui {
 DSMenuItem::DSMenuItem(QObject* parent) : QObject{parent} {}
 
 QImage DSMenuItem::image() const {
@@ -20,4 +20,5 @@ void DSMenuItem::setText(const QString& newText) {
 	if (m_text == newText) return;
 	m_text = newText;
 	emit textChanged();
+}
 }

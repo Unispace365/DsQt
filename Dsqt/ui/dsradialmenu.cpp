@@ -2,7 +2,7 @@
 #include "dsmenuitem.h"
 #include "qqmlengine.h"
 using namespace Qt::Literals::StringLiterals;
-
+namespace dsqt::ui {
 DSRadialMenu::DSRadialMenu(QQuickItem *parent) : QQuickItem(parent) {}
 
 QQmlListProperty<QObject> DSRadialMenu::data() {
@@ -33,4 +33,5 @@ void DSRadialMenu::setItemDelegate(QQmlComponent *newItemDelegate) {
 	if (m_itemDelegate == newItemDelegate) return;
 	m_itemDelegate = newItemDelegate;
 	emit itemDelegateChanged();
+}
 }

@@ -6,6 +6,17 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(QT_QML_OUTPUT_DIRECTORY  ${CMAKE_BINARY_DIR}/Dsqt)
+set(QML_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
+
+set(QML_IMPORT_PATH
+
+    ${CMAKE_BINARY_DIR}\\Dsqt\\Dsqt
+    #${QML_ROOT}
+    ${QML_ROOT}\\qml
+    #${QML_ROOT}/qml/waffles
+    #${QML_ROOT}/qml/bridge
+    CACHE PATH "QT creator qml import path" FORCE
+)
 
 find_package(Qt6 6.2 COMPONENTS Core Quick Gui ShaderTools Sql REQUIRED)
 qt_standard_project_setup(REQUIRES 6.8)
@@ -46,12 +57,15 @@ qt_add_qml_module(Dsqt
     settings/overload.h
     ui/dsmenuitem.cpp ui/dsmenuitem.h
     ui/dsradialmenu.cpp ui/dsradialmenu.h
+    ui/touchcluster.h ui/touchcluster.cpp
     utility/file_meta_data.cpp utility/file_meta_data.h
     utility/string_util.cpp utility/string_util.h
     utility/url_image_loader.cpp utility/url_image_loader.h
     bridge/bridge_utility.cpp bridge/bridge_utility.h
     bridge/dsBridgeQuery.cpp bridge/dsBridgeQuery.h
     waffles.qrc
+    SOURCES ui/clustermanager.h ui/clustermanager.cpp
+
 
 
 )
