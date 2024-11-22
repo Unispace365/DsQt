@@ -1,7 +1,6 @@
 import QtQuick
 import QtQuick.VirtualKeyboard
 import Dsqt
-import "waffles/menu_launcher"
 
 /// \brief main window for DsQt QML applications.
 /// Takes a url to a qml file to use as the world root.
@@ -25,6 +24,7 @@ Window {
 
     Component.onCompleted: {
     }
+    
 
 
     DSSettingsProxy {
