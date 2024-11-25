@@ -53,10 +53,11 @@ set_target_properties(appDsqtApp PROPERTIES
     WIN32_EXECUTABLE TRUE
 )
 
+##Fetch toml++
 FetchContent_Declare(
     tomlplusplus
     GIT_REPOSITORY https://github.com/marzer/tomlplusplus.git
-    GIT_TAG        v3.2.0
+    GIT_TAG        v3.4.0
     #PREFIX ${CMAKE_DIR_LOCATION}/_deps
 )
 FetchContent_GetProperties(tomlplusplus)
@@ -67,7 +68,7 @@ FetchContent_MakeAvailable(tomlplusplus)
 FetchContent_Declare(
     glm
     GIT_REPOSITORY https://github.com/g-truc/glm.git
-    GIT_TAG        0.9.9.8
+    GIT_TAG        1.0.1
     CONFIGURE_COMMAND ""
     BUILD_COMMAND ""
     #PREFIX ${CMAKE_DIR_LOCATION}/_deps

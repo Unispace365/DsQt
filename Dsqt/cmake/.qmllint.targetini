@@ -1,0 +1,19 @@
+[General]
+AdditionalQmlImportPaths=C:\dev\Dsqt\Dsqt C:\dev\Dsqt\Dsqt\qml C:\dev\Dsqt\Dsqt\qml\waffles C:\dev\Dsqt\Dsqt\qml\waffles\menu_launcher C:\dev\Dsqt\Dsqt\qml\bridge
+DisableDefaultImports=false
+OverwriteImportTypes=
+ResourcePath=
+
+[Warnings]
+BadSignalHandler=warning
+Deprecated=warning
+ImportFailure=warning
+InheritanceCycle=warning
+MultilineStrings=info
+PropertyAlias=warning
+RequiredProperty=warning
+TypeError=warning
+UnknownProperty=warning
+UnqualifiedAccess=warning
+UnusedImports=info
+WithStatement=warning
