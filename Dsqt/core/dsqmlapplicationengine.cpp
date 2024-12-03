@@ -9,6 +9,7 @@
 #include "dsenvironment.h"
 #include "model/content_model.h"
 #include "settings/dssettings_proxy.h"
+#include "dsenvironmentqml.h"
 
 namespace dsqt {
 using namespace Qt::Literals::StringLiterals;
@@ -81,8 +82,8 @@ void DSQmlApplicationEngine::init()
 	mContentRoot = getContentRoot();
 	dsqt::DSEnvironment::loadEngineSettings();
 	mSettings = dsqt::DSEnvironment::loadSettings("app_settings","app_settings.toml");
-	dsqt::DSSettingsProxy appProxy;
-
+    mAppProxy=new DSSettingsProxy(this);
+    mQmlEnv = new DSEnvironmentQML(this);
 	// get watcher elements
 	auto node = dsqt::DSEnvironment::engineSettings()->getRawNode("engine.reload.paths");
 	if (node) {
@@ -106,10 +107,11 @@ void DSQmlApplicationEngine::init()
 		}
 	}
 
-	appProxy.setTarget("app_settings");
+    mAppProxy->setTarget("app_settings");
 	updateContentRoot(model::ContentModelRef("root"));
-	rootContext()->setContextProperty("app_settings",&appProxy);
+    rootContext()->setContextProperty("app_settings",mAppProxy);
     rootContext()->setContextProperty("$QmlEngine", this);
+    rootContext()->setContextProperty("$Env",mQmlEnv);
 }
 
 void DSQmlApplicationEngine::postInit()

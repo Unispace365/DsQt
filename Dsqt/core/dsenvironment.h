@@ -48,7 +48,7 @@ public:
     static std::string			getLocalSettingsPath(const std::string& fileName);
 
     /// Convenience to load in a settings file, first from the app path, then the local path
-	static DSSettingsRef		loadSettings(const std::string& settingsName, const std::string& filename);
+    static DSSettingsRef		loadSettings(const std::string& settingsName, const std::string& filename,const bool lookForOverrides = true);
 
     ///load the engine settings;
     static bool loadEngineSettings();

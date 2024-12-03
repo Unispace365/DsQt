@@ -112,7 +112,7 @@ DSSettingsRef DSEnvironment::engineSettings(){
 	return DSSettings::getSettings("engine");
 }
 
-DSSettingsRef DSEnvironment::loadSettings(const std::string &settingsName, const std::string &filename)
+DSSettingsRef DSEnvironment::loadSettings(const std::string &settingsName, const std::string &filename,const bool lookForOverrides)
 {
     std::string name = settingsName;
     std::string filepath = "%APP%/settings/"+filename;
@@ -121,7 +121,7 @@ DSSettingsRef DSEnvironment::loadSettings(const std::string &settingsName, const
     std::string cfgDocFilepath = "%LOCAL%/settings/%PP%/%CFG_FOLDER%/"+filename;
     auto [found,setting] = DSSettings::getSettingsOrCreate(name,nullptr);
     auto loaded = setting->loadSettingFile(expand(filepath));
-    if(loaded){
+    if(loaded && lookForOverrides){
         setting->loadSettingFile(expand(cfgFilepath));
         setting->loadSettingFile(expand(docFilepath));
         setting->loadSettingFile(expand(cfgDocFilepath));

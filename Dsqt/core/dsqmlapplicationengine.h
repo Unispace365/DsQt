@@ -14,7 +14,8 @@
 Q_DECLARE_LOGGING_CATEGORY(lgAppEngine)
 Q_DECLARE_LOGGING_CATEGORY(lgAppEngineVerbose)
 namespace dsqt{
-
+class DSSettingsProxy;
+class DSEnvironmentQML;
 class DSQmlApplicationEngine : public QQmlApplicationEngine {
 	Q_OBJECT
   public:
@@ -50,6 +51,8 @@ class DSQmlApplicationEngine : public QQmlApplicationEngine {
 	QFileSystemWatcher*			   mWatcher = nullptr;
 	QElapsedTimer				   mLastUpdate;
 	QTimer						   mTrigger;
+    DSSettingsProxy*               mAppProxy=nullptr;
+    DSEnvironmentQML*              mQmlEnv = nullptr;
 };
 
 
