@@ -7,6 +7,8 @@ import Dsqt
 /// \ingroup QML
 Window {
     id: window
+    x: windowProxy.getBool("center")?(Screen.width- width)/2:windowProxy.getRect("destination").x;
+    y: windowProxy.getBool("center")?(Screen.height - height)/2:windowProxy.getRect("destination").y;
     width: windowProxy.getRect("destination").width;
     height:  windowProxy.getRect("destination").height;
     visible: true
