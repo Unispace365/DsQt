@@ -24,6 +24,9 @@ qt_add_qml_module(appDsqtApp
     QML_FILES
         Main.qml
         qml/Sizer.qml
+        qml/Gallery.qml
+        qml/Downstream.qml
+    DEPENDENCIES TARGET Dsqt
 )
 
 
@@ -32,13 +35,19 @@ LIST(APPEND DIR_FOR_INSTALL "./settings/" "./data/")
 #get the settings to show up in the IDE
 file(GLOB_RECURSE DS_SETTINGS LIST_DIRECTORIES false ./settings/*)
 #LIST(APPEND DS_SETTINGS qt.conf)
-
+LIST(APPEND DS_SETTINGS .qmlls.ini)
 add_custom_target(ds-settings SOURCES ${DS_SETTINGS})
 
 #get the data to show up in the IDE
-file(GLOB_RECURSE DS_DATA LIST_DIRECTORIES false ./data/*)
+file(GLOB_RECURSE DS_DATA LIST_DIRECTORIES false RELATIVE . ./data/*)
+file(GLOB_RECURSE DS_DATA_TARGET LIST_DIRECTORIES false ./data/*)
 
-add_custom_target(ds-data SOURCES ${DS_DATA})
+qt_add_resources(appDsqtApp data
+    PREFIX "/"
+    FILES ${DS_DATA}
+)
+
+add_custom_target(ds-data SOURCES ${DS_DATA_TARGET})
 
 
 
