@@ -16,9 +16,10 @@ paths=[
 
 
 [engine.window]
-world_dimensions=[{w=3840,h=2160},{type="size"}] #The size of the overall app space.
-source={x=0,y=0,w=3840,h=2160} #the rectangle of the world space to render.
-destination={x=0,y=0,w=3008,h=1692}#,{type="rect"}] #The output window size and position to render.
+world_dimensions=[{w=4800,h=1620},{type="size"}] #The size of the overall app space.
+source={x=0,y=0,w=4800,h=1620} #the rectangle of the world space to render.
+destination={x=20,y=100,w=3800,h=1282.5}#,{type="rect"}] #The output window size and position to render.
+center=false
 
 [engine.resource]
 location="%LOCAL%/dsdemo/"

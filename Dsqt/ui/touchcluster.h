@@ -40,6 +40,7 @@ public:
 
 signals:
 
+
     void touchCountChanged();
     void activeChanged();
 
@@ -51,7 +52,7 @@ signals:
 
 public:
 
-    int mClusterId;
+    int mClusterId=0;
     QRectF mBoundingBox;
     QRectF mCurrentBoundingBox;
     std::vector<TouchInfo> mTouches;

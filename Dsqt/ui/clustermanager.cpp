@@ -38,6 +38,7 @@ bool ClusterManager::event(QEvent *event)
             mouseReleased = true;
             mouseState = QEventPoint::Released;
         }
+
         if((mouseevent->modifiers() & Qt::ShiftModifier) || (mouseReleased&&mClusters->rowCount()>0)){
             float angle = 2*glm::pi<float>()/5;
             glm::vec2 pos(mouseevent->pos().x(),mouseevent->pos().y());
@@ -87,9 +88,9 @@ bool ClusterManager::event(QEvent *event)
             } else
             if(point.state() == QEventPoint::State::Released){
                 parseTouch(ti);
-                qDebug()<<"touch ended2 -"<<point.id();
+
             } else if(point.state() == QEventPoint::State::Unknown){
-                 qDebug()<<"someting else  ended2 -"<<point.id();
+
             }
 
         }
@@ -103,11 +104,11 @@ bool ClusterManager::event(QEvent *event)
             ti.mState = QEventPoint::State::Released;
             if(point.state() == QEventPoint::State::Released){
                 parseTouch(ti);
-                qDebug()<<"touch ended - "<<point.id();
+
             }
             if(point.state() == QEventPoint::State::Unknown){
                 parseTouch(ti);
-                qDebug()<<"touch unknown - "<<point.id();
+
             }
 
         }
@@ -242,20 +243,21 @@ void ClusterManager::parseTouch(const TouchInfo& ti) {
         }
 
         TouchCluster* clustyMcClustClust = relatedCluster;
-
-        for (int i = 0; i < clustyMcClustClust->mTouches.size(); i++) {
+        auto size = clustyMcClustClust->mTouches.size();
+        for (int i = 0; i < size; i++) {
             if (clustyMcClustClust->mTouches[i].mFingerId == ti.mFingerId) {
                 clustyMcClustClust->mTouches.erase(clustyMcClustClust->mTouches.begin() + i);
+                clustyMcClustClust->mTouchCount--;
                 if (clustyMcClustClust->mTouches.size() < m_minClusterTouchCount && !clustyMcClustClust->mTriggerable) {
                     clustyMcClustClust->mInitialTouchTime = QDateTime::currentMSecsSinceEpoch();
-                    clustyMcClustClust->mTouchCount--;
+
                 }
                 break;
             }
         }
         if (clustyMcClustClust->mTouches.size() == 0) {
 
-            emit clusterUpdated(QEventPoint::Released,clustyMcClustClust);//if (mClusterUpdateFunction) mClusterUpdateFunction(ds::ui::TouchInfo::Removed, clustyMcClustClust);
+
 
             clustyMcClustClust->mTouches.clear();
             if (clustyMcClustClust->mTriggerable) {
@@ -271,7 +273,9 @@ void ClusterManager::parseTouch(const TouchInfo& ti) {
             }
             clustyMcClustClust->mTouchCount = 0;
             clustyMcClustClust->m_closing = true;
-            //mClusters->removeCluster(clustyMcClustClust);
+            mClusters->removeCluster(clustyMcClustClust);
+            clustyMcClustClust->deleteLater();
+            emit clusterUpdated(QEventPoint::Released,clustyMcClustClust);//if (mClusterUpdateFunction) mClusterUpdateFunction(ds::ui::TouchInfo::Removed, clustyMcClustClust);
             //mClusters.erase(mClusters.begin() + relatedCluster);
         }
     }

@@ -63,41 +63,41 @@ Item {
         }
     }*/
 
-    DSRadialMenu2 {
-        id: radialMenu
-        radius: 250
-        width: 500
-        height: 500
-        model: [
-            {
-                text: "Menu",
-                icon: "qrc:/res/data/waffles/icons/1x/Home_64.png",
-                action: function() {
-                    console.log("Menu clicked");
-                }
-            },
-            {
-                text: "Settings",
-                icon: "qrc:/icons/settings.svg",
-                action: function() {
-                    console.log("Settings clicked");
-                }
-            },
-            {
-                text: "what",
-                icon: "qrc:/icons/close.svg",
-                action: function() {
-                    console.log("Close clicked");
-                }
-            }
-        ]
-        delegate: DSRadialMenuIconItem {
-            text: modelData.text
-        }
-        DragHandler {
-            target: radialMenu
-        }
-    }
+    // DSRadialMenu {
+    //     id: radialMenu
+    //     radius: 250
+    //     width: 500
+    //     height: 500
+    //     model: [
+    //         {
+    //             text: "Menu",
+    //             icon: "qrc:/res/data/waffles/icons/1x/Home_64.png",
+    //             action: function() {
+    //                 console.log("Menu clicked");
+    //             }
+    //         },
+    //         {
+    //             text: "Settings",
+    //             icon: "qrc:/icons/settings.svg",
+    //             action: function() {
+    //                 console.log("Settings clicked");
+    //             }
+    //         },
+    //         {
+    //             text: "what",
+    //             icon: "qrc:/icons/close.svg",
+    //             action: function() {
+    //                 console.log("Close clicked");
+    //             }
+    //         }
+    //     ]
+    //     delegate: DSRadialMenuIconItem {
+    //         text: modelData.text
+    //     }
+    //     DragHandler {
+    //         target: radialMenu
+    //     }
+    // }
 
     /*MultiPointTouchArea {
         id: touchArea
@@ -115,25 +115,49 @@ Item {
         }
     }*/
 
-    Repeater {
-        id: rep
-        model: wookie.clusters
-        Rectangle {
-            id: chiken
-            required property TouchCluster cluster
-            width: 50
-            height: 50
-            radius: 10
-            x: cluster.clusterCenter.x
-            y: cluster.clusterCenter.y
-            color: "red"
+    ClusterView {
+        id: jawa
+        manager: wookie
 
-            Behavior on x {
-
-                NumberAnimation {
-                    duration: 200
+        DSRadialMenu {
+            id: radialMenu
+            radius: 250
+            width: 500
+            height: 500
+            visible: false
+            state: "Start"
+            model: [
+                {
+                    text: "Menu",
+                    icon: "qrc:/res/data/waffles/icons/1x/Home_64.png",
+                    action: function() {
+                        console.log("Menu clicked");
+                    }
+                },
+                {
+                    text: "Settings",
+                    icon: "qrc:/icons/settings.svg",
+                    action: function() {
+                        console.log("Settings clicked");
+                    }
+                },
+                {
+                    text: "what",
+                    icon: "qrc:/icons/close.svg",
+                    action: function() {
+                        console.log("Close clicked");
+                    }
                 }
+            ]
+            delegate: DSRadialMenuIconItem {
+                property int index
+                text: modelData.text
             }
+            DragHandler {
+                target: radialMenu
+            }
+
+
         }
     }
 

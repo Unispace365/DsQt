@@ -5,7 +5,7 @@ import Dsqt
 
 DSAppBase {
 
-    rootSrc: Qt.resolvedUrl("qml/Sizer.qml");
+    rootSrc: $Env.expand("file:%APP%/qml/Gallery.qml")//Qt.resolvedUrl("file:DsqtApp/qml/Gallery.qml");
     Component.onCompleted: {
 
         //console.log("WOOOT!")

@@ -55,8 +55,6 @@ signals:
 
     //non property signals
     void clusterUpdated(const QEventPoint::State& state, TouchCluster*);
-    void clusterAdded(TouchCluster*);
-    void clusterMoved(TouchCluster*);
     void triggerableChanged(bool triggerable,TouchCluster*);
     void triggered(TouchCluster*);
     void minClusterSeperationChanged();

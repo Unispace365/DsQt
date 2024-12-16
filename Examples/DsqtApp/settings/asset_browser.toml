@@ -11,7 +11,7 @@ double_tap = false #defaults to true
 hold = true #defaults to false
 
 [[five-finger-menu.item]]
-icon = "
+icon = ""
 [[five-finger-menu.item]]
 [[five-finger-menu.item]]
 [[five-finger-menu.item]]

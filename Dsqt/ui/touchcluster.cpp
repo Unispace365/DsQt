@@ -66,10 +66,7 @@ QVariant TouchClusterList::data(const QModelIndex &index, int role) const
     if(i <0 || i >= mClusters.size())
         return QVariant();
     if(role==Cluster){
-        auto point = mClusters[i]->clusterCenter();
-        auto x = point.x();
-        auto y = point.y();
-    return QVariant::fromValue(mClusters[i]);
+        return QVariant::fromValue(mClusters.at(i));
     }
     return QVariant();
 
@@ -102,7 +99,7 @@ TouchCluster *TouchClusterList::cluster(int idx)
     if(idx <0 || idx >= mClusters.size())
         return nullptr;
 
-    return mClusters[idx];
+    return mClusters.at(idx);
 }
 
 QHash<int, QByteArray> TouchClusterList::roleNames() const
