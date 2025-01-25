@@ -176,7 +176,7 @@ template<> std::optional<ValueWMeta<bool>> DSSettings::getWithMeta(const std::st
         return std::optional<ValueWMeta<bool>>(ValueWMeta<bool>((bool)node.value_or<int64_t>(0),meta,place));
     } else if(node.is_string()) {
         std::string bool_str = node.value_or<std::string>("");
-        std::transform(bool_str.begin(),bool_str.end(),bool_str.begin(),std::tolower);
+        std::transform(bool_str.begin(),bool_str.end(),bool_str.begin(),[](unsigned char c){ return std::tolower(c);});
 
         bool ret_val = bool_str == "false" || bool_str=="" || bool_str=="0"?false:true;
         return std::optional<ValueWMeta<bool>>(ValueWMeta<bool>(ret_val,meta,place));
