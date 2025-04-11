@@ -7,6 +7,7 @@
 #include <QQmlPropertyMap>
 #include <QtSql/QSql>
 #include <QtSql/QSqlDatabase>
+
 #include <bridge_utility.h>
 #include <core/dsqmlapplicationengine.h>
 #include <model/content_model.h>
@@ -58,7 +59,9 @@ private:
     std::unordered_map<int, Resource> mAllResources;
     QString mResourceLocation;
 
+#ifndef Q_OS_WASM
     QProcess mBridgeSyncProcess;
+#endif
     DSSettingsProxy mSettingsProxy;
 
     DsBridgeSyncSettings getBridgeSyncSettings();

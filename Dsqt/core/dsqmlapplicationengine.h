@@ -18,6 +18,8 @@ class DSSettingsProxy;
 class DSEnvironmentQML;
 class DSQmlApplicationEngine : public QQmlApplicationEngine {
 	Q_OBJECT
+    QML_ELEMENT
+    QML_UNCREATABLE("Ya don't need to make an engine. get it from DS.engine")
   public:
 	explicit DSQmlApplicationEngine(QObject *parent = nullptr);
 	void initialize();
@@ -28,6 +30,8 @@ class DSQmlApplicationEngine : public QQmlApplicationEngine {
 	void						   updateContentRoot(model::ContentModelRef newRoot);
 	DsImguiItem* imgui();
 	Q_INVOKABLE void			   clearQmlCache();
+    DSEnvironmentQML*             getEnvQml() const;
+    DSSettingsProxy*              getAppSettingsProxy() const;
 
   private:
 	virtual void  preInit();

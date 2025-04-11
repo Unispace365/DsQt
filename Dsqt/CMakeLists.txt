@@ -14,8 +14,8 @@ set(QML_IMPORT_PATH
     CACHE PATH "QT creator qml import path" FORCE
 )
 
-find_package(Qt6 6.8 COMPONENTS Core Quick Gui ShaderTools Sql REQUIRED)
-qt_standard_project_setup(REQUIRES 6.8)
+find_package(Qt6 6.9 COMPONENTS Core Quick Gui ShaderTools Sql REQUIRED)
+qt_standard_project_setup(REQUIRES 6.9)
 
 #qt_add_library(Dsqt STATIC)
 qt_add_qml_module(Dsqt
@@ -29,6 +29,7 @@ qt_add_qml_module(Dsqt
     qml/waffles/DSRadialMenu.qml
     qml/waffles/DSRadialMenuIconItem.qml
     qml/waffles/menu_launcher/Section.qml
+    qml/waffles/WaffleStage.qml
     qml/bridge/DsBridgeQueryControls.qml
 
     SOURCES
@@ -63,6 +64,9 @@ qt_add_qml_module(Dsqt
     SOURCES ui/clustermanager.h ui/clustermanager.cpp
     SOURCES ui/clusterview.h ui/clusterview.cpp
     SOURCES core/dsenvironmentqml.h core/dsenvironmentqml.cpp
+    SOURCES core/ds_qml_obj.h core/ds_qml_obj.cpp
+    DEPENDENCIES
+         QtQuick
 
 
 

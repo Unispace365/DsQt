@@ -109,9 +109,9 @@ void DSQmlApplicationEngine::init()
 
     mAppProxy->setTarget("app_settings");
 	updateContentRoot(model::ContentModelRef("root"));
-    rootContext()->setContextProperty("app_settings",mAppProxy);
-    rootContext()->setContextProperty("$QmlEngine", this);
-    rootContext()->setContextProperty("$Env",mQmlEnv);
+    //rootContext()->setContextProperty("app_settings",mAppProxy);
+    //rootContext()->setContextProperty("$QmlEngine", this);
+    //rootContext()->setContextProperty("$Env",mQmlEnv);
 }
 
 void DSQmlApplicationEngine::postInit()
@@ -157,6 +157,16 @@ void DSQmlApplicationEngine::updateContentRoot(model::ContentModelRef newRoot) {
 
 void DSQmlApplicationEngine::clearQmlCache() {
 	this->clearComponentCache();
+}
+
+DSEnvironmentQML *DSQmlApplicationEngine::getEnvQml() const
+{
+    return mQmlEnv;
+}
+
+DSSettingsProxy *DSQmlApplicationEngine::getAppSettingsProxy() const
+{
+    return mAppProxy;
 }
 
 }  // namespace dsqt

@@ -4,9 +4,10 @@ include(FetchContent)
 project(DsqtApp VERSION 0.1 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(QT_QML_GENERATE_QMLLS_INI ON)
 
-find_package(Qt6 6.8 REQUIRED COMPONENTS Quick Gui ShaderTools Core Sql)
-qt_standard_project_setup(REQUIRES 6.8)
+find_package(Qt6 6.9 REQUIRED COMPONENTS Quick Gui ShaderTools Core Sql)
+qt_standard_project_setup(REQUIRES 6.9)
 
 
 list(APPEND CMAKE_MODULE_PATH
@@ -21,13 +22,18 @@ qt_add_executable(appDsqtApp
 qt_add_qml_module(appDsqtApp
     URI DsqtApp
     VERSION 1.0
+    NO_CACHEGEN
     QML_FILES
         Main.qml
         qml/Sizer.qml
         qml/Gallery.qml
         qml/Downstream.qml
-    DEPENDENCIES TARGET Dsqt
+    DEPENDENCIES
+        Dsqt
+        QtQuick
+        QML_FILES qml/MediaViewerProxy.qml
 )
+
 
 
 LIST(APPEND DIR_FOR_INSTALL "./settings/" "./data/")

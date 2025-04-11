@@ -1,17 +1,18 @@
+pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.VectorImage
 
 Item {
-    id:base
+    id:root
     property real fps:0
     property real lastUpdateTime:0
 
     Rectangle {
         anchors.fill: parent
-        color: "black"
+        color: "Yellow"
     }
 
-    Downstream {
+    /*Downstream {
         id:ds
         width: implicitWidth
         height: implicitHeight
@@ -29,24 +30,32 @@ Item {
                     y: (ds.ph-ds.height*scale.yScale)/2;}
             ]
 
+    }*/
+
+    VectorImage {
+        id:vds
+        source:"../data/images/2025_Downstream_Logo_white.svg"
+        anchors.fill: root
+        fillMode: VectorImage.PreserveAspectFit
+        preferredRendererType: VectorImage.CurveRenderer
+
     }
 
     Text {
         width: 200;
         height: 100;
         color: "white"
-        text: "FPS:"+base.fps.toFixed(2)
+        text: "FPS:"+root.fps.toFixed(2)
         font.pixelSize: 50
     }
 
     FrameAnimation {
         running: true
         onTriggered: {
-            if(elapsedTime - base.lastUpdateTime>0.25){
-                base.fps = 1/frameTime;
-                base.lastUpdateTime = elapsedTime;
+            if(elapsedTime - root.lastUpdateTime>0.25){
+                root.fps = 1/frameTime;
+                root.lastUpdateTime = elapsedTime;
             }
         }
     }
-
 }

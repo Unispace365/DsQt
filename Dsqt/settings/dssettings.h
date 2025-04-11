@@ -151,11 +151,16 @@ class DSSettings : public QObject {
 			mCustomDateFormat = "";
 		}
 	}
+
+    ///Set a custom date format
+    /// \param format the custom date format string
 	void setCustomDateFormat(QString format) {
 		mCustomDateFormat = format;
 	}
 
 	/// Get a setting from the collection.
+    /// \param key the setting to get.
+    /// \param def the default value to return if key doesn't exist
 	template <class T>
 	T getOr(const std::string& key, const T& def) {
 		static_assert(is_valid_setting_type<T>, "The type is not directly gettable from a settings file");

@@ -87,6 +87,7 @@ DsBridgeSyncSettings DsBridgeSqlQuery::getBridgeSyncSettings()
 
 bool DsBridgeSqlQuery::tryLaunchBridgeSync()
 {
+#ifndef Q_OS_WASM
     //static int tries = 0;
     qCInfo(lgBridgeSyncApp) << "Launching BridgeSync";
 
@@ -179,12 +180,18 @@ bool DsBridgeSqlQuery::tryLaunchBridgeSync()
 
     mBridgeSyncProcess.start();
     return true;
+#endif
+    return true;
 }
 
 //checks to see if process is started
 bool DsBridgeSqlQuery::isBridgeSyncRunning()
 {
+#ifdef Q_OS_WASM
+    return true;
+#else
     return mBridgeSyncProcess.state() == QProcess::Running;
+#endif
 }
 
 void DsBridgeSqlQuery::QueryDatabase()
@@ -277,6 +284,7 @@ void DsBridgeSqlQuery::queryTables()
                 if (record.getId() == "CniWJvnMsq3d") {
                     qDebug() << "found it";
                 }
+
                 record.setProperty("record_name", result.value(7).toString());
                 record.setProperty("uid", result.value(0).toString());
                 record.setProperty("type_uid", result.value(1).toString());

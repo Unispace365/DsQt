@@ -43,16 +43,15 @@ Window {
 
     DSScaleLoader {
        id: loadera
-       source: rootSrc;
+       source: window.rootSrc;
     }
 
     Connections {
-        target: $QmlEngine
+        target: DS.engine
         function onFileChanged(path) {
             console.log("file changed qml");
             loadera.reload();
         }
-
     }
 
 

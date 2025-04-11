@@ -18,7 +18,7 @@ int main(int argc, char *argv[])
     while(qrc.hasNext())
         qDebug() << qrc.next();
     dsqt::DSQmlApplicationEngine engine;
-    engine.addImportPath("qrc:/qt/qml/Dsqt");
+    //engine.addImportPath("qrc:/qt/qml/Dsqt");
 
     //create the query object
     //the query object will create the database connection and
@@ -28,6 +28,7 @@ int main(int argc, char *argv[])
     auto query = new dsqt::bridge::DsBridgeSqlQuery(&engine);
 
     //this initalizes and reads in the settings files.
+    //engine.setBaseUrl(QUrl(".\\..\\..\\"));
     engine.initialize();
 
     QObject::connect(
@@ -36,6 +37,7 @@ int main(int argc, char *argv[])
         &app,
         []() { QCoreApplication::exit(-1); },
         Qt::QueuedConnection);
+    //engine.load(".\\..\\..\\Main.qml");
     engine.loadFromModule("DsqtApp", "Main");
 
     return app.exec();

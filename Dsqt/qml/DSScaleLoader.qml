@@ -39,12 +39,12 @@ Loader {
         console.log("reloading")
         loadera.source = "";
         //loadera.asynchronous = false;
-        $QmlEngine.clearQmlCache();
+        DS.engine.clearQmlCache();
         //loadera.source = rootSrc;
         // loadera.asynchronous = true;
         //$QmlEngine.clearQmlCache();
-        loadera.source = rootSrc;
-        //timeroo.start()
+        //loadera.source = rootSrc;
+        timeroo.start()
     }
 
     Timer {
@@ -53,7 +53,7 @@ Loader {
         running: false
         repeat: false
         onTriggered: {
-            $QmlEngine.clearQmlCache();
+            DS.engine.clearQmlCache();
             loadera.source = rootSrc+"?tip="+Math.random()
         }
     }
