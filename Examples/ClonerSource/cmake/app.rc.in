@@ -1,0 +1,39 @@
+#include <windows.h>
+/////////////////////////////////////////////////////////////////////////////
+//
+// Icon
+//
+
+// Icon with lowest ID value placed first to ensure application icon
+// remains consistent on all systems.
+ID                      ICON                    "newds.ico"
+
+VS_VERSION_INFO VERSIONINFO
+ FILEVERSION @DS_APP_VERSION@
+ PRODUCTVERSION @DS_APP_VERSION@
+ FILEFLAGS 0
+ FILEFLAGSMASK VS_FFI_FILEFLAGSMASK
+ FILEOS VOS_NT_WINDOWS32
+ FILETYPE VFT_APP
+ FILESUBTYPE VFT2_UNKNOWN
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904E4"
+        BEGIN
+            VALUE "CompanyName", "Downstream"
+            VALUE "FileDescription", "@DS_PROJECT_DESC@"
+            VALUE "FileVersion", "@DS_APP_VERSION@"
+            VALUE "InternalName", "@DS_APP_NAME@"
+            VALUE "LegalCopyright", "Copyright © Downstream. All rights reserved."
+            VALUE "OriginalFilename", "@DS_EXE_NAME@.exe"
+            VALUE "ProductName", "@DS_PROJECT_NAME@"
+            VALUE "ProductVersion", "@APP_VERSION@"
+            VALUE "RANDOM THING!","woot"
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x409, 1252
+    END
+END

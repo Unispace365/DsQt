@@ -1,0 +1,14 @@
+#colors
+color = {r=0,g=1,b=1,a=1.0}
+
+[colors]
+box = {r=0,g=0.56,b=0.78,a=1.0}
+
+[colors.fancy]
+box = {r=0,g=0.56,b=0.78,a=1.0}
+
+[colors.superFancy]
+box = {r=0,g=0.56,b=0.78,a=1.0}
+
+[platform]
+id = "CniWJvnMsq3d"

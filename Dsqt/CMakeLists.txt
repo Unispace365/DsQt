@@ -14,7 +14,7 @@ set(QML_IMPORT_PATH
     CACHE PATH "QT creator qml import path" FORCE
 )
 
-find_package(Qt6 6.9 COMPONENTS Core Quick Gui ShaderTools Sql REQUIRED)
+find_package(Qt6 6.9 COMPONENTS Core Quick Gui ShaderTools Sql Pdf REQUIRED)
 qt_standard_project_setup(REQUIRES 6.9)
 
 #qt_add_library(Dsqt STATIC)
@@ -67,6 +67,10 @@ qt_add_qml_module(Dsqt
     SOURCES core/ds_qml_obj.h core/ds_qml_obj.cpp
     DEPENDENCIES
          QtQuick
+         QML_FILES qml/waffles/menu_launcher/TestLauncher.qml
+         QML_FILES qml/waffles/media_viewer/TitledMediaViewer.qml
+         QML_FILES qml/waffles/media_viewer/ControlSet.qml
+         QML_FILES qml/waffles/Viewer.qml
 
 
 
@@ -130,7 +134,7 @@ set_target_properties(Dsqt PROPERTIES
 target_compile_definitions(Dsqt
     PRIVATE $<$<OR:$<CONFIG:Debug>,$<CONFIG:RelWithDebInfo>>:QT_QML_DEBUG>)
 target_link_libraries(Dsqt
-PRIVATE Qt6::Quick Qt6::Core Qt6::Gui Qt6::ShaderTools Qt6::GuiPrivate Qt6::Sql)
+PRIVATE Qt6::Quick Qt6::Core Qt6::Gui Qt6::ShaderTools Qt6::GuiPrivate Qt6::Sql Qt6::Pdf)
 
 target_include_directories(Dsqt PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} "core" "model" "network" "settings" "ui" "utility" "bridge" ${imgui_base})
 

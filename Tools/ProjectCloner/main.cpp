@@ -5,6 +5,10 @@ int main(int argc, char *argv[])
 {
     QGuiApplication app(argc, argv);
 
+    app.setOrganizationName("Downstream");
+    app.setOrganizationDomain("downstream.com");
+    app.setApplicationName("Project Cloner");
+
     QQmlApplicationEngine engine;
     QObject::connect(
         &engine,
@@ -14,5 +18,6 @@ int main(int argc, char *argv[])
         Qt::QueuedConnection);
     engine.loadFromModule("ProjectCloner", "Main");
 
+    QObject::connect(&engine, &QQmlApplicationEngine::quit, &QGuiApplication::quit);
     return app.exec();
 }

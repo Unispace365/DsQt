@@ -1,13 +1,22 @@
 cmake_minimum_required(VERSION 3.29)
 include(FetchContent)
 
-project(DsqtApp VERSION 0.1 LANGUAGES CXX)
+#project info
+set(DS_APP_NAME DsqtApp)
+set(DS_EXE_NAME app${DS_APP_NAME})
+set(DS_APP_VERSION "1.0.0.0")
+set(DS_PROJECT_NAME "DsQt")
+set(DS_PROJECT_DESC "Test DsQt Application")
+
+project(${DS_APP_NAME} VERSION 0.1 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_INSTALL_PREFIX "${CMAKE_BINARY_DIR}/DEPLOY/")
 set(QT_QML_GENERATE_QMLLS_INI ON)
 
 find_package(Qt6 6.9 REQUIRED COMPONENTS Quick Gui ShaderTools Core Sql)
 qt_standard_project_setup(REQUIRES 6.9)
+
 
 
 list(APPEND CMAKE_MODULE_PATH
@@ -15,12 +24,16 @@ list(APPEND CMAKE_MODULE_PATH
 
 add_subdirectory("$ENV{DS_QT_PLATFORM_100}/Dsqt" "${CMAKE_BINARY_DIR}/Dsqt")
 
-qt_add_executable(appDsqtApp
+configure_file("cmake/app.rc.in" "app.rc")
+
+qt_add_executable(${DS_EXE_NAME}
     main.cpp
+    resource1.h
+    app.rc
 )
 
-qt_add_qml_module(appDsqtApp
-    URI DsqtApp
+qt_add_qml_module(${DS_EXE_NAME}
+    URI ${DS_APP_NAME}
     VERSION 1.0
     NO_CACHEGEN
     QML_FILES
@@ -32,6 +45,7 @@ qt_add_qml_module(appDsqtApp
         Dsqt
         QtQuick
         QML_FILES qml/MediaViewerProxy.qml
+        #RESOURCES cmake/app.rc.in
 )
 
 
@@ -48,7 +62,7 @@ add_custom_target(ds-settings SOURCES ${DS_SETTINGS})
 file(GLOB_RECURSE DS_DATA LIST_DIRECTORIES false RELATIVE . ./data/*)
 file(GLOB_RECURSE DS_DATA_TARGET LIST_DIRECTORIES false ./data/*)
 
-qt_add_resources(appDsqtApp data
+qt_add_resources(${DS_EXE_NAME} data
     PREFIX "/"
     FILES ${DS_DATA}
 )
@@ -60,8 +74,8 @@ add_custom_target(ds-data SOURCES ${DS_DATA_TARGET})
 # Qt for iOS sets MACOSX_BUNDLE_GUI_IDENTIFIER automatically since Qt 6.1.
 # If you are developing for iOS or macOS you should consider setting an
 # explicit, fixed bundle identifier manually though.
-set_target_properties(appDsqtApp PROPERTIES
-#    MACOSX_BUNDLE_GUI_IDENTIFIER com.example.appDsqtApp
+set_target_properties(${DS_EXE_NAME} PROPERTIES
+#    MACOSX_BUNDLE_GUI_IDENTIFIER com.example.${DS_EXE_NAME}
     MACOSX_BUNDLE_BUNDLE_VERSION ${PROJECT_VERSION}
     MACOSX_BUNDLE_SHORT_VERSION_STRING ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}
     MACOSX_BUNDLE TRUE
@@ -100,7 +114,7 @@ FetchContent_Declare(
 FetchContent_GetProperties(qtimgui)
 FetchContent_MakeAvailable(qtimgui)
 
-target_include_directories(appDsqtApp PRIVATE ${Dsqt_INCLUDES} Qt6::ShaderToolsPrivate)
+target_include_directories(${DS_EXE_NAME} PRIVATE ${Dsqt_INCLUDES} Qt6::ShaderToolsPrivate)
 
 ##connect qrhiimgui
 set(imgui_base ${qtimgui_SOURCE_DIR}/imgui)
@@ -109,13 +123,13 @@ include(${imgui_base}/imgui.cmakeinc)
 include(${imgui_base}/imguiquick.cmakeinc)
 
 ##connect glm
-target_include_directories(appDsqtApp PUBLIC ${glm_SOURCE_DIR})
+target_include_directories(${DS_EXE_NAME} PUBLIC ${glm_SOURCE_DIR})
 
 ##connect toml++
-target_include_directories(appDsqtApp PUBLIC ${tomlplusplus_SOURCE_DIR}/include)
+target_include_directories(${DS_EXE_NAME} PUBLIC ${tomlplusplus_SOURCE_DIR}/include)
 
 
-target_link_libraries(appDsqtApp
+target_link_libraries(${DS_EXE_NAME}
     PRIVATE Qt6::Quick Dsqt Dsqtplugin Dsqtplugin_init Dsqt_resources_1 Dsqt_resources_2 Dsqt_resources_3 glm Qt6::Sql Qt6::GuiPrivate Qt6::Gui Qt6::ShaderTools Qt6::ShaderToolsPrivate
 )
 

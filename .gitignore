@@ -41,6 +41,7 @@ build/
 install/
 add_build/*
 !add_build/.gitkeep
+!/Tools/deploy/**/*.dll
 
 # Qt unit tests
 target_wrapper.*
