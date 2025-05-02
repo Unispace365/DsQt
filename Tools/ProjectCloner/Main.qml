@@ -182,7 +182,6 @@ Window {
 
     Settings {
         id: settings
-        location: "sets.stngs"
         property alias projectRootDir: projectRootChooser.currentFolder
     }
 
