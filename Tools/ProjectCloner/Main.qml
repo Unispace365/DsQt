@@ -74,7 +74,7 @@ Window {
                     id: appName
                     Layout.alignment: Qt.AlignTop
                     Layout.minimumWidth: 300
-                    text: projectName.text.replace(/\ /,"")
+                    text: projectName.text.replace(/\ /g,"")
                 }
             }
             RowLayout {
@@ -86,7 +86,7 @@ Window {
                     id: appFileName
                     Layout.alignment: Qt.AlignTop
                     Layout.minimumWidth: 300
-                    property string inName: projectName.text.replace(/\ /,"")
+                    property string inName: projectName.text.replace(/\ /g,"")
                     text: inName.length>0?"app"+inName.charAt(0).toUpperCase() + inName.slice(1):""
                 }
             }
