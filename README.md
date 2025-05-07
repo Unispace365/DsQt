@@ -48,8 +48,21 @@ CMS backend for rapid prototyping and developemnt.
     4. Variable name: `DS_QT_PLATFORM_100`
     5. Variable value: the path of this downloaded repo (e.g C:\Users\YourNameHere\Documents\DsQt)
     6. Ok, Ok, Ok
-8. Open QtCreator and copy the Examples/DsqtApp folder to another directory that will become your project directory.
-9. Open The copied CMakeLists.txt using QtCreator.
+
+#### Compile the Project Cloner
+1. Open QtCreator and navigate to the CMakeLists.txt file in <DsQt>\tools\ProjectCloner\
+9. Configure the project as follows: you'll only need to do this once unless you delete the ProjectCloner from the deploy folder
+    1. choose the kit "Desktop Qt6.9.0 MSVC2022 64bit" and hit configure
+    2. click on the build type icon on the left (looks like a monitor) and choose Release
+    3. click on the projects tab on the left
+    4. under the kit listing for "Desktop Qt6.9.0 MSVC2022 64bit" choose the run settings
+    5. in the run settings, under deployment add an install deployment step
+10. Click on the edit tab on the left.
+11. Right click on the root of the project and choose Deploy from the menu.
+12. Click on the Shortcut in the <DsQT>\tools folder to run the ProjectCloner.
+
+
+
 
 ## Getting to know DsQt
 
