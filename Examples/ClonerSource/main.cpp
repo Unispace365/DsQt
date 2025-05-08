@@ -1,3 +1,10 @@
+#ifdef _WIN32
+#ifdef DS_QT_DLLS_SUBDIR
+// Put a manifest dependency to the qt/ directory so we can keep qt dlls in their own directory
+#pragma comment(linker, "/manifestdependency:\"name='qt' version='1.0.0.0' type='win32'\"")
+#endif
+#endif
+
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
 #include <dsqmlapplicationengine.h>

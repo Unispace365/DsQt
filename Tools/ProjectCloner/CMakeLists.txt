@@ -7,6 +7,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(QT_QML_GENERATE_QMLLS_INI ON)
 
+set(DS_QT_DLLS_SUBDIR ON CACHE BOOL "Set to ON to copy the Qt dlls to a subdirectory of the install directory. Default is ON.")
+
 find_package(Qt6 REQUIRED COMPONENTS Quick Core)
 
 qt_standard_project_setup(REQUIRES 6.8)
@@ -58,4 +60,38 @@ qt_generate_deploy_qml_app_script(
     DEPLOY_USER_QML_MODULES_ON_UNSUPPORTED_PLATFORM
 )
 
+
 install(SCRIPT ${deploy_script})
+
+
+IF (WIN32 AND DS_QT_DLLS_SUBDIR)
+add_definitions(-DDS_QT_DLLS_SUBDIR)
+# set the path to the dlls in the install directory
+set(nativeDllPath "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}")
+# convert to a cmake path
+cmake_path(CONVERT "${nativeDllPath}" TO_CMAKE_PATH_LIST cmakeDllPath)
+file(MAKE_DIRECTORY "${cmakeDllPath}/qt")
+# process the dlls
+install(CODE "
+# grab all the dlls in the install directory
+file(GLOB xdlls \"${cmakeDllPath}/*.dll\")\n
+
+#loop through the dlls\n
+foreach(dll \${xdlls})\n
+
+    #get the name of the dll sans the path\n
+    file(RELATIVE_PATH rDll \"${cmakeDllPath}\" \"\${dll}\" )
+    
+    #add it to the list of <file> elements to add to the manifest\n
+    set(DLL_LIST \"\${DLL_LIST}\n<file name=\\\"\${rDll}\\\"/>\")\n
+    
+    #move the dll to the qt directory\n
+    file(RENAME \"\${dll}\" \"${cmakeDllPath}/qt/\${rDll}\")\n
+
+endforeach()\n
+
+#use the list to create the manifest\n
+configure_file(\"${CMAKE_SOURCE_DIR}/cmake/qt.manifest.in\" \"${cmakeDllPath}/qt/qt.manifest\")
+")
+
+ENDIF()
