@@ -340,8 +340,9 @@ void DsBridgeSqlQuery::queryTables()
                     }
                     mPlatforms.addChild(record);
                 } else if (type == "SCHEDULE") {
+                    auto list = record.getPropertyString("parent_uid").split(",", Qt::SkipEmptyParts);
                     for (const auto &parentUid :
-                         record.getPropertyString("parent_uid").split(",", Qt::SkipEmptyParts)) {
+                         std::as_const(list)) {
                         // Create/Add the event to its specific platform
                         auto platformEvents = recordMap[parentUid].getChildByName(
                             "scheduled_events");
