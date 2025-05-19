@@ -5,18 +5,21 @@
 #include <QQmlEngine>
 #include <QQmlPropertyMap>
 #include <model/content_model.h>
+#include <model/qmlcontentmodel.h>
 
 Q_DECLARE_LOGGING_CATEGORY(lgBrUt)
 Q_DECLARE_LOGGING_CATEGORY(lgBrUtVerbose)
 
 namespace dsqt::bridge {
+
+
 class BridgeUtility : public QObject
 {
+
     Q_OBJECT
     QML_ELEMENT
 public:
-    Q_PROPERTY(QQmlPropertyMap *platform READ platform NOTIFY platformChanged FINAL)
-
+    Q_PROPERTY(dsqt::model::QmlContentModel *platform READ platform NOTIFY platformChanged FINAL)
     BridgeUtility(QObject *parent = nullptr,
                   dsqt::model::ContentModelRef contentRoot = dsqt::model::ContentModelRef());
 
@@ -33,15 +36,24 @@ public:
     getQmlContent();
     getQmlContentModel();
     */
-    QQmlPropertyMap *platform() const;
-    QQmlPropertyMap *getRecord(QString id = "", QString name = "");
+    /**
+     * @brief getRecord searches for a record with an app_id
+     * of name in the parent record with the id of id.
+     * @param id
+     * @param name
+     * @return
+     */
+    Q_INVOKABLE model::QmlContentModel *getRecord(QString id = "", QString name = "") const;
     void setRoot(model::ContentModelRef root);
+
+    model::QmlContentModel *platform() const;
 
 signals:
     void platformChanged();
 
+
 private:
-    QQmlPropertyMap *m_platform;
+
     model::ContentModelRef m_contentRoot;
 };
 } // namespace dsqt::bridge

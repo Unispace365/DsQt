@@ -118,7 +118,7 @@ QVariantList BridgeUtility::getEventsForSpan(QString start, QString end)
     auto events = getEventsForSpan(startObj, endObj);
     for (auto &event : events) {
         QVariant eventVariant;
-        eventVariant.setValue(event.getMap(nullptr));
+        eventVariant.setValue(event.getQml(nullptr));
         retval.append(eventVariant);
     }
     return retval;
@@ -168,12 +168,12 @@ std::vector<model::ContentModelRef> BridgeUtility::getEventsForSpan(QDateTime st
     return retval;
 }
 
-QQmlPropertyMap *BridgeUtility::platform() const
+model::QmlContentModel *BridgeUtility::platform() const
 {
-    QQmlPropertyMap *outmap = nullptr;
+    model::QmlContentModel *outmap = nullptr;
     auto platformHolder = m_contentRoot.getChildByName("platform");
     if (platformHolder.hasChildren()) {
-        outmap = platformHolder.getChildren()[0].getMap(nullptr);
+        outmap = platformHolder.getChildren()[0].getQml(nullptr);
     }
     if (outmap) {
         QQmlEngine::setObjectOwnership(outmap, QQmlEngine::JavaScriptOwnership);
@@ -181,7 +181,7 @@ QQmlPropertyMap *BridgeUtility::platform() const
     return outmap;
 }
 
-QQmlPropertyMap *BridgeUtility::getRecord(QString id, QString name)
+model::QmlContentModel *BridgeUtility::getRecord(QString id, QString name) const
 {
     if (id.isEmpty() && name.isEmpty()) {
         qCWarning(lgBrUt) << "Both ID and Name are empty!";
@@ -193,11 +193,11 @@ QQmlPropertyMap *BridgeUtility::getRecord(QString id, QString name)
         base = m_contentRoot.getReference("all_records", id);
     }
 
-    auto record = model::ContentModelRef();
+    auto record = name.isEmpty()?base:model::ContentModelRef();
     if (!name.isEmpty()) {
         record = base.getChildByName(name);
     }
-    auto retval = record.getMap(nullptr);
+    auto retval = record.getQml(nullptr);
     if (retval) {
         QQmlEngine::setObjectOwnership(retval, QQmlEngine::JavaScriptOwnership);
     }

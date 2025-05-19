@@ -7,14 +7,16 @@
 #include <QJsonArray>
 #include <QJsonObject>
 #include <QJsonValue>
+#include "qmlcontentmodel.h"
 #include "qdebug.h"
+
 Q_LOGGING_CATEGORY(lgContentModel, "model.contentmodel")
 Q_LOGGING_CATEGORY(lgContentModelVerbose, "model.contentmodel.verbose")
 namespace dsqt::model {
 
 namespace {
 const int											  EMPTY_INT = 0;
-const QString										  EMPTY_STRING;
+const QString                                         EMPTY_STRING;
 const QUrl											  EMPTY_URL;
 const std::vector<ContentModelRef>					  EMPTY_DATAMODELREF_VECTOR;
 const ContentModelRef								  EMPTY_DATAMODEL;
@@ -991,8 +993,8 @@ QJsonModel* ContentModelRef::getModel(QObject* parent) {
 	return model;
 }
 
-QQmlPropertyMap* ContentModelRef::getMap(QObject* parent) const {
-	QQmlPropertyMap* map = new QQmlPropertyMap(parent);
+QmlContentModel* ContentModelRef::getQml(QObject* parent) const {
+    QmlContentModel* map = new QmlContentModel(*this,parent);
 	if (mData) {
 		map->insert("uid", QVariant::fromValue(mData->mId));
 		map->insert("id", QVariant::fromValue(mData->mId));
@@ -1010,7 +1012,7 @@ QQmlPropertyMap* ContentModelRef::getMap(QObject* parent) const {
 		}
 		QVariantList children;
 		for (const auto& child : mData->mChildren) {
-			children.append(QVariant::fromValue(child.getMap(map)));
+            children.append(QVariant::fromValue(child.getQml(map)));
 		}
 		map->insert("children", children);
 	}

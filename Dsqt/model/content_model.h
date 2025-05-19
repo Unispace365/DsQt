@@ -1,5 +1,5 @@
 #pragma once
-#include "qqmlpropertymap.h"
+
 #ifndef DS_CONTENT_CONTENT_MODEL
 #define DS_CONTENT_CONTENT_MODEL
 
@@ -23,7 +23,7 @@ Q_DECLARE_LOGGING_CATEGORY(lgContentModel)
 Q_DECLARE_LOGGING_CATEGORY(lgContentModelVerbose)
 namespace dsqt::model {
 
-class QContentModel;
+class QmlContentModel;
 
 /**
  * \class ContentProperty
@@ -336,7 +336,7 @@ class ContentModelRef {
 	/// break this content model from other copies. (copy on write behavior)
 	// void detach();
 	/// get a property map for this content model
-	QQmlPropertyMap* getMap(QObject* parent = nullptr) const;
+    QmlContentModel* getQml(QObject* parent = nullptr) const;
 
 	void detach();
 
