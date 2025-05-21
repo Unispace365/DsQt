@@ -88,6 +88,7 @@ class DSSettings : public QObject {
 
 	template <typename T>
 	static constexpr bool is_valid_setting_type = std::is_same_v<T, toml::node> || //
+                                                  std::is_same_v<T, toml::array> ||
 												  // std::is_same_v<T, QMap<QString,QVariant>> || //
 												  // std::is_same_v<T, QVector<QVariant>> || //
 												  std::is_same_v<T, std::string> ||	 //

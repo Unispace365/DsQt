@@ -18,7 +18,7 @@
 #include <vector>
 
 
-#include "resource.h"
+#include "dsresource.h"
 Q_DECLARE_LOGGING_CATEGORY(lgContentModel)
 Q_DECLARE_LOGGING_CATEGORY(lgContentModelVerbose)
 namespace dsqt::model {
@@ -65,8 +65,8 @@ class ContentProperty {
 
 	// im guesing we don't need to worry about
 	// resources as we'll rely on QML's system.
-	Resource getResource() const;
-	void	 setResource(const dsqt::Resource& resource);
+    DSResource getResource() const;
+    void	 setResource(const dsqt::DSResource& resource);
 
 	// replace resources with urls
 	void setValue(const QUrl& value);
@@ -99,7 +99,7 @@ class ContentProperty {
 	QString					  mValue;  // this should always be valid.
 	int			  mIntValue;
 	double		  mDoubleValue;
-	std::shared_ptr<Resource> mResource;
+    std::shared_ptr<DSResource> mResource;
 };
 
 class ContentModelRef;
@@ -212,7 +212,7 @@ class ContentModelRef {
 	glm::vec4 getPropertyVec4(const QString& propertyName) const;
 	QRectF	  getPropertyRect(const QString& propertyName) const;
 	QUrl	  getPropertyUrl(const QString& propertyName) const;
-	Resource  getPropertyResource(const QString& propertyName) const;
+    DSResource  getPropertyResource(const QString& propertyName) const;
 
 	/// Set the property with a given name
 	void setProperty(const QString& propertyName, ContentProperty& theProp);
@@ -228,7 +228,7 @@ class ContentModelRef {
 	void setProperty(const QString& propertyName, const glm::vec4& value);
 	void setProperty(const QString& propertyName, const QRectF& value);
 	void setProperty(const QString& propertyName, const QUrl& value);
-	void setPropertyResource(const QString& propertyName, const Resource& resource);
+    void setPropertyResource(const QString& propertyName, const DSResource& resource);
 
 	/// property lists are stored separately from regular properties
 	const std::map<QString, std::vector<ContentProperty>>& getAllPropertyLists() const;

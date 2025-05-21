@@ -40,11 +40,11 @@ void DsNodeWatcher::start()
 	processPendingDatagrams();
 	connect(mSocket, &QUdpSocket::readyRead, this, &DsNodeWatcher::processPendingDatagrams, Qt::QueuedConnection);
 
-	// if (mWatcher.isRunning()) return;
-	// qInfo() << "Starting NodeWatcher";
-	// connect(&mLoop, &Loop::messageAvailable, this, &DsNodeWatcher::handleMessage,
-	// 		static_cast<Qt::ConnectionType>(Qt::QueuedConnection | Qt::UniqueConnection));
-	// mWatcher = QtConcurrent::run(&Loop::run, &mLoop);
+    if (mWatcher.isRunning()) return;
+    qInfo() << "Starting NodeWatcher";
+    connect(&mLoop, &Loop::messageAvailable, this, &DsNodeWatcher::handleMessage,
+    static_cast<Qt::ConnectionType>(Qt::QueuedConnection | Qt::UniqueConnection));
+    mWatcher = QtConcurrent::run(&Loop::run, &mLoop);
 }
 
 void DsNodeWatcher::processPendingDatagrams() {

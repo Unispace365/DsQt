@@ -27,7 +27,7 @@ class ResourceList;
  * \class Resource
  * \brief Encapsulate a row in the Resources table.
  */
-class Resource {
+class DSResource {
   public:
 	/**
 	 * \struct ds::Resource::id
@@ -108,8 +108,8 @@ class Resource {
 		/// custom database types.
 		/// NOTE:  For efficiency, always return a valid string ref, even if it's on an empty string.
 		/// Never return a string newly constructed in the function.
-		static void setupCustomPaths(const std::function<const QString&(const Resource::Id&)>& resourcePath,
-									 const std::function<const QString&(const Resource::Id&)>& dbPath);
+		static void setupCustomPaths(const std::function<const QString&(const DSResource::Id&)>& resourcePath,
+									 const std::function<const QString&(const DSResource::Id&)>& dbPath);
 	};
 
   public:
@@ -127,28 +127,28 @@ class Resource {
 
   public:
 	/// Mainly for debugging
-	static Resource fromImage(const QString& full_path);
+	static DSResource fromImage(const QString& full_path);
 
 
-	Resource();
-	Resource(const Resource::Id& dbId, const int type);
+	DSResource();
+	DSResource(const DSResource::Id& dbId, const int type);
 
 	/// Sets the absolute filepath, type is auto-detected, no other parameters are filled out
-	Resource(const QString& localFullPath);
+	DSResource(const QString& localFullPath);
 	/// Sets the absolute filepath, no other parameters are filled out
-	Resource(const QString& localFullPath, const int type);
+	DSResource(const QString& localFullPath, const int type);
 	/// Sets the absolute filepath, type is auto-detected. This is intended for streams
-	Resource(const QString& localFullPath, const float width, const float height);
+	DSResource(const QString& localFullPath, const float width, const float height);
 
 	/// In case you have this queried/constructed already
-	Resource(const Resource::Id dbid, const int type, const double duration, const float width, const float height,
+	DSResource(const DSResource::Id dbid, const int type, const double duration, const float width, const float height,
 			 const QString filename, const QString path, const int thumbnailId, const QString fullFilePath);
 
-	bool operator==(const Resource&) const;
-	bool operator!=(const Resource&) const;
+	bool operator==(const DSResource&) const;
+	bool operator!=(const DSResource&) const;
 
-	const Resource::Id& getDbId() const { return mDbId; }
-	void				setDbId(const Resource::Id& dbId) { mDbId = dbId; }
+	const DSResource::Id& getDbId() const { return mDbId; }
+	void				setDbId(const DSResource::Id& dbId) { mDbId = dbId; }
 
 	const std::wstring& getTypeName() const;
 	const QString&		getTypeChar() const;
@@ -192,8 +192,8 @@ class Resource {
 	int	 getParentIndex() const { return mParentIndex; }
 	void setParentIndex(const int parentIndx) { mParentIndex = parentIndx; }
 
-	std::vector<Resource>& getChildrenResources() { return mChildrenResources; }
-	void setChildrenResources(const std::vector<Resource>& newChildren) { mChildrenResources = newChildren; }
+	std::vector<DSResource>& getChildrenResources() { return mChildrenResources; }
+	void setChildrenResources(const std::vector<DSResource>& newChildren) { mChildrenResources = newChildren; }
 
 	/// If you want to simply store a path to a thumbnail
 	///	This is NOT filled out by default in the query() methods, you need to supply this yourself
@@ -226,7 +226,7 @@ class Resource {
 
 	/// If anything has been set
 	bool empty() const;
-	void swap(Resource&);
+	void swap(DSResource&);
 
 	/// Expects a single-character type (v, i, p, w, f, s)
 	void setTypeFromString(const QString& typeChar);
@@ -238,22 +238,22 @@ class Resource {
 	/// Use the full file path or web URL, not a single character like above
 	static const int parseTypeFromFilename(const QString& fileName);
 
-	/// Answers true if ds::Resource was constructed from a local
+	/// Answers true if ds::DSResource was constructed from a local
 	/// file instead of an actual element in db. via fromImage method for example.
 	bool isLocal() const;
 
 	/// Query the database set as the resources database for my contents. Obviously, this is also an expensive
 	/// operation.
 	/// I don't think we need these any longer.
-	// bool query(const Resource::Id&);
+	// bool query(const DSResource::Id&);
 
 	/// The argument is the full thumbnail, if you want it.
-	// bool query(const Resource::Id&, Resource* outThumb);
+	// bool query(const DSResource::Id&, DSResource* outThumb);
 
   private:
 	friend class ResourceList;
 
-	Resource::Id mDbId;
+	DSResource::Id mDbId;
 
 	/// See the public types above
 	int	   mType;
@@ -279,14 +279,14 @@ class Resource {
 	/// Some resources are representations of another resource (like pages of a pdf), this lets you link the two
 	int					  mParentId;
 	int					  mParentIndex;
-	std::vector<Resource> mChildrenResources;
+	std::vector<DSResource> mChildrenResources;
 };
 
 }  // namespace dsqt
 
 // Make the resource ID available to standard stream operators
-std::ostream&  operator<<(std::ostream&, const dsqt::Resource::Id&);
-std::wostream& operator<<(std::wostream&, const dsqt::Resource::Id&);
+std::ostream&  operator<<(std::ostream&, const dsqt::DSResource::Id&);
+std::wostream& operator<<(std::wostream&, const dsqt::DSResource::Id&);
 
 /*\cond Have doxygen ignore this, since it's an internal function that pops the std namespace on the main list
 		 Make the resource ID available for hashing functions
@@ -300,9 +300,9 @@ struct hashy<ds::Resource::Id> : public unary_function < ds::Resource::Id, size_
 };*/
 
 template <>
-struct hash<dsqt::Resource::Id> {
+struct hash<dsqt::DSResource::Id> {
 	typedef size_t result_type;
-	size_t		   operator()(const dsqt::Resource::Id& id) const {
+	size_t		   operator()(const dsqt::DSResource::Id& id) const {
 		return (id.mType & 0xff) + ((static_cast<size_t>(id.mValue) & 0xffffffff) << 8);
 	}
 };

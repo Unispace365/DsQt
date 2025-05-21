@@ -68,7 +68,7 @@ public:
     /// A generic class that stores info received from the node.
 
 signals:
-    void messageArrived(Message msg);
+    void messageArrived(dsqt::network::Message msg);
     void stopped();
     void started();
 

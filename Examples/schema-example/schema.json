@@ -1,0 +1,181 @@
+{
+  "project": {
+    "name": null,
+    "logo": null
+  },
+  "types": [
+    {
+      "id": "1tYkXdRfMuD0",
+      "name": "Folder",
+      "rootPlacement": {
+        "variant": "AS_CONTENT"
+      },
+      "fields": [],
+      "icon": {
+        "variant": "FILE",
+        "path": "invalid_path.png"
+      },
+      "appKey": "folder",
+      "slots": [
+        {
+          "id": "yDzYLB7YPskP",
+          "default": true,
+          "appKey": "children",
+          "name": "Children",
+          "qtyMin": null,
+          "qtyMax": null,
+          "contains": [
+            "uHqJAYgLA3Ym","skdjeri772pq"
+          ],
+          "renderDirection": "HIGHEST_RANK_ON_BOTTOM",
+          "pinboard": null
+        }
+      ]
+    },
+    {
+      "id": "uHqJAYgLA3Ym",
+      "name": "Playlist",
+      "rootPlacement": {
+        "variant": "NOT_ALLOWED"
+      },
+      "fields": [
+        {
+          "id": "6mYhg9epry8o",
+          "variant": "FIELD",
+          "name": "Default Duration",
+          "appKey": "duration",
+          "description": [],
+          "descriptionLong": [],
+          "fields": [],
+          "widget": {
+            "variant": "NUMBER",
+            "min": 0,
+            "max": null
+          },
+          "default": {
+            "variant": "NUMBER",
+            "number": 30
+          },
+          "prompt": null,
+          "control": null,
+          "warnings": []
+        },
+        {
+          "id": "idIJ634CvWut",
+          "variant": "FIELD",
+          "name": "Title",
+          "appKey": "title",
+          "description": [],
+          "descriptionLong": [],
+          "fields": [],
+          "widget": {
+            "variant": "TEXT"
+          },
+          "default": {
+            "variant": "TEXT",
+            "text": "APlaylist"
+          },
+          "prompt": null,
+          "control": null,
+          "warnings": []
+        }
+      ],
+      "icon": {
+        "variant": "FILE",
+        "path": "invalid_path.png"
+      },
+      "appKey": "playlist",
+      "slots": [
+        {
+          "id": "gVMBxMMX5Ybg",
+          "default": true,
+          "appKey": "children",
+          "name": "Children",
+          "qtyMin": null,
+          "qtyMax": null,
+          "contains": [
+            "brRwM5MwtZFn"
+          ],
+          "renderDirection": "HIGHEST_RANK_ON_BOTTOM",
+          "pinboard": null
+        }
+      ]
+    },
+    {
+      "id": "brRwM5MwtZFn",
+      "name": "Media Slide",
+      "rootPlacement": {
+        "variant": "NOT_ALLOWED"
+      },
+      "fields": [
+        {
+          "id": "ldxDCG00QPex",
+          "variant": "FIELD",
+          "name": "Media",
+          "appKey": "media",
+          "description": [],
+          "descriptionLong": [],
+          "fields": [],
+          "widget": {
+            "variant": "MEDIA",
+            "formats": [
+              {
+                "variant": "IMAGE"
+              },
+              {
+                "variant": "VIDEO"
+              },
+              {
+                "variant": "PDF"
+              },
+              {
+                "variant": "WEB"
+              }
+            ]
+          },
+          "default": {
+            "variant": "IMPORT_FILE",
+            "file": "Het_Rokin_in_Amsterdam,_SK-A-3579.jpg",
+            "preview": null
+          },
+          "prompt": null,
+          "control": null,
+          "warnings": []
+        },
+        {
+          "id": "iQhnfxwpVo6A",
+          "variant": "FIELD",
+          "name": "Duration",
+          "appKey": "duration",
+          "description": [],
+          "descriptionLong": [],
+          "fields": [],
+          "widget": {
+            "variant": "NUMBER"
+          },
+          "default": {
+            "variant": "NUMBER",
+            "number": 30
+          },
+          "prompt": null,
+          "control": null,
+          "warnings": []
+        }
+      ],
+      "icon": {
+        "variant": "FILE",
+        "path": "invalid_path.png"
+      },
+      "appKey": "media-slide"
+    }
+  ],
+  "traits": [],
+  "tagClasses": [],
+  "locations": [],
+  "iconGroups": [],
+  "pinboards": [],
+  "docs": {
+    "pages": [],
+    "partials": []
+  }
+}

@@ -41,7 +41,7 @@ server = "http://localhost:7080"
 #auth_server = "https://hpi1-api-userpool.auth.us-east-2.amazoncognito.com"
 #client_id = ""
 #client_secret= ""
-directory="%LOCAL%/dsdemo/"
+directory="%LOCAL%/whitelabel-waffles/"
 interval = 5
 verbose = true
 

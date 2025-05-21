@@ -14,7 +14,7 @@ set(QML_IMPORT_PATH
     CACHE PATH "QT creator qml import path" FORCE
 )
 
-find_package(Qt6 6.9 COMPONENTS Core Quick Gui ShaderTools Sql Pdf REQUIRED)
+find_package(Qt6 6.9 COMPONENTS Core Quick Gui ShaderTools Sql REQUIRED)
 qt_standard_project_setup(REQUIRES 6.9)
 
 #qt_add_library(Dsqt STATIC)
@@ -31,6 +31,11 @@ qt_add_qml_module(Dsqt
     qml/waffles/menu_launcher/Section.qml
     qml/waffles/WaffleStage.qml
     qml/bridge/DsBridgeQueryControls.qml
+    QML_FILES qml/waffles/menu_launcher/TestLauncher.qml
+    QML_FILES qml/waffles/media_viewer/TitledMediaViewer.qml
+    QML_FILES qml/waffles/media_viewer/ControlSet.qml
+    QML_FILES qml/waffles/Viewer.qml
+    QML_FILES qml/waffles/menu_launcher/ContentLauncher.qml
 
     SOURCES
     dsqtbase.cpp dsqtbase.h
@@ -39,8 +44,9 @@ qt_add_qml_module(Dsqt
     core/dsimgui_item.h
     core/dsqmlapplicationengine.cpp core/dsqmlapplicationengine.h
     model/content_model.cpp model/content_model.h
+    model/qmlcontentmodel.h model/qmlcontentmodel.cpp
     model/qjsonmodel.cpp model/qjsonmodel.h
-    model/resource.cpp model/resource.h
+    model/dsresource.cpp model/dsresource.h
     network/dsnodewatcher.cpp network/dsnodewatcher.h
     settings/dssettings.cpp settings/dssettings.h
     settings/dssettings_base.cpp
@@ -65,12 +71,15 @@ qt_add_qml_module(Dsqt
     SOURCES ui/clusterview.h ui/clusterview.cpp
     SOURCES core/dsenvironmentqml.h core/dsenvironmentqml.cpp
     SOURCES core/ds_qml_obj.h core/ds_qml_obj.cpp
+    SOURCES model/icontent_helper.h model/icontent_helper.cpp
+    SOURCES model/content_helper.h model/content_helper.cpp
     DEPENDENCIES
          QtQuick
-         QML_FILES qml/waffles/menu_launcher/TestLauncher.qml
-         QML_FILES qml/waffles/media_viewer/TitledMediaViewer.qml
-         QML_FILES qml/waffles/media_viewer/ControlSet.qml
-         QML_FILES qml/waffles/Viewer.qml
+         Dsqtplugin
+
+
+
+
 
 
 
@@ -134,7 +143,7 @@ set_target_properties(Dsqt PROPERTIES
 target_compile_definitions(Dsqt
     PRIVATE $<$<OR:$<CONFIG:Debug>,$<CONFIG:RelWithDebInfo>>:QT_QML_DEBUG>)
 target_link_libraries(Dsqt
-PRIVATE Qt6::Quick Qt6::Core Qt6::Gui Qt6::ShaderTools Qt6::GuiPrivate Qt6::Sql Qt6::Pdf)
+PRIVATE Qt6::Quick Qt6::Core Qt6::Gui Qt6::ShaderTools Qt6::GuiPrivate Qt6::Sql)
 
 target_include_directories(Dsqt PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} "core" "model" "network" "settings" "ui" "utility" "bridge" ${imgui_base})
 

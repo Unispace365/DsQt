@@ -1,0 +1,114 @@
+version: "3.9"
+
+# This value is used throughout to define how to access these services by name: "http://${name}.localhost"
+# If the value is `linkedin` then you can access the services in the browser with `linkedin.localhost`.
+# Use this to run multiple instances of Bridge at the same time.
+name: "bridge"
+
+services:
+  ui:
+    image: ghcr.io/unispace365/bridge-ui:1.2.0
+    volumes:
+      - ./:/data/repo
+    environment:
+      PROXY_TARGET: http://api:7080
+      PROXY_PATH_REWRITE: true
+    depends_on:
+      - traefik
+      - mongo
+      - minio
+      - api
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.bridge-ui.rule=Host(`${COMPOSE_PROJECT_NAME}.localhost`)"
+      - "traefik.http.routers.bridge-ui.middlewares=bridge-ui-auth"
+      - "traefik.http.services.bridge-ui.loadbalancer.server.port=8080"
+      - "traefik.http.routers.bridge-ui.entrypoints=web"
+      - "traefik.http.middlewares.bridge-ui-auth.headers.customrequestheaders.Authorization=${HEADER_AUTHORIZATION}"
+
+  api:
+    image: ghcr.io/unispace365/bridge-api:1.2.0
+    volumes:
+      - ./:/data/repo
+    environment:
+      BRIDGE_MONGO_CONNECTION: "mongodb://mongo_user:mongo_pass123@mongo"
+      BRIDGE_S3_BUCKET: bridge-content
+      BRIDGE_S3_USER: minio_user
+      BRIDGE_S3_PASS: minio_pass123
+      BRIDGE_S3_ENDPOINT: http://minio:9000
+      BRIDGE_S3_ENDPOINT_EXTERNAL: http://s3files.${COMPOSE_PROJECT_NAME}.localhost
+      BRIDGE_S3_REGION: us-west-2
+      BRIDGE_BLUEPRINT_REPO: file:///data/repo
+      BRIDGE_BLUEPRINT_BRANCH: ${BRIDGE_BLUEPRINT_BRANCH:-main}
+    depends_on:
+      - traefik
+      - mongo
+      - minio
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.bridge-api.rule=Host(`api.${COMPOSE_PROJECT_NAME}.localhost`)"
+      - "traefik.http.routers.bridge-api.middlewares=bridge-api-auth"
+      - "traefik.http.routers.bridge-api.entrypoints=web"
+      - "traefik.http.services.bridge-api.loadbalancer.server.port=7080"
+      - "traefik.http.middlewares.bridge-api-auth.headers.customrequestheaders.Authorization=${HEADER_AUTHORIZATION}"
+
+  mongo:
+    image: bitnami/mongodb:5.0.15
+    environment:
+      - MONGODB_ROOT_USER=mongo_user
+      - MONGODB_ROOT_PASSWORD=mongo_pass123
+      - MONGODB_ADVERTISED_HOSTNAME=mongo
+      - MONGODB_REPLICA_SET_MODE=primary
+      - MONGODB_REPLICA_SET_KEY=replicasetkey123
+    ports:
+      - 27017:27017
+    volumes:
+      - mongo_data:/bitnami
+
+  minio:
+    image: bitnami/minio:2023.3.20
+    environment:
+      MINIO_ROOT_USER: minio_user
+      MINIO_ROOT_PASSWORD: minio_pass123
+      MINIO_DEFAULT_BUCKETS: bridge-content
+      MINIO_CONSOLE_PORT_NUMBER: 9001
+    volumes:
+      - minio_data:/data
+    depends_on:
+      - traefik
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.services.minio-console.loadbalancer.server.port=9001"
+      - "traefik.http.routers.minio-console.rule=Host(`s3.${COMPOSE_PROJECT_NAME}.localhost`)"
+      - "traefik.http.routers.minio-console.entrypoints=web"
+      - "traefik.http.routers.minio-console.service=minio-console"
+      - "traefik.http.services.minio-files.loadbalancer.server.port=9000"
+      - "traefik.http.routers.minio-files.entrypoints=web"
+      - "traefik.http.routers.minio-files.rule=Host(`s3files.${COMPOSE_PROJECT_NAME}.localhost`)"
+      - "traefik.http.routers.minio-files.service=minio-files"
+
+  traefik:
+    image: traefik:2.9.6
+    command:
+      - --providers.docker
+      - --providers.docker.exposedbydefault=false
+      - --entrypoints.web.address=:80
+      - --api=false
+      # - --api.insecure=true
+      # - --accesslog=true
+      # - --log=true
+      # - --log.level=DEBUG
+    ports:
+      - 80:80        # accepts traffic through :80, uses host name to identify correct service
+      # - 8080:8080    # traefik dashboard (for troubleshooting)
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      default:
+        aliases:
+          - s3files.${COMPOSE_PROJECT_NAME}.localhost
+
+volumes:
+  mongo_data:
+  mongo_test_data:
+  minio_data:

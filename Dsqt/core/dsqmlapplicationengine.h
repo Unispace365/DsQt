@@ -8,12 +8,19 @@
 #include <QTimer>
 #include "dsimgui_item.h"
 #include "model/content_model.h"
+#include "model/qmlcontentmodel.h"
 #include "settings/dssettings.h"
+#include "model/icontent_helper.h"
 
 
 Q_DECLARE_LOGGING_CATEGORY(lgAppEngine)
 Q_DECLARE_LOGGING_CATEGORY(lgAppEngineVerbose)
 namespace dsqt{
+
+namespace network {
+class DsNodeWatcher;
+}
+
 class DSSettingsProxy;
 class DSEnvironmentQML;
 class DSQmlApplicationEngine : public QQmlApplicationEngine {
@@ -30,8 +37,11 @@ class DSQmlApplicationEngine : public QQmlApplicationEngine {
 	void						   updateContentRoot(model::ContentModelRef newRoot);
 	DsImguiItem* imgui();
 	Q_INVOKABLE void			   clearQmlCache();
-    DSEnvironmentQML*             getEnvQml() const;
-    DSSettingsProxy*              getAppSettingsProxy() const;
+    DSEnvironmentQML*              getEnvQml() const;
+    DSSettingsProxy*               getAppSettingsProxy() const;
+    model::IContentHelper*         getContentHelper();
+    void                           setContentHelper(model::IContentHelper* helper);
+    network::DsNodeWatcher*        getNodeWatcher() const;
 
   private:
 	virtual void  preInit();
@@ -40,16 +50,18 @@ class DSQmlApplicationEngine : public QQmlApplicationEngine {
 	void		  addRecursive(const QString& path, bool recurse = true);
 	DSSettingsRef mSettings;
 
+
   signals:
 	void onPreInit();
 	void onInit();
 	void onPostInit();
 	void fileChanged(const QString& path);
+    void rootUpdated();
 
   protected:
 	model::ContentModelRef		   mContentRoot;
 	QJsonModel*					   mRootModel = nullptr;
-	QQmlPropertyMap*			   mRootMap	  = nullptr;
+    model::QmlContentModel*			   mRootMap	  = nullptr;
 	static DSQmlApplicationEngine* sDefaultEngine;
 	DsImguiItem*				   mImgui;
 	QFileSystemWatcher*			   mWatcher = nullptr;
@@ -57,6 +69,8 @@ class DSQmlApplicationEngine : public QQmlApplicationEngine {
 	QTimer						   mTrigger;
     DSSettingsProxy*               mAppProxy=nullptr;
     DSEnvironmentQML*              mQmlEnv = nullptr;
+    model::IContentHelper*         mContentHelper = nullptr;
+    network::DsNodeWatcher*        mNodeWatcher = nullptr;
 };
 
 

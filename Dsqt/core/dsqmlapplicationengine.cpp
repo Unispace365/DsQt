@@ -10,6 +10,8 @@
 #include "model/content_model.h"
 #include "settings/dssettings_proxy.h"
 #include "dsenvironmentqml.h"
+#include "model/content_helper.h"
+#include "network/dsnodewatcher.h"
 
 namespace dsqt {
 using namespace Qt::Literals::StringLiterals;
@@ -72,6 +74,24 @@ model::ContentModelRef DSQmlApplicationEngine::getContentRoot() {
 	return mContentRoot;
 }
 
+model::IContentHelper* DSQmlApplicationEngine::getContentHelper() {
+    if(mContentHelper == nullptr){
+        setContentHelper(new model::ContentHelper(this));
+    }
+    return mContentHelper;
+}
+
+void DSQmlApplicationEngine::setContentHelper(model::IContentHelper *helper)
+{
+    mContentHelper = helper;
+    mContentHelper->setEngine(this);
+}
+
+network::DsNodeWatcher *DSQmlApplicationEngine::getNodeWatcher() const
+{
+    return mNodeWatcher;
+}
+
 void DSQmlApplicationEngine::preInit()
 {
 
@@ -79,8 +99,22 @@ void DSQmlApplicationEngine::preInit()
 
 void DSQmlApplicationEngine::init()
 {
+    //setup nodeWatcher
+    mNodeWatcher = new network::DsNodeWatcher(this);
+    mNodeWatcher->start();
+
 	mContentRoot = getContentRoot();
 	dsqt::DSEnvironment::loadEngineSettings();
+    auto extra_settings = DSEnvironment::engineSettings()->
+                          get<toml::array>("engine.extra_settings");
+    if(extra_settings.has_value()){
+        auto& extra_paths = *extra_settings.value().as_array();
+        for(auto&& path_node : extra_paths) {
+            auto path = path_node.as_string()->value_or<std::string>("");
+            dsqt::DSEnvironment::loadSettings("app_settings",path);
+        }
+    }
+
 	mSettings = dsqt::DSEnvironment::loadSettings("app_settings","app_settings.toml");
     mAppProxy=new DSSettingsProxy(this);
     mQmlEnv = new DSEnvironmentQML(this);
@@ -144,7 +178,7 @@ void DSQmlApplicationEngine::updateContentRoot(model::ContentModelRef newRoot) {
 	auto oldRootModel = mRootModel;
 	auto oldRootMap	  = mRootMap;
 	mRootModel		  = mContentRoot.getModel(this);
-	mRootMap		  = mContentRoot.getMap(this);
+    mRootMap		  = mContentRoot.getQml(this);
 	rootContext()->setContextProperty("contentRootModel", mRootModel);
 	rootContext()->setContextProperty("contentRootMap", mRootMap);
 	if (oldRootModel) {
@@ -153,6 +187,7 @@ void DSQmlApplicationEngine::updateContentRoot(model::ContentModelRef newRoot) {
 	if (oldRootMap) {
 		delete oldRootMap;
 	}
+    emit rootUpdated();
 }
 
 void DSQmlApplicationEngine::clearQmlCache() {

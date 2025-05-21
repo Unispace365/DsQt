@@ -11,7 +11,7 @@
 #include <bridge_utility.h>
 #include <core/dsqmlapplicationengine.h>
 #include <model/content_model.h>
-#include <model/resource.h>
+#include <model/dsresource.h>
 #include <settings/dssettings_proxy.h>
 
 Q_DECLARE_LOGGING_CATEGORY(lgBridgeSyncApp)
@@ -46,6 +46,8 @@ public:
     const BridgeUtility *getBridgeUtility() { return mBridgeUtility; }
 public slots:
     void QueryDatabase();
+signals:
+    void syncCompleted();
 
 private:
     BridgeUtility *mBridgeUtility = nullptr;
@@ -56,7 +58,7 @@ private:
     model::ContentModelRef mEvents;
     model::ContentModelRef mRecords;
 
-    std::unordered_map<int, Resource> mAllResources;
+    std::unordered_map<int, DSResource> mAllResources;
     QString mResourceLocation;
 
 #ifndef Q_OS_WASM
@@ -70,6 +72,7 @@ private:
     bool startOrUseConnection();
     bool startConnection();
     void queryTables();
+    QString slugifyKey(QString appKey);
 };
 } // namespace dsqt::bridge
 #endif // DSBRIDGEQUERY_H

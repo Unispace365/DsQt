@@ -5,10 +5,11 @@
 #include <QtSql/QtSql>
 #include "core/dsenvironment.h"
 #include "model/content_model.h"
-#include "model/resource.h"
+#include "model/dsresource.h"
 #include "qqmlcontext.h"
 #include "settings/dssettings.h"
 #include "settings/dssettings_proxy.h"
+#include "network/dsnodewatcher.h"
 
 Q_LOGGING_CATEGORY(lgBridgeSyncApp, "bridgeSync.app")
 Q_LOGGING_CATEGORY(lgBridgeSyncQuery, "bridgeSync.query")
@@ -58,6 +59,10 @@ DsBridgeSqlQuery::DsBridgeSqlQuery(DSQmlApplicationEngine *parent)
             }
         },
         Qt::ConnectionType::DirectConnection);
+
+    connect(parent->getNodeWatcher(),&network::DsNodeWatcher::messageArrived,this,[this](dsqt::network::Message msg){
+        QueryDatabase();
+    },Qt::ConnectionType::QueuedConnection);
 }
 
 DsBridgeSqlQuery::~DsBridgeSqlQuery() {}
@@ -212,7 +217,7 @@ void DsBridgeSqlQuery::queryTables()
 {
     qCInfo(lgBridgeSyncQuery) << "BridgeService is loading content.";
 
-    const dsqt::Resource::Id cms(dsqt::Resource::Id::CMS_TYPE, 0);
+    const dsqt::DSResource::Id cms(dsqt::DSResource::Id::CMS_TYPE, 0);
 
     std::unordered_map<QString, ContentModelRef> recordMap;
     std::unordered_map<QString, QString> selectMap;
@@ -274,6 +279,9 @@ void DsBridgeSqlQuery::queryTables()
         if (query.lastError().isValid()) {
             qCCritical(lgBridgeSyncQuery) << "Record Query Error: " << query.lastError();
         } else {
+            if(query.numRowsAffected() == 0){
+                qCWarning(lgBridgeSyncQuery) << "No records were found in database ";
+            }
             while (query.next()) {
                 auto result = query.record();
                 ContentModelRef record(result.value(7).toString() + "(" + result.value(0).toString()
@@ -535,8 +543,8 @@ void DsBridgeSqlQuery::queryTables()
                 } else if (type == "FILE_IMAGE" || type == "FILE_VIDEO" || type == "FILE_PDF") {
                     if (!resourceId.isEmpty()) {
                         //TODO: finish converting this section.
-                        auto res = dsqt::Resource(resourceId,
-                                                  dsqt::Resource::Id::CMS_TYPE,
+                        auto res = dsqt::DSResource(resourceId,
+                                                  dsqt::DSResource::Id::CMS_TYPE,
                                                   double(result.value(33).toDouble()),
                                                   float(result.value(31).toInt()),
                                                   float(result.value(32).toInt()),
@@ -546,11 +554,11 @@ void DsBridgeSqlQuery::queryTables()
                                                   cms.getResourcePath()
                                                       + result.value(30).toString());
                         if (type == "FILE_IMAGE")
-                            res.setType(dsqt::Resource::IMAGE_TYPE);
+                            res.setType(dsqt::DSResource::IMAGE_TYPE);
                         else if (type == "FILE_VIDEO")
-                            res.setType(dsqt::Resource::VIDEO_TYPE);
+                            res.setType(dsqt::DSResource::VIDEO_TYPE);
                         else if (type == "FILE_PDF")
-                            res.setType(dsqt::Resource::PDF_TYPE);
+                            res.setType(dsqt::DSResource::PDF_TYPE);
                         else
                             continue;
 
@@ -569,8 +577,8 @@ void DsBridgeSqlQuery::queryTables()
                     if (!previewId.isEmpty()) {
                         const auto &previewType = result.value(40).toString();
 
-                        auto res = dsqt::Resource(previewId,
-                                                  dsqt::Resource::Id::CMS_TYPE,
+                        auto res = dsqt::DSResource(previewId,
+                                                  dsqt::DSResource::Id::CMS_TYPE,
                                                   double(result.value(44).toFloat()),
                                                   float(result.value(42).toInt()),
                                                   float(result.value(43).toInt()),
@@ -579,8 +587,8 @@ void DsBridgeSqlQuery::queryTables()
                                                   -1,
                                                   cms.getResourcePath()
                                                       + result.value(41).toString());
-                        res.setType(previewType == "FILE_IMAGE" ? dsqt::Resource::IMAGE_TYPE
-                                                                : dsqt::Resource::VIDEO_TYPE);
+                        res.setType(previewType == "FILE_IMAGE" ? dsqt::DSResource::IMAGE_TYPE
+                                                                : dsqt::DSResource::VIDEO_TYPE);
 
                         auto preview_uid = field_uid + "_preview";
                         record.setPropertyResource(preview_uid, res);
@@ -595,8 +603,8 @@ void DsBridgeSqlQuery::queryTables()
                     record.setProperty(field_uid, toUpdate);
                 } else if (type == "LINK_WEB") {
                     const auto &linkUrl = result.value(30).toString();
-                    auto res = dsqt::Resource(resourceId,
-                                              dsqt::Resource::Id::CMS_TYPE,
+                    auto res = dsqt::DSResource(resourceId,
+                                              dsqt::DSResource::Id::CMS_TYPE,
                                               double(result.value(33).toFloat()),
                                               float(result.value(31).toInt()),
                                               float(result.value(32).toInt()),
@@ -610,13 +618,13 @@ void DsBridgeSqlQuery::queryTables()
                                                                  glm::vec2(1920.f, 1080.f));
                     res.setWidth(webSize.x);
                     res.setHeight(webSize.y);
-                    res.setType(dsqt::Resource::WEB_TYPE);
+                    res.setType(dsqt::DSResource::WEB_TYPE);
                     record.setPropertyResource(field_uid, res);
 
                     if (!previewId.isEmpty()) {
                         const auto &previewType = result.value(40).toString();
-                        auto res = dsqt::Resource(previewId,
-                                                  dsqt::Resource::Id::CMS_TYPE,
+                        auto res = dsqt::DSResource(previewId,
+                                                  dsqt::DSResource::Id::CMS_TYPE,
                                                   double(result.value(44).toFloat()),
                                                   float(result.value(42).toInt()),
                                                   float(result.value(43).toInt()),
@@ -625,8 +633,8 @@ void DsBridgeSqlQuery::queryTables()
                                                   -1,
                                                   cms.getResourcePath()
                                                       + result.value(41).toString());
-                        res.setType(type == "FILE_IMAGE" ? dsqt::Resource::IMAGE_TYPE
-                                                         : dsqt::Resource::VIDEO_TYPE);
+                        res.setType(type == "FILE_IMAGE" ? dsqt::DSResource::IMAGE_TYPE
+                                                         : dsqt::DSResource::VIDEO_TYPE);
 
                         auto preview_uid = field_uid + "_preview";
                         record.setPropertyResource(preview_uid, res);
@@ -668,7 +676,13 @@ void DsBridgeSqlQuery::queryTables()
     root.replaceChild(mRecords);
     root.setReferences("all_records", recordMap);
 
-    DSQmlApplicationEngine::DefEngine()->updateContentRoot(root);
+    emit syncCompleted();
+    //DSQmlApplicationEngine::DefEngine()->updateContentRoot(root);
+}
+
+QString DsBridgeSqlQuery::slugifyKey(QString appKey)
+{
+    return "woot";
 }
 
 } // namespace dsqt::bridge
