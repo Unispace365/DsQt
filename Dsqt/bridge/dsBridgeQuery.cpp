@@ -1,8 +1,12 @@
 ﻿#include "dsBridgeQuery.h"
 
+
+#include <regex>
+
 #include <QSharedPointer>
 #include <QString>
 #include <QtSql/QtSql>
+
 #include "core/dsenvironment.h"
 #include "model/content_model.h"
 #include "model/dsresource.h"
@@ -11,10 +15,12 @@
 #include "settings/dssettings_proxy.h"
 #include "network/dsnodewatcher.h"
 
+
 Q_LOGGING_CATEGORY(lgBridgeSyncApp, "bridgeSync.app")
 Q_LOGGING_CATEGORY(lgBridgeSyncQuery, "bridgeSync.query")
 Q_LOGGING_CATEGORY(lgBridgeSyncAppVerbose, "bridgeSync.app.verbose")
 Q_LOGGING_CATEGORY(lgBridgeSyncQueryVerbose, "bridgeSync.query.verbose")
+#define CREATE_NEW_CONSOLE 0x00000010;
 using namespace dsqt::model;
 namespace dsqt::bridge {
 
@@ -57,12 +63,16 @@ DsBridgeSqlQuery::DsBridgeSqlQuery(DSQmlApplicationEngine *parent)
                     QueryDatabase();
                 }
             }
+            connect(DSQmlApplicationEngine::DefEngine()->getNodeWatcher(),&network::DsNodeWatcher::messageArrived,this,[this](dsqt::network::Message msg){
+                QueryDatabase();
+            },Qt::ConnectionType::QueuedConnection);
         },
         Qt::ConnectionType::DirectConnection);
-
-    connect(parent->getNodeWatcher(),&network::DsNodeWatcher::messageArrived,this,[this](dsqt::network::Message msg){
-        QueryDatabase();
+    auto engine = DSQmlApplicationEngine::DefEngine();
+    connect(this,&DsBridgeSqlQuery::syncCompleted,engine,[engine](){
+        engine->updateContentRoot();
     },Qt::ConnectionType::QueuedConnection);
+
 }
 
 DsBridgeSqlQuery::~DsBridgeSqlQuery() {}
@@ -182,7 +192,15 @@ bool DsBridgeSqlQuery::tryLaunchBridgeSync()
     connect(&mBridgeSyncProcess, &QProcess::stateChanged, this, [this](QProcess::ProcessState state) {
         qCInfo(lgBridgeSyncApp) << "BridgeSync has changed state: " << state;
     });
+    connect(&mBridgeSyncProcess, &QProcess::readyReadStandardOutput, this, [this]() {
+        auto byteArray = mBridgeSyncProcess.readAllStandardOutput();
+        //QString output(byteArray);
+        //qDebug()<<byteArray;
+    });
 
+    mBridgeSyncProcess.setCreateProcessArgumentsModifier([] (QProcess::CreateProcessArguments *args){
+        args->flags |= CREATE_NEW_CONSOLE;
+    });
     mBridgeSyncProcess.start();
     return true;
 #endif
@@ -279,7 +297,7 @@ void DsBridgeSqlQuery::queryTables()
         if (query.lastError().isValid()) {
             qCCritical(lgBridgeSyncQuery) << "Record Query Error: " << query.lastError();
         } else {
-            if(query.numRowsAffected() == 0){
+            if(query.size() == 0){
                 qCWarning(lgBridgeSyncQuery) << "No records were found in database ";
             }
             while (query.next()) {
@@ -429,7 +447,7 @@ void DsBridgeSqlQuery::queryTables()
                 auto &record = recordMap[recordUid];
 
                 auto field_uid = result.value(1).toString();
-                auto field_key = result.value(2).toString();
+                auto field_key = slugifyKey(result.value(2).toString());
                 if (!field_key.isEmpty()) {
                     field_uid = field_key;
                 }
@@ -472,7 +490,7 @@ void DsBridgeSqlQuery::queryTables()
               " v.number,"                // 10
               " v.number_min,"            // 11
               " v.number_max,"            // 12
-              " v.datetime,"              // 13
+              " v.date,"              // 13
               " v.resource_hash,"         // 14
               " v.crop_x,"                // 15
               " v.crop_y,"                // 16
@@ -529,7 +547,7 @@ void DsBridgeSqlQuery::queryTables()
                 auto &record = recordMap[recordUid];
 
                 auto field_uid = result.value(1).toString();
-                auto field_key = result.value(37).toString();
+                auto field_key = slugifyKey(result.value(37).toString());
                 if (!field_key.isEmpty()) {
                     field_uid = field_key;
                 }
@@ -682,7 +700,9 @@ void DsBridgeSqlQuery::queryTables()
 
 QString DsBridgeSqlQuery::slugifyKey(QString appKey)
 {
-    return "woot";
+    static QRegularExpression badRe("\\W|^(?=\\d)");
+    QString result = appKey.replace(badRe,"_");
+    return result;
 }
 
 } // namespace dsqt::bridge

@@ -142,7 +142,7 @@ void DSQmlApplicationEngine::init()
 	}
 
     mAppProxy->setTarget("app_settings");
-	updateContentRoot(model::ContentModelRef("root"));
+    updateContentRoot();
     //rootContext()->setContextProperty("app_settings",mAppProxy);
     //rootContext()->setContextProperty("$QmlEngine", this);
     //rootContext()->setContextProperty("$Env",mQmlEnv);
@@ -172,9 +172,11 @@ DSQmlApplicationEngine* DSQmlApplicationEngine::DefEngine() {
 	return sDefaultEngine;
 }
 
-void DSQmlApplicationEngine::updateContentRoot(model::ContentModelRef newRoot) {
+void DSQmlApplicationEngine::updateContentRoot() {
 	qInfo("Updating Content Root");
-	mContentRoot	  = newRoot;
+    if(mContentRoot.empty()){
+        mContentRoot	  = model::ContentModelRef("root");
+    }
 	auto oldRootModel = mRootModel;
 	auto oldRootMap	  = mRootMap;
 	mRootModel		  = mContentRoot.getModel(this);

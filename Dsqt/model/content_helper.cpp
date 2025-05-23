@@ -76,7 +76,7 @@ ContentHelper::ContentHelper(QObject *parent)
 ContentModelRef ContentHelper::getPlatform()
 {
     auto platform = mEngine->getContentRoot().getChildByName("platform");
-    return platform;
+    return platform.getChild(0);
     // auto newPlatform = platforms.getChild(0).duplicate();
     // if(newPlatform == m_platform) return;
     // m_platform = newPlatform;

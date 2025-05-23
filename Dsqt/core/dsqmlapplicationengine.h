@@ -34,7 +34,7 @@ class DSQmlApplicationEngine : public QQmlApplicationEngine {
 	model::ContentModelRef		   getContentRoot();
 	void						   setDefaultEngine(DSQmlApplicationEngine* engine);
 	static DSQmlApplicationEngine* DefEngine();
-	void						   updateContentRoot(model::ContentModelRef newRoot);
+    void						   updateContentRoot();
 	DsImguiItem* imgui();
 	Q_INVOKABLE void			   clearQmlCache();
     DSEnvironmentQML*              getEnvQml() const;

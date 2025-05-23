@@ -35,16 +35,16 @@ void DsNodeWatcher::start()
 		delete mSocket;
 	}
 
-	mSocket		= new QUdpSocket(this);
-	bool result = mSocket->bind(QHostAddress::AnyIPv4, mPort);
-	processPendingDatagrams();
-	connect(mSocket, &QUdpSocket::readyRead, this, &DsNodeWatcher::processPendingDatagrams, Qt::QueuedConnection);
+    mSocket		= new QUdpSocket(this);
+    bool result = mSocket->bind(QHostAddress::LocalHost, mPort);
+    processPendingDatagrams();
+    connect(mSocket, &QUdpSocket::readyRead, this, &DsNodeWatcher::processPendingDatagrams, Qt::QueuedConnection);
 
     if (mWatcher.isRunning()) return;
     qInfo() << "Starting NodeWatcher";
     connect(&mLoop, &Loop::messageAvailable, this, &DsNodeWatcher::handleMessage,
     static_cast<Qt::ConnectionType>(Qt::QueuedConnection | Qt::UniqueConnection));
-    mWatcher = QtConcurrent::run(&Loop::run, &mLoop);
+    //mWatcher = QtConcurrent::run(&Loop::run, &mLoop);
 }
 
 void DsNodeWatcher::processPendingDatagrams() {
@@ -53,14 +53,16 @@ void DsNodeWatcher::processPendingDatagrams() {
 	uint16_t	 port;
 	mMsg.clear();
 	QByteArray datagram;
-	while (sender == QHostAddress::LocalHost && mSocket->hasPendingDatagrams()) {
+    while (mSocket->hasPendingDatagrams()) {
 
 		datagram.resize(mSocket->pendingDatagramSize());
 		mSocket->readDatagram(datagram.data(), datagram.size(), &sender, &port);
-		qCDebug(lgNodeWatcherVerbose) << "Message From :: " << sender.toString();
-		qCDebug(lgNodeWatcherVerbose) << "Port From :: " << port;
-		qCDebug(lgNodeWatcherVerbose) << "Message :: " << datagram;
-		mMsg.mData.emplace_back(QString::fromUtf8(datagram));
+        if(sender == QHostAddress::LocalHost){
+            qCDebug(lgNodeWatcherVerbose) << "Message From :: " << sender.toString();
+            qCDebug(lgNodeWatcherVerbose) << "Port From :: " << port;
+            qCDebug(lgNodeWatcherVerbose) << "Message :: " << datagram;
+            mMsg.mData.emplace_back(QString::fromUtf8(datagram));
+        }
 	}
 	datagram.resize(mSocket->pendingDatagramSize());
 	mSocket->readDatagram(datagram.data(), datagram.size(), &sender, &port);
@@ -133,27 +135,34 @@ void Loop::run()
 	try {
 
 		QObject connectionLife;
-		mEngine->connect(&theSocket,&QUdpSocket::readyRead,&connectionLife,[&](){
-			
+
+
+        auto good = theSocket.bind(QHostAddress::Any, mPort);
+        if (!good) {
+			qCWarning(lgNodeWatcher) << "Failed to bind to port:" << mPort << "(" << theSocket.errorString() << ")";
+		} else {
+            qCInfo(lgNodeWatcher) << "Bound to port:" << mPort;
+		}
+
+        mEngine->connect(&theSocket,&QUdpSocket::readyRead,&connectionLife,[&](){
+
             int length = theSocket.readDatagram(buf,BUF_SIZE);
             if(length > 0){
                 QString msg = QString::fromUtf8(buf,length);
                 QMutexLocker l(&mMutex);
                 mMsg.mData.emplace_back(msg);
             }
-         
+
         });
 
-		auto good = theSocket.bind(QHostAddress::AnyIPv4, mPort);
-		if (!good) {
-			qCWarning(lgNodeWatcher) << "Failed to bind to port:" << mPort << "(" << theSocket.errorString() << ")";
-		} else {
-			qCInfo(lgNodeWatcherVerbose) << "Bound to port:" << mPort;
-		}
-
-
+        QString prevPending="false";
 		while (true) {
-			if (mMsg.mData.size() > 0) {
+            auto pending = theSocket.hasPendingDatagrams()?"true":"false";
+            if(pending != prevPending){
+                qDebug()<<"pending = "<<pending;
+                prevPending = pending;
+            }
+            if (mMsg.mData.size() > 0) {
                 emit messageAvailable();
 			}
 
@@ -163,7 +172,9 @@ void Loop::run()
 				if (mAbort) break;
 			}
 		}
-	} catch (std::exception e) {}
+    } catch (std::exception e) {
+        qCWarning(lgNodeWatcher)<<"exception in node watcher";
+    }
 }
 
 }
