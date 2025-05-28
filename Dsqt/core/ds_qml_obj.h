@@ -10,6 +10,7 @@
 #include "model/content_model.h"
 #include "model/content_helper.h"
 #include "model/qmlcontentmodel.h"
+#include "model/reference_map.h"
 #include <qqmlintegration.h>
 
 Q_DECLARE_LOGGING_CATEGORY(lgQmlObj)

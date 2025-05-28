@@ -1,3 +1,4 @@
+pragma ComponentBehavior: Bound
 import QtQuick 2.15
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -7,7 +8,7 @@ Viewer {
     id: root
     viewerType: Viewer.ViewerType.Launcher
     required property var stage
-    property alias model: buttonRepeater.model
+    property alias model: rep.model
     width: childrenRect.width
     height: childrenRect.height
 
@@ -19,21 +20,22 @@ Viewer {
             Layout.preferredHeight: 50
         }
         Repeater {
-            id: buttonRepeater
+            id: rep
+            Button {
+                required property var modelData
+                text: modelData?.record_name ?? "woble"
+                Layout.fillWidth: true
+                onPressed: {
+                    let viewerProps = {
+                        //"media":modelData
+                    }
 
-        }
-
-        Button {
-            //text: modelData?.name ? modelData?.name : "woot"
-            Layout.fillWidth: true
-            onPressed: {
-                let viewerProps = {
-                    //"media":modelData
+                    root.stage.openViewer(viewerProps);
                 }
-
-                root.stage.openViewer(viewerProps);
             }
         }
+
+
     }
     Behavior on x {
         enabled: !drag.active

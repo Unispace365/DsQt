@@ -14,7 +14,7 @@
 #include "settings/dssettings.h"
 #include "settings/dssettings_proxy.h"
 #include "network/dsnodewatcher.h"
-
+#include "model/property_map_diff.h"
 
 Q_LOGGING_CATEGORY(lgBridgeSyncApp, "bridgeSync.app")
 Q_LOGGING_CATEGORY(lgBridgeSyncQuery, "bridgeSync.query")
@@ -38,6 +38,15 @@ DsBridgeSqlQuery::DsBridgeSqlQuery(DSQmlApplicationEngine *parent)
             if (!isBridgeSyncRunning()) {
                 tryLaunchBridgeSync();
             }
+            //setup the connections first
+            auto engine = DSQmlApplicationEngine::DefEngine();
+            connect(engine->getNodeWatcher(),&network::DsNodeWatcher::messageArrived,this,[this](dsqt::network::Message msg){
+                QueryDatabase();
+            },Qt::ConnectionType::QueuedConnection);
+
+            connect(this,&DsBridgeSqlQuery::syncCompleted,engine,[engine](model::PropertyMapDiff* diff){
+                engine->updateContentRoot(diff);
+            },Qt::ConnectionType::QueuedConnection);
 
             qCDebug(lgBridgeSyncQuery) << "Starting Query";
             mDatabase = QSqlDatabase::addDatabase("QSQLITE");
@@ -58,20 +67,14 @@ DsBridgeSqlQuery::DsBridgeSqlQuery(DSQmlApplicationEngine *parent)
                 if (!mDatabase.open()) {
                     qCWarning(lgBridgeSyncQuery) << "Could not open database at " << file;
                 } else {
-                    //get the raw nodes
-
-                    QueryDatabase();
+                    //fake a nodewatcher message.
+                    emit DSQmlApplicationEngine::DefEngine()->getNodeWatcher()->messageArrived(dsqt::network::Message());
                 }
             }
-            connect(DSQmlApplicationEngine::DefEngine()->getNodeWatcher(),&network::DsNodeWatcher::messageArrived,this,[this](dsqt::network::Message msg){
-                QueryDatabase();
-            },Qt::ConnectionType::QueuedConnection);
+
         },
-        Qt::ConnectionType::DirectConnection);
-    auto engine = DSQmlApplicationEngine::DefEngine();
-    connect(this,&DsBridgeSqlQuery::syncCompleted,engine,[engine](){
-        engine->updateContentRoot();
-    },Qt::ConnectionType::QueuedConnection);
+        Qt::ConnectionType::QueuedConnection);
+
 
 }
 
@@ -197,10 +200,12 @@ bool DsBridgeSqlQuery::tryLaunchBridgeSync()
         //QString output(byteArray);
         //qDebug()<<byteArray;
     });
-
-    mBridgeSyncProcess.setCreateProcessArgumentsModifier([] (QProcess::CreateProcessArguments *args){
-        args->flags |= CREATE_NEW_CONSOLE;
+    connect(&mBridgeSyncProcess, &QProcess::readyReadStandardError, this, [this]() {
+        auto byteArray = mBridgeSyncProcess.readAllStandardError();
+        //QString output(byteArray);
+        //qDebug()<<byteArray;
     });
+
     mBridgeSyncProcess.start();
     return true;
 #endif
@@ -219,22 +224,37 @@ bool DsBridgeSqlQuery::isBridgeSyncRunning()
 
 void DsBridgeSqlQuery::QueryDatabase()
 {
-    queryTables();
+    //invalidate qml versions of models.
+    //queryTables will set used models to valid.
+    //invalidate will skip any model that doesn't have the appEngine
+    //as a parent
+
+    ReferenceMap tempRefMap;
+    tempRefMap.isTemp = true;
     ContentModelRef root = DSQmlApplicationEngine::DefEngine()->getContentRoot();
-    if (mBridgeUtility == nullptr) {
-        mBridgeUtility = new BridgeUtility(this, root);
-        DSQmlApplicationEngine::DefEngine()->rootContext()->setContextProperty("BridgeUtility",
-                                                                               mBridgeUtility);
-    } else {
-        //probably don't need this as we don't replace the root.
-        //mBridgeUtility->setRoot(root);
-    }
+    QmlContentModel* preModel = root.getQml(&tempRefMap,nullptr);
+
+    queryTables();
+
+    ReferenceMap tempRefMap2;
+    tempRefMap2.isTemp = true;
+    root = DSQmlApplicationEngine::DefEngine()->getContentRoot();
+    QmlContentModel* postModel = root.getQml(&tempRefMap2,nullptr);
+
+    PropertyMapDiff* diff = new PropertyMapDiff(*preModel,*postModel);
+    emit syncCompleted(diff);
 }
 
 void DsBridgeSqlQuery::queryTables()
 {
     qCInfo(lgBridgeSyncQuery) << "BridgeService is loading content.";
 
+    //create a QmlContentModel of the current root;
+
+    ContentModelRef root = DSQmlApplicationEngine::DefEngine()->getContentRoot();
+
+    //QMetaObject::invokeMethod(QCoreApplication::instance(), func, Qt::BlockingQueuedConnection
+    auto isMainThread = QThread::currentThread() == QCoreApplication::instance()->thread();
     const dsqt::DSResource::Id cms(dsqt::DSResource::Id::CMS_TYPE, 0);
 
     std::unordered_map<QString, ContentModelRef> recordMap;
@@ -353,6 +373,7 @@ void DsBridgeSqlQuery::queryTables()
             mEvents = ContentModelRef("all_events");
             //this is all the content records in a flat list
             mRecords = ContentModelRef("all_records");
+            //mRecords.setNotToQml(true);
 
             for (const auto &record : rankOrderedRecords) {
                 mRecords.addChild(record);
@@ -686,15 +707,27 @@ void DsBridgeSqlQuery::queryTables()
         }
     }
     //update root
-    ContentModelRef root = DSQmlApplicationEngine::DefEngine()->getContentRoot();
+    //ContentModelRef root = DSQmlApplicationEngine::DefEngine()->getContentRoot();
     root.replaceChild(mContent);
     root.replaceChild(mEvents);
     root.replaceChild(mPlatforms);
     root.replaceChild(mPlatform);
     root.replaceChild(mRecords);
-    root.setReferences("all_records", recordMap);
+    root.setReferences("ally_records", recordMap);
+    /*
+    if(!isMainThread){
+        QMetaObject::invokeMethod(QCoreApplication::instance(),[](){
+            QmlContentModel::cleanInvalid();
+            QmlContentModel::updateAll();
+        },Qt::BlockingQueuedConnection);
+    } else {
+        QmlContentModel::cleanInvalid();
+        QmlContentModel::updateAll();
+    }*/
+    //auto newQml = root.getQml();
 
-    emit syncCompleted();
+
+
     //DSQmlApplicationEngine::DefEngine()->updateContentRoot(root);
 }
 

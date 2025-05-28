@@ -56,7 +56,8 @@ void DsQmlObj::updatePlatform()
     auto newPlatform = platform.duplicate();
     if(newPlatform == m_platform) return;
     m_platform = newPlatform;
-    m_platform_qml = m_platform.getQml();
+    auto rm = mEngine->getReferenceMap();
+    m_platform_qml = rm->value(m_platform.getId());
     emit platformChanged();
 }
 
@@ -68,12 +69,7 @@ model::QmlContentModel *DsQmlObj::getRecordById(QString id) const
         return nullptr;
     }
 
-    auto base = mEngine->getContentRoot();
-    auto record = base.getReference("all_records", id);
-    auto retval = record.getQml(nullptr);
-    if (retval) {
-        QQmlEngine::setObjectOwnership(retval, QQmlEngine::JavaScriptOwnership);
-    }
+    auto retval = mEngine->getReferenceMap()->value(id);
     return retval;
 }
 
@@ -193,7 +189,8 @@ QVariantList DsQmlObj::getEventsForSpan(QString start, QString end)
     auto events = getEventsForSpan(startObj, endObj);
     for (auto &event : events) {
         QVariant eventVariant;
-        eventVariant.setValue(event.getQml(nullptr));
+        auto eventId = event.getId();
+        eventVariant.setValue(mEngine->getReferenceMap()->value(eventId));
         retval.append(eventVariant);
     }
     return retval;

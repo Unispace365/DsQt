@@ -11,7 +11,7 @@
 #include "model/qmlcontentmodel.h"
 #include "settings/dssettings.h"
 #include "model/icontent_helper.h"
-
+#include "model/property_map_diff.h"
 
 Q_DECLARE_LOGGING_CATEGORY(lgAppEngine)
 Q_DECLARE_LOGGING_CATEGORY(lgAppEngineVerbose)
@@ -33,15 +33,16 @@ class DSQmlApplicationEngine : public QQmlApplicationEngine {
 	DSSettingsRef				   getAppSettings();
 	model::ContentModelRef		   getContentRoot();
 	void						   setDefaultEngine(DSQmlApplicationEngine* engine);
-	static DSQmlApplicationEngine* DefEngine();
-    void						   updateContentRoot();
-	DsImguiItem* imgui();
+    static DSQmlApplicationEngine* DefEngine();
+    void                           updateContentRoot(model::PropertyMapDiff* diff);
+    DsImguiItem *imgui();
 	Q_INVOKABLE void			   clearQmlCache();
     DSEnvironmentQML*              getEnvQml() const;
     DSSettingsProxy*               getAppSettingsProxy() const;
     model::IContentHelper*         getContentHelper();
     void                           setContentHelper(model::IContentHelper* helper);
     network::DsNodeWatcher*        getNodeWatcher() const;
+    const model::ReferenceMap*           getReferenceMap() const;
 
   private:
 	virtual void  preInit();
@@ -60,8 +61,8 @@ class DSQmlApplicationEngine : public QQmlApplicationEngine {
 
   protected:
 	model::ContentModelRef		   mContentRoot;
-	QJsonModel*					   mRootModel = nullptr;
-    model::QmlContentModel*			   mRootMap	  = nullptr;
+    model::ReferenceMap            mQmlRefMap;
+    model::QmlContentModel*		   mRootMap	  = nullptr;
 	static DSQmlApplicationEngine* sDefaultEngine;
 	DsImguiItem*				   mImgui;
 	QFileSystemWatcher*			   mWatcher = nullptr;

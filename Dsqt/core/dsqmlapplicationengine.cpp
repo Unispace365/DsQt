@@ -13,6 +13,9 @@
 #include "model/content_helper.h"
 #include "network/dsnodewatcher.h"
 
+
+Q_LOGGING_CATEGORY(lgAppEngine, "engine")
+Q_LOGGING_CATEGORY(lgAppEngineVerbose, "engine.verbose")
 namespace dsqt {
 using namespace Qt::Literals::StringLiterals;
 
@@ -24,7 +27,7 @@ DSQmlApplicationEngine::DSQmlApplicationEngine(QObject* parent)
 		setDefaultEngine(this);
 	}
 
-	qInfo() << "connecting file watcher";
+    qCInfo(lgAppEngine) << "connecting file watcher";
 	connect(
 		mWatcher, &QFileSystemWatcher::directoryChanged, this,
 		[this](const QString& path) {
@@ -40,7 +43,7 @@ DSQmlApplicationEngine::DSQmlApplicationEngine(QObject* parent)
 	connect(
 		&mTrigger, &QTimer::timeout, this,
 		[this]() {
-			qInfo() << "Triggered";
+            qCInfo(lgAppEngineVerbose) << "Triggered";
 			emit fileChanged("triggered");
 		},
 		Qt::QueuedConnection);
@@ -70,6 +73,7 @@ DSSettingsRef DSQmlApplicationEngine::getAppSettings() {
 model::ContentModelRef DSQmlApplicationEngine::getContentRoot() {
 	if (mContentRoot.empty()) {
 		mContentRoot = model::ContentModelRef("root");
+        mContentRoot.setId("root");
 	}
 	return mContentRoot;
 }
@@ -92,6 +96,11 @@ network::DsNodeWatcher *DSQmlApplicationEngine::getNodeWatcher() const
     return mNodeWatcher;
 }
 
+const model::ReferenceMap *DSQmlApplicationEngine::getReferenceMap() const
+{
+    return &mQmlRefMap;
+}
+
 void DSQmlApplicationEngine::preInit()
 {
 
@@ -101,21 +110,38 @@ void DSQmlApplicationEngine::init()
 {
     //setup nodeWatcher
     mNodeWatcher = new network::DsNodeWatcher(this);
-    mNodeWatcher->start();
+    //auto starts, but could also be this:
+    //mNodeWatcher = new network::DsNodeWatcher(this,"localhost",7788,/*autostart*/false)
+    //mNodeWatcher->start();
 
-	mContentRoot = getContentRoot();
+    qCInfo(lgAppEngine)<<"\nLoad Settings >>>>>>>>>>>>>>>>>>>>>>>>";
+    mContentRoot = getContentRoot();
+    qCInfo(lgAppEngine)<<"loading main engine.toml";
 	dsqt::DSEnvironment::loadEngineSettings();
-    auto extra_settings = DSEnvironment::engineSettings()->
-                          get<toml::array>("engine.extra_settings");
-    if(extra_settings.has_value()){
-        auto& extra_paths = *extra_settings.value().as_array();
+    auto extra_engine_settings = DSEnvironment::engineSettings()->
+                          getRawNode("engine.extra.engine",true);
+    if(extra_engine_settings){
+        auto& extra_paths = *extra_engine_settings->as_array();
         for(auto&& path_node : extra_paths) {
             auto path = path_node.as_string()->value_or<std::string>("");
-            dsqt::DSEnvironment::loadSettings("app_settings",path);
+            qCInfo(lgAppEngine)<<"Loading engine file "<<path;
+            dsqt::DSEnvironment::loadSettings("engine",path);
         }
     }
 
+    qCInfo(lgAppEngine)<<"loading main app_settings.toml";
 	mSettings = dsqt::DSEnvironment::loadSettings("app_settings","app_settings.toml");
+    auto extra_app_settings = DSEnvironment::engineSettings()->
+                                 getRawNode("engine.extra.app_settings",true);
+    if(extra_app_settings){
+        auto& extra_paths = *extra_app_settings->as_array();
+        for(auto&& path_node : extra_paths) {
+            auto path = path_node.as_string()->value_or<std::string>("");
+            qCInfo(lgAppEngine)<<"Loading app_settings file "<<path;
+            dsqt::DSEnvironment::loadSettings("app_settings",path);
+        }
+    }
+    qCInfo(lgAppEngine)<<">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n";
     mAppProxy=new DSSettingsProxy(this);
     mQmlEnv = new DSEnvironmentQML(this);
 	// get watcher elements
@@ -142,7 +168,7 @@ void DSQmlApplicationEngine::init()
 	}
 
     mAppProxy->setTarget("app_settings");
-    updateContentRoot();
+    updateContentRoot(nullptr);
     //rootContext()->setContextProperty("app_settings",mAppProxy);
     //rootContext()->setContextProperty("$QmlEngine", this);
     //rootContext()->setContextProperty("$Env",mQmlEnv);
@@ -172,23 +198,31 @@ DSQmlApplicationEngine* DSQmlApplicationEngine::DefEngine() {
 	return sDefaultEngine;
 }
 
-void DSQmlApplicationEngine::updateContentRoot() {
-	qInfo("Updating Content Root");
+void DSQmlApplicationEngine::updateContentRoot(model::PropertyMapDiff* diff) {
+    //updateContentRoot is responsible for cleaning up the diff.
+
+    qInfo("Updating Content Root");
     if(mContentRoot.empty()){
         mContentRoot	  = model::ContentModelRef("root");
+        mContentRoot.setId("root");
     }
-	auto oldRootModel = mRootModel;
-	auto oldRootMap	  = mRootMap;
-	mRootModel		  = mContentRoot.getModel(this);
-    mRootMap		  = mContentRoot.getQml(this);
-	rootContext()->setContextProperty("contentRootModel", mRootModel);
-	rootContext()->setContextProperty("contentRootMap", mRootMap);
-	if (oldRootModel) {
-		delete oldRootModel;
-	}
-	if (oldRootMap) {
-		delete oldRootMap;
-	}
+
+    if(mRootMap == nullptr){
+        mRootMap = mContentRoot.getQml(&mQmlRefMap,this);
+    } else {
+        if(diff){
+            diff->dumpChanges();
+            diff->apply(*mRootMap,&mQmlRefMap);
+
+            delete diff;
+        }
+    }
+
+    //mRootModel		  = mContentRoot.getModel(this);
+    //mRootMap		  = mContentRoot.getQml(this);
+    //rootContext()->setContextProperty("contentRootModel", mRootModel);
+    //rootContext()->setContextProperty("contentRootMap", mRootMap);
+
     emit rootUpdated();
 }
 

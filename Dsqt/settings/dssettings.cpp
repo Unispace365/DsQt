@@ -105,8 +105,15 @@ bool DSSettings::forgetSettings(const std::string& name) {
 //      return std::optional<std::string>();
 // }
 
-toml::node* DSSettings::getRawNode(const std::string& key) {
-	if (mRuntimeResult.data.at_path(key)) {
+toml::node* DSSettings::getRawNode(const std::string& key,bool onlyBase) {
+    if (onlyBase){
+        auto baseResult = mResultStack[0].data.at_path(key);
+        if(baseResult){
+            return baseResult.node();
+        }
+        return nullptr;
+    }
+    if (mRuntimeResult.data.at_path(key)) {
 		return mRuntimeResult.data.at_path(key).node();
 	}
 

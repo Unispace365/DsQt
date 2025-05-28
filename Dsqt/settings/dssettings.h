@@ -335,9 +335,7 @@ class DSSettings : public QObject {
 	template <class T>
 	void set(std::string& key, T& value);
 
-
-	// QQmlPropertyMap interface
-	toml::node* getRawNode(const std::string& key);
+    toml::node* getRawNode(const std::string& key,bool onlyBase=false);
 
   private:
 	// meta data

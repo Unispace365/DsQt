@@ -64,7 +64,7 @@ qt_add_qml_module(Dsqt
     utility/file_meta_data.cpp utility/file_meta_data.h
     utility/string_util.cpp utility/string_util.h
     utility/url_image_loader.cpp utility/url_image_loader.h
-    bridge/bridge_utility.cpp bridge/bridge_utility.h
+
     bridge/dsBridgeQuery.cpp bridge/dsBridgeQuery.h
     waffles.qrc
     SOURCES ui/clustermanager.h ui/clustermanager.cpp
@@ -76,6 +76,8 @@ qt_add_qml_module(Dsqt
     DEPENDENCIES
          QtQuick
          Dsqtplugin
+         SOURCES model/property_map_diff.h model/property_map_diff.cpp
+         SOURCES model/reference_map.h
 
 
 

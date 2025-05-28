@@ -16,7 +16,7 @@
 #include <memory>
 #include <string>
 #include <vector>
-
+#include "reference_map.h"
 
 #include "dsresource.h"
 Q_DECLARE_LOGGING_CATEGORY(lgContentModel)
@@ -24,6 +24,7 @@ Q_DECLARE_LOGGING_CATEGORY(lgContentModelVerbose)
 namespace dsqt::model {
 
 class QmlContentModel;
+
 
 /**
  * \class ContentProperty
@@ -118,6 +119,8 @@ class Data : public QSharedData {
 	std::map<QString, std::vector<ContentProperty>>					mPropertyLists;
 	std::vector<ContentModelRef>									mChildren;
 	std::map<QString, std::unordered_map<QString, ContentModelRef>> mReferences;
+    QObject*                                                        mRefQObj;
+    bool                                                            mNotToQml;
 };
 
 /**
@@ -336,14 +339,20 @@ class ContentModelRef {
 	/// break this content model from other copies. (copy on write behavior)
 	// void detach();
 	/// get a property map for this content model
-    QmlContentModel* getQml(QObject* parent = nullptr) const;
-
+    QmlContentModel* getQml(ReferenceMap* refMap,QObject* parent = nullptr,QString deep="") const;
+    void setNotToQml(bool toQml){
+        createData();
+        mData->mNotToQml = toQml;
+    }
 	void detach();
-
-  private:
+    void updateQml(QmlContentModel* map=nullptr);
+    QObject *getRefQObject();
+private:
 	void								  createData();
 	QJsonValue							  getJson();
 	QExplicitlySharedDataPointer<dsqt::model::Data> mData;
+    static QmlContentModel* mEmptyQmlContentModel;
+
 };
 
 }  // namespace dsqt::model

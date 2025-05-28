@@ -8,11 +8,12 @@
 #include <QtSql/QSql>
 #include <QtSql/QSqlDatabase>
 
-#include <bridge_utility.h>
+
 #include <core/dsqmlapplicationengine.h>
 #include <model/content_model.h>
 #include <model/dsresource.h>
 #include <settings/dssettings_proxy.h>
+#include <model/property_map_diff.h>
 
 Q_DECLARE_LOGGING_CATEGORY(lgBridgeSyncApp)
 Q_DECLARE_LOGGING_CATEGORY(lgBridgeSyncQuery)
@@ -43,14 +44,14 @@ public:
 
 public:
     bool isBridgeSyncRunning();
-    const BridgeUtility *getBridgeUtility() { return mBridgeUtility; }
+
 public slots:
     void QueryDatabase();
 signals:
-    void syncCompleted();
+    void syncCompleted(model::PropertyMapDiff* diff);
 
 private:
-    BridgeUtility *mBridgeUtility = nullptr;
+
     QSqlDatabase mDatabase;
     model::ContentModelRef mContent;
     model::ContentModelRef mPlatforms;
@@ -73,6 +74,7 @@ private:
     bool startConnection();
     void queryTables();
     QString slugifyKey(QString appKey);
+    model::QmlContentModel* previousModel = nullptr;
 };
 } // namespace dsqt::bridge
 #endif // DSBRIDGEQUERY_H

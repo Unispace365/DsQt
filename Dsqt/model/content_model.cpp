@@ -41,7 +41,7 @@ const std::vector<QRectF>		EMPTY_RECTF_LIST;
 
 }  // namespace
 
-
+QmlContentModel* ContentModelRef::mEmptyQmlContentModel = new QmlContentModel(ContentModelRef(),nullptr);
 ContentProperty::ContentProperty() : mName(""), mValue(""), mIntValue(0), mDoubleValue(0) {}
 
 ContentProperty::ContentProperty(const QString& name, const QString& value) {
@@ -200,7 +200,7 @@ QRectF ContentProperty::getRect() const {
 }
 
 
-Data::Data() : mName(EMPTY_STRING), mLabel(EMPTY_STRING), mUserData(nullptr), mId(EMPTY_STRING) {}
+Data::Data() : mName(EMPTY_STRING), mLabel(EMPTY_STRING), mUserData(nullptr), mId(EMPTY_STRING),mRefQObj(new QObject()),mNotToQml(false) {}
 Data::Data(const Data& other)
   : QSharedData(other)
   , mName(other.mName)
@@ -210,8 +210,10 @@ Data::Data(const Data& other)
   , mProperties(other.mProperties)
   , mPropertyLists(other.mPropertyLists)
   , mChildren(other.mChildren)
-  , mReferences(other.mReferences) {}
-Data::~Data() {}
+  , mReferences(other.mReferences)
+  , mRefQObj(new QObject())
+  , mNotToQml(other.mNotToQml) {}
+Data::~Data() { if(mRefQObj) delete mRefQObj;}
 
 
 ContentModelRef::ContentModelRef() {}
@@ -267,6 +269,11 @@ void* ContentModelRef::getUserData() const {
 void ContentModelRef::setUserData(void* userData) {
 	createData();
 	mData->mUserData = userData;
+}
+
+QObject* ContentModelRef::getRefQObject(){
+    createData();
+    return mData->mRefQObj;
 }
 
 bool ContentModelRef::empty() const {
@@ -999,30 +1006,49 @@ QJsonModel* ContentModelRef::getModel(QObject* parent) {
 	return model;
 }
 
-QmlContentModel* ContentModelRef::getQml(QObject* parent) const {
-    QmlContentModel* map = new QmlContentModel(*this,parent);
-	if (mData) {
-		map->insert("uid", QVariant::fromValue(mData->mId));
-		map->insert("id", QVariant::fromValue(mData->mId));
-		map->insert("name", QVariant::fromValue(mData->mName));
-		map->insert("label", QVariant::fromValue(mData->mLabel));
-		for (const auto& prop : mData->mProperties) {
-			map->insert(prop.first, QVariant::fromValue(prop.second.getValue()));
-		}
-		for (const auto& propList : mData->mPropertyLists) {
-			QVariantList list;
-			for (const auto& prop : propList.second) {
-				list.append(QVariant::fromValue(prop.getValue()));
-			}
-			map->insert(propList.first, list);
-		}
-		QVariantList children;
-		for (const auto& child : mData->mChildren) {
-            children.append(QVariant::fromValue(child.getQml(map)));
-		}
-		map->insert("children", children);
-	}
-	return map;
+void ContentModelRef::updateQml(QmlContentModel* mapIn){
+
+}
+
+
+
+QmlContentModel* ContentModelRef::getQml(ReferenceMap* refMap, QObject* parent,QString deep) const {
+    if(mData->mNotToQml) {
+        return mEmptyQmlContentModel;
+    }
+    QmlContentModel* map = QmlContentModel::getQmlContentModel(*this,refMap,parent);
+    auto sid = getId();
+    if(sid.isEmpty()){
+        sid = getName();
+    }
+    if(!refMap->isTemp) { qCDebug(lgContentModelVerbose).noquote()<<deep+"Updating QmlContentModel for "<<sid; }
+
+    auto localUpdate = [map](QString key,QVariant value) mutable {
+        map->insert(key,value);
+    };
+    auto id = QVariant::fromValue(mData->mId);
+    if (mData) {
+            localUpdate("uid", id);
+            localUpdate("id", id);
+            localUpdate("name", QVariant::fromValue(mData->mName));
+            localUpdate("label", QVariant::fromValue(mData->mLabel));
+            for (const auto& prop : mData->mProperties) {
+                localUpdate(prop.first, QVariant::fromValue(prop.second.getValue()));
+            }
+            for (const auto& propList : mData->mPropertyLists) {
+                QVariantList list;
+                for (const auto& prop : propList.second) {
+                    list.append(QVariant::fromValue(prop.getValue()));
+                }
+                localUpdate(propList.first, list);
+            }
+            QVariantList children;
+            for (const auto& child : mData->mChildren) {
+                children.append(QVariant::fromValue(child.getQml(refMap,map,deep+"--")));
+            }
+            localUpdate("children", children);
+    }
+    return map;
 }
 
 void ContentModelRef::detach() {
