@@ -7,7 +7,7 @@
 
 namespace dsqt::model {
 class QmlContentModel;
-//a reference map is basically a QMap. isTemp can be marked as true to
+//a reference map in support of QmlContentModel is basically a QMap. isTemp can be marked as true to
 //aid in debugging
 class ReferenceMap : public QMap<QString, QmlContentModel *>
 {
