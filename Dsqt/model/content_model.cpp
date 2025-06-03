@@ -1013,19 +1013,26 @@ void ContentModelRef::updateQml(QmlContentModel* mapIn){
 
 
 QmlContentModel* ContentModelRef::getQml(ReferenceMap* refMap, QObject* parent,QString deep) const {
+    //skip this if we aren't sending this model to qml.
     if(mData->mNotToQml) {
         return mEmptyQmlContentModel;
     }
+    //do we already have a QmlContentModel for this model?
     QmlContentModel* map = QmlContentModel::getQmlContentModel(*this,refMap,parent);
-    auto sid = getId();
-    if(sid.isEmpty()){
-        sid = getName();
-    }
-    if(!refMap->isTemp) { qCDebug(lgContentModelVerbose).noquote()<<deep+"Updating QmlContentModel for "<<sid; }
 
+    if(!refMap->isTemp) {
+        auto sid = getId();
+        if(sid.isEmpty()){
+            sid = getName();
+        }
+        qCDebug(lgContentModelVerbose).noquote()<<deep+"Updating QmlContentModel for "<<sid;
+    }
+    //localUpdate is to encapsulate debugging or additional functionality
+    //associated with changing/inserting a key value;
     auto localUpdate = [map](QString key,QVariant value) mutable {
         map->insert(key,value);
     };
+
     auto id = QVariant::fromValue(mData->mId);
     if (mData) {
             localUpdate("uid", id);
