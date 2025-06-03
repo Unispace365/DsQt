@@ -511,7 +511,7 @@ void DsBridgeSqlQuery::queryTables()
               " v.number,"                // 10
               " v.number_min,"            // 11
               " v.number_max,"            // 12
-              " v.date,"              // 13
+              " v.date,"                  // 13
               " v.resource_hash,"         // 14
               " v.crop_x,"                // 15
               " v.crop_y,"                // 16
@@ -549,7 +549,8 @@ void DsBridgeSqlQuery::queryTables()
               " v.hotspot_y,"             // 48
               " v.hotspot_w,"             // 49
               " v.hotspot_h,"             // 50
-              " res.filename"             // 51
+              " res.filename,"            // 51
+              " v.time"                   // 52
               " FROM value AS v"
               " LEFT JOIN lookup AS l ON l.uid = v.field_uid"
               " LEFT JOIN resource AS res ON res.hash = v.resource_hash"
