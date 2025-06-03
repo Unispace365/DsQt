@@ -34,7 +34,7 @@ class ClusterView : public QQuickItem
     QML_ATTACHED(ClusterAttachedType)
     QML_ELEMENT
     Q_PROPERTY(QQmlComponent* delegate READ delegate WRITE setDelegate NOTIFY delegateChanged FINAL)
-    Q_PROPERTY(ClusterManager* manager READ manager WRITE setManager NOTIFY managerChanged FINAL)
+    Q_PROPERTY(dsqt::ui::ClusterManager* manager READ manager WRITE setManager NOTIFY managerChanged FINAL)
     //Q_PROPERTY(QQuickItem* target READ target WRITE setTarget NOTIFY targetChanged FINAL)
     Q_CLASSINFO("DefaultProperty", "delegate")
 public:
@@ -53,7 +53,7 @@ public:
     }
 
 public slots:
-    void onClusterUpdated(const QEventPoint::State& state, TouchCluster*);
+    void onClusterUpdated(const QEventPoint::State& state, dsqt::ui::TouchCluster*);
 
 
 signals:
