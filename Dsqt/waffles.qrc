@@ -216,5 +216,6 @@
         <file>res/data/media_interface/thumbnails.png</file>
         <file>res/data/media_interface/touch_locked.png</file>
         <file>res/data/media_interface/touch_unlocked.png</file>
+        <file>res/data/waffles/ui/quickMenuSelectionArrow.svg</file>
     </qresource>
 </RCC>
