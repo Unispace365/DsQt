@@ -3,6 +3,7 @@
 #include <filesystem>
 #include <iostream>
 #include <string>
+#include <qtimezone.h>
 #include "core/dsenvironment.h"
 
 Q_LOGGING_CATEGORY(lgSettingsParser, "settings.parser")
@@ -181,6 +182,142 @@ void DSSettings::set(std::string& key, T& value) {
 		if (true) {}
 	}
 }
+
+
+
+//-----------------------------------------------------------------------
+
+// Convert a toml::node_view<const toml::node> to QVariant
+QVariant DSSettings::tomlNodeViewToQVariant(const toml::node_view<const toml::node>& n)
+{
+    // Boolean?
+    if (n.is_boolean())
+    {
+        // n.value<bool>() returns std::optional<bool>
+        std::optional<bool> optBool = n.value<bool>();
+        if (optBool.has_value())
+            return QVariant(optBool.value());
+        return QVariant();
+    }
+    // Integer?
+    else if (n.is_integer())
+    {
+        std::optional<toml::int64_t> optInt = n.value<toml::int64_t>();
+        if (optInt.has_value())
+            return QVariant(static_cast<qint64>(optInt.value()));
+        return QVariant();
+    }
+    // Floating-point?
+    else if (n.is_floating_point())
+    {
+        std::optional<double> optDouble = n.value<double>();
+        if (optDouble.has_value())
+            return QVariant(optDouble.value());
+        return QVariant();
+    }
+    // String?
+    else if (n.is_string())
+    {
+        std::optional<std::string> optStr = n.value<std::string>();
+        if (optStr.has_value())
+            return QVariant(QString::fromStdString(optStr.value()));
+        return QVariant();
+    }
+    // Date-time?
+    else if (n.is_date_time())
+    {
+        std::optional<toml::date_time> optDT = n.value<toml::date_time>();
+        if (optDT.has_value())
+        {
+            toml::date_time dt = optDT.value();
+            QDate qd(dt.date.year, dt.date.month, dt.date.day);
+            QTime qt(dt.time.hour, dt.time.minute, dt.time.second);
+            QDateTime qdt(qd, qt, dt.offset.has_value() ? QTimeZone(dt.offset->minutes*60) : QTimeZone(QTimeZone::Initialization::LocalTime));
+            return QVariant::fromValue(qdt);
+        }
+        return QVariant();
+    }
+    // Array?
+    else if (n.is_array())
+    {
+        if (auto arrPtr = n.as_array())
+        {
+            // Construct a node_view over the array, then recurse
+            return QVariant::fromValue(
+                tomlArrayViewToVariantList(toml::node_view<const toml::node>(*arrPtr))
+                );
+        }
+        return QVariant();
+    }
+    // Table?
+    else if (n.is_table())
+    {
+        if (auto tabPtr = n.as_table())
+        {
+            // Construct a node_view over the table, then recurse
+            return QVariant::fromValue(
+                tomlTableViewToVariantMap(toml::node_view<const toml::node>(*tabPtr))
+                );
+        }
+        return QVariant();
+    }
+
+    // Fallback: unrecognized type → invalid QVariant
+    return QVariant();
+}
+
+// Recursively convert a toml::node_view<const toml::array> into QVariantList
+QVariantList DSSettings::tomlArrayViewToVariantList(const toml::node_view<const toml::node>& arrView)
+{
+    QVariantList list;
+    //list.reserve(static_cast<int>(arrView->size()));
+
+    for (auto const& element : *arrView.as_array())
+    {
+        // For each element (a toml::node), create a node_view and recurse
+        list.append(
+            tomlNodeViewToQVariant(toml::node_view<const toml::node>(element))
+            );
+    }
+    return list;
+}
+
+// Recursively convert a toml::node_view<const toml::table> into QVariantMap
+QVariantMap DSSettings::tomlTableViewToVariantMap(const toml::node_view<const toml::node>& tabView)
+{
+    QVariantMap map;
+    //map.reserve(static_cast<int>(tabView->size()));
+
+    for (auto const& [key, nodeRef] : *tabView.as_table())
+    {
+        // For each key/value, wrap the node in a node_view and recurse
+        map.insert(
+            QString::fromStdString(std::string(key.str())),
+            tomlNodeViewToQVariant(toml::node_view<const toml::node>(nodeRef))
+            );
+    }
+    return map;
+}
+
+// Example usage:
+//
+// toml::parse_result pr = toml::parse_file("config.toml");
+// if (!pr) { /* handle parse errors here */ }
+// toml::table const& rootTbl = *pr;
+//
+// // Suppose there is a top-level array named "myArray":
+// if (auto arrNodePtr = rootTbl["myArray"].as_array())
+// {
+//     // Create a node_view over that array pointer
+//     toml::node_view<const toml::array> arrView(*arrNodePtr);
+//     QVariantList qlist = tomlArrayViewToVariantList(arrView);
+//     // Now 'qlist' can be used anywhere a QVariantList is expected.
+// }
+//
+
+
+
+
 
 
 }  // namespace dsqt

@@ -1,6 +1,5 @@
 import QtQuick 2.15
 import QtMultimedia
-import QtQuick.Pdf
 import Dsqt
 
 Viewer {

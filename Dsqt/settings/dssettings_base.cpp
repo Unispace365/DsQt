@@ -163,7 +163,7 @@ template<> std::optional<ValueWMeta<float>> DSSettings::getWithMeta(const std::s
 }
 
 template<> std::optional<ValueWMeta<bool>> DSSettings::getWithMeta(const std::string& key){
-	qCDebug(lgSPVerbose) << "RUNNING float";
+    qCDebug(lgSPVerbose) << "RUNNING bool";
 	auto val = getNodeViewWithMeta(key);
     if(!val.has_value()) return std::optional<ValueWMeta<float>>();
 
@@ -183,5 +183,7 @@ template<> std::optional<ValueWMeta<bool>> DSSettings::getWithMeta(const std::st
     }
     return std::optional<ValueWMeta<float>>();
 }
+
+
 
 }

@@ -89,8 +89,8 @@ class DSSettings : public QObject {
 	template <typename T>
 	static constexpr bool is_valid_setting_type = std::is_same_v<T, toml::node> || //
                                                   std::is_same_v<T, toml::array> ||
-												  // std::is_same_v<T, QMap<QString,QVariant>> || //
-												  // std::is_same_v<T, QVector<QVariant>> || //
+                                                  std::is_same_v<T, QMap<QString,QVariant>> || //
+                                                  std::is_same_v<T, QVector<QVariant>> || //
 												  std::is_same_v<T, std::string> ||	 //
 												  std::is_same_v<T, QString> ||		 //
 												  std::is_same_v<T, int64_t> ||		 //
@@ -179,6 +179,42 @@ class DSSettings : public QObject {
 		}
 		return std::optional<T>();
 	}
+
+    template<> std::optional<QVariantList> get(const std::string& key) {
+        auto retval = getWithMeta<QVariantList>(key);
+        if (retval) {
+            auto [value, x, y] = retval.value();
+            //if value is empty and meta is null...
+            if(value.isEmpty()){
+                const auto rawNode = getRawNode(key);
+                const auto raw = toml::node_view<const toml::node>(rawNode);
+                if(raw.is_array()){
+                    auto variantValue = tomlArrayViewToVariantList(raw);
+                    return std::optional<QVariantList>(variantValue);
+                }
+            }
+            return value;
+        }
+        return std::optional<QVariantList>(QVariantList());
+    }
+
+    template<> std::optional<QVariantMap> get(const std::string& key) {
+        auto retval = getWithMeta<QVariantMap>(key);
+        if (retval) {
+            auto [value, x, y] = retval.value();
+            //if value is empty and meta is null...
+            if(value.isEmpty()){
+                const auto rawNode = getRawNode(key);
+                const auto raw = toml::node_view<const toml::node>(rawNode);
+                if(raw.is_table()){
+                    auto variantValue = tomlTableViewToVariantMap(raw);
+                    return std::optional<QVariantMap>(variantValue);
+                }
+            }
+            return value;
+        }
+        return std::optional<QVariantMap>(QVariantMap());
+    }
 
 	/// Get a setting from the collection with the meta data.
 	/// This is used for debuging and internal management.
@@ -273,8 +309,8 @@ class DSSettings : public QObject {
 	// Collections
 	template <>
 	std::optional<ValueWMeta<toml::node>> getWithMeta(const std::string& key);
-	// template<> std::optional<ValueWMeta<QVector<QVariant>>> getWithMeta(const std::string& key);
-	// template<> std::optional<ValueWMeta<QMap<QString,QVariant>>> getWithMeta(const std::string& key);
+    template<> std::optional<ValueWMeta<QVector<QVariant>>> getWithMeta(const std::string& key);
+    template<> std::optional<ValueWMeta<QMap<QString,QVariant>>> getWithMeta(const std::string& key);
 
 	// QColor
 	template <>
@@ -350,6 +386,10 @@ class DSSettings : public QObject {
 	static std::unordered_map<std::string,
 							  std::function<void(QColor& resultcolor, float v1, float v2, float v3, float v4, float v5)>>
 		sColorConversionFuncs;
+    // Forward declarations
+    QVariant tomlNodeViewToQVariant(const toml::node_view<const toml::node>& n);
+    QVariantList tomlArrayViewToVariantList(const toml::node_view<const toml::node>& arrView);
+    QVariantMap tomlTableViewToVariantMap(const toml::node_view<const toml::node>& tabView);
 	// static std::unordered_map<std::type_index,DSOverloaded> sOverloadMap;
 };
 

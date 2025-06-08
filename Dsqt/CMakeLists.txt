@@ -4,20 +4,23 @@ project(Dsqt VERSION 0.1 LANGUAGES CXX)
 
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
+
+set(CMAKE_AUTOUIC ON)
+
+
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 #set(QT_QML_OUTPUT_DIRECTORY  ${CMAKE_BINARY_DIR}/Dsqt)
-set(QML_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
+set(QML_ROOT ${CMAKE_BINARY_DIR}\\Dsqt)
 
 set(QML_IMPORT_PATH
 
-    "${CMAKE_BINARY_DIR}\\Dsqt;${QML_ROOT}\\qml;${QML_ROOT}\\qml\\waffles;${QML_ROOT}\\qml\\bridge"
-    CACHE PATH "QT creator qml import path" FORCE
-)
+     "${CMAKE_BINARY_DIR}\\Dsqt;${QML_ROOT}\\qml;${QML_ROOT}\\qml\\waffles;${QML_ROOT}\\qml\\bridge"
+     CACHE PATH "QT creator qml import path" FORCE
+ )
 
-find_package(Qt6 6.9 COMPONENTS Core Quick Gui ShaderTools Sql REQUIRED)
+find_package(Qt6 6.9 COMPONENTS Core Quick Gui ShaderTools Sql REQUIRED COMPONENTS Test)
 qt_standard_project_setup(REQUIRES 6.9)
 
-#qt_add_library(Dsqt STATIC)
 qt_add_qml_module(Dsqt
     URI Dsqt
     STATIC
@@ -78,13 +81,6 @@ qt_add_qml_module(Dsqt
          Dsqtplugin
          SOURCES model/property_map_diff.h model/property_map_diff.cpp
          SOURCES model/reference_map.h
-
-
-
-
-
-
-
 )
 
 #add_library(Dsqt::Dsqt ALIAS Dsqt)
@@ -154,3 +150,7 @@ cmake_path(NATIVE_PATH CMAKE_CURRENT_SOURCE_DIR DS_QMLLINT_ROOT)
 #configure_file(${CMAKE_SOURCE_DIR}/cmake/FindDsqt.in.cmake ${CMAKE_SOURCE_DIR}/cmake/FindDsqt.cmake @ONLY)
 #export(TARGETS Dsqt Dsqt_resources_1 Dsqt_resources_2 Dsqt_resources_3 Dsqt_resources_4 Dsqtplugin Dsqtplugin_init NAMESPACE Dsqt:: FILE ${CMAKE_SOURCE_DIR}/cmake/DsqtImport.cmake )
 set_target_properties(Dsqt PROPERTIES FOLDER DsQt-Framework)
+if(PROJECT_IS_TOP_LEVEL)
+  add_subdirectory(Tests)
+endif()
+
