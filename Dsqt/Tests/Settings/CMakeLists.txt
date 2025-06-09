@@ -2,11 +2,11 @@ cmake_minimum_required(VERSION 3.29)
 include(FetchContent)
 
 #project info
-set(DS_APP_NAME DsQtTests)
-set(DS_EXE_NAME app${DS_APP_NAME})
+set(DS_APP_NAME settings)
+set(DS_EXE_NAME test_${DS_APP_NAME})
 set(DS_APP_VERSION "1.0.0.0")
-set(DS_PROJECT_NAME "DsQtTests")
-set(DS_PROJECT_DESC "DsQt Tests")
+set(DS_PROJECT_NAME "settings_tests")
+set(DS_PROJECT_DESC "settings_tests")
 
 #project(${DS_APP_NAME} VERSION 0.1 LANGUAGES CXX)
 
@@ -24,8 +24,10 @@ enable_testing()
 
 
 qt_add_executable(${DS_EXE_NAME}
+
     tst_dssettingstest.cpp
 )
+
 add_test(NAME ${DS_EXE_NAME} COMMAND ${DS_EXE_NAME})
 
 #get the settings to show up in the IDE
@@ -33,7 +35,7 @@ message("adding test settings target")
 file(GLOB_RECURSE TEST_SETTINGS LIST_DIRECTORIES false ${CMAKE_CURRENT_SOURCE_DIR}/settings/*)
 #LIST(APPEND DS_SETTINGS qt.conf)
 #LIST(APPEND DS_SETTINGS .qmlls.ini)
-add_custom_target(test-settings SOURCES ${TEST_SETTINGS})
+add_custom_target(settings SOURCES ${TEST_SETTINGS})
 
 file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/settings)
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/settings/test_settings.toml ${CMAKE_BINARY_DIR}/settings COPYONLY)

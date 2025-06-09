@@ -151,6 +151,7 @@ cmake_path(NATIVE_PATH CMAKE_CURRENT_SOURCE_DIR DS_QMLLINT_ROOT)
 #export(TARGETS Dsqt Dsqt_resources_1 Dsqt_resources_2 Dsqt_resources_3 Dsqt_resources_4 Dsqtplugin Dsqtplugin_init NAMESPACE Dsqt:: FILE ${CMAKE_SOURCE_DIR}/cmake/DsqtImport.cmake )
 set_target_properties(Dsqt PROPERTIES FOLDER DsQt-Framework)
 if(PROJECT_IS_TOP_LEVEL)
-  add_subdirectory(Tests)
+  add_subdirectory(Tests/Settings)
+  add_subdirectory(Tests/BridgeTest)
 endif()
 

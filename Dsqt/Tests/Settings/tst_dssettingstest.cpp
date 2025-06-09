@@ -644,6 +644,6 @@ void DSSettingsTest::read_notable()
 	QVERIFY(val.value() == "test value");
 }
 
-//QTEST_APPLESS_MAIN(DSSettingsTest)
 QTEST_MAIN(DSSettingsTest)
+//QTEST_MAIN(DSSettingsTest)
 #include "tst_dssettingstest.moc"
