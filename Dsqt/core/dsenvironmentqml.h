@@ -13,6 +13,7 @@ class DSEnvironmentQML : public QObject
 public:
     explicit DSEnvironmentQML(QObject *parent = nullptr);
     Q_INVOKABLE const QString expand(const QString& string);
+    Q_INVOKABLE const QUrl expandUrl(const QString& string);
     //Q_INVOKABLE QString getLocalFolder();
 signals:
 
