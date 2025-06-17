@@ -12,7 +12,8 @@ TouchCluster::TouchCluster(QQuickItem *parent): QQuickItem(parent)
 void TouchCluster::addToBoundingBox(QPointF point, QRectF &boundingBox)
 {
     if(!boundingBox.contains(point)){
-        boundingBox = boundingBox.united(QRectF(point,point));
+        auto box = boundingBox.united(QRectF(point,QSizeF(0.001,0.001)));
+        boundingBox.setRect(box.x(),box.y(),box.width(),box.height());
     }
 }
 
