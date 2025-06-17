@@ -153,5 +153,33 @@ QVariant DSSettingsProxy::getBool(const QString& key, QVariant def) {
 	return result;
 }
 
+QVariantList DSSettingsProxy::getList(const QString& key, QVariant def) {
+    QVariantList result;
+    std::string keyPath = _prefix_str.empty() ? key.toStdString() : _prefix_str + "." + key.toStdString();
+    if (def.canConvert<QVariantList>()) {
+        result = _settings->getOr(keyPath, def.toList());
+    } else {
+        auto strOpt = _settings->get<QVariantList>(keyPath);
+        if (strOpt) {
+            result = strOpt.value();
+        }
+    }
+    return result;
+}
+
+QVariantMap DSSettingsProxy::getObj(const QString& key, QVariant def) {
+    QVariantMap result;
+    std::string keyPath = _prefix_str.empty() ? key.toStdString() : _prefix_str + "." + key.toStdString();
+    if(def.canConvert<QVariantMap>()) {
+        result = _settings->getOr(keyPath, def.toMap());
+    } else {
+        auto strOpt = _settings->get<QVariantMap>(keyPath);
+        if(strOpt) {
+            result = strOpt.value();
+        }
+    }
+    return result;
+}
+
 
 }  // namespace dsqt
