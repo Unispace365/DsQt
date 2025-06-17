@@ -23,7 +23,7 @@ bool ClusterManager::event(QEvent *event)
     bool mousePressed = false, mouseMoved = false, mouseReleased = false;
     auto mouseState = QEventPoint::Unknown;
     switch(event->type()){
-
+    //these mouse cases drop through
     case QEvent::MouseButtonPress:
         mouseevent->addPassiveGrabber(mouseevent->point(0),this);
         mousePressed = true;

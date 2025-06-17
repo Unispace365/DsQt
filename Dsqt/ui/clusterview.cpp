@@ -47,47 +47,84 @@ void ClusterView::onClusterUpdated(const QEventPoint::State &state, TouchCluster
 
     switch(state){
     case QEventPoint::Pressed:
-        if(mDelegate){
-            //create an instance of the delegate.
-            QObject* obj = mDelegate->create();
-            QQuickItem* item = qobject_cast<QQuickItem*>(obj);
+        {
+            bool newMenu = false;
+            auto id = cluster->mClusterId;
 
-            if(item){
-                item->setParent(this);
-                item->setParentItem(this);
-                item->setX(cluster->boundingBox().center().x());
-                item->setY(cluster->boundingBox().center().y());
-                //qDebug()<<"Cluster ID added:"<<cluster->mClusterId<<":"<<(uint64_t)cluster;
-                DelegateInstance *instance = new DelegateInstance();
-                instance->mItem = item;
-                instance->mInUse = true;
-                mInstanceStorage.push_back(instance);
+            DelegateInstance *instance = nullptr;
+            auto instanceIt = std::find_if(mInstanceStorage.begin(),mInstanceStorage.end(),[this](DelegateInstance* inst){
+                return inst->mInUse == false || mManager->holdOpenOnTouch();
+            });
+            if(instanceIt != mInstanceStorage.end()){
+                instance = *instanceIt;
+                qDebug()<<"Cluster ID added:"<<cluster->mClusterId<<":"<<(uint64_t)cluster<<" - instance reused";
+            }
+            else if(mDelegate) {
+                //create an instance of the delegate.
+                QVariantMap initProps = {{"model",menuModel()},{"config",menuConfig()}};
+                QObject* obj = mDelegate->createWithInitialProperties(initProps);
+                if(mDelegate->isError()){
+                    for(auto& err:mDelegate->errors()){
+                        qDebug()<<"Menu creation error:"<<err.description();
+                    }
+                }
+                QQuickItem* item = qobject_cast<QQuickItem*>(obj);
+
+                if(item){
+                    newMenu = true;
+                    item->setParent(this);
+                    //item->setProperty("model",model());
+
+                    qDebug()<<"Cluster ID added:"<<cluster->mClusterId<<":"<<(uint64_t)cluster<< " - new instance";
+                    instance = new DelegateInstance();
+                    instance->mItem = item;
+
+                    mInstanceStorage.push_back(instance);
+
+
+                }
+            }
+
+            if(instance){
+
                 mInstanceMap[cluster->mClusterId] = instance;
-
+                instance->mInUse = true;
+                instance->mItem->setParentItem(this);
                 ClusterAttachedType* attached = qobject_cast<ClusterAttachedType*>(qmlAttachedPropertiesObject<ClusterView>(instance->mItem));
                 if(attached){
                     auto id = cluster->mClusterId;
                     instance->mConnection = connect(attached,&ClusterAttachedType::animateOffFinished,this,[this,instance,id](){
                         mInstanceMap.erase(id);
-                        //qDebug()<<"Cluster ID Removed:"<<id<<":";
+                        qDebug()<<"Cluster ID Removed:"<<id<<":";
                         instance->mInUse = false;
+                        instance->mItem->setParentItem(nullptr);
                         disconnect(instance->mConnection);
                     });
+                    updateInstanceFromCluster(instance,cluster);
                     emit attached->created();
                 }
-                updateInstanceFromCluster(instance,cluster);
+
+                if(newMenu){
+                    menuAdded(instance->mItem);
+                }
+                menuShown(instance->mItem);
             }
+
         }
         break;
     case QEventPoint::Released:
         {
+
             if(cluster && mInstanceMap.find(cluster->mClusterId)!=mInstanceMap.end()){
                 DelegateInstance *instance = mInstanceMap.at(cluster->mClusterId);
 
                 if(instance){
                     ClusterAttachedType* attached = qobject_cast<ClusterAttachedType*>(qmlAttachedPropertiesObject<ClusterView>(instance->mItem));
-                    emit attached->removed();
-                    updateInstanceFromCluster(instance,cluster);
+                    emit attached->released();
+                    if(!mManager->holdOpenOnTouch()){
+                        emit attached->removed();
+                        updateInstanceFromCluster(instance,cluster);
+                    }
                 } else {
                     qDebug()<<"Release but no instance 2";
                 }
@@ -116,11 +153,18 @@ void dsqt::ui::ClusterView::updateInstanceFromCluster(DelegateInstance *instance
     ClusterAttachedType* attached = qobject_cast<ClusterAttachedType*>(qmlAttachedPropertiesObject<ClusterView>(instance->mItem));
     if(cluster->mTouchCount>=mMinimumTouchesNeeded){
         //get the attached property object.
-
+        if(attached->minimumMet() == false){
+        instance->mItem->setX(cluster->boundingBox().center().x());
+        instance->mItem->setY(cluster->boundingBox().center().y());
+        }
         attached->setMinimumMet(true);
+
+
     } else {
         attached->setMinimumMet(false);
     }
+    auto point = instance->mItem->mapFromItem(this,cluster->boundingBox().center());
+    emit attached->updated(point);
 }
 
 ClusterAttachedType::ClusterAttachedType(QObject *parent):QObject(parent)
@@ -139,6 +183,42 @@ void ClusterAttachedType::setMinimumMet(bool newMinimumMet)
         return;
     m_minimumMet = newMinimumMet;
     emit minimumMetChanged();
+}
+
+void ClusterAttachedType::setClusterView(ClusterView *view)
+{
+    m_clusterView = view;
+}
+
+void ClusterAttachedType::closeCluster()
+{
+   // m_clusterView->manager()->
+}
+
+QVariantList ClusterView::menuModel() const
+{
+    return m_menuModel;
+}
+
+void ClusterView::setMenuModel(const QVariantList &newModel)
+{
+    if (m_menuModel == newModel)
+        return;
+    m_menuModel = newModel;
+    emit menuModelChanged();
+}
+
+QVariantMap ClusterView::menuConfig() const
+{
+    return m_menuConfig;
+}
+
+void ClusterView::setMenuConfig(const QVariantMap &newMenuConfig)
+{
+    if (m_menuConfig == newMenuConfig)
+        return;
+    m_menuConfig = newMenuConfig;
+    emit menuConfigChanged();
 }
 
 }
