@@ -12,6 +12,10 @@ Loader {
     property alias yScale: loaderScale.yScale;
     property alias xTrans: loaderTrans.x;
     property alias yTrans: loaderTrans.y;
+    property real viewScale: 1.0;
+    property point viewPos: Qt.point(0,0);
+    property url rootSource: ""
+    source: rootSource
 
     DSSettingsProxy {
         id:windowProxy
@@ -54,22 +58,25 @@ Loader {
         repeat: false
         onTriggered: {
             DS.engine.clearQmlCache();
-            loadera.source = rootSrc+"?tip="+Math.random()
+            loadera.source = loadera.rootSource+"?tip="+Math.random()
         }
     }
 
     onStatusChanged: console.log(status)
     //onLoaded: loadera.visible = true;
 
-    Component.onCompleted: {
+    function scaleView(scale: real, pos: point){
         //resize the loader to fit in the destination
         var src = windowProxy.getRect("source");
-        var dst = Qt.size(window.width,window.height);
-        var x_scale = dst.width/src.width
-        var y_scale = dst.height/src.height
+        var dst = Qt.size(loadera.width,loadera.height);
+        var x_scale = dst.width/src.width*(loadera.viewScale ?? 1.0)
+        var y_scale = dst.height/src.height*(loadera.viewScale ?? 1.0)
         var offset = Qt.point(src.x+0.5*src.width,src.y+0.5*src.height);
-        console.log("scale: "+x_scale+","+y_scale);
-        console.log("offset "+offset.x+","+offset.y);
+        offset.x += loadera.viewPos?.x ?? 0;
+        offset.y += loadera.viewPos?.y ?? 0;
+
+        //console.log("scale: "+x_scale+","+y_scale);
+        //console.log("offset "+offset.x+","+offset.y);
 
         loadera.x = -offset.x + 0.5*dst.width;
         loadera.y = -offset.y + 0.5*dst.height;
@@ -79,7 +86,14 @@ Loader {
         loadera.yScale = y_scale;
         //loader.xTrans = -offset.x + 0.5*dst.width;
         //loader.yTrans = -offset.y + 0.5*dst.height;
-
     }
+
+    Component.onCompleted: {
+        scaleView(1.0,Qt.point(0,0));
+    }
+
+
+
+
 
 }

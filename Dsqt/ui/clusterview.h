@@ -66,6 +66,8 @@ public:
 
     QVariantMap menuConfig() const;
     void setMenuConfig(const QVariantMap &newMenuConfig);
+protected:
+    void componentComplete() override;
 
 public slots:
     void onClusterUpdated(const QEventPoint::State& state, dsqt::ui::TouchCluster*);

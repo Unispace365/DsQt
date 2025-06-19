@@ -40,14 +40,14 @@ bool ClusterManager::event(QEvent *event)
         }
 
         if((mouseevent->modifiers() & Qt::ShiftModifier) || (mouseReleased&&mClusters->rowCount()>0)){
-            float angle = 2*glm::pi<float>()/5;
+            float angle = 2*glm::pi<float>()/m_minClusterTouchCount;
             glm::vec2 pos(mouseevent->pos().x(),mouseevent->pos().y());
-            for(int i=0;i<5;i++){
+            for(int i=0;i<m_minClusterTouchCount;i++){
                 TouchInfo ti;
 
                 glm::vec2 unit(0,1);
-                unit = glm::rotate(unit,angle);
-                unit = unit * 20;
+                unit = glm::rotate(unit,angle*i);
+                unit = unit * 50;
                 auto nPoint = pos + unit;
 
                 ti.mPoint = QPointF(nPoint.x,nPoint.y);
@@ -166,8 +166,8 @@ void ClusterManager::parseTouch(const TouchInfo& ti) {
             TouchCluster* clust = new TouchCluster(this);
 
             clust->mTouches.push_back(nt);
-            clust->mBoundingBox.setRect(nt.mPoint.x(), nt.mPoint.y(), 0, 0);
-            clust->mCurrentBoundingBox.setRect(nt.mPoint.x(), nt.mPoint.y(), 0, 0);
+            clust->mBoundingBox.setRect(nt.mPoint.x(), nt.mPoint.y(), 0.001, 0.001);
+            clust->mCurrentBoundingBox.setRect(nt.mPoint.x(), nt.mPoint.y(), 0.001, 0.001);
             clust->mTouchCount = 1;
             clust->mClusterId  = mMaxClusterId;
             mMaxClusterId++;
@@ -180,7 +180,7 @@ void ClusterManager::parseTouch(const TouchInfo& ti) {
 
             clusty->mTouches.push_back(nt);
             if (clusty->mTouches.size() == 1) {
-                clusty->mBoundingBox.setRect(nt.mPoint.x(), nt.mPoint.y(), 0, 0);
+                clusty->mBoundingBox.setRect(nt.mPoint.x(), nt.mPoint.y(), 0.001, 0.001);
             }
 
             if (clusty->mTouches.size() < m_minClusterTouchCount + 1 && !clusty->mTriggerable) {

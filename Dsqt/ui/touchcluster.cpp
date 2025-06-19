@@ -21,11 +21,14 @@ void TouchCluster::configureCurrentBoundingBox(){
     auto oldbb = mCurrentBoundingBox;
     auto oldCenter = m_center;
     if(mTouches.size()<1){
-        mCurrentBoundingBox.setCoords(0,0,0,0);
+        mCurrentBoundingBox.setCoords(0,0,0.001,0.001);
 
     } else {
         mCurrentBoundingBox.setTopLeft(mTouches[0].mPoint);
-        mCurrentBoundingBox.setBottomRight(mTouches[0].mPoint);
+        QPointF br = mTouches[0].mPoint;
+        br.setX(br.x()+0.001);
+        br.setY(br.y()+0.001);
+        mCurrentBoundingBox.setBottomRight(br);
         for(auto& touch:mTouches){
             addToBoundingBox(touch.mPoint,mCurrentBoundingBox);
         }

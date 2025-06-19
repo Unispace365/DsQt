@@ -12,11 +12,17 @@ Window {
     width: windowProxy.getRect("destination").width;
     height:  windowProxy.getRect("destination").height;
     visible: true
-    title: qsTr("Hello World")
+    title: `${Application.name} (${Application.version})`
     flags: Qt.FramelessWindowHint | Qt.Window
+    property string mode:"normal"
     ///The path to the QML object to load as the root
     property url rootSrc:"";
     
+    Item {
+        id: root
+        width: window.width;
+        height: window.height;
+
     Shortcut {
         sequences: ["ESCAPE","CTRL+Q"]
         autoRepeat: false;
@@ -42,9 +48,88 @@ Window {
 
 
     DSScaleLoader {
+       width: window.width
+       height: window.height
        id: loadera
-       source: window.rootSrc;
+       rootSource: window.rootSrc;
     }
+
+    Shortcut {
+        sequence: "S"
+        autoRepeat: false
+        onActivated: {window.mode = window.mode != "scale" ? "scale" : "normal"}
+        context: Qt.ApplicationShortcut
+    }
+
+    Shortcut {
+        sequence: "T"
+        autoRepeat: false
+        onActivated: {window.mode = window.mode != "translate" ? "translate" : "normal" }
+        context: Qt.ApplicationShortcut
+    }
+
+    Shortcut {
+        sequence: "0"
+        autoRepeat: false
+        onActivated: {
+            window.mode = "normal"
+            loadera.viewScale = 1.0;
+            loadera.viewPos = Qt.point(0,0);
+            loadera.scaleView()
+        }
+        context: Qt.ApplicationShortcut
+    }
+
+    MouseArea {
+        enabled: {window.mode != "normal"}
+        width: window.width;
+        height: window.height;
+        property real startX
+        property real startY
+        onPressed: {
+            startX = mouseX;
+            startY = mouseY;
+        }
+        onMouseXChanged: {
+            if(window.mode == "scale"){
+                if(window.width>0){
+                    let dist = (mouseX - startX)/window.width*2
+                    loadera.viewScale += dist;
+                    if(loadera.viewScale<1.0){
+                        loadera.viewScale = 1.0
+                    }
+
+                    loadera.scaleView();
+                    startX = mouseX;
+                }
+            } else if(window.mode == "translate"){
+                if(window.width>0){
+                    let distx = (startX - mouseX)/loadera.viewScale
+                    let disty = (startY - mouseY)/loadera.viewScale
+                    loadera.viewPos.x += distx;
+                    loadera.viewPos.y += disty;
+
+
+                    loadera.scaleView();
+                    startX = mouseX;
+                    startY = mouseY;
+                }
+            }
+
+        }
+    }
+
+    Text {
+        anchors.horizontalCenter: root.horizontalCenter
+        anchors.verticalCenter: root.verticalCenter
+        visible: window.mode != "normal"
+        font.pixelSize: 56
+        opacity: 0.25
+        color: "white"
+        font.capitalization: Font.Capitalize
+        text: window.mode
+    }
+
 
     Connections {
         target: DS.engine
@@ -66,4 +151,5 @@ Window {
             NumberAnimation { from: 0; to: 1; duration: 3000 }
         }
     }*/
+    }
 }

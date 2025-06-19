@@ -38,7 +38,7 @@ void ClusterView::setManager(ClusterManager *newManager)
     //connect to signals
     auto conn=connect(mManager,&ClusterManager::clusterUpdated,this,&ClusterView::onClusterUpdated);
     mManagerConnections.push_back(conn);
-
+    mMinimumTouchesNeeded = mManager->minClusterTouchCount();
     emit managerChanged();
 }
 
@@ -49,7 +49,7 @@ void ClusterView::onClusterUpdated(const QEventPoint::State &state, TouchCluster
     case QEventPoint::Pressed:
         {
             bool newMenu = false;
-            auto id = cluster->mClusterId;
+            //auto id = cluster->mClusterId;
 
             DelegateInstance *instance = nullptr;
             auto instanceIt = std::find_if(mInstanceStorage.begin(),mInstanceStorage.end(),[this](DelegateInstance* inst){
@@ -57,15 +57,16 @@ void ClusterView::onClusterUpdated(const QEventPoint::State &state, TouchCluster
             });
             if(instanceIt != mInstanceStorage.end()){
                 instance = *instanceIt;
-                qDebug()<<"Cluster ID added:"<<cluster->mClusterId<<":"<<(uint64_t)cluster<<" - instance reused";
+                //qDebug()<<"Cluster ID added:"<<cluster->mClusterId<<":"<<(uint64_t)cluster<<" - instance reused";
             }
             else if(mDelegate) {
                 //create an instance of the delegate.
                 QVariantMap initProps = {{"model",menuModel()},{"config",menuConfig()}};
                 QObject* obj = mDelegate->createWithInitialProperties(initProps);
+
                 if(mDelegate->isError()){
                     for(auto& err:mDelegate->errors()){
-                        qDebug()<<"Menu creation error:"<<err.description();
+                        //qDebug()<<"Menu creation error:"<<err.description();
                     }
                 }
                 QQuickItem* item = qobject_cast<QQuickItem*>(obj);
@@ -75,7 +76,7 @@ void ClusterView::onClusterUpdated(const QEventPoint::State &state, TouchCluster
                     item->setParent(this);
                     //item->setProperty("model",model());
 
-                    qDebug()<<"Cluster ID added:"<<cluster->mClusterId<<":"<<(uint64_t)cluster<< " - new instance";
+                    //qDebug()<<"Cluster ID added:"<<cluster->mClusterId<<":"<<(uint64_t)cluster<< " - new instance";
                     instance = new DelegateInstance();
                     instance->mItem = item;
 
@@ -95,7 +96,7 @@ void ClusterView::onClusterUpdated(const QEventPoint::State &state, TouchCluster
                     auto id = cluster->mClusterId;
                     instance->mConnection = connect(attached,&ClusterAttachedType::animateOffFinished,this,[this,instance,id](){
                         mInstanceMap.erase(id);
-                        qDebug()<<"Cluster ID Removed:"<<id<<":";
+                        //qDebug()<<"Cluster ID Removed:"<<id<<":";
                         instance->mInUse = false;
                         instance->mItem->setParentItem(nullptr);
                         disconnect(instance->mConnection);
@@ -126,10 +127,10 @@ void ClusterView::onClusterUpdated(const QEventPoint::State &state, TouchCluster
                         updateInstanceFromCluster(instance,cluster);
                     }
                 } else {
-                    qDebug()<<"Release but no instance 2";
+                    //qDebug()<<"Release but no instance 2";
                 }
             } else {
-                qDebug()<<"1.Release but no instance :"<<cluster->mClusterId<<":"<<(uint64_t)cluster;;
+                //qDebug()<<"1.Release but no instance :"<<cluster->mClusterId<<":"<<(uint64_t)cluster;;
             }
 
         }
@@ -219,6 +220,37 @@ void ClusterView::setMenuConfig(const QVariantMap &newMenuConfig)
         return;
     m_menuConfig = newMenuConfig;
     emit menuConfigChanged();
+}
+
+void ClusterView::componentComplete()
+{
+    QQuickItem::componentComplete();
+
+    //create an instance of the delegate. this should be the first one.
+    //it's created to speed the creation upon first use by a user.
+    DelegateInstance *instance = nullptr;
+    QVariantMap initProps = {{"model",menuModel()},{"config",menuConfig()}};
+    QObject* obj = mDelegate->createWithInitialProperties(initProps);
+
+    if(mDelegate->isError()){
+        for(auto& err:mDelegate->errors()){
+            qDebug()<<"Menu creation error:"<<err.description();
+        }
+    }
+    QQuickItem* item = qobject_cast<QQuickItem*>(obj);
+
+    if(item){
+
+        item->setParent(this);
+
+
+        instance = new DelegateInstance();
+        instance->mItem = item;
+
+        mInstanceStorage.push_back(instance);
+
+
+    }
 }
 
 }
