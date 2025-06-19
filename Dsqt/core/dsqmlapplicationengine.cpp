@@ -12,7 +12,7 @@
 #include "dsenvironmentqml.h"
 #include "model/content_helper.h"
 #include "network/dsnodewatcher.h"
-
+#include "reloadurlinterceptor.h"
 
 Q_LOGGING_CATEGORY(lgAppEngine, "engine")
 Q_LOGGING_CATEGORY(lgAppEngineVerbose, "engine.verbose")
@@ -23,7 +23,8 @@ DSQmlApplicationEngine* DSQmlApplicationEngine::sDefaultEngine = nullptr;
 
 DSQmlApplicationEngine::DSQmlApplicationEngine(QObject* parent)
   : QQmlApplicationEngine{parent}, mWatcher{new QFileSystemWatcher(this)} {
-	if (sDefaultEngine == nullptr) {
+
+    if (sDefaultEngine == nullptr) {
 		setDefaultEngine(this);
 	}
 
@@ -44,6 +45,8 @@ DSQmlApplicationEngine::DSQmlApplicationEngine(QObject* parent)
 		&mTrigger, &QTimer::timeout, this,
 		[this]() {
             qCInfo(lgAppEngineVerbose) << "Triggered";
+
+            readSettings(true);
 			emit fileChanged("triggered");
 		},
 		Qt::QueuedConnection);
@@ -106,20 +109,17 @@ void DSQmlApplicationEngine::preInit()
 
 }
 
-void DSQmlApplicationEngine::init()
+void dsqt::DSQmlApplicationEngine::readSettings(bool reset)
 {
-    //setup nodeWatcher
-    mNodeWatcher = new network::DsNodeWatcher(this);
-    //auto starts, but could also be this:
-    //mNodeWatcher = new network::DsNodeWatcher(this,"localhost",7788,/*autostart*/false)
-    //mNodeWatcher->start();
-
     qCInfo(lgAppEngine)<<"\nLoad Settings >>>>>>>>>>>>>>>>>>>>>>>>";
     mContentRoot = getContentRoot();
     qCInfo(lgAppEngine)<<"loading main engine.toml";
-	dsqt::DSEnvironment::loadEngineSettings();
+    if(reset){
+        DSSettings::forgetSettings("engine");
+    }
+    dsqt::DSEnvironment::loadEngineSettings();
     auto extra_engine_settings = DSEnvironment::engineSettings()->
-                          getRawNode("engine.extra.engine",true);
+                                 getRawNode("engine.extra.engine",true);
     if(extra_engine_settings){
         auto& extra_paths = *extra_engine_settings->as_array();
         for(auto&& path_node : extra_paths) {
@@ -130,9 +130,12 @@ void DSQmlApplicationEngine::init()
     }
 
     qCInfo(lgAppEngine)<<"loading main app_settings.toml";
-	mSettings = dsqt::DSEnvironment::loadSettings("app_settings","app_settings.toml");
+    if(reset){
+        DSSettings::forgetSettings("app_settings");
+    }
+    mSettings = dsqt::DSEnvironment::loadSettings("app_settings","app_settings.toml");
     auto extra_app_settings = DSEnvironment::engineSettings()->
-                                 getRawNode("engine.extra.app_settings",true);
+                              getRawNode("engine.extra.app_settings",true);
     if(extra_app_settings){
         auto& extra_paths = *extra_app_settings->as_array();
         for(auto&& path_node : extra_paths) {
@@ -142,6 +145,17 @@ void DSQmlApplicationEngine::init()
         }
     }
     qCInfo(lgAppEngine)<<">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n";
+}
+
+void DSQmlApplicationEngine::init()
+{
+    //setup nodeWatcher
+    mNodeWatcher = new network::DsNodeWatcher(this);
+    //auto starts, but could also be this:
+    //mNodeWatcher = new network::DsNodeWatcher(this,"localhost",7788,/*autostart*/false)
+    //mNodeWatcher->start();
+
+    readSettings();
     mAppProxy=new DSSettingsProxy(this);
     mQmlEnv = new DSEnvironmentQML(this);
 	// get watcher elements

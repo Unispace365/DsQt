@@ -43,8 +43,10 @@ class DSQmlApplicationEngine : public QQmlApplicationEngine {
     void                           setContentHelper(model::IContentHelper* helper);
     network::DsNodeWatcher*        getNodeWatcher() const;
     const model::ReferenceMap*           getReferenceMap() const;
-
-  private:
+    
+    void readSettings(bool reset=false);
+    
+private:
 	virtual void  preInit();
 	virtual void  init();
 	virtual void  postInit();

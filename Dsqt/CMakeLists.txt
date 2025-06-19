@@ -10,11 +10,11 @@ set(CMAKE_AUTOUIC ON)
 
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 #set(QT_QML_OUTPUT_DIRECTORY  ${CMAKE_BINARY_DIR}/Dsqt)
-set(QML_ROOT ${CMAKE_BINARY_DIR}\\Dsqt)
-
+#set(QML_ROOT ${CMAKE_BINARY_DIR}\\Dsqt)
+set(QML_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
 set(QML_IMPORT_PATH
 
-     "${CMAKE_BINARY_DIR}\\Dsqt;${QML_ROOT}\\qml;${QML_ROOT}\\qml\\waffles;${QML_ROOT}\\qml\\bridge"
+     "${QML_ROOT};${QML_ROOT}\\qml;${QML_ROOT}\\qml\\waffles;${QML_ROOT}\\qml\\bridge"
      CACHE PATH "QT creator qml import path" FORCE
  )
 
@@ -25,15 +25,14 @@ qt_add_qml_module(Dsqt
     URI Dsqt
     STATIC
     VERSION 1.0
-    QML_FILES
-    DsqtBaseControls.qml
-    qml/DSAppBase.qml
-    qml/DSScaleLoader.qml
-    qml/waffles/DSRadialMenu.qml
-    qml/waffles/DSRadialMenuIconItem.qml
-    qml/waffles/menu_launcher/Section.qml
-    qml/waffles/WaffleStage.qml
-    qml/bridge/DsBridgeQueryControls.qml
+    QML_FILES DsqtBaseControls.qml
+    QML_FILES qml/DSAppBase.qml
+    QML_FILES qml/DSScaleLoader.qml
+    QML_FILES qml/waffles/DSRadialMenu.qml
+    QML_FILES qml/waffles/DSRadialMenuIconItem.qml
+    QML_FILES qml/waffles/menu_launcher/Section.qml
+    QML_FILES qml/waffles/WaffleStage.qml
+    QML_FILES qml/bridge/DsBridgeQueryControls.qml
     QML_FILES qml/waffles/menu_launcher/TestLauncher.qml
     QML_FILES qml/waffles/media_viewer/TitledMediaViewer.qml
     QML_FILES qml/waffles/media_viewer/ControlSet.qml
@@ -61,13 +60,10 @@ qt_add_qml_module(Dsqt
     settings/dssettings_qcolor.cpp
     settings/dssettings_proxy.cpp settings/dssettings_proxy.h
     settings/overload.h
-    # ui/dsmenuitem.cpp ui/dsmenuitem.h
-    # ui/dsradialmenu.cpp ui/dsradialmenu.h
     ui/touchcluster.h ui/touchcluster.cpp
     utility/file_meta_data.cpp utility/file_meta_data.h
     utility/string_util.cpp utility/string_util.h
     utility/url_image_loader.cpp utility/url_image_loader.h
-
     bridge/dsBridgeQuery.cpp bridge/dsBridgeQuery.h
     waffles.qrc
     SOURCES ui/clustermanager.h ui/clustermanager.cpp
@@ -76,14 +72,14 @@ qt_add_qml_module(Dsqt
     SOURCES core/ds_qml_obj.h core/ds_qml_obj.cpp
     SOURCES model/icontent_helper.h model/icontent_helper.cpp
     SOURCES model/content_helper.h model/content_helper.cpp
+    SOURCES model/property_map_diff.h model/property_map_diff.cpp
+    SOURCES model/reference_map.h
+    SOURCES core/reloadurlinterceptor.h core/reloadurlinterceptor.cpp
     DEPENDENCIES
          QtQuick
          Dsqtplugin
-         SOURCES model/property_map_diff.h model/property_map_diff.cpp
-         SOURCES model/reference_map.h
-)
 
-#add_library(Dsqt::Dsqt ALIAS Dsqt)
+)
 
 FetchContent_Declare(
     tomlplusplus
