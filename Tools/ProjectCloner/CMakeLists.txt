@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-set(CMAKE_INSTALL_PREFIX "$ENV{DS_QT_PLATFORM_100}/Tools/deploy/ProjectCloner")
+set(CMAKE_INSTALL_PREFIX "$ENV{DS_QT_PLATFORM_100}/Tools/deploy/ProjectCloner" CACHE PATH "CMake install prefix. prepended to install directories" FORCE)
 project(ProjectCloner VERSION 0.1 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD_REQUIRED ON)

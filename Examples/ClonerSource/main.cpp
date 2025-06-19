@@ -10,6 +10,7 @@
 #include <dsqmlapplicationengine.h>
 #include <dsBridgeQuery.h>
 #include <dsnodewatcher.h>
+#include <reloadurlinterceptor.h>
 
 int main(int argc, char *argv[])
 {
@@ -19,13 +20,26 @@ int main(int argc, char *argv[])
     qputenv("QT_IM_MODULE", QByteArray("qtvirtualkeyboard"));
     qputenv("QT_ENABLE_HIGHDPI_SCALING", QByteArray("0"));
 
-
     QGuiApplication app(argc, argv);
-    QDirIterator qrc(":", QDirIterator::Subdirectories);
-    while(qrc.hasNext())
-        qDebug() << qrc.next();
+
+    //set the DS icon for the app
+    app.setWindowIcon(QIcon(":/newds.ico"));
+
+    //for debugging imports
+    //QDirIterator qrc(":", QDirIterator::Subdirectories);
+    //while(qrc.hasNext())
+    //    qDebug() << qrc.next();
+
+    //create our custom engine.
     dsqt::DSQmlApplicationEngine engine;
-    //engine.addImportPath("qrc:/qt/qml/Dsqt");
+
+    //setup url interceptor so we can reload QML files on change.
+    dsqt::ReloadUrlInterceptor* interceptor = new dsqt::ReloadUrlInterceptor();
+    QString projectFrom = "qrc:/qt/qml/WhiteLabelWaffles/";
+    QString projectTo = "file:///"+QCoreApplication::applicationDirPath()+"/../../";
+    interceptor->setPrefixes(projectFrom,projectTo);
+    engine.addUrlInterceptor(interceptor);
+
 
     //create the query object
     //the query object will create the database connection and
@@ -47,5 +61,7 @@ int main(int argc, char *argv[])
     //engine.load(".\\..\\..\\Main.qml");
     engine.loadFromModule("ClonerSource", "Main");
 
-    return app.exec();
+    auto retval = app.exec();
+    delete query;
+    return retval;
 }

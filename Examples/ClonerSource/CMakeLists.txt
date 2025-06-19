@@ -24,18 +24,29 @@ list(APPEND CMAKE_MODULE_PATH
 
 add_subdirectory("$ENV{DS_QT_PLATFORM_100}/Dsqt" "${CMAKE_BINARY_DIR}/Dsqt")
 
+#set qml import path. This is used by Qt Creator to find the QML files.
+set(QML_TMP_PATH
+     "${CMAKE_SOURCE_DIR};${CMAKE_SOURCE_DIR}\\qml;${QML_IMPORT_PATH}"
+)
+list(REMOVE_DUPLICATES QML_TMP_PATH)
+set(QML_IMPORT_PATH
+     "${QML_TMP_PATH}"
+     CACHE PATH "QT creator qml import path" FORCE
+)
+
+#setup windows resource file
 configure_file("cmake/app.rc.in" "app.rc")
 
 qt_add_executable(${DS_EXE_NAME}
     main.cpp
-    resource1.h
     app.rc
 )
+
+qt_add_resources(${DS_EXE_NAME} "icon" FILES newds.ico)
 
 qt_add_qml_module(${DS_EXE_NAME}
     URI ${DS_APP_NAME}
     VERSION 1.0
-    NO_CACHEGEN
     QML_FILES
         Main.qml
         qml/Sizer.qml
@@ -156,7 +167,7 @@ install(SCRIPT ${deploy_script})
 
 IF (WIN32 AND DS_QT_DLLS_SUBDIR)
 
-add_definitions(-DS_QT_DLLS_SUBDIR)
+add_definitions(-DDS_QT_DLLS_SUBDIR)
 # set the path to the dlls in the install directory
 set(nativeDllPath "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}")
 # convert to a cmake path
