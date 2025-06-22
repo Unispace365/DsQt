@@ -1,0 +1,33 @@
+<map id="dsqt::DSQmlApplicationEngine" name="dsqt::DSQmlApplicationEngine">
+<area shape="rect" id="Node000001" title=" " alt="" coords="600,220,802,247"/>
+<area shape="poly" id="edge7_Node000001_Node000001" title=" " alt="" coords="669,202,680,196,701,193,721,195,733,202,737,211,731,221,727,218,731,211,729,205,719,201,701,199,682,201,671,207"/>
+<area shape="rect" id="Node000002" title=" " alt="" coords="268,5,427,32"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="443,11,511,20,546,30,578,46,602,64,624,86,659,135,683,183,698,219,693,221,678,185,654,138,620,89,599,68,575,50,544,35,510,25,442,16"/>
+<area shape="rect" id="Node000003" href="$classdsqt_1_1model_1_1_content_model_ref.html" title="A nodal hierarchy&#45;based generic content model Each ContentModelRef points to an underlying Data objec..." alt="" coords="248,56,447,83"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="462,73,521,85,578,107,615,132,648,163,692,218,688,221,644,167,612,136,575,112,520,90,461,78"/>
+<area shape="rect" id="Node000004" href="$classdsqt_1_1model_1_1_reference_map.html" title=" " alt="" coords="256,108,438,135"/>
+<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="454,131,516,143,577,162,635,189,681,217,678,222,632,193,575,166,514,149,453,136"/>
+<area shape="rect" id="Node000005" title=" " alt="" coords="5,100,196,143"/>
+<area shape="poly" id="edge4_Node000004_Node000005" title=" " alt="" coords="211,119,255,119,255,124,211,124"/>
+<area shape="rect" id="Node000006" href="$classdsqt_1_1model_1_1_qml_content_model.html" title=" " alt="" coords="246,165,448,192"/>
+<area shape="poly" id="edge5_Node000001_Node000006" title=" " alt="" coords="464,189,577,205,637,217,636,222,576,211,463,194"/>
+<area shape="rect" id="Node000007" title=" " alt="" coords="36,167,165,193"/>
+<area shape="poly" id="edge6_Node000006_Node000007" title=" " alt="" coords="181,177,245,177,245,182,181,182"/>
+<area shape="rect" id="Node000008" href="$class_ds_imgui_item.html" title=" " alt="" coords="299,220,395,247"/>
+<area shape="poly" id="edge8_Node000001_Node000008" title=" " alt="" coords="411,231,600,231,600,236,411,236"/>
+<area shape="rect" id="Node000009" title=" " alt="" coords="46,220,155,247"/>
+<area shape="poly" id="edge9_Node000008_Node000009" title=" " alt="" coords="171,231,299,231,299,236,171,236"/>
+<area shape="rect" id="Node000010" href="$classdsqt_1_1_d_s_settings_proxy.html" title="The DSSettingsProxy class." alt="" coords="270,277,425,304"/>
+<area shape="poly" id="edge10_Node000001_Node000010" title=" " alt="" coords="440,279,576,260,647,245,648,250,577,265,441,284"/>
+<area shape="rect" id="Node000011" title=" " alt="" coords="66,357,135,384"/>
+<area shape="poly" id="edge11_Node000010_Node000011" title=" " alt="" coords="149,350,244,316,292,302,294,307,246,321,151,355"/>
+<area shape="rect" id="Node000012" href="$classdsqt_1_1_d_s_environment_q_m_l.html" title=" " alt="" coords="260,331,434,357"/>
+<area shape="poly" id="edge13_Node000012_Node000011" title=" " alt="" coords="150,363,259,351,260,356,151,368"/>
+<area shape="rect" id="Node000013" href="$classdsqt_1_1model_1_1_i_content_helper.html" title="The IContentHelper class." alt="" coords="254,383,440,409"/>
+<area shape="poly" id="edge15_Node000013_Node000011" title=" " alt="" coords="151,373,254,384,254,389,150,378"/>
+<area shape="rect" id="Node000014" href="$classdsqt_1_1network_1_1_ds_node_watcher.html" title=" " alt="" coords="245,437,449,464"/>
+<area shape="poly" id="edge17_Node000014_Node000011" title=" " alt="" coords="151,386,246,419,297,434,295,439,244,424,149,391"/>
+<area shape="poly" id="edge12_Node000001_Node000012" title=" " alt="" coords="449,333,513,322,575,304,634,275,680,245,683,249,637,280,577,309,514,327,450,338"/>
+<area shape="poly" id="edge14_Node000001_Node000013" title=" " alt="" coords="455,391,516,379,575,358,612,333,645,302,689,246,693,249,649,305,616,337,578,362,518,385,456,396"/>
+<area shape="poly" id="edge16_Node000001_Node000014" title=" " alt="" coords="464,451,522,441,549,431,575,418,599,400,620,378,654,329,678,282,693,246,698,248,683,284,659,332,624,382,602,404,578,422,551,436,523,446,465,456"/>
+</map>

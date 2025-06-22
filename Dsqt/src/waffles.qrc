@@ -1,0 +1,221 @@
+<RCC>
+    <qresource prefix="/">
+        <file>res/data/waffles/ui/Arrow_Left_100.png</file>
+        <file>res/data/waffles/ui/Arrow_Right_100.png</file>
+        <file>res/data/waffles/ui/Back arrow_256.png</file>
+        <file>res/data/waffles/ui/Bubbles_256.png</file>
+        <file>res/data/waffles/ui/Cards_256.png</file>
+        <file>res/data/waffles/ui/Carrousel Cards_256.png</file>
+        <file>res/data/waffles/ui/Circle_256.png</file>
+        <file>res/data/waffles/ui/Custom Layout_256.png</file>
+        <file>res/data/waffles/ui/Feature Story_256.png</file>
+        <file>res/data/waffles/ui/Forward_Right_16x27.png</file>
+        <file>res/data/waffles/ui/Media_256.png</file>
+        <file>res/data/waffles/ui/Media_Gallery_256.png</file>
+        <file>res/data/waffles/ui/Message_256.png</file>
+        <file>res/data/waffles/ui/Next arrow_256.png</file>
+        <file>res/data/waffles/ui/Particle_Text_256.png</file>
+        <file>res/data/waffles/ui/scroll_arrow.png</file>
+        <file>res/data/waffles/ui/Touch_Menu_Blur_600.png</file>
+        <file>res/data/waffles/ui/Touch_Menu_Blur_faded_600.png</file>
+        <file>res/data/waffles/icons/1x/Ambient_64.png</file>
+        <file>res/data/waffles/icons/1x/Annotation tool_64.png</file>
+        <file>res/data/waffles/icons/1x/Arrange_1_64.png</file>
+        <file>res/data/waffles/icons/1x/Arrange_64.png</file>
+        <file>res/data/waffles/icons/1x/Arrange_Glow_64.png</file>
+        <file>res/data/waffles/icons/1x/Backward_64.png</file>
+        <file>res/data/waffles/icons/1x/Backward_Glow_64.png</file>
+        <file>res/data/waffles/icons/1x/Browser_64.png</file>
+        <file>res/data/waffles/icons/1x/Browser_Glow_64.png</file>
+        <file>res/data/waffles/icons/1x/Close_64.png</file>
+        <file>res/data/waffles/icons/1x/Close_Glow_64.png</file>
+        <file>res/data/waffles/icons/1x/Collapse_64.png</file>
+        <file>res/data/waffles/icons/1x/Duplicate_64.png</file>
+        <file>res/data/waffles/icons/1x/Eraser_64.png</file>
+        <file>res/data/waffles/icons/1x/Folder_64.png</file>
+        <file>res/data/waffles/icons/1x/Forward_64.png</file>
+        <file>res/data/waffles/icons/1x/Forward_Glow_64.png</file>
+        <file>res/data/waffles/icons/1x/Full screen_64.png</file>
+        <file>res/data/waffles/icons/1x/Gather_64.png</file>
+        <file>res/data/waffles/icons/1x/Gather_Glow_64.png</file>
+        <file>res/data/waffles/icons/1x/Home_64.png</file>
+        <file>res/data/waffles/icons/1x/Home_Glow_64.png</file>
+        <file>res/data/waffles/icons/1x/Image_64.png</file>
+        <file>res/data/waffles/icons/1x/Keyboard on_64.png</file>
+        <file>res/data/waffles/icons/1x/Keyboard_64.png</file>
+        <file>res/data/waffles/icons/1x/Link_64.png</file>
+        <file>res/data/waffles/icons/1x/Local_Files_64.png</file>
+        <file>res/data/waffles/icons/1x/Locked_64.png</file>
+        <file>res/data/waffles/icons/1x/Loop_64.png</file>
+        <file>res/data/waffles/icons/1x/Marker_64.png</file>
+        <file>res/data/waffles/icons/1x/Menu_64.png</file>
+        <file>res/data/waffles/icons/1x/Mute_64.png</file>
+        <file>res/data/waffles/icons/1x/Next_64.png</file>
+        <file>res/data/waffles/icons/1x/No loop_64.png</file>
+        <file>res/data/waffles/icons/1x/Pause_64.png</file>
+        <file>res/data/waffles/icons/1x/PDF_64.png</file>
+        <file>res/data/waffles/icons/1x/Pen_64.png</file>
+        <file>res/data/waffles/icons/1x/PictureStack_64.png</file>
+        <file>res/data/waffles/icons/1x/Pin_64.png</file>
+        <file>res/data/waffles/icons/1x/Pinned_64.png</file>
+        <file>res/data/waffles/icons/1x/Play_64.png</file>
+        <file>res/data/waffles/icons/1x/Playlist_64.png</file>
+        <file>res/data/waffles/icons/1x/Plus_64.png</file>
+        <file>res/data/waffles/icons/1x/Presentations control_64.png</file>
+        <file>res/data/waffles/icons/1x/Presentations_64.png</file>
+        <file>res/data/waffles/icons/1x/Presentations_Glow_64.png</file>
+        <file>res/data/waffles/icons/1x/Redo_64.png</file>
+        <file>res/data/waffles/icons/1x/Rotate_64.png</file>
+        <file>res/data/waffles/icons/1x/Search_64.png</file>
+        <file>res/data/waffles/icons/1x/Search_Glow_64.png</file>
+        <file>res/data/waffles/icons/1x/Settings_64.png</file>
+        <file>res/data/waffles/icons/1x/Slide_64.png</file>
+        <file>res/data/waffles/icons/1x/Star_64.png</file>
+        <file>res/data/waffles/icons/1x/States_64.png</file>
+        <file>res/data/waffles/icons/1x/States_glow_64.png</file>
+        <file>res/data/waffles/icons/1x/Stream_64.png</file>
+        <file>res/data/waffles/icons/1x/Undo_64.png</file>
+        <file>res/data/waffles/icons/1x/Unlocked_64.png</file>
+        <file>res/data/waffles/icons/1x/Up_64.png</file>
+        <file>res/data/waffles/icons/1x/Up_fill_64.png</file>
+        <file>res/data/waffles/icons/1x/Video_64.png</file>
+        <file>res/data/waffles/icons/1x/Volume high_64.png</file>
+        <file>res/data/waffles/icons/1x/Volume low_64.png</file>
+        <file>res/data/waffles/icons/2x/Annotation tool_128.png</file>
+        <file>res/data/waffles/icons/2x/Arrange_1_128.png</file>
+        <file>res/data/waffles/icons/2x/Arrange_128.png</file>
+        <file>res/data/waffles/icons/2x/Arrange_Glow_128.png</file>
+        <file>res/data/waffles/icons/2x/Backward_128.png</file>
+        <file>res/data/waffles/icons/2x/Backward_Glow_128.png</file>
+        <file>res/data/waffles/icons/2x/Browser_128.png</file>
+        <file>res/data/waffles/icons/2x/Browser_Glow_128.png</file>
+        <file>res/data/waffles/icons/2x/Close_128.png</file>
+        <file>res/data/waffles/icons/2x/Close_Glow_128.png</file>
+        <file>res/data/waffles/icons/2x/Collapse_128.png</file>
+        <file>res/data/waffles/icons/2x/Duplicate_128.png</file>
+        <file>res/data/waffles/icons/2x/Eraser_128.png</file>
+        <file>res/data/waffles/icons/2x/Forward_128.png</file>
+        <file>res/data/waffles/icons/2x/Forward_Glow_128.png</file>
+        <file>res/data/waffles/icons/2x/Full screen_128.png</file>
+        <file>res/data/waffles/icons/2x/Gather_128.png</file>
+        <file>res/data/waffles/icons/2x/Gather_Glow_128.png</file>
+        <file>res/data/waffles/icons/2x/Home_128.png</file>
+        <file>res/data/waffles/icons/2x/Home_Glow_128.png</file>
+        <file>res/data/waffles/icons/2x/Image_128.png</file>
+        <file>res/data/waffles/icons/2x/Keyboard_128.png</file>
+        <file>res/data/waffles/icons/2x/Link_128.png</file>
+        <file>res/data/waffles/icons/2x/Locked_128.png</file>
+        <file>res/data/waffles/icons/2x/Loop_128.png</file>
+        <file>res/data/waffles/icons/2x/Marker_128.png</file>
+        <file>res/data/waffles/icons/2x/Menu_128.png</file>
+        <file>res/data/waffles/icons/2x/Mute_128.png</file>
+        <file>res/data/waffles/icons/2x/No loop_128.png</file>
+        <file>res/data/waffles/icons/2x/Pause_128.png</file>
+        <file>res/data/waffles/icons/2x/PDF_128.png</file>
+        <file>res/data/waffles/icons/2x/Pen_128.png</file>
+        <file>res/data/waffles/icons/2x/Pin_1_128.png</file>
+        <file>res/data/waffles/icons/2x/Pinned_128.png</file>
+        <file>res/data/waffles/icons/2x/Play_128.png</file>
+        <file>res/data/waffles/icons/2x/Playlist_128.png</file>
+        <file>res/data/waffles/icons/2x/Plus_128.png</file>
+        <file>res/data/waffles/icons/2x/Presentations_128.png</file>
+        <file>res/data/waffles/icons/2x/Presentations_Glow_128.png</file>
+        <file>res/data/waffles/icons/2x/Redo_128.png</file>
+        <file>res/data/waffles/icons/2x/Rotate_128.png</file>
+        <file>res/data/waffles/icons/2x/Search_128.png</file>
+        <file>res/data/waffles/icons/2x/Search_Glow_128.png</file>
+        <file>res/data/waffles/icons/2x/Stream_128.png</file>
+        <file>res/data/waffles/icons/2x/Undo_128.png</file>
+        <file>res/data/waffles/icons/2x/Unlocked_128.png</file>
+        <file>res/data/waffles/icons/2x/Up_128.png</file>
+        <file>res/data/waffles/icons/2x/Video_128.png</file>
+        <file>res/data/waffles/icons/2x/Volume high_128.png</file>
+        <file>res/data/waffles/icons/2x/Volume low_128.png</file>
+        <file>res/data/waffles/icons/4x/Ambient_256.png</file>
+        <file>res/data/waffles/icons/4x/Annotation tool_256.png</file>
+        <file>res/data/waffles/icons/4x/Arrange_1_256.png</file>
+        <file>res/data/waffles/icons/4x/Arrange_256.png</file>
+        <file>res/data/waffles/icons/4x/Arrange_Glow_256.png</file>
+        <file>res/data/waffles/icons/4x/Asset viewing_256.png</file>
+        <file>res/data/waffles/icons/4x/Assets stack_256.png</file>
+        <file>res/data/waffles/icons/4x/Backward_256.png</file>
+        <file>res/data/waffles/icons/4x/Backward_Glow_256.png</file>
+        <file>res/data/waffles/icons/4x/Browser_256.png</file>
+        <file>res/data/waffles/icons/4x/Browser_Glow_256.png</file>
+        <file>res/data/waffles/icons/4x/Close_256.png</file>
+        <file>res/data/waffles/icons/4x/Close_Glow_256.png</file>
+        <file>res/data/waffles/icons/4x/Collapse_256.png</file>
+        <file>res/data/waffles/icons/4x/Duplicate_256.png</file>
+        <file>res/data/waffles/icons/4x/Eraser_256.png</file>
+        <file>res/data/waffles/icons/4x/Folder_256.png</file>
+        <file>res/data/waffles/icons/4x/Forward_256.png</file>
+        <file>res/data/waffles/icons/4x/Forward_Glow_256.png</file>
+        <file>res/data/waffles/icons/4x/Full screen_256.png</file>
+        <file>res/data/waffles/icons/4x/Gather_256.png</file>
+        <file>res/data/waffles/icons/4x/Gather_Glow_256.png</file>
+        <file>res/data/waffles/icons/4x/HDMI_256.png</file>
+        <file>res/data/waffles/icons/4x/Home_256.png</file>
+        <file>res/data/waffles/icons/4x/Home_Glow_256.png</file>
+        <file>res/data/waffles/icons/4x/Image_256.png</file>
+        <file>res/data/waffles/icons/4x/Keyboard on_256.png</file>
+        <file>res/data/waffles/icons/4x/Keyboard_256.png</file>
+        <file>res/data/waffles/icons/4x/Link_256.png</file>
+        <file>res/data/waffles/icons/4x/Locked_256.png</file>
+        <file>res/data/waffles/icons/4x/Loop_256.png</file>
+        <file>res/data/waffles/icons/4x/Marker_256.png</file>
+        <file>res/data/waffles/icons/4x/Menu_256.png</file>
+        <file>res/data/waffles/icons/4x/Mute_256.png</file>
+        <file>res/data/waffles/icons/4x/No loop_256.png</file>
+        <file>res/data/waffles/icons/4x/Pause_256.png</file>
+        <file>res/data/waffles/icons/4x/PDF_256.png</file>
+        <file>res/data/waffles/icons/4x/Pen_256.png</file>
+        <file>res/data/waffles/icons/4x/Pin_1_256.png</file>
+        <file>res/data/waffles/icons/4x/Pin_256.png</file>
+        <file>res/data/waffles/icons/4x/Pinned_256.png</file>
+        <file>res/data/waffles/icons/4x/Play big_256.png</file>
+        <file>res/data/waffles/icons/4x/Play_256.png</file>
+        <file>res/data/waffles/icons/4x/Playlist Ambient_256.png</file>
+        <file>res/data/waffles/icons/4x/Playlist Interactive_256.png</file>
+        <file>res/data/waffles/icons/4x/Playlist_256.png</file>
+        <file>res/data/waffles/icons/4x/Plus_256.png</file>
+        <file>res/data/waffles/icons/4x/Presentations_256.png</file>
+        <file>res/data/waffles/icons/4x/Presentations_Glow_256.png</file>
+        <file>res/data/waffles/icons/4x/Redo_256.png</file>
+        <file>res/data/waffles/icons/4x/Rotate_256.png</file>
+        <file>res/data/waffles/icons/4x/Search_256.png</file>
+        <file>res/data/waffles/icons/4x/Search_Glow_256.png</file>
+        <file>res/data/waffles/icons/4x/Stream_256.png</file>
+        <file>res/data/waffles/icons/4x/Undo_256.png</file>
+        <file>res/data/waffles/icons/4x/Unlocked_256.png</file>
+        <file>res/data/waffles/icons/4x/Up_256.png</file>
+        <file>res/data/waffles/icons/4x/Video_256.png</file>
+        <file>res/data/waffles/icons/4x/Volume high_256.png</file>
+        <file>res/data/waffles/icons/4x/Volume low_256.png</file>
+        <file>res/data/waffles/arrows/back_arrow.png</file>
+        <file>res/data/waffles/arrows/back_arrow_high.png</file>
+        <file>res/data/waffles/arrows/back-arrow.png</file>
+        <file>res/data/waffles/arrows/presentation_left.png</file>
+        <file>res/data/waffles/arrows/presentation_left_down.png</file>
+        <file>res/data/waffles/arrows/presentation_right.png</file>
+        <file>res/data/waffles/arrows/presentation_right_down.png</file>
+        <file>res/data/waffles/default_background.jpg</file>
+        <file>res/data/media_interface/backward.png</file>
+        <file>res/data/media_interface/fast_forward.png</file>
+        <file>res/data/media_interface/keyboard.png</file>
+        <file>res/data/media_interface/loop.png</file>
+        <file>res/data/media_interface/loop-straight.png</file>
+        <file>res/data/media_interface/next.png</file>
+        <file>res/data/media_interface/pause.png</file>
+        <file>res/data/media_interface/pause_down.png</file>
+        <file>res/data/media_interface/play.png</file>
+        <file>res/data/media_interface/play_down.png</file>
+        <file>res/data/media_interface/play_pause.png</file>
+        <file>res/data/media_interface/prev.png</file>
+        <file>res/data/media_interface/refresh.png</file>
+        <file>res/data/media_interface/rewind.png</file>
+        <file>res/data/media_interface/thumbnails.png</file>
+        <file>res/data/media_interface/touch_locked.png</file>
+        <file>res/data/media_interface/touch_unlocked.png</file>
+        <file>res/data/waffles/ui/quickMenuSelectionArrow.svg</file>
+    </qresource>
+</RCC>

@@ -1,0 +1,36 @@
+<map id="dsqt::model::ContentHelper" name="dsqt::model::ContentHelper">
+<area shape="rect" id="Node000001" title=" " alt="" coords="909,461,1090,488"/>
+<area shape="rect" id="Node000002" href="$classdsqt_1_1model_1_1_i_content_helper.html" title="The IContentHelper class." alt="" coords="254,439,440,465"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="455,454,473,455,908,469,908,475,473,460,455,459"/>
+<area shape="rect" id="Node000004" href="$classdsqt_1_1_d_s_qml_application_engine.html" title=" " alt="" coords="600,248,802,275"/>
+<area shape="poly" id="edge17_Node000004_Node000002" title=" " alt="" coords="455,452,517,442,547,432,575,419,617,386,650,345,675,305,691,274,696,276,680,308,655,348,620,390,578,424,549,437,518,447,456,457"/>
+<area shape="rect" id="Node000003" title=" " alt="" coords="66,357,135,384"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="151,386,246,419,299,436,298,441,244,424,149,391"/>
+<area shape="rect" id="Node000013" href="$classdsqt_1_1_d_s_settings_proxy.html" title="The DSSettingsProxy class." alt="" coords="270,277,425,304"/>
+<area shape="poly" id="edge14_Node000013_Node000003" title=" " alt="" coords="149,350,244,316,292,302,294,307,246,321,151,355"/>
+<area shape="rect" id="Node000014" href="$classdsqt_1_1_d_s_environment_q_m_l.html" title=" " alt="" coords="260,331,434,357"/>
+<area shape="poly" id="edge16_Node000014_Node000003" title=" " alt="" coords="150,363,259,351,260,356,151,368"/>
+<area shape="rect" id="Node000015" href="$classdsqt_1_1network_1_1_ds_node_watcher.html" title=" " alt="" coords="245,383,449,409"/>
+<area shape="poly" id="edge19_Node000015_Node000003" title=" " alt="" coords="151,373,245,383,244,388,150,378"/>
+<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="736,282,980,459,977,463,732,286"/>
+<area shape="poly" id="edge10_Node000004_Node000004" title=" " alt="" coords="672,231,682,224,701,221,718,224,729,230,733,239,728,249,723,246,727,239,725,233,717,229,701,227,684,229,675,235"/>
+<area shape="rect" id="Node000005" title=" " alt="" coords="268,5,427,32"/>
+<area shape="poly" id="edge4_Node000004_Node000005" title=" " alt="" coords="443,8,512,15,546,26,578,42,605,64,628,90,664,149,687,205,699,247,694,248,682,207,659,151,624,93,601,67,575,46,544,30,511,20,442,13"/>
+<area shape="rect" id="Node000006" href="$classdsqt_1_1model_1_1_content_model_ref.html" title="A nodal hierarchy&#45;based generic content model Each ContentModelRef points to an underlying Data objec..." alt="" coords="248,56,447,83"/>
+<area shape="poly" id="edge5_Node000004_Node000006" title=" " alt="" coords="463,68,522,80,551,90,578,103,620,136,654,176,679,216,696,246,691,249,675,219,649,180,616,140,575,108,549,95,520,85,462,73"/>
+<area shape="rect" id="Node000007" href="$classdsqt_1_1model_1_1_reference_map.html" title=" " alt="" coords="256,108,438,135"/>
+<area shape="poly" id="edge6_Node000004_Node000007" title=" " alt="" coords="454,128,516,142,577,163,611,182,642,204,688,245,685,249,639,208,608,186,575,168,515,147,453,134"/>
+<area shape="rect" id="Node000008" title=" " alt="" coords="5,100,196,143"/>
+<area shape="poly" id="edge7_Node000007_Node000008" title=" " alt="" coords="211,119,255,119,255,124,211,124"/>
+<area shape="rect" id="Node000009" href="$classdsqt_1_1model_1_1_qml_content_model.html" title=" " alt="" coords="246,165,448,192"/>
+<area shape="poly" id="edge8_Node000004_Node000009" title=" " alt="" coords="464,190,577,212,626,228,669,245,667,250,624,233,576,217,463,195"/>
+<area shape="rect" id="Node000010" title=" " alt="" coords="36,167,165,193"/>
+<area shape="poly" id="edge9_Node000009_Node000010" title=" " alt="" coords="181,177,245,177,245,182,181,182"/>
+<area shape="rect" id="Node000011" href="$class_ds_imgui_item.html" title=" " alt="" coords="299,220,395,247"/>
+<area shape="poly" id="edge11_Node000004_Node000011" title=" " alt="" coords="411,236,600,251,600,256,411,241"/>
+<area shape="rect" id="Node000012" title=" " alt="" coords="46,220,155,247"/>
+<area shape="poly" id="edge12_Node000011_Node000012" title=" " alt="" coords="171,231,299,231,299,236,171,236"/>
+<area shape="poly" id="edge13_Node000004_Node000013" title=" " alt="" coords="440,287,576,279,623,273,623,278,577,284,440,292"/>
+<area shape="poly" id="edge15_Node000004_Node000014" title=" " alt="" coords="449,336,512,328,576,315,629,295,674,273,676,278,631,300,577,320,513,334,450,342"/>
+<area shape="poly" id="edge18_Node000004_Node000015" title=" " alt="" coords="465,390,521,381,575,363,610,343,641,319,686,273,690,277,644,323,613,348,577,368,522,386,465,396"/>
+</map>

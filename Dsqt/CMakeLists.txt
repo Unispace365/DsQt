@@ -4,82 +4,29 @@ project(Dsqt VERSION 0.1 LANGUAGES CXX)
 
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
-
 set(CMAKE_AUTOUIC ON)
-
-
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-#set(QT_QML_OUTPUT_DIRECTORY  ${CMAKE_BINARY_DIR}/Dsqt)
-#set(QML_ROOT ${CMAKE_BINARY_DIR}\\Dsqt)
-set(QML_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
-set(QML_IMPORT_PATH
 
-     "${QML_ROOT};${QML_ROOT}\\qml;${QML_ROOT}\\qml\\waffles;${QML_ROOT}\\qml\\bridge"
-     CACHE PATH "QT creator qml import path" FORCE
- )
+#set(QML_ROOT ${CMAKE_BINARY_DIR}\\Dsqt)
+
+find_package(Doxygen REQUIRED dot)
+option(BUILD_DOCUMENTATION "Create and install the HTML based API documentation (requires Doxygen)" ${DOXYGEN_FOUND})
+if(BUILD_DOCUMENTATION)
+set(DOXYGEN_HTML_OUTPUT            ${PROJECT_SOURCE_DIR}/../Documentation/html)
+set(DOXYGEN_JAVADOC_AUTOBRIEF      YES)
+set(DOXYGEN_GENERATE_HTML          YES)
+set(DOXYGEN_HAVE_DOT               YES)
+set(DOXYGEN_USE_MDFILE_AS_MAINPAGE doc/main.md)
+
+doxygen_add_docs(doxy
+  "src"
+)
+endif()
 
 find_package(Qt6 6.9 COMPONENTS Core Quick Gui ShaderTools Sql REQUIRED COMPONENTS Test)
 qt_standard_project_setup(REQUIRES 6.9)
 
-qt_add_qml_module(Dsqt
-    URI Dsqt
-    STATIC
-    VERSION 1.0
-    QML_FILES DsqtBaseControls.qml
-    QML_FILES qml/DSAppBase.qml
-    QML_FILES qml/DSScaleLoader.qml
-    QML_FILES qml/waffles/DSRadialMenu.qml
-    QML_FILES qml/waffles/DSRadialMenuIconItem.qml
-    QML_FILES qml/waffles/menu_launcher/Section.qml
-    QML_FILES qml/waffles/WaffleStage.qml
-    QML_FILES qml/bridge/DsBridgeQueryControls.qml
-    QML_FILES qml/waffles/menu_launcher/TestLauncher.qml
-    QML_FILES qml/waffles/media_viewer/TitledMediaViewer.qml
-    QML_FILES qml/waffles/media_viewer/ControlSet.qml
-    QML_FILES qml/waffles/Viewer.qml
-    QML_FILES qml/waffles/menu_launcher/ContentLauncher.qml
-
-    SOURCES
-    dsqtbase.cpp dsqtbase.h
-    core/dsenvironment.cpp core/dsenvironment.h
-    core/dsguiapplication.cpp core/dsguiapplication.h
-    core/dsimgui_item.h
-    core/dsqmlapplicationengine.cpp core/dsqmlapplicationengine.h
-    model/content_model.cpp model/content_model.h
-    model/qmlcontentmodel.h model/qmlcontentmodel.cpp
-    model/qjsonmodel.cpp model/qjsonmodel.h
-    model/dsresource.cpp model/dsresource.h
-    network/dsnodewatcher.cpp network/dsnodewatcher.h
-    settings/dssettings.cpp settings/dssettings.h
-    settings/dssettings_base.cpp
-    settings/dssettings_collections.cpp
-    settings/dssettings_datetime.cpp
-    settings/dssettings_geom_common.cpp
-    settings/dssettings_geom_glm.cpp
-    settings/dssettings_geom_qt.cpp
-    settings/dssettings_qcolor.cpp
-    settings/dssettings_proxy.cpp settings/dssettings_proxy.h
-    settings/overload.h
-    ui/touchcluster.h ui/touchcluster.cpp
-    utility/file_meta_data.cpp utility/file_meta_data.h
-    utility/string_util.cpp utility/string_util.h
-    utility/url_image_loader.cpp utility/url_image_loader.h
-    bridge/dsBridgeQuery.cpp bridge/dsBridgeQuery.h
-    waffles.qrc
-    SOURCES ui/clustermanager.h ui/clustermanager.cpp
-    SOURCES ui/clusterview.h ui/clusterview.cpp
-    SOURCES core/dsenvironmentqml.h core/dsenvironmentqml.cpp
-    SOURCES core/ds_qml_obj.h core/ds_qml_obj.cpp
-    SOURCES model/icontent_helper.h model/icontent_helper.cpp
-    SOURCES model/content_helper.h model/content_helper.cpp
-    SOURCES model/property_map_diff.h model/property_map_diff.cpp
-    SOURCES model/reference_map.h
-    SOURCES core/reloadurlinterceptor.h core/reloadurlinterceptor.cpp
-    DEPENDENCIES
-         QtQuick
-         Dsqtplugin
-
-)
+add_subdirectory("src")
 
 FetchContent_Declare(
     tomlplusplus
@@ -139,7 +86,7 @@ target_compile_definitions(Dsqt
 target_link_libraries(Dsqt
 PRIVATE Qt6::Quick Qt6::Core Qt6::Gui Qt6::ShaderTools Qt6::GuiPrivate Qt6::Sql)
 
-target_include_directories(Dsqt PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} "core" "model" "network" "settings" "ui" "utility" "bridge" ${imgui_base})
+target_include_directories(Dsqt PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} ${imgui_base})
 
 cmake_path(NATIVE_PATH CMAKE_CURRENT_SOURCE_DIR DS_QMLLINT_ROOT)
 #configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake/.qmllint.in.ini ${CMAKE_SOURCE_DIR}/.qmllintx.ini)
@@ -150,4 +97,5 @@ if(PROJECT_IS_TOP_LEVEL)
   add_subdirectory(Tests/Settings)
   add_subdirectory(Tests/BridgeTest)
 endif()
+
 
