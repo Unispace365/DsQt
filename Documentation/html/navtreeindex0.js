@@ -7,9 +7,8 @@ var NAVTREEINDEX0 =
 "class_q_json_model.html#ad8761c0e6399b56521cfa5c4d4473050":[3,0,4,0],
 "class_q_json_tree_item.html":[3,0,5],
 "class_resource.html":[3,0,7],
-"classdsqt_1_1_d_s_environment.html":[1,0,0],
-"classdsqt_1_1_d_s_environment.html#ab3190cff32f9a665e0f9f5dc49795098":[1,0,0,1],
-"classdsqt_1_1_d_s_environment.html#af4a239ed3dc13dd3af6388badc896107":[1,0,0,0],
+"classdsqt_1_1_d_s_environment.html":[2,0,0,2],
+"classdsqt_1_1_d_s_environment.html":[3,0,0,6],
 "classdsqt_1_1_d_s_environment_q_m_l.html":[2,0,0,3],
 "classdsqt_1_1_d_s_environment_q_m_l.html":[3,0,0,7],
 "classdsqt_1_1_d_s_qml_application_engine.html":[2,0,0,5],
@@ -171,7 +170,7 @@ var NAVTREEINDEX0 =
 "functions_func.html":[3,3,1],
 "functions_rela.html":[3,3,3],
 "functions_vars.html":[3,3,2],
-"group__env.html":[1,0],
+"group___q_m_l.html":[1,0],
 "hierarchy.html":[3,2],
 "icontent__helper_8h_source.html":[4,0,0,2,3],
 "index.html":[],
@@ -249,5 +248,6 @@ var NAVTREEINDEX0 =
 "structdsqt_1_1model_1_1_property_map_diff_1_1_change.html#afe4b13226ff7f4ceb0b90f7360f54c58":[3,0,0,1,5,0,1],
 "structdsqt_1_1ui_1_1_cluster_view_1_1_delegate_instance.html":[3,0,0,3,2,0],
 "structdsqt_1_1ui_1_1_touch_info.html":[3,0,0,3,5],
-"topics.html":[1]
+"topics.html":[1],
+"touchcluster_8h_source.html":[4,0,0,5,2]
 };

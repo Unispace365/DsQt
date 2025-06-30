@@ -30,7 +30,7 @@ var annotated_dup =
       ] ],
       [ "BaseConversion", "structdsqt_1_1_base_conversion.html", null ],
       [ "BaseConversion< std::string, S >", "structdsqt_1_1_base_conversion_3_01std_1_1string_00_01_s_01_4.html", null ],
-      [ "DSEnvironment", "classdsqt_1_1_d_s_environment.html", "classdsqt_1_1_d_s_environment" ],
+      [ "DSEnvironment", "classdsqt_1_1_d_s_environment.html", null ],
       [ "DSEnvironmentQML", "classdsqt_1_1_d_s_environment_q_m_l.html", null ],
       [ "DSOverloaded", "structdsqt_1_1_d_s_overloaded.html", null ],
       [ "DSQmlApplicationEngine", "classdsqt_1_1_d_s_qml_application_engine.html", null ],

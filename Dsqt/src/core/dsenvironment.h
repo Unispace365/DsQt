@@ -48,15 +48,18 @@ public:
     static std::string			getLocalSettingsPath(const std::string& fileName);
 
     /// Convenience to load in a settings file, first from the app path, then the local path
+    /// @note loading settings from a settings object does not follow the fallback path.
     static DSSettingsRef		loadSettings(const std::string& settingsName, const std::string& filename,const bool lookForOverrides = true);
 
     ///load the engine settings;
     static bool loadEngineSettings();
 
     /// Check if there are settings at the appropriate paths
+    /// NOT IMPLEMENTED
     static bool					hasSettings(const std::string& filename);
 
     /// Convenience to save a settings file to the local path
+    /// NOT IMPLEMENTED
     static void					saveSettings(const std::string& filename, dsqt::DSSettings& setting);
 
 

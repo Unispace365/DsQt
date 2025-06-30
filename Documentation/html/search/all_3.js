@@ -7,7 +7,7 @@ var searchData=
   ['dsbridgesqlquery_4',['DsBridgeSqlQuery',['../classdsqt_1_1bridge_1_1_ds_bridge_sql_query.html',1,'dsqt::bridge']]],
   ['dsbridgesyncsettings_5',['DsBridgeSyncSettings',['../structdsqt_1_1bridge_1_1_ds_bridge_sync_settings.html',1,'dsqt::bridge']]],
   ['dscinder_20reference_20notes_6',['DSCinder reference notes',['../classdsqt_1_1_d_s_settings.html#autotoc_md8',1,'']]],
-  ['dsenvironment_7',['DSEnvironment',['../classdsqt_1_1_d_s_environment.html',1,'dsqt::DSEnvironment'],['../classdsqt_1_1_d_s_environment.html#af4a239ed3dc13dd3af6388badc896107',1,'dsqt::DSEnvironment::DSEnvironment()=delete'],['../classdsqt_1_1_d_s_environment.html#ab3190cff32f9a665e0f9f5dc49795098',1,'dsqt::DSEnvironment::DSEnvironment(const DSEnvironment &amp;)=delete']]],
+  ['dsenvironment_7',['DSEnvironment',['../classdsqt_1_1_d_s_environment.html',1,'dsqt']]],
   ['dsenvironmentqml_8',['DSEnvironmentQML',['../classdsqt_1_1_d_s_environment_q_m_l.html',1,'dsqt']]],
   ['dsguiapplication_9',['DSGuiApplication',['../class_d_s_gui_application.html',1,'']]],
   ['dsimguiitem_10',['DsImguiItem',['../class_ds_imgui_item.html',1,'']]],
