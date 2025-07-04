@@ -3,6 +3,8 @@
 #include <QStandardPaths>
 #include <QDir>
 #include <QString>
+#include <QRegularExpression>
+#include <QRegularExpressionMatch>
 #include <qapplicationstatic.h>
 #include "settings/dssettings.h"
 
@@ -18,6 +20,8 @@ std::string DSEnvironment::sProjectPath = "%PP%";
 std::string DSEnvironment::sAppRootFolder="";
 std::string DSEnvironment::sConfigFolder = "%CFG_FOLDER%";
 std::string DSEnvironment::sSharedFolder = "%SHARED%";
+QRegularExpression DSEnvironment::sEnvRe = QRegularExpression(R"((.*?)(\%ENV\%)\((.*?)\)(.*))");
+
 
 std::string DSEnvironment::expand(const std::string &_path)
 {
@@ -36,6 +40,18 @@ std::string DSEnvironment::expand(const std::string &_path)
 //                return tempPath;
 //            }
 //        }
+
+
+        auto match = sEnvRe.match(p);
+        while(match.hasCaptured(2)){
+            auto envVarName = match.captured(3).trimmed();
+            auto value = qEnvironmentVariable(envVarName.toLocal8Bit());
+            if(sEnvRe.match(value).hasCaptured(2)){
+                value="";
+            }
+            p = match.captured(1)+value+match.captured(4);
+            match = sEnvRe.match(p);
+        }
 
         p.replace("%APP%", QString::fromStdString(sAppRootFolder));
         p.replace("%PP%",QString::fromStdString(sProjectPath));//        boost::replace_all(p, "%PP%", DSEngineSettings::envProjectPath());

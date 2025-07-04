@@ -75,7 +75,7 @@ public:
     static std::string sProjectPath;
     static std::string sConfigFolder;
 	static std::string sSharedFolder;
-
+    static QRegularExpression sEnvRe;
     static bool sInitialized;
 };
 
