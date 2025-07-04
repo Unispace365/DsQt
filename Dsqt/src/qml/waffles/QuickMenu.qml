@@ -21,6 +21,7 @@ Item {
     property int selection: 0
     property point clusterPoint
     property bool fullyOpen: false
+    property int closeTimer: appSettings.getInt("quickMenu.closeDelay") ?? 5000 //in ms, how long to wait before closing the menu after a click
     signal itemHighlighted(index: int, highlight: bool)
     signal itemSelected(index: int)
 
@@ -32,6 +33,11 @@ Item {
     transform: Translate {
         x: -root.width*0.5
         y: -root.height*0.5
+    }
+
+    DSSettingsProxy {
+        id:appSettings
+        target:"app_settings"
     }
 
     Component.onCompleted: {
@@ -695,6 +701,17 @@ Item {
         }
     */
 
+    Timer {
+        id: closeTimer
+        interval: root.closeTimer
+        repeat: false
+        running: false
+        onTriggered: {
+            root.state = "Off"
+            root.selection = 0
+        }
+    }
+
     ClusterView.onMinimumMetChanged: {
         if(ClusterView.minimumMet){
             root.state = "On"
@@ -714,6 +731,9 @@ Item {
                 root.itemSelected(seg);
                 break;
             }
+        }
+        if(root.state != "Off"){
+            closeTimer.running = true;
         }
     }
 
