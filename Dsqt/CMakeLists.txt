@@ -8,19 +8,20 @@ set(CMAKE_AUTOUIC ON)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 #set(QML_ROOT ${CMAKE_BINARY_DIR}\\Dsqt)
+if(PROJECT_IS_TOP_LEVEL)
+    find_package(Doxygen COMPONENTS dot)
+    option(BUILD_DOCUMENTATION "Create and install the HTML based API documentation (requires Doxygen)" ${DOXYGEN_FOUND})
+    if(BUILD_DOCUMENTATION)
+        set(DOXYGEN_HTML_OUTPUT            ${PROJECT_SOURCE_DIR}/../Documentation/html)
+        set(DOXYGEN_JAVADOC_AUTOBRIEF      YES)
+        set(DOXYGEN_GENERATE_HTML          YES)
+        set(DOXYGEN_HAVE_DOT               YES)
+        set(DOXYGEN_USE_MDFILE_AS_MAINPAGE doc/main.md)
 
-find_package(Doxygen REQUIRED dot)
-option(BUILD_DOCUMENTATION "Create and install the HTML based API documentation (requires Doxygen)" ${DOXYGEN_FOUND})
-if(BUILD_DOCUMENTATION)
-set(DOXYGEN_HTML_OUTPUT            ${PROJECT_SOURCE_DIR}/../Documentation/html)
-set(DOXYGEN_JAVADOC_AUTOBRIEF      YES)
-set(DOXYGEN_GENERATE_HTML          YES)
-set(DOXYGEN_HAVE_DOT               YES)
-set(DOXYGEN_USE_MDFILE_AS_MAINPAGE doc/main.md)
-
-doxygen_add_docs(doxy
-  "src"
-)
+        doxygen_add_docs(doxy
+          "src"
+        )
+    endif()
 endif()
 
 find_package(Qt6 6.9 COMPONENTS Core Quick Gui ShaderTools Sql REQUIRED COMPONENTS Test)
