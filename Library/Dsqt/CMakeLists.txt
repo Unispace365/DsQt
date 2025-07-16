@@ -1,7 +1,8 @@
 set(QML_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
+set(QML_BIN_ROOT "${CMAKE_BINARY_DIR}\\Library")
 set(QML_IMPORT_PATH
 
-     "${QML_ROOT};${QML_ROOT}\\qml;${QML_ROOT}\\qml\\waffles;${QML_ROOT}\\qml\\bridge"
+     "${QML_ROOT};${QML_ROOT}\\qml;${QML_ROOT}\\qml\\waffles;${QML_ROOT}\\qml\\bridge;${QML_BIN_ROOT};${QML_BIN_ROOT}\\qml;${QML_BIN_ROOT}\\qml\\waffles;${QML_BIN_ROOT}\\qml\\bridge"
      CACHE PATH "QT creator qml import path" FORCE
  )
 
