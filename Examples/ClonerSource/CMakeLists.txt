@@ -20,9 +20,9 @@ qt_standard_project_setup(REQUIRES 6.9)
 
 
 list(APPEND CMAKE_MODULE_PATH
-    "$ENV{DS_QT_PLATFORM_100}/Dsqt/cmake/")
+    "$ENV{DS_QT_PLATFORM_100}/Library/cmake/")
 
-add_subdirectory("$ENV{DS_QT_PLATFORM_100}/Dsqt" "${CMAKE_BINARY_DIR}/Dsqt")
+add_subdirectory("$ENV{DS_QT_PLATFORM_100}/Library" "${CMAKE_BINARY_DIR}/Library")
 
 #set qml import path. This is used by Qt Creator to find the QML files.
 set(QML_TMP_PATH
