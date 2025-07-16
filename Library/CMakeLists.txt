@@ -19,7 +19,7 @@ if(PROJECT_IS_TOP_LEVEL)
         set(DOXYGEN_USE_MDFILE_AS_MAINPAGE doc/main.md)
 
         doxygen_add_docs(doxy
-          "src"
+          "Dsqt"
         )
     endif()
 endif()
@@ -27,7 +27,7 @@ endif()
 find_package(Qt6 6.9 COMPONENTS Core Quick Gui ShaderTools Sql REQUIRED COMPONENTS Test)
 qt_standard_project_setup(REQUIRES 6.9)
 
-add_subdirectory("src")
+add_subdirectory("Dsqt")
 
 FetchContent_Declare(
     tomlplusplus

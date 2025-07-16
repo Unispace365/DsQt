@@ -1,3 +1,10 @@
+set(QML_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
+set(QML_IMPORT_PATH
+
+     "${QML_ROOT};${QML_ROOT}\\qml;${QML_ROOT}\\qml\\waffles;${QML_ROOT}\\qml\\bridge"
+     CACHE PATH "QT creator qml import path" FORCE
+ )
+
 qt_add_qml_module(Dsqt
     URI Dsqt
     STATIC
