@@ -1014,7 +1014,7 @@ void ContentModelRef::updateQml(QmlContentModel* mapIn){
 
 QmlContentModel* ContentModelRef::getQml(ReferenceMap* refMap, QObject* parent,QString deep) const {
     //skip this if we aren't sending this model to qml.
-    if(mData->mNotToQml) {
+    if(!mData || mData->mNotToQml) {
         return mEmptyQmlContentModel;
     }
     //do we already have a QmlContentModel for this model?

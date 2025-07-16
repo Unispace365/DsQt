@@ -48,8 +48,8 @@ Window {
 
 
     DSScaleLoader {
-       width: window.width
-       height: window.height
+       width: windowProxy.getRect("source").width
+       height: windowProxy.getRect("source").height
        id: loadera
        rootSource: window.rootSrc;
     }
@@ -95,8 +95,8 @@ Window {
                 if(window.width>0){
                     let dist = (mouseX - startX)/window.width*2
                     loadera.viewScale += dist;
-                    if(loadera.viewScale<1.0){
-                        loadera.viewScale = 1.0
+                    if(loadera.viewScale<0.25){
+                        loadera.viewScale = 0.25
                     }
 
                     loadera.scaleView();

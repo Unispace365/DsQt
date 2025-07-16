@@ -68,7 +68,7 @@ Loader {
     function scaleView(scale: real, pos: point){
         //resize the loader to fit in the destination
         var src = windowProxy.getRect("source");
-        var dst = Qt.size(loadera.width,loadera.height);
+        var dst = windowProxy.getRect("destination");
         var x_scale = dst.width/src.width*(loadera.viewScale ?? 1.0)
         var y_scale = dst.height/src.height*(loadera.viewScale ?? 1.0)
         var offset = Qt.point(src.x+0.5*src.width,src.y+0.5*src.height);
