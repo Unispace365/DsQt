@@ -30,6 +30,7 @@ struct DsBridgeSyncSettings
     QVariant clientId;
     QVariant clientSecret;
     QVariant verbose;
+    QVariant asyncRecords;
     QVariant interval;
     QVariant directory;
 };
@@ -64,6 +65,7 @@ private:
 
 #ifndef Q_OS_WASM
     QProcess mBridgeSyncProcess;
+    QList<QMetaObject::Connection> mConnections;
 #endif
     DSSettingsProxy mSettingsProxy;
 
