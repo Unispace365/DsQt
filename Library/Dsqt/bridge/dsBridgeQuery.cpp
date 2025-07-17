@@ -1,11 +1,13 @@
 ﻿#include "dsBridgeQuery.h"
 
 
-#include <regex>
+//#include <regex>
 
 #include <QSharedPointer>
 #include <QString>
-#include <QtSql/QtSql>
+#include <QSqlError>
+#include <QSqlQuery>
+#include <QSqlRecord>
 
 #include "core/dsenvironment.h"
 #include "model/content_model.h"
