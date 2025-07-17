@@ -281,7 +281,14 @@ void DsBridgeSqlQuery::stopBridgeSync()
     mConnections.clear();
 
     // Make sure our current process is stopped.
-    mBridgeSyncProcess.close();
+    if(isBridgeSyncRunning()){
+        mBridgeSyncProcess.terminate();
+        if (!mBridgeSyncProcess.waitForFinished(5000)) { // Wait for up to 5 seconds
+            mBridgeSyncProcess.kill(); // Forcefully terminate if not finished
+            mBridgeSyncProcess.waitForFinished(); // Ensure the process has stopped
+        }
+        mBridgeSyncProcess.close();
+    }
 }
 
 // Checks to see if process is started.
