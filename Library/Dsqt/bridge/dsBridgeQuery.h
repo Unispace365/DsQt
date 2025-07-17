@@ -71,7 +71,8 @@ private:
 
     DsBridgeSyncSettings getBridgeSyncSettings();
     bool tryLaunchBridgeSync();
-    void startBridgeSync();
+    //void startBridgeSync();
+    void stopBridgeSync();
     bool startOrUseConnection();
     bool startConnection();
     void queryTables();

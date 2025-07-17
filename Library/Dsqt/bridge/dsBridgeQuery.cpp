@@ -108,11 +108,13 @@ DsBridgeSqlQuery::DsBridgeSqlQuery(DSQmlApplicationEngine *parent)
 
 DsBridgeSqlQuery::~DsBridgeSqlQuery() {
     // Properly close the DB file.
+    qCInfo(lgBridgeSyncApp) << "Closing database";
     mDatabase.close();
 
 #ifndef Q_OS_WASM
     // Properly stop the BridgeSync process.
-    mBridgeSyncProcess.close();
+    qCInfo(lgBridgeSyncApp) << "Closing BridgeSync";
+    stopBridgeSync();
 #endif
 }
 
@@ -180,14 +182,8 @@ bool DsBridgeSqlQuery::tryLaunchBridgeSync()
         return false;
     }
 
-    // Disconnect from process events.
-    for( const auto &connection : std::as_const(mConnections) ) {
-        QObject::disconnect(connection);
-    }
-    mConnections.clear();
-
-    // Make sure our current process is stopped.
-    mBridgeSyncProcess.close();
+    // Stop process if needed.
+    stopBridgeSync();
 
     // Prepare launching the process.
     mBridgeSyncProcess.setProgram(appPath);
@@ -274,6 +270,18 @@ bool DsBridgeSqlQuery::tryLaunchBridgeSync()
 #endif
 
     return true;
+}
+
+void DsBridgeSqlQuery::stopBridgeSync()
+{
+    // Disconnect from process events.
+    for( const auto &connection : std::as_const(mConnections) ) {
+        QObject::disconnect(connection);
+    }
+    mConnections.clear();
+
+    // Make sure our current process is stopped.
+    mBridgeSyncProcess.close();
 }
 
 // Checks to see if process is started.
