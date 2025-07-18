@@ -71,10 +71,15 @@ set(nativeDllPath "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}")
 # convert to a cmake path
 cmake_path(CONVERT "${nativeDllPath}" TO_CMAKE_PATH_LIST cmakeDllPath)
 file(MAKE_DIRECTORY "${cmakeDllPath}/qt")
+
+#make an empty qt manifest for running the app inside Qt Creator
+configure_file("${CMAKE_SOURCE_DIR}/cmake/qt.manifest.in" "${CMAKE_BINARY_DIR}/qt/qt.manifest")
+
 # process the dlls
 install(CODE "
 # grab all the dlls in the install directory
 file(GLOB xdlls \"${cmakeDllPath}/*.dll\")\n
+
 
 #loop through the dlls\n
 foreach(dll \${xdlls})\n
