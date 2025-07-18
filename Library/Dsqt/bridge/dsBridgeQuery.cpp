@@ -50,10 +50,10 @@ DsBridgeSqlQuery::DsBridgeSqlQuery(DSQmlApplicationEngine* parent)
             engSettings.setTarget("engine");
             engSettings.setPrefix("engine.resource");
 
+            // Find DB file.
             QString resourceLocation = DSEnvironment::expandq(engSettings.getString("location", "").value<QString>());
             auto    opFile           = engSettings.getString("resource_db", "").value<QString>();
-            if (opFile != "") {
-                // Find DB file.
+            if (!opFile.isEmpty()) {
                 auto file = DSEnvironment::expandq(opFile);
                 if (QDir::isRelativePath(file)) {
                     file = QDir::cleanPath(resourceLocation + "/" + file);
@@ -62,37 +62,10 @@ DsBridgeSqlQuery::DsBridgeSqlQuery(DSQmlApplicationEngine* parent)
                 // Open DB file in read-only mode.
                 mDatabase.setDatabaseName(file);
                 mDatabase.setConnectOptions("QSQLITE_OPEN_READONLY");
-
-                if (!mDatabase.open()) {
-                    qCWarning(lgBridgeSyncQuery) << "Could not open database at " << file;
-                } else {
-                    // Verify WAL mode (optional, for debugging).
-                    QSqlQuery pragmaQuery(mDatabase);
-                    if (pragmaQuery.exec("PRAGMA journal_mode;") && pragmaQuery.next()) {
-                        QString journalMode = pragmaQuery.value(0).toString();
-                        if (journalMode.toLower() != "wal") {
-                            qCDebug(lgBridgeSyncQuery)
-                                << "Warning: Database is not in WAL mode, current mode:" << journalMode;
-
-                            // Either BridgeSync console is an older version using DELETE mode,
-                            // the BridgeSync console is not running, or it has no open connection to the database.
-                        } else {
-                            qCDebug(lgBridgeSyncQuery) << "Database is in WAL mode";
-                        }
-                    } else {
-                        qCDebug(lgBridgeSyncQuery) << "Error checking journal mode:" << pragmaQuery.lastError().text();
-                    }
-
-                    // Set busy timeout to handle potential contention (e.g., during checkpoints).
-                    if (!pragmaQuery.exec("PRAGMA busy_timeout=5000;")) {
-                        qCDebug(lgBridgeSyncQuery) << "Error setting busy timeout:" << pragmaQuery.lastError().text();
-                    }
-
-                    // Fake a nodewatcher message.
-                    emit DSQmlApplicationEngine::DefEngine()->getNodeWatcher()->messageArrived(
-                        dsqt::network::Message());
-                }
             }
+
+            // Fake a nodewatcher message to force the database to open.
+            emit DSQmlApplicationEngine::DefEngine()->getNodeWatcher()->messageArrived(dsqt::network::Message());
         },
         Qt::ConnectionType::QueuedConnection);
 }
@@ -110,13 +83,11 @@ DsBridgeSqlQuery::~DsBridgeSqlQuery() {
 }
 
 DsBridgeSyncSettings DsBridgeSqlQuery::getBridgeSyncSettings() {
-    DsBridgeSyncSettings settings;
-    DSSettingsProxy      engSettings;
+    DSSettingsProxy engSettings;
     engSettings.setTarget("engine");
     engSettings.setPrefix("engine.bridgesync");
-    auto launchBridgeSync = engSettings.getBool("launch_bridgesync", false);
-    auto appPath          = engSettings.getString("app_path", "%SHARE%/bridgesync/bridge_sync_console.exe").toString();
 
+    DsBridgeSyncSettings settings;
     settings.server       = engSettings.getString("connection.server");
     settings.authServer   = engSettings.getString("connection.auth_server");
     settings.clientId     = engSettings.getString("connection.client_id");
@@ -126,8 +97,11 @@ DsBridgeSyncSettings DsBridgeSqlQuery::getBridgeSyncSettings() {
     settings.verbose      = engSettings.getBool("connection.verbose", false);
     settings.asyncRecords = engSettings.getBool("connection.asyncRecords", true);
 
-    settings.appPath  = DSEnvironment::expandq(appPath);
-    settings.doLaunch = launchBridgeSync.toBool();
+    const auto appPath = engSettings.getString("app_path", "%SHARE%/bridgesync/bridge_sync_console.exe").toString();
+    settings.appPath   = DSEnvironment::expandq(appPath);
+
+    const auto launchBridgeSync = engSettings.getBool("launch_bridgesync", false);
+    settings.doLaunch           = launchBridgeSync.toBool();
     return settings;
 }
 
@@ -272,28 +246,74 @@ bool DsBridgeSqlQuery::isBridgeSyncRunning() {
 #endif
 }
 
+bool DsBridgeSqlQuery::openDatabase() {
+    if (mDatabase.isOpen()) return true;
+
+    if (!mDatabase.open()) {
+        qCWarning(lgBridgeSyncQuery) << "Could not open database at " << mDatabase.databaseName();
+        return false;
+    }
+
+    // Verify WAL mode (optional, for debugging).
+    QSqlQuery pragmaQuery(mDatabase);
+    if (pragmaQuery.exec("PRAGMA journal_mode;") && pragmaQuery.next()) {
+        QString journalMode = pragmaQuery.value(0).toString();
+        if (journalMode.toLower() != "wal") {
+            qCDebug(lgBridgeSyncQuery) << "Warning: Database is not in WAL mode, current mode:" << journalMode;
+
+            // Either BridgeSync console is an older version using DELETE mode,
+            // the BridgeSync console is not running, or it has no open connection to the database.
+        } else {
+            qCDebug(lgBridgeSyncQuery) << "Database is in WAL mode";
+        }
+    } else {
+        qCDebug(lgBridgeSyncQuery) << "Error checking journal mode:" << pragmaQuery.lastError().text();
+    }
+
+    // Set busy timeout to handle potential contention (e.g., during checkpoints).
+    if (!pragmaQuery.exec("PRAGMA busy_timeout=5000;")) {
+        qCDebug(lgBridgeSyncQuery) << "Error setting busy timeout:" << pragmaQuery.lastError().text();
+    }
+
+    return true;
+}
+
+bool DsBridgeSqlQuery::closeDatabase() {
+    if (!mDatabase.isOpen()) return true;
+
+    mDatabase.close();
+
+    return true;
+}
+
 void DsBridgeSqlQuery::QueryDatabase() {
     // invalidate qml versions of models.
     // queryTables will set used models to valid.
     // invalidate will skip any model that doesn't have the appEngine
     // as a parent
 
+    // Take a snapshot of the current data.
     ReferenceMap tempRefMap;
     tempRefMap.isTemp         = true;
     ContentModelRef  root     = DSQmlApplicationEngine::DefEngine()->getContentRoot();
     QmlContentModel* preModel = root.getQml(&tempRefMap, nullptr);
 
-    QElapsedTimer timer;
-    timer.start();
-    queryTables();
-    qDebug() << "QueryTables() took" << timer.elapsed() << "milliseconds";
+    if (!queryTables()) {
+        // Try again in a few.
+        QTimer::singleShot(500, this, &DsBridgeSqlQuery::QueryDatabase);
+        return;
+    }
 
+    // Take a snapshot of the new data.
     ReferenceMap tempRefMap2;
     tempRefMap2.isTemp         = true;
     root                       = DSQmlApplicationEngine::DefEngine()->getContentRoot();
     QmlContentModel* postModel = root.getQml(&tempRefMap2, nullptr);
 
+    // Compare the data.
     QSharedPointer<PropertyMapDiff> diff = QSharedPointer<PropertyMapDiff>::create(*preModel, *postModel);
+
+    // Notify listeners.
     emit syncCompleted(diff);
 }
 
@@ -305,7 +325,7 @@ bool DsBridgeSqlQuery::handleQueryError(const QSqlQuery& query, const QString& q
     return true;
 }
 
-void DsBridgeSqlQuery::queryTables() {
+bool DsBridgeSqlQuery::queryTables() {
     qCInfo(lgBridgeSyncQuery) << "BridgeService is loading content.";
 
     // Get settings.
@@ -323,12 +343,17 @@ void DsBridgeSqlQuery::queryTables() {
     QSqlQuery valueQuery(mDatabase);
     valueQuery.setForwardOnly(true);
 
+    // Make sure the database is opened.
+    if (!openDatabase()) {
+        return false;
+    }
+
     // Perform queries inside a transaction. This is very important,
     // because it effectively takes a snapshot of the current database,
     // ensuring data between queries remains consistent.
     if (!mDatabase.transaction()) {
         qCCritical(lgBridgeSyncQuery) << "Error starting transaction:" << mDatabase.lastError().text();
-        return;
+        return false;
     }
 
     // Now, perform all queries as fast as possible,
@@ -475,12 +500,12 @@ void DsBridgeSqlQuery::queryTables() {
         if (!mDatabase.commit()) {
             qCCritical(lgBridgeSyncQuery) << "Error committing transaction:" << mDatabase.lastError().text();
             mDatabase.rollback(); // Roll back if commit fails
-            return;
+            return false;
         }
     } catch (...) {
         qCWarning(lgBridgeSyncQuery) << "Unexpected error in query execution";
         mDatabase.rollback(); // Roll back on any exception
-        return;
+        return false;
     }
 
     //
@@ -794,6 +819,8 @@ void DsBridgeSqlQuery::queryTables() {
     // auto newQml = root.getQml();
 
     // DSQmlApplicationEngine::DefEngine()->updateContentRoot(root);
+
+    return true;
 }
 
 QString DsBridgeSqlQuery::slugifyKey(QString appKey) {

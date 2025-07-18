@@ -77,7 +77,9 @@ class DsBridgeSqlQuery : public QObject {
     void    stopBridgeSync();
     bool    startOrUseConnection();
     bool    startConnection();
-    void    queryTables();
+    bool    openDatabase();
+    bool    closeDatabase();
+    bool    queryTables();
     QString slugifyKey(QString appKey);
 
   private:
