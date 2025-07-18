@@ -212,7 +212,7 @@ DSQmlApplicationEngine* DSQmlApplicationEngine::DefEngine() {
 	return sDefaultEngine;
 }
 
-void DSQmlApplicationEngine::updateContentRoot(model::PropertyMapDiff* diff) {
+void DSQmlApplicationEngine::updateContentRoot(QSharedPointer<model::PropertyMapDiff> diff) {
     //updateContentRoot is responsible for cleaning up the diff.
 
     qInfo("Updating Content Root");
@@ -227,8 +227,6 @@ void DSQmlApplicationEngine::updateContentRoot(model::PropertyMapDiff* diff) {
         if(diff){
             diff->dumpChanges();
             diff->apply(*mRootMap,&mQmlRefMap);
-
-            delete diff;
         }
     }
 

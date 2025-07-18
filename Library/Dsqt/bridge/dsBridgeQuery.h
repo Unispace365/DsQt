@@ -5,9 +5,14 @@
 #include <QObject>
 #include <QProcess>
 #include <QQmlPropertyMap>
-#include <QtSql/QSql>
-#include <QtSql/QSqlDatabase>
+#include <QSqlError>
+#include <QSqlQuery>
+#include <QSqlRecord>
 
+#ifdef Q_OS_WIN
+#define NOMINMAX
+#include <windows.h>
+#endif
 
 #include <core/dsqmlapplicationengine.h>
 #include <model/content_model.h>
@@ -20,6 +25,18 @@ Q_DECLARE_LOGGING_CATEGORY(lgBridgeSyncQuery)
 Q_DECLARE_LOGGING_CATEGORY(lgBridgeSyncAppVerbose)
 Q_DECLARE_LOGGING_CATEGORY(lgBridgeSyncQueryVerbose)
 namespace dsqt::bridge {
+
+class BridgeSyncProcessGuard {
+public:
+    BridgeSyncProcessGuard(QProcess& process);
+    ~BridgeSyncProcessGuard();
+private:
+    QProcess& mProcess;
+#ifdef Q_OS_WIN
+    HANDLE mJobHandle = nullptr;
+    HANDLE mProcessHandle = nullptr;
+#endif
+};
 
 struct DsBridgeSyncSettings
 {
@@ -49,27 +66,13 @@ public:
 public slots:
     void QueryDatabase();
 signals:
-    void syncCompleted(model::PropertyMapDiff* diff);
+    void syncCompleted(QSharedPointer<model::PropertyMapDiff> diff);
 
 private:
-
-    QSqlDatabase mDatabase;
-    model::ContentModelRef mContent;
-    model::ContentModelRef mPlatforms;
-    model::ContentModelRef mPlatform;
-    model::ContentModelRef mEvents;
-    model::ContentModelRef mRecords;
-
-    std::unordered_map<int, DSResource> mAllResources;
-    QString mResourceLocation;
-
-#ifndef Q_OS_WASM
-    QProcess mBridgeSyncProcess;
-    QList<QMetaObject::Connection> mConnections;
-#endif
-    DSSettingsProxy mSettingsProxy;
+    bool handleQueryError(const QSqlQuery& query, const QString& queryName);
 
     DsBridgeSyncSettings getBridgeSyncSettings();
+    bool validateBridgeSyncSettings(const DsBridgeSyncSettings& settings) const;
     bool tryLaunchBridgeSync();
     //void startBridgeSync();
     void stopBridgeSync();
@@ -77,7 +80,15 @@ private:
     bool startConnection();
     void queryTables();
     QString slugifyKey(QString appKey);
-    model::QmlContentModel* previousModel = nullptr;
+
+private:
+    QSqlDatabase mDatabase;
+
+#ifndef Q_OS_WASM
+    QProcess mBridgeSyncProcess;
+    std::unique_ptr<BridgeSyncProcessGuard> mProcessGuard;
+    QList<QMetaObject::Connection> mConnections;
+#endif
 };
 } // namespace dsqt::bridge
 #endif // DSBRIDGEQUERY_H

@@ -1,13 +1,7 @@
 ﻿#include "dsBridgeQuery.h"
 
-
-//#include <regex>
-
 #include <QSharedPointer>
 #include <QString>
-#include <QSqlError>
-#include <QSqlQuery>
-#include <QSqlRecord>
 
 #include "core/dsenvironment.h"
 #include "model/content_model.h"
@@ -22,7 +16,7 @@ Q_LOGGING_CATEGORY(lgBridgeSyncApp, "bridgeSync.app")
 Q_LOGGING_CATEGORY(lgBridgeSyncQuery, "bridgeSync.query")
 Q_LOGGING_CATEGORY(lgBridgeSyncAppVerbose, "bridgeSync.app.verbose")
 Q_LOGGING_CATEGORY(lgBridgeSyncQueryVerbose, "bridgeSync.query.verbose")
-#define CREATE_NEW_CONSOLE 0x00000010;
+
 using namespace dsqt::model;
 namespace dsqt::bridge {
 
@@ -47,8 +41,8 @@ DsBridgeSqlQuery::DsBridgeSqlQuery(DSQmlApplicationEngine *parent)
                 QueryDatabase();
             },Qt::ConnectionType::QueuedConnection);
 
-            connect(this,&DsBridgeSqlQuery::syncCompleted,engine,[engine](model::PropertyMapDiff* diff){
-                engine->updateContentRoot(diff);
+			connect(this,&DsBridgeSqlQuery::syncCompleted,engine,[engine](QSharedPointer<PropertyMapDiff> diff){
+				engine->updateContentRoot(diff);
             },Qt::ConnectionType::QueuedConnection);
 
             //
@@ -58,14 +52,14 @@ DsBridgeSqlQuery::DsBridgeSqlQuery(DSQmlApplicationEngine *parent)
             engSettings.setTarget("engine");
             engSettings.setPrefix("engine.resource");
 
-            mResourceLocation = DSEnvironment::expandq(
+			QString resourceLocation = DSEnvironment::expandq(
                 engSettings.getString("location", "").value<QString>());
             auto opFile = engSettings.getString("resource_db", "").value<QString>();
             if (opFile != "") {
                 // Find DB file.
                 auto file = DSEnvironment::expandq(opFile);
                 if (QDir::isRelativePath(file)) {
-                    file = QDir::cleanPath(mResourceLocation + "/" + file);
+					file = QDir::cleanPath(resourceLocation + "/" + file);
                 }
 
                 // Open DB file in read-only mode.
@@ -142,6 +136,28 @@ DsBridgeSyncSettings DsBridgeSqlQuery::getBridgeSyncSettings()
     return settings;
 }
 
+bool DsBridgeSqlQuery::validateBridgeSyncSettings(const DsBridgeSyncSettings &settings) const
+{
+	if (!settings.doLaunch) {
+		qCInfo(lgBridgeSyncApp) << "BridgeSync is not configured to launch";
+		return false;
+	}
+	if (settings.appPath.isEmpty()) {
+		qCWarning(lgBridgeSyncApp) << "BridgeSync's app path is empty. BridgeSync will not launch";
+		return false;
+	}
+	if (settings.server.toString().isEmpty()) {
+		qCWarning(lgBridgeSyncApp) << "BridgeSync's server is empty. BridgeSync will not launch";
+		return false;
+	}
+	if (settings.directory.toString().isEmpty()) {
+		qCWarning(lgBridgeSyncApp) << "BridgeSync's directory is empty. BridgeSync will not launch";
+		return false;
+	}
+
+	return true;
+}
+
 bool DsBridgeSqlQuery::tryLaunchBridgeSync()
 {
 #ifndef Q_OS_WASM
@@ -155,35 +171,20 @@ bool DsBridgeSqlQuery::tryLaunchBridgeSync()
 
     // Initialize settings.
     auto bridgeSyncSettings = getBridgeSyncSettings();
-    bool launch = true;
-    if (!bridgeSyncSettings.doLaunch) {
-        qCInfo(lgBridgeSyncApp) << "BridgeSync is not configured to launch";
-        return false;
-    }
-    if (bridgeSyncSettings.appPath.isEmpty()) {
-        qCWarning(lgBridgeSyncApp) << "BridgeSync's app path is empty. BridgeSync will not launch";
-        return false;
-    }
-    if (bridgeSyncSettings.server.toString().isEmpty()) {
-        qCWarning(lgBridgeSyncApp) << "BridgeSync's server is empty. BridgeSync will not launch";
-        return false;
-    }
-    if (bridgeSyncSettings.directory.toString().isEmpty()) {
-        qCWarning(lgBridgeSyncApp) << "BridgeSync's directory is empty. BridgeSync will not launch";
-        return false;
-    }
+	if(!validateBridgeSyncSettings(bridgeSyncSettings))
+		return false;
 
-    // Check that appPath exists.
-    auto appPath = DSEnvironment::expandq(bridgeSyncSettings.appPath);
-    if (!QFile::exists(appPath)) {
-        qCWarning(lgBridgeSyncApp)
-            << "BridgeSync's app path does not exist. BridgeSync will not launch\n"
-            << appPath;
-        return false;
-    }
+	// Check path to executable.
+	const auto appPath = DSEnvironment::expandq(bridgeSyncSettings.appPath);
+	if (!QFile::exists(appPath)) {
+		qCWarning(lgBridgeSyncApp)
+		<< "BridgeSync's app path does not exist. BridgeSync will not launch\n"
+		<< appPath;
+		return false;
+	}
 
-    // Stop process if needed.
-    stopBridgeSync();
+	// Stop process if needed.
+	stopBridgeSync();
 
     // Prepare launching the process.
     mBridgeSyncProcess.setProgram(appPath);
@@ -229,7 +230,7 @@ bool DsBridgeSqlQuery::tryLaunchBridgeSync()
             [this](QProcess::ProcessError error) {
                 qCWarning(lgBridgeSyncApp) << "BridgeSync has encountered an error: " << error;
                 // Try again in a few.
-                QTimer::singleShot(1000, this, &DsBridgeSqlQuery::tryLaunchBridgeSync);
+				QTimer::singleShot(5000, this, &DsBridgeSqlQuery::tryLaunchBridgeSync);
             },
             Qt::QueuedConnection));
     mConnections.append(
@@ -241,7 +242,7 @@ bool DsBridgeSqlQuery::tryLaunchBridgeSync()
                 qCInfo(lgBridgeSyncApp) << mBridgeSyncProcess.readAllStandardOutput();
                 qCInfo(lgBridgeSyncApp) << "BridgeSync has finished with exit code: " << exitCode;
                 // Try again in a few.
-                QTimer::singleShot(1000, this, &DsBridgeSqlQuery::tryLaunchBridgeSync);
+				QTimer::singleShot(5000, this, &DsBridgeSqlQuery::tryLaunchBridgeSync);
             },
             Qt::QueuedConnection));
     mConnections.append(
@@ -263,8 +264,9 @@ bool DsBridgeSqlQuery::tryLaunchBridgeSync()
             //qDebug()<<byteArray;
         }));
 
-    // Start the process.
-    mBridgeSyncProcess.start();
+
+    // Start the process, making sure the process is terminated upon exit.
+	mProcessGuard = std::make_unique<BridgeSyncProcessGuard>(mBridgeSyncProcess);
 
     return true;
 #endif
@@ -281,14 +283,7 @@ void DsBridgeSqlQuery::stopBridgeSync()
     mConnections.clear();
 
     // Make sure our current process is stopped.
-    if(isBridgeSyncRunning()){
-        mBridgeSyncProcess.terminate();
-        if (!mBridgeSyncProcess.waitForFinished(5000)) { // Wait for up to 5 seconds
-            mBridgeSyncProcess.kill(); // Forcefully terminate if not finished
-            mBridgeSyncProcess.waitForFinished(); // Ensure the process has stopped
-        }
-        mBridgeSyncProcess.close();
-    }
+	mProcessGuard.reset();
 }
 
 // Checks to see if process is started.
@@ -323,8 +318,16 @@ void DsBridgeSqlQuery::QueryDatabase()
     root = DSQmlApplicationEngine::DefEngine()->getContentRoot();
     QmlContentModel* postModel = root.getQml(&tempRefMap2,nullptr);
 
-    PropertyMapDiff* diff = new PropertyMapDiff(*preModel,*postModel);
-    emit syncCompleted(diff);
+	QSharedPointer<PropertyMapDiff> diff = QSharedPointer<PropertyMapDiff>::create(*preModel, *postModel);
+	emit syncCompleted(diff);
+}
+
+bool DsBridgeSqlQuery::handleQueryError(const QSqlQuery &query, const QString &queryName) {
+	if (query.lastError().isValid()) {
+		qCCritical(lgBridgeSyncQuery) << queryName << " Error: " << query.lastError().text();
+		return false;
+	}
+	return true;
 }
 
 void DsBridgeSqlQuery::queryTables()
@@ -506,25 +509,30 @@ void DsBridgeSqlQuery::queryTables()
     } catch (...) {
         qCWarning(lgBridgeSyncQuery) << "Unexpected error in query execution";
         mDatabase.rollback(); // Roll back on any exception
-        return;
-    }
+		return;
+	}
 
-    // Process slot query.
-    timer.start();
+	//
+    model::ContentModelRef content("content"); //this is the content placed in a tree
+    model::ContentModelRef platforms("platforms");
+    model::ContentModelRef platform("platform");//this is the matched platform
+    model::ContentModelRef events("all_events");//this is all the event records
+    model::ContentModelRef records("all_records");//this is all the content records in a flat list
 
-    std::unordered_map<QString, std::pair<QString, bool>> slotReverseOrderingMap;
-    if (slotQuery.lastError().isValid()) {
-        qCCritical(lgBridgeSyncQuery) << "Slot Query Error: " << slotQuery.lastError();
-    } else {
-        while (slotQuery.next()) {
-            auto result = slotQuery.record();
-            bool ok_val2;
-            auto uid = result.value(0).toString();
-            auto app_key = result.value(1).toString();
-            auto reverse_ordering = result.value(2).toInt(&ok_val2);
-            slotReverseOrderingMap[uid] = {app_key, reverse_ordering};
-        }
-    }
+	// Process slot query.
+	timer.start();
+
+	std::unordered_map<QString, std::pair<QString, bool>> slotReverseOrderingMap;
+	if(handleQueryError(slotQuery, "Slot Query")) {
+		while (slotQuery.next()) {
+			auto result = slotQuery.record();
+			bool ok_val2;
+			auto uid = result.value(0).toString();
+			auto app_key = result.value(1).toString();
+			auto reverse_ordering = result.value(2).toInt(&ok_val2);
+			slotReverseOrderingMap[uid] = {app_key, reverse_ordering};
+		}
+	}
 
     qDebug() << "Processing slotQuery took" << timer.elapsed() << "milliseconds";
 
@@ -532,10 +540,8 @@ void DsBridgeSqlQuery::queryTables()
     timer.start();
 
     std::vector<ContentModelRef> rankOrderedRecords;
-    std::unordered_map<QString, ContentModelRef> recordMap;
-    if (recordQuery.lastError().isValid()) {
-        qCCritical(lgBridgeSyncQuery) << "Record Query Error: " << recordQuery.lastError();
-    } else {
+	std::unordered_map<QString, ContentModelRef> recordMap;
+	if(handleQueryError(recordQuery, "Record Query")) {
         if(recordQuery.size() == 0){
             qCWarning(lgBridgeSyncQuery) << "No records were found in database ";
         }
@@ -581,30 +587,19 @@ void DsBridgeSqlQuery::queryTables()
 
             rankOrderedRecords.push_back(record);
             //++it;
-        }
-
-        //this is the content placed in a tree
-        mContent = ContentModelRef("content");
-        //this is the matched platform
-        mPlatforms = ContentModelRef("platforms");
-        mPlatform = ContentModelRef("platform");
-        //this is all the event records
-        mEvents = ContentModelRef("all_events");
-        //this is all the content records in a flat list
-        mRecords = ContentModelRef("all_records");
-        //mRecords.setNotToQml(true);
+		}
 
         for (const auto &record : rankOrderedRecords) {
-            mRecords.addChild(record);
+            records.addChild(record);
             auto type = record.getPropertyString("variant");
             if (type == "ROOT_CONTENT") {
-                mContent.addChild(record);
+                content.addChild(record);
             } else if (type == "ROOT_PLATFORM") {
                 if (record.getPropertyString("uid")
                     == appsettings->getOr("platform.id", QString(""))) {
-                    mPlatform.addChild(record);
+                    platform.addChild(record);
                 }
-                mPlatforms.addChild(record);
+                platforms.addChild(record);
             } else if (type == "SCHEDULE") {
                 auto list = record.getPropertyString("parent_uid").split(",", Qt::SkipEmptyParts);
                 for (const auto &parentUid :
@@ -619,7 +614,7 @@ void DsBridgeSqlQuery::queryTables()
 
                 // Also add to the 'all_events' table in case an application needs events not specifically
                 // assigned to it
-                mEvents.addChild(record);
+                events.addChild(record);
             } else if (type == "RECORD") {
                 // it's has a record for a parent!
                 recordMap[record.getPropertyString("parent_uid")].addChild(record);
@@ -634,10 +629,8 @@ void DsBridgeSqlQuery::queryTables()
     // Process select query.
     timer.start();
 
-    std::unordered_map<QString, QString> selectMap;
-    if (selectQuery.lastError().isValid()) {
-        qCCritical(lgBridgeSyncQuery) << "Select Query - Query Error: " << selectQuery.lastError();
-    } else {
+	std::unordered_map<QString, QString> selectMap;
+	if(handleQueryError(selectQuery, "Select Query")) {
         while (selectQuery.next()) {
             auto result = selectQuery.record();
             selectMap[result.value(0).toString()] = result.value(1).toString();
@@ -649,9 +642,7 @@ void DsBridgeSqlQuery::queryTables()
     // Process defaults query.
     timer.start();
 
-    if (defaultsQuery.lastError().isValid()) {
-        qCCritical(lgBridgeSyncQuery) << "Defaults Query error:" << defaultsQuery.lastError();
-    } else {
+	if(handleQueryError(defaultsQuery, "Defaults Query")) {
         while (defaultsQuery.next()) {
             auto result = defaultsQuery.record();
             auto recordUid = result.value(0).toString();
@@ -692,10 +683,8 @@ void DsBridgeSqlQuery::queryTables()
     // Process value query.
     timer.start();
 
-    const dsqt::DSResource::Id cms(dsqt::DSResource::Id::CMS_TYPE, 0);
-    if (valueQuery.lastError().isValid()) {
-        qCCritical(lgBridgeSyncQuery) << "Value Query error:" << valueQuery.lastError();
-    } else {
+	const dsqt::DSResource::Id cms(dsqt::DSResource::Id::CMS_TYPE, 0);
+	if(handleQueryError(valueQuery, "Value Query")) {
         while (valueQuery.next()) {
             auto result = valueQuery.record();
             const auto &recordUid = result.value(2).toString();
@@ -847,11 +836,11 @@ void DsBridgeSqlQuery::queryTables()
 
     // Update our content.
     ContentModelRef root = DSQmlApplicationEngine::DefEngine()->getContentRoot();
-    root.replaceChild(mContent);
-    root.replaceChild(mEvents);
-    root.replaceChild(mPlatforms);
-    root.replaceChild(mPlatform);
-    root.replaceChild(mRecords);
+    root.replaceChild(content);
+    root.replaceChild(events);
+    root.replaceChild(platforms);
+    root.replaceChild(platform);
+    root.replaceChild(records);
     root.setReferences("ally_records", recordMap);
 
     /*
@@ -875,6 +864,57 @@ QString DsBridgeSqlQuery::slugifyKey(QString appKey)
     static QRegularExpression badRe("\\W|^(?=\\d)");
     QString result = appKey.replace(badRe,"_");
     return result;
+}
+
+BridgeSyncProcessGuard::BridgeSyncProcessGuard(QProcess &process) : mProcess(process) {
+#ifdef Q_OS_WIN
+    // Create a Job Object
+    mJobHandle = CreateJobObject(nullptr, nullptr);
+    if (!mJobHandle) {
+        qCWarning(lgBridgeSyncApp) << "Failed to create Job Object: " << GetLastError();
+    } else {
+        // Configure Job Object to terminate processes on close.
+        JOBOBJECT_EXTENDED_LIMIT_INFORMATION info = { 0 };
+        info.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+        if (!SetInformationJobObject(mJobHandle, JobObjectExtendedLimitInformation, &info, sizeof(info))) {
+            qCWarning(lgBridgeSyncApp) << "Failed to set Job Object info: " << GetLastError();
+            CloseHandle(mJobHandle);
+            mJobHandle = nullptr;
+        }
+    }
+#endif
+    // Start the process.
+    mProcess.start();
+    if (!mProcess.waitForStarted()) {
+        qCWarning(lgBridgeSyncApp) << "Failed to start BridgeSync: " << mProcess.errorString();
+    }
+
+#ifdef Q_OS_WIN
+    if(mJobHandle) {
+        mProcessHandle = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_SET_QUOTA | PROCESS_TERMINATE | PROCESS_SUSPEND_RESUME, FALSE, mProcess.processId());
+
+        // Assign process to Job Object
+        if (!mProcessHandle || !AssignProcessToJobObject(mJobHandle, mProcessHandle)) {
+            qCWarning(lgBridgeSyncApp) << "Failed to assign process to Job Object: " << GetLastError();
+        }
+    }
+#endif
+}
+
+BridgeSyncProcessGuard::~BridgeSyncProcessGuard() {
+    if (mProcess.state() == QProcess::Running) {
+        mProcess.terminate();
+        if (!mProcess.waitForFinished(5000)) {
+            mProcess.kill();
+            mProcess.waitForFinished();
+        }
+        mProcess.close();
+    }
+
+#ifdef Q_OS_WIN
+    CloseHandle(mProcessHandle);
+    CloseHandle(mJobHandle);
+#endif
 }
 
 } // namespace dsqt::bridge
