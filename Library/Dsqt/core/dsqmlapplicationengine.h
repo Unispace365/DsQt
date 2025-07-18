@@ -34,7 +34,7 @@ class DSQmlApplicationEngine : public QQmlApplicationEngine {
 	model::ContentModelRef		   getContentRoot();
 	void						   setDefaultEngine(DSQmlApplicationEngine* engine);
     static DSQmlApplicationEngine* DefEngine();
-    void                           updateContentRoot(model::PropertyMapDiff* diff);
+	void                           updateContentRoot(QSharedPointer<model::PropertyMapDiff> diff);
     DsImguiItem *imgui();
 	Q_INVOKABLE void			   clearQmlCache();
     DSEnvironmentQML*              getEnvQml() const;
