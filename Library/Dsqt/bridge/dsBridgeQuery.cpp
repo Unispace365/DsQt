@@ -194,6 +194,7 @@ bool DsBridgeSqlQuery::tryLaunchBridgeSync() {
             QTimer::singleShot(5000, this, &DsBridgeSqlQuery::tryLaunchBridgeSync);
         },
         Qt::QueuedConnection));
+
     mConnections.append(connect(
         &mBridgeSyncProcess, &QProcess::finished, this,
         [this](int exitCode) {
@@ -203,21 +204,30 @@ bool DsBridgeSqlQuery::tryLaunchBridgeSync() {
             QTimer::singleShot(5000, this, &DsBridgeSqlQuery::tryLaunchBridgeSync);
         },
         Qt::QueuedConnection));
+
     mConnections.append(
         connect(&mBridgeSyncProcess, &QProcess::stateChanged, this, [this](QProcess::ProcessState state) {
             qCDebug(lgBridgeSyncApp) << "BridgeSync has changed state: " << state;
         }));
+
     mConnections.append(connect(&mBridgeSyncProcess, &QProcess::readyReadStandardOutput, this, [this]() {
-        qCInfo(lgBridgeSyncApp) << mBridgeSyncProcess.readAllStandardOutput();
-        // auto byteArray = mBridgeSyncProcess.readAllStandardOutput();
-        // QString output(byteArray);
-        // qDebug()<<byteArray;
+        mBridgeSyncProcess.setReadChannel(QProcess::StandardOutput); // Switch to stdout channel
+        while (mBridgeSyncProcess.canReadLine()) {
+            QString output = QString::fromUtf8(mBridgeSyncProcess.readLine()).trimmed();
+            if (!output.isEmpty()) {
+                qCInfo(lgBridgeSyncApp) << output;
+            }
+        }
     }));
+
     mConnections.append(connect(&mBridgeSyncProcess, &QProcess::readyReadStandardError, this, [this]() {
-        qCWarning(lgBridgeSyncApp) << mBridgeSyncProcess.readAllStandardError();
-        // auto byteArray = mBridgeSyncProcess.readAllStandardError();
-        // QString output(byteArray);
-        // qDebug()<<byteArray;
+        mBridgeSyncProcess.setReadChannel(QProcess::StandardError); // Switch to stderr channel
+        while (mBridgeSyncProcess.canReadLine()) {
+            QString output = QString::fromUtf8(mBridgeSyncProcess.readLine()).trimmed();
+            if (!output.isEmpty()) {
+                qCWarning(lgBridgeSyncApp) << output;
+            }
+        }
     }));
 
     // Start the process, making sure the process is terminated upon exit.
