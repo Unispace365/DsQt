@@ -39,6 +39,33 @@ class BridgeSyncProcessGuard {
 #endif
 };
 
+class DatabaseGuard {
+  public:
+    // Constructor: Takes a QSqlDatabase and opens it
+    explicit DatabaseGuard(QSqlDatabase& database);
+
+    // Destructor: Closes the database
+    ~DatabaseGuard();
+
+    // Non-copyable to prevent accidental copying of the database connection
+    DatabaseGuard(const DatabaseGuard&)            = delete;
+    DatabaseGuard& operator=(const DatabaseGuard&) = delete;
+
+    // Move constructor and assignment to allow transferring ownership
+    DatabaseGuard(DatabaseGuard&& other) noexcept;
+    DatabaseGuard& operator=(DatabaseGuard&& other) noexcept;
+
+    // Check if the database is open
+    bool isOpen() const;
+
+    // Get the underlying database (non-const for query execution)
+    QSqlDatabase& database();
+
+  private:
+    QSqlDatabase& mDatabase;
+    bool          mWasOpen; // Tracks if the database was already open to avoid closing it unnecessarily
+};
+
 struct DsBridgeSyncSettings {
     bool     doLaunch;
     QString  appPath;
@@ -77,8 +104,6 @@ class DsBridgeSqlQuery : public QObject {
     void    stopBridgeSync();
     bool    startOrUseConnection();
     bool    startConnection();
-    bool    openDatabase();
-    bool    closeDatabase();
     bool    queryTables();
     QString slugifyKey(QString appKey);
 

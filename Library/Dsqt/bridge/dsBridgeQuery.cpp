@@ -18,6 +18,7 @@ Q_LOGGING_CATEGORY(lgBridgeSyncAppVerbose, "bridgeSync.app.verbose")
 Q_LOGGING_CATEGORY(lgBridgeSyncQueryVerbose, "bridgeSync.query.verbose")
 
 using namespace dsqt::model;
+
 namespace dsqt::bridge {
 
 DsBridgeSqlQuery::DsBridgeSqlQuery(DSQmlApplicationEngine* parent)
@@ -59,8 +60,8 @@ DsBridgeSqlQuery::DsBridgeSqlQuery(DSQmlApplicationEngine* parent)
                     file = QDir::cleanPath(resourceLocation + "/" + file);
                 }
 
-                // Open DB file in read-only mode.
                 mDatabase.setDatabaseName(file);
+                // Open DB file in read-only mode. This facilitates concurrency.
                 mDatabase.setConnectOptions("QSQLITE_OPEN_READONLY");
             }
 
@@ -72,8 +73,10 @@ DsBridgeSqlQuery::DsBridgeSqlQuery(DSQmlApplicationEngine* parent)
 
 DsBridgeSqlQuery::~DsBridgeSqlQuery() {
     // Properly close the DB file.
-    qCInfo(lgBridgeSyncApp) << "Closing database";
-    mDatabase.close();
+    if (mDatabase.isOpen()) {
+        qCInfo(lgBridgeSyncApp) << "Closing database";
+        mDatabase.close();
+    }
 
 #ifndef Q_OS_WASM
     // Properly stop the BridgeSync process.
@@ -246,46 +249,6 @@ bool DsBridgeSqlQuery::isBridgeSyncRunning() {
 #endif
 }
 
-bool DsBridgeSqlQuery::openDatabase() {
-    if (mDatabase.isOpen()) return true;
-
-    if (!mDatabase.open()) {
-        qCWarning(lgBridgeSyncQuery) << "Could not open database at " << mDatabase.databaseName();
-        return false;
-    }
-
-    // Verify WAL mode (optional, for debugging).
-    QSqlQuery pragmaQuery(mDatabase);
-    if (pragmaQuery.exec("PRAGMA journal_mode;") && pragmaQuery.next()) {
-        QString journalMode = pragmaQuery.value(0).toString();
-        if (journalMode.toLower() != "wal") {
-            qCDebug(lgBridgeSyncQuery) << "Warning: Database is not in WAL mode, current mode:" << journalMode;
-
-            // Either BridgeSync console is an older version using DELETE mode,
-            // the BridgeSync console is not running, or it has no open connection to the database.
-        } else {
-            qCDebug(lgBridgeSyncQuery) << "Database is in WAL mode";
-        }
-    } else {
-        qCDebug(lgBridgeSyncQuery) << "Error checking journal mode:" << pragmaQuery.lastError().text();
-    }
-
-    // Set busy timeout to handle potential contention (e.g., during checkpoints).
-    if (!pragmaQuery.exec("PRAGMA busy_timeout=5000;")) {
-        qCDebug(lgBridgeSyncQuery) << "Error setting busy timeout:" << pragmaQuery.lastError().text();
-    }
-
-    return true;
-}
-
-bool DsBridgeSqlQuery::closeDatabase() {
-    if (!mDatabase.isOpen()) return true;
-
-    mDatabase.close();
-
-    return true;
-}
-
 void DsBridgeSqlQuery::QueryDatabase() {
     // invalidate qml versions of models.
     // queryTables will set used models to valid.
@@ -344,9 +307,14 @@ bool DsBridgeSqlQuery::queryTables() {
     valueQuery.setForwardOnly(true);
 
     // Make sure the database is opened.
-    if (!openDatabase()) {
-        return false;
-    }
+    DatabaseGuard guard(mDatabase);
+    if (!guard.isOpen()) return false;
+
+    // Get column information for the 'value' table.
+    QSqlRecord record      = mDatabase.record("value");
+    bool       hasDatetime = record.contains("datetime");
+    bool       hasDate     = record.contains("date");
+    bool       hasTime     = record.contains("time");
 
     // Perform queries inside a transaction. This is very important,
     // because it effectively takes a snapshot of the current database,
@@ -434,63 +402,76 @@ bool DsBridgeSqlQuery::queryTables() {
         defaultsQuery.exec(query);
         qDebug() << "defaultsQuery took" << timer.elapsed() << "milliseconds";
 
-        query = "SELECT "
-                " v.uid,"                   // 0
-                " v.field_uid,"             // 1
-                " v.record_uid,"            // 2
-                " v.field_type,"            // 3
-                " v.is_default,"            // 4
-                " v.is_empty,"              // 5
-                " v.checked,"               // 6
-                " v.color,"                 // 7
-                " v.text_value,"            // 8
-                " v.rich_text,"             // 9
-                " v.number,"                // 10
-                " v.number_min,"            // 11
-                " v.number_max,"            // 12
-                " v.datetime,"              // 13
-                " v.resource_hash,"         // 14
-                " v.crop_x,"                // 15
-                " v.crop_y,"                // 16
-                " v.crop_w,"                // 17
-                " v.crop_h,"                // 18
-                " v.composite_frame,"       // 19
-                " v.composite_x,"           // 20
-                " v.composite_y,"           // 21
-                " v.composite_w,"           // 22
-                " v.composite_h,"           // 23
-                " v.option_type,"           // 24
-                " v.option_value,"          // 25
-                " v.link_url,"              // 26
-                " v.link_target_uid,"       // 27
-                " res.hash,"                // 28
-                " res.type,"                // 29
-                " res.uri,"                 // 30
-                " res.width,"               // 31
-                " res.height,"              // 32
-                " res.duration,"            // 33
-                " res.pages,"               // 34
-                " res.file_size,"           // 35
-                " l.name AS field_name,"    // 36
-                " l.app_key AS field_key,"  // 37
-                " v.preview_resource_hash," // 38
-                " preview_res.hash,"        // 39
-                " preview_res.type,"        // 40
-                " preview_res.uri,"         // 41
-                " preview_res.width,"       // 42
-                " preview_res.height,"      // 43
-                " preview_res.duration,"    // 44
-                " preview_res.pages,"       // 45
-                " preview_res.file_size,"   // 46
-                " v.hotspot_x,"             // 47
-                " v.hotspot_y,"             // 48
-                " v.hotspot_w,"             // 49
-                " v.hotspot_h,"             // 50
-                " res.filename"             // 51
-                " FROM value AS v"
-                " LEFT JOIN lookup AS l ON l.uid = v.field_uid"
-                " LEFT JOIN resource AS res ON res.hash = v.resource_hash"
-                " LEFT JOIN resource AS preview_res ON preview_res.hash = v.preview_resource_hash;";
+        // Determine the datetime field expression.
+        QString datetimeSelect;
+        if (hasDatetime) {
+            datetimeSelect = "v.datetime";
+        } else if (hasDate && hasTime) {
+            datetimeSelect = "v.date || ' ' || v.time";
+        } else if (hasDate) {
+            datetimeSelect = "v.date";
+        } else {
+            datetimeSelect = "NULL"; // Fallback if no datetime-related columns exist.
+        }
+
+        query = QString("SELECT "
+                        " v.uid,"                   // 0
+                        " v.field_uid,"             // 1
+                        " v.record_uid,"            // 2
+                        " v.field_type,"            // 3
+                        " v.is_default,"            // 4
+                        " v.is_empty,"              // 5
+                        " v.checked,"               // 6
+                        " v.color,"                 // 7
+                        " v.text_value,"            // 8
+                        " v.rich_text,"             // 9
+                        " v.number,"                // 10
+                        " v.number_min,"            // 11
+                        " v.number_max,"            // 12
+                        " %1 AS datetime,"          // 13
+                        " v.resource_hash,"         // 14
+                        " v.crop_x,"                // 15
+                        " v.crop_y,"                // 16
+                        " v.crop_w,"                // 17
+                        " v.crop_h,"                // 18
+                        " v.composite_frame,"       // 19
+                        " v.composite_x,"           // 20
+                        " v.composite_y,"           // 21
+                        " v.composite_w,"           // 22
+                        " v.composite_h,"           // 23
+                        " v.option_type,"           // 24
+                        " v.option_value,"          // 25
+                        " v.link_url,"              // 26
+                        " v.link_target_uid,"       // 27
+                        " res.hash,"                // 28
+                        " res.type,"                // 29
+                        " res.uri,"                 // 30
+                        " res.width,"               // 31
+                        " res.height,"              // 32
+                        " res.duration,"            // 33
+                        " res.pages,"               // 34
+                        " res.file_size,"           // 35
+                        " l.name AS field_name,"    // 36
+                        " l.app_key AS field_key,"  // 37
+                        " v.preview_resource_hash," // 38
+                        " preview_res.hash,"        // 39
+                        " preview_res.type,"        // 40
+                        " preview_res.uri,"         // 41
+                        " preview_res.width,"       // 42
+                        " preview_res.height,"      // 43
+                        " preview_res.duration,"    // 44
+                        " preview_res.pages,"       // 45
+                        " preview_res.file_size,"   // 46
+                        " v.hotspot_x,"             // 47
+                        " v.hotspot_y,"             // 48
+                        " v.hotspot_w,"             // 49
+                        " v.hotspot_h,"             // 50
+                        " res.filename"             // 51
+                        " FROM value AS v"
+                        " LEFT JOIN lookup AS l ON l.uid = v.field_uid"
+                        " LEFT JOIN resource AS res ON res.hash = v.resource_hash"
+                        " LEFT JOIN resource AS preview_res ON preview_res.hash = v.preview_resource_hash;")
+                    .arg(datetimeSelect);
 
         timer.start();
         valueQuery.exec(query);
@@ -881,6 +862,75 @@ BridgeSyncProcessGuard::~BridgeSyncProcessGuard() {
     CloseHandle(mProcessHandle);
     CloseHandle(mJobHandle);
 #endif
+}
+
+DatabaseGuard::DatabaseGuard(QSqlDatabase& database)
+    : mDatabase(database)
+    , mWasOpen(database.isOpen()) {
+    if (mWasOpen) {
+        qCDebug(lgBridgeSyncQuery) << "Database was already open, DatabaseGuard will not close it";
+        return;
+    }
+
+    // Open the database
+    if (!mDatabase.open()) {
+        qCWarning(lgBridgeSyncQuery) << "Could not open database at " << mDatabase.databaseName();
+        return;
+    }
+
+    // Verify WAL mode
+    QSqlQuery pragmaQuery(mDatabase);
+    if (pragmaQuery.exec("PRAGMA journal_mode;") && pragmaQuery.next()) {
+        QString journalMode = pragmaQuery.value(0).toString();
+        if (journalMode.toLower() != "wal") {
+            qCDebug(lgBridgeSyncQuery) << "Warning: Database is not in WAL mode, current mode:" << journalMode;
+        } else {
+            qCDebug(lgBridgeSyncQuery) << "Database is in WAL mode";
+        }
+    } else {
+        qCWarning(lgBridgeSyncQuery) << "Error checking journal mode:" << pragmaQuery.lastError().text();
+    }
+
+    // Set busy timeout
+    if (!pragmaQuery.exec("PRAGMA busy_timeout=5000;")) {
+        qCWarning(lgBridgeSyncQuery) << "Error setting busy timeout:" << pragmaQuery.lastError().text();
+    }
+}
+
+DatabaseGuard::~DatabaseGuard() {
+    // Only close the database if it was not already open when constructed
+    if (!mWasOpen && mDatabase.isOpen()) {
+        qCInfo(lgBridgeSyncQuery) << "Closing database";
+        mDatabase.close();
+    }
+}
+
+DatabaseGuard::DatabaseGuard(DatabaseGuard&& other) noexcept
+    : mDatabase(other.mDatabase)
+    , mWasOpen(other.mWasOpen) {
+    other.mWasOpen = true; // Prevent the moved-from object from closing the database
+}
+
+DatabaseGuard& DatabaseGuard::operator=(DatabaseGuard&& other) noexcept {
+    if (this != &other) {
+        // Close our database if it was opened by this instance
+        if (!mWasOpen && mDatabase.isOpen()) {
+            qCInfo(lgBridgeSyncQuery) << "Closing database in move assignment";
+            mDatabase.close();
+        }
+        mDatabase      = other.mDatabase;
+        mWasOpen       = other.mWasOpen;
+        other.mWasOpen = true; // Prevent the moved-from object from closing the database
+    }
+    return *this;
+}
+
+bool DatabaseGuard::isOpen() const {
+    return mDatabase.isOpen();
+}
+
+QSqlDatabase& DatabaseGuard::database() {
+    return mDatabase;
 }
 
 } // namespace dsqt::bridge
