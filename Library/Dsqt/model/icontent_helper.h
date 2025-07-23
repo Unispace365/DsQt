@@ -71,7 +71,15 @@ public:
                                                            const QString&				   propertyName)=0;
     virtual void setEngine(DSQmlApplicationEngine* engine) = 0;
     virtual ContentModelRef getPlatform()=0;
+
+    // Converts separate date and time strings to QT's QDateTime object for easy comparison.
+    // Date must be in yyyy-MM-dd format and time must be in HH:mm:ss format.
+    virtual QDateTime getDateTime(const QString& date, const QString& time) const {
+        return QDateTime::fromString(date + "T" + time, "yyyy-MM-ddTHH:mm:ss");
+    }
+    // Converts separate date and time objects to QT's QDateTime object for easy comparison.
+    virtual QDateTime getDateTime(const QDate& date, const QTime& time) const { return QDateTime(date, time); }
 };
-}
+} // namespace dsqt::model
 
 #endif // ICONTENT_HELPER_H

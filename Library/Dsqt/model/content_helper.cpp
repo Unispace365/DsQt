@@ -204,7 +204,7 @@ std::vector<ContentModelRef> ContentHelper::getFilteredPlaylists(const PlaylistF
     ContentModelRef thePlaylist;
 
     // get all the events scheduled for this platform, already sorted in order of importance
-    const auto&					 allPlatformEvents = platform.getChildByName("current_events").getChildren();
+    const auto&					 allPlatformEvents = platform.getChildByName("all_events").getChildren();
     std::vector<ContentModelRef> thePlaylists;
 
     // check if events have playlists

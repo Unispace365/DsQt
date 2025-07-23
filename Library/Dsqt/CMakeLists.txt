@@ -35,6 +35,7 @@ qt_add_qml_module(Dsqt
     model/qmlcontentmodel.h model/qmlcontentmodel.cpp
     model/qjsonmodel.cpp model/qjsonmodel.h
     model/dsresource.cpp model/dsresource.h
+    model/schedule_helper.cpp model/schedule_helper.h
     network/dsnodewatcher.cpp network/dsnodewatcher.h
     settings/dssettings.cpp settings/dssettings.h
     settings/dssettings_base.cpp

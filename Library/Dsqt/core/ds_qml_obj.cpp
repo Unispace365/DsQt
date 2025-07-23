@@ -4,240 +4,238 @@ Q_LOGGING_CATEGORY(lgQmlObj, "core.qmlobj");
 Q_LOGGING_CATEGORY(lgQmlObjVerbose, "core.qmlobj.verbose");
 namespace dsqt {
 
-DsQmlObj::DsQmlObj(int force,QObject *parent)
-    : QObject{parent}
-{}
+namespace {
+    const QString DATE_TIME_FORMAT = "yyyy-MM-ddTHH:mm:ss";
+}
 
-DsQmlObj *DsQmlObj::create(QQmlEngine *qmlEngine, QJSEngine *)
-{
-    auto obj = new DsQmlObj(0);
+DsQmlObj::DsQmlObj(int force, QObject* parent)
+    : QObject{parent} {
+}
+
+DsQmlObj* DsQmlObj::create(QQmlEngine* qmlEngine, QJSEngine*) {
+    auto obj     = new DsQmlObj(0);
     obj->mEngine = dynamic_cast<DSQmlApplicationEngine*>(qmlEngine);
-    if(obj->mEngine == nullptr)
-    {
+    if (!obj->mEngine) {
         qWarning() << "Engine is not a DSQmlApplicationEngine or a subclass. $DS functionality will not be available";
     }
-    obj->connect(obj->mEngine,&DSQmlApplicationEngine::rootUpdated,obj,[obj](){
-        obj->updatePlatform();
-    });
+    obj->connect(obj->mEngine, &DSQmlApplicationEngine::rootUpdated, obj, [obj]() { obj->updatePlatform(); });
     obj->updatePlatform();
     return obj;
 }
 
-DSSettingsProxy* DsQmlObj::appSettings() const
-{
+DSSettingsProxy* DsQmlObj::appSettings() const {
     if (!mEngine) return nullptr;
     return mEngine->getAppSettingsProxy();
 }
 
-DSEnvironmentQML* DsQmlObj::env() const
-{
+DSEnvironmentQML* DsQmlObj::env() const {
     if (!mEngine) return nullptr;
     return mEngine->getEnvQml();
 }
 
-DSQmlApplicationEngine *DsQmlObj::engine() const
-{
-    if (!mEngine) return nullptr;
+DSQmlApplicationEngine* DsQmlObj::engine() const {
     return mEngine;
 }
 
-
-
-model::QmlContentModel *DsQmlObj::platform()
-{
-    return m_platform_qml;
+model::QmlContentModel* DsQmlObj::platform() {
+    return mPlatformQml;
 }
 
-void DsQmlObj::updatePlatform()
-{
-    qDebug()<<"updating platform";
+void DsQmlObj::updatePlatform() {
+    qDebug() << "Updating platform";
     auto platform = mEngine->getContentHelper()->getPlatform();
+    if (platform == mPlatform) return;
 
-    auto newPlatform = platform.duplicate();
-    if(newPlatform == m_platform) return;
-    m_platform = newPlatform;
-    auto rm = mEngine->getReferenceMap();
-    m_platform_qml = rm->value(m_platform.getId());
+    mPlatform    = platform.duplicate();
+    mPlatformQml = mEngine->getReferenceMap()->value(mPlatform.getId());
     emit platformChanged();
 }
 
 
-model::QmlContentModel *DsQmlObj::getRecordById(QString id) const
-{
-    if (id.isEmpty()) {
-        //qCWarning(lgBrUt) << "getRecordById: invalid id(empty)!";
-        return nullptr;
-    }
-
-    auto retval = mEngine->getReferenceMap()->value(id);
-    return retval;
+model::QmlContentModel* DsQmlObj::getRecordById(QString id) const {
+    if (id.isEmpty()) return nullptr;
+    return mEngine->getReferenceMap()->value(id);
 }
 
-bool DsQmlObj::isEventNow(model::ContentModelRef event, QDateTime ldt)
-{
-    int tzd = 0;
-
-    /// ---------- Check the effective dates
-    auto startDate = QDateTime::fromString(event.getPropertyString("start_date"), "yyyy-MM-dd");
-    auto endDate = QDateTime::fromString(event.getPropertyString("end_date"), "yyyy-MM-dd");
-
-    if (!startDate.isValid()) {
-        qCWarning(lgQmlObj) << "Couldn't parse the start date for an event!";
-        qCWarning(lgQmlObjVerbose) << "Start Date of event: "
-                                 << event.getPropertyString("start_date");
-        return false;
-    }
-    if (!endDate.isValid()) {
-        qCWarning(lgQmlObj) << "Couldn't parse the end date for an event!";
-        qCWarning(lgQmlObjVerbose) << "End Date of event:" << event.getPropertyString("end_date");
-        return false;
-    }
-
-    //do we need to manipulate the end date?
-    if (ldt.date() < startDate.date() || ldt.date() > endDate.date()) {
-        qCWarning(lgQmlObjVerbose) << "Event happens outside the current date: " << event.getName()
-        << "(" << event.getId() << ")";
-        return false;
-    }
-
-    /// ---------- Check the effective times of day
-    if (!event.getPropertyString("start_time").isEmpty()) {
-        auto startTime = QDateTime::fromString(event.getPropertyString("start_time"), "HH:mm:ss");
-        auto endTime = QDateTime::fromString(event.getPropertyString("end_time"), "HH:mm:ss");
-        if (!startTime.isValid()) {
-            qCWarning(lgQmlObj) << "Couldn't parse the start time for an event!";
-            qCWarning(lgQmlObjVerbose)
-                << "Start Time of event: " << event.getPropertyString("start_time");
-            return false;
-        }
-        if (!endTime.isValid()) {
-            qCWarning(lgQmlObj) << "Couldn't parse the end time for an event!";
-            qCWarning(lgQmlObjVerbose)
-                << "End Time of event: " << event.getPropertyString("end_time");
-            return false;
-        }
-
-        int daySeconds = ldt.time().msecsSinceStartOfDay() / 1000;
-
-        int startDaySeconds = startTime.time().msecsSinceStartOfDay() / 1000;
-        int endDaySeconds = endTime.time().msecsSinceStartOfDay() / 1000;
-
-        if (daySeconds < startDaySeconds || daySeconds > endDaySeconds) {
-            qCWarning(lgQmlObj) << "Event happens outside the current time: " << event.getName()
-            << "(" << event.getId() << ")";
-            return false;
-        }
-    }
-
-    /// ---------- Check the effective days of the week
-    static const int WEEK_SUN = 0b00000001;
-    static const int WEEK_MON = 0b00000010;
-    static const int WEEK_TUE = 0b00000100;
-    static const int WEEK_WED = 0b00001000;
-    static const int WEEK_THU = 0b00010000;
-    static const int WEEK_FRI = 0b00100000;
-    static const int WEEK_SAT = 0b01000000;
-    static const int WEEK_ALL = 0b01111111;
-
-    // Returns the weekday (0 to 6, where
-    /// 0 = Sunday, 1 = Monday, ..., 6 = Saturday).
-    auto dotw = ldt.date().dayOfWeek() - 1;
-    int dayFlag = 0;
-
-    if (dotw == 0)
-        dayFlag = WEEK_SUN;
-    if (dotw == 1)
-        dayFlag = WEEK_MON;
-    if (dotw == 2)
-        dayFlag = WEEK_TUE;
-    if (dotw == 3)
-        dayFlag = WEEK_WED;
-    if (dotw == 4)
-        dayFlag = WEEK_THU;
-    if (dotw == 5)
-        dayFlag = WEEK_FRI;
-    if (dotw == 6)
-        dayFlag = WEEK_SAT;
-
-    int effectiveDays = event.getPropertyInt("effective_days");
-    if (effectiveDays == WEEK_ALL || effectiveDays & dayFlag) {
-        return true;
-    }
-
-    return false;
+bool DsQmlObj::isEventNow(QString event_id, QString localDateTime) const {
+    auto event = mEngine->getContentRoot().getChildByName("events").getChildById(event_id);
+    return isEventNow(event, QDateTime::fromString(localDateTime, DATE_TIME_FORMAT));
 }
 
-bool DsQmlObj::isEventNow(model::QmlContentModel* model, QString ldt)
-{
+bool DsQmlObj::isEventNow(model::QmlContentModel* model, QString localDateTime) const {
     auto event = mEngine->getContentRoot().getChildByName("events").getChildById(model->value("id").toString());
-    QDateTime ldtObj = QDateTime::fromString(ldt, "yyyy-MM-ddTHH:mm:ss");
-    return isEventNow(event, ldtObj);
+    return isEventNow(event, QDateTime::fromString(localDateTime, DATE_TIME_FORMAT));
 }
 
-bool DsQmlObj::isEventNow(QString id, QString ldt)
-{
-    auto event = mEngine->getContentRoot().getChildByName("events").getChildById(id);
-    QDateTime ldtObj = QDateTime::fromString(ldt, "yyyy-MM-ddTHH:mm:ss");
-    return isEventNow(event, ldtObj);
+bool DsQmlObj::isEventToday(QString event_id, QString localDateTime) const {
+    auto event = mEngine->getContentRoot().getChildByName("events").getChildById(event_id);
+    return isEventToday(event, QDateTime::fromString(localDateTime, DATE_TIME_FORMAT).date());
 }
 
-QVariantList DsQmlObj::getEventsForSpan(QString start, QString end)
-{
-    auto retval = QVariantList();
-    QDateTime startObj = QDateTime::fromString(start, "yyyy-MM-ddTHH:mm:ss");
-    QDateTime endObj = QDateTime::fromString(end, "yyyy-MM-ddTHH:mm:ss");
-    auto events = getEventsForSpan(startObj, endObj);
-    for (auto &event : events) {
-        QVariant eventVariant;
-        auto eventId = event.getId();
+bool DsQmlObj::isEventToday(model::QmlContentModel* model, QString localDateTime) const {
+    auto event = mEngine->getContentRoot().getChildByName("events").getChildById(model->value("id").toString());
+    return isEventToday(event, QDateTime::fromString(localDateTime, DATE_TIME_FORMAT).date());
+}
+
+QVariantList DsQmlObj::getEventsForSpan(QString spanStart, QString spanEnd) {
+    QVariantList retval;
+    const auto   events = getEventsForSpan(QDateTime::fromString(spanStart, DATE_TIME_FORMAT),
+                                           QDateTime::fromString(spanEnd, DATE_TIME_FORMAT));
+    for (const auto& event : events) {
+        const auto& eventId = event.getId();
+        QVariant    eventVariant;
         eventVariant.setValue(mEngine->getReferenceMap()->value(eventId));
         retval.append(eventVariant);
     }
     return retval;
 }
 
-std::vector<model::ContentModelRef> DsQmlObj::getEventsForSpan(QDateTime startObj,
-                                                                    QDateTime endObj)
-{
-    auto retval = std::vector<model::ContentModelRef>();
+std::vector<model::ContentModelRef> DsQmlObj::getScheduledEvents() {
     auto platformHolder = mEngine->getContentRoot().getChildByName("platform");
     if (platformHolder.hasChildren()) {
-        auto platform = platformHolder.getChildren()[0];
-        auto events = platform.getChildByName("scheduled_events");
-        if (events.hasChildren()) {
-            auto eventsList = events.getChildren();
-
-            for (auto event : eventsList) {
-                if (isEventNow(event, startObj)) {
-                    retval.push_back(event);
-                    break;
-                }
-                if (isEventNow(event, endObj)) {
-                    retval.push_back(event);
-                    break;
-                }
-                //check if event is between startObj and endObj
-                auto startDate = QDateTime::fromString(event.getPropertyString("start_date"),
-                                                       "yyyy-MM-dd");
-                auto endDate = QDateTime::fromString(event.getPropertyString("end_date"),
-                                                     "yyyy-MM-dd");
-                auto startTime = QDateTime::fromString(event.getPropertyString("start_time"),
-                                                       "HH:mm:ss");
-                auto endTime = QDateTime::fromString(event.getPropertyString("end_time"),
-                                                     "HH:mm:ss");
-                startDate.setTime(startTime.time());
-                endDate.setTime(endTime.time());
-                if (startDate.isValid() && endDate.isValid()) {
-                    if (startDate.date() >= startObj.date() && startDate.date() <= endObj.date()
-                        && endDate.date() >= startObj.date() && endDate.date() <= endObj.date()) {
-                        retval.push_back(event);
-                    }
-                }
-            }
-            return retval;
-        }
+        auto platform        = platformHolder.getChildren()[0];
+        auto scheduledEvents = platform.getChildByName("scheduled_events");
+        if (scheduledEvents.hasChildren()) return scheduledEvents.getChildren(); // Returns a copy.
     }
-    return retval;
+    return {};
 }
 
+std::vector<model::ContentModelRef> DsQmlObj::getEventsAtTime(QDateTime localDateTime) {
+    auto events = getScheduledEvents();
+    filterEvents(events, localDateTime);
+    return events;
 }
+
+std::vector<model::ContentModelRef> DsQmlObj::getEventsAtDate(QDate localDate) {
+    auto events = getScheduledEvents();
+    filterEvents(events, localDate);
+    return events;
+}
+
+std::vector<model::ContentModelRef> DsQmlObj::getEventsForSpan(QDateTime spanStart, QDateTime spanEnd) {
+    auto events = getScheduledEvents();
+    filterEvents(events, spanStart, spanEnd);
+    return events;
+}
+
+bool DsQmlObj::isEventNow(const model::ContentModelRef& event, QDateTime localDateTime) {
+    if (!isEventToday(event, localDateTime.date())) return false;
+
+    const auto startTime = event.getPropertyTime("start_time");
+    const auto endTime   = event.getPropertyTime("end_time");
+    if (!startTime.isValid()) {
+        qCWarning(lgQmlObj) << "Couldn't parse the start time for an event of type "
+                            << event.getPropertyString("type_key");
+        qCWarning(lgQmlObjVerbose) << "Start Time of event: " << event.getPropertyString("start_time");
+        return false;
+    }
+    if (!endTime.isValid()) {
+        qCWarning(lgQmlObj) << "Couldn't parse the end time for an event of type "
+                            << event.getPropertyString("type_key");
+        qCWarning(lgQmlObjVerbose) << "End Time of event: " << event.getPropertyString("end_time");
+        return false;
+    }
+    if (localDateTime.time() < startTime || localDateTime.time() > endTime) {
+        qCDebug(lgQmlObj) << "Event happens outside the current time: " << event.getName() << "(" << event.getId()
+                          << ")";
+        return false;
+    }
+
+    return true;
+}
+
+bool DsQmlObj::isEventToday(const model::ContentModelRef& event, QDate localDate) {
+    const auto startDate = event.getPropertyDate("start_date");
+    const auto endDate   = event.getPropertyDate("end_date");
+    if (!startDate.isValid()) {
+        qCWarning(lgQmlObj) << "Couldn't parse the start date for an event of type "
+                            << event.getPropertyString("type_key");
+        qCWarning(lgQmlObjVerbose) << "Start Date of event: " << event.getPropertyString("start_date");
+        return false;
+    }
+    if (!endDate.isValid()) {
+        qCWarning(lgQmlObj) << "Couldn't parse the end date for an event of type "
+                            << event.getPropertyString("type_key");
+        qCWarning(lgQmlObjVerbose) << "End Date of event:" << event.getPropertyString("end_date");
+        return false;
+    }
+
+    if (localDate < startDate || localDate > endDate) {
+        qCWarning(lgQmlObjVerbose) << "Event happens outside the current date: " << event.getName() << "("
+                                   << event.getId() << ")";
+        return false;
+    }
+
+    const auto dayNumber =
+        localDate.dayOfWeek() % 7; // Returns the weekday (0 to 6, where 0 = Sunday, 1 = Monday, ..., 6 = Saturday).
+    const int dayFlag       = 0x1 << dayNumber;
+    const int effectiveDays = event.getPropertyInt("effective_days"); // Flags for week days.
+    if (effectiveDays & dayFlag) {
+        return true;
+    }
+
+    qCDebug(lgQmlObj) << "Event not scheduled for the current weekday: " << event.getName() << "(" << event.getId()
+                      << ")";
+    return false;
+}
+
+bool DsQmlObj::isEventWithinSpan(const model::ContentModelRef& event, QDateTime spanStart, QDateTime spanEnd) {
+    if (spanStart > spanEnd) return false; // Invalid span.
+    auto eventStart = event.getPropertyDateTime("start_date", "start_time");
+    if (!eventStart.isValid()) return false;
+    auto eventEnd = event.getPropertyDateTime("end_date", "end_time");
+    if (!eventEnd.isValid()) return false;
+    if (eventEnd < eventStart) return false; // Invalid value.
+    return (spanEnd >= eventStart && eventEnd >= spanStart);
+}
+
+size_t DsQmlObj::filterEvents(std::vector<model::ContentModelRef>& events, QDateTime localDateTime) {
+    size_t count = events.size();
+    events.erase(std::remove_if(events.begin(), events.end(),
+                                [&](const model::ContentModelRef& item) { return !isEventNow(item, localDateTime); }),
+                 events.end());
+    return count - events.size();
+}
+
+size_t DsQmlObj::filterEvents(std::vector<model::ContentModelRef>& events, QDate localDate) {
+    size_t count = events.size();
+    events.erase(std::remove_if(events.begin(), events.end(),
+                                [&](const model::ContentModelRef& item) { return !isEventToday(item, localDate); }),
+                 events.end());
+    return count - events.size();
+}
+
+size_t DsQmlObj::filterEvents(std::vector<model::ContentModelRef>& events, QDateTime spanStart, QDateTime spanEnd) {
+    size_t count = events.size();
+    events.erase(std::remove_if(
+                     events.begin(), events.end(),
+                     [&](const model::ContentModelRef& item) { return !isEventWithinSpan(item, spanStart, spanEnd); }),
+                 events.end());
+    return count - events.size();
+}
+
+void DsQmlObj::sortEvents(std::vector<model::ContentModelRef>& events, QDateTime localDateTime) {
+    static auto heuristic = [localDateTime](const model::ContentModelRef& a, const model::ContentModelRef& b) -> bool {
+        // Active Event trumps Inactive event
+        const auto isActiveA = isEventNow(a, localDateTime);
+        const auto isActiveB = isEventNow(b, localDateTime);
+        if (isActiveA != isActiveB) return isActiveA;
+
+        // Recently Started trumps Previously started
+        const auto startA      = a.getPropertyTime("start_time");
+        const auto startB      = b.getPropertyTime("start_time");
+        const auto sinceStartA = startA.secsTo(localDateTime.time());
+        const auto sinceStartB = startB.secsTo(localDateTime.time());
+        if (glm::sign(sinceStartA) > 0 && glm::sign(sinceStartB) > 0)
+            return sinceStartB > sinceStartA;
+        else if (glm::sign(sinceStartA) > 0)
+            return true;
+
+        return false;
+    };
+
+    // Sort from highest priority to lowest priority.
+    std::stable_sort(events.begin(), events.end(), heuristic);
+}
+
+} // namespace dsqt
