@@ -136,7 +136,7 @@ bool DsQmlObj::isEventNow(const model::ContentModelRef& event, QDateTime localDa
         return false;
     }
     if (localDateTime.time() < startTime || localDateTime.time() > endTime) {
-        qCDebug(lgQmlObj) << "Event happens outside the current time: " << event.getName() << "(" << event.getId()
+        qCDebug(lgQmlObjVerbose) << "Event happens outside the current time: " << event.getName() << "(" << event.getId()
                           << ")";
         return false;
     }
@@ -174,7 +174,7 @@ bool DsQmlObj::isEventToday(const model::ContentModelRef& event, QDate localDate
         return true;
     }
 
-    qCDebug(lgQmlObj) << "Event not scheduled for the current weekday: " << event.getName() << "(" << event.getId()
+    qCDebug(lgQmlObjVerbose) << "Event not scheduled for the current weekday: " << event.getName() << "(" << event.getId()
                       << ")";
     return false;
 }
@@ -215,7 +215,7 @@ size_t DsQmlObj::filterEvents(std::vector<model::ContentModelRef>& events, QDate
 }
 
 void DsQmlObj::sortEvents(std::vector<model::ContentModelRef>& events, QDateTime localDateTime) {
-    static auto heuristic = [localDateTime](const model::ContentModelRef& a, const model::ContentModelRef& b) -> bool {
+    auto heuristic = [&localDateTime](const model::ContentModelRef& a, const model::ContentModelRef& b) -> bool {
         // Active Event trumps Inactive event
         const auto isActiveA = isEventNow(a, localDateTime);
         const auto isActiveB = isEventNow(b, localDateTime);
@@ -227,11 +227,11 @@ void DsQmlObj::sortEvents(std::vector<model::ContentModelRef>& events, QDateTime
         const auto sinceStartA = startA.secsTo(localDateTime.time());
         const auto sinceStartB = startB.secsTo(localDateTime.time());
         if (glm::sign(sinceStartA) > 0 && glm::sign(sinceStartB) > 0)
-            return sinceStartB > sinceStartA;
+            return sinceStartB > sinceStartA; // A and B have started
         else if (glm::sign(sinceStartA) > 0)
-            return true;
+            return true; // Only A has started.
 
-        return false;
+        return sinceStartB < sinceStartA;
     };
 
     // Sort from highest priority to lowest priority.
