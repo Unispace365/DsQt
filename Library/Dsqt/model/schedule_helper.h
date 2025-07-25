@@ -130,6 +130,9 @@ class ScheduledEvents : public QAbstractListModel {
     }
 
   private:
+    void updateNow() { update(QDateTime::currentDateTime()); }
+    void update(const QDateTime& localDateTime);
+
     QList<std::shared_ptr<ScheduledEvent>> m_events;
 };
 
