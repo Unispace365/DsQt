@@ -1,33 +1,49 @@
 #ifndef SCHEDULE_HELPER_H
 #define SCHEDULE_HELPER_H
 
-#include <QAbstractListModel>
 #include <QColor>
 #include <QDateTime>
+#include <QFutureWatcher>
 #include <QObject>
+#include <QQmlListProperty>
+#include <QtConcurrentRun>
 
 namespace dsqt::model {
 
 class ScheduledEvent : public QObject {
     Q_OBJECT
+    Q_PROPERTY(QString uid READ title CONSTANT)
+    Q_PROPERTY(QString type READ title CONSTANT)
     Q_PROPERTY(QString title READ title WRITE setTitle NOTIFY titleChanged)
-    Q_PROPERTY(QTime startTime READ startTime WRITE setStartTime NOTIFY startTimeChanged)
-    Q_PROPERTY(QTime endTime READ endTime WRITE setEndTime NOTIFY endTimeChanged)
-    Q_PROPERTY(QColor color READ color WRITE setColor NOTIFY colorChanged)
-    Q_PROPERTY(double secondsSinceMidnight READ secondsSinceMidnight NOTIFY startTimeChanged)
-    Q_PROPERTY(double durationInSeconds READ durationInSeconds NOTIFY endTimeChanged)
+    Q_PROPERTY(QDateTime start READ start WRITE setStart NOTIFY startChanged)
+    Q_PROPERTY(QDateTime end READ end WRITE setEnd NOTIFY endChanged)
+    Q_PROPERTY(qint8 days READ days WRITE setDays NOTIFY daysChanged)
+    Q_PROPERTY(qsizetype order READ order WRITE setOrder NOTIFY orderChanged)
+    Q_PROPERTY(double secondsSinceMidnight READ secondsSinceMidnight NOTIFY startChanged)
+    Q_PROPERTY(double durationInSeconds READ durationInSeconds NOTIFY endChanged)
 
   public:
     explicit ScheduledEvent(QObject* parent = nullptr)
         : QObject(parent) {}
 
-    ScheduledEvent(const QString& title, QTime startTime, QTime endTime, QColor color = "lightblue",
-                   QObject* parent = nullptr)
+    ScheduledEvent(const QString& uid, const QString& type, const QString& title, QDateTime start, QDateTime end,
+                   int days, qsizetype order, QObject* parent = nullptr)
         : QObject(parent)
+        , m_uid(uid)
+        , m_type(type)
         , m_title(title)
-        , m_startTime(startTime)
-        , m_endTime(endTime)
-        , m_color(color) {}
+        , m_start(start)
+        , m_end(end)
+        , m_days(days)
+        , m_order(order) {}
+
+    ScheduledEvent* duplicate() const {
+        return new ScheduledEvent(uid(), type(), title(), start(), end(), days(), m_order, parent());
+    }
+
+    QString uid() const { return m_uid; }
+
+    QString type() const { return m_type; }
 
     QString title() const { return m_title; }
     void    setTitle(const QString& title) {
@@ -37,103 +53,150 @@ class ScheduledEvent : public QObject {
         }
     }
 
-    QTime startTime() const { return m_startTime; }
-    void  setStartTime(QTime startTime) {
-        if (m_startTime != startTime) {
-            m_startTime = startTime;
-            emit startTimeChanged();
+    QDateTime start() const { return m_start; }
+    void      setStart(QDateTime start) {
+        if (m_start != start) {
+            m_start = start;
+            emit startChanged();
         }
     }
 
-    QTime endTime() const { return m_endTime; }
-    void  setEndTime(QTime endTime) {
-        if (m_endTime != endTime) {
-            m_endTime = endTime;
-            emit endTimeChanged();
+    QDateTime end() const { return m_end; }
+    void      setEnd(QDateTime end) {
+        if (m_end != end) {
+            m_end = end;
+            emit endChanged();
         }
     }
 
-    QColor color() const { return m_color; }
-    void   setColor(QColor color) {
-        if (m_color != color) {
-            m_color = color;
-            emit colorChanged();
+    qint8 days() const { return m_days; }
+    void  setDays(quint8 days) {
+        if (m_days != days) {
+            m_days = days;
+            emit daysChanged();
         }
     }
 
-    double secondsSinceMidnight() const { return QTime(0, 0).secsTo(m_startTime); }
-    double durationInSeconds() const { return m_startTime.secsTo(m_endTime); }
+    qsizetype order() const { return m_order; }
+    void      setOrder(qsizetype order) {
+        if (m_order != order) {
+            m_order = order;
+            emit orderChanged();
+        }
+    }
+
+    Q_INVOKABLE QString color(const QVariantList& colors) const {
+        if (colors.isEmpty()) {
+            return QStringLiteral("red"); // Fallback if no colors provided
+        }
+        return colors.at(m_order % colors.size()).toString();
+    }
+
+    double secondsSinceMidnight() const { return QTime(0, 0).secsTo(m_start.time()); }
+    double durationInSeconds() const { return m_start.time().secsTo(m_end.time()); }
+
+    // Returns whether the event is scheduled for the specified date and time, taking into account specific times or
+    // weekdays.
+    bool isNow(const QDateTime& localDateTime) const {
+        if (!isToday(localDateTime.date())) return false;
+        if (!m_start.isValid()) return false;
+        if (!m_end.isValid()) return false;
+        if (localDateTime.time() < m_start.time() || localDateTime.time() >= m_end.time()) return false;
+
+        return true;
+    }
+    // Returns whether the event is scheduled for the specified day, taking into account the weekdays.
+    bool isToday(const QDate& localDate) const {
+        if (!m_start.isValid()) return false;
+        if (!m_end.isValid()) return false;
+        if (localDate < m_start.date() || localDate > m_end.date()) return false;
+
+        // Returns the weekday (0 to 6, where 0 = Sunday, 1 = Monday, ..., 6 = Saturday).
+        const auto dayNumber = localDate.dayOfWeek() % 7;
+        const int  dayFlag   = 0x1 << dayNumber;
+        if (m_days & dayFlag) return true;
+
+        return false;
+    }
+    // Returns whether the event is scheduled during the time span.
+    bool isWithinSpan(const QDateTime& spanStart, const QDateTime& spanEnd) const {
+        if (spanStart > spanEnd) return false; // Invalid span.
+        if (!m_start.isValid()) return false;
+        if (!m_end.isValid()) return false;
+        if (m_end < m_start) return false; // Invalid value.
+        return (spanEnd >= m_start && m_end >= spanStart);
+    }
+
+    bool operator==(const ScheduledEvent& rhs) const {
+        // Do not compare titles.
+        return (m_order == rhs.m_order && m_start == rhs.m_start && m_end == rhs.m_end && m_uid == rhs.m_uid);
+    }
+    bool operator!=(const ScheduledEvent& rhs) const { return !(*this == rhs); }
 
   signals:
     void titleChanged();
-    void startTimeChanged();
-    void endTimeChanged();
-    void colorChanged();
+    void startChanged();
+    void endChanged();
+    void daysChanged();
+    void orderChanged();
 
   private:
-    QString m_title;
-    QTime   m_startTime;
-    QTime   m_endTime;
-    QColor  m_color;
+    QString   m_uid;
+    QString   m_type;
+    QString   m_title;
+    QDateTime m_start;
+    QDateTime m_end;
+    qint8     m_days{0x7f};
+    qsizetype m_order;
 };
 
-class ScheduledEvents : public QAbstractListModel {
+class ScheduledEvents : public QObject {
     Q_OBJECT
+    Q_PROPERTY(QList<ScheduledEvent*> all READ all NOTIFY eventsChanged)
+    Q_PROPERTY(QList<ScheduledEvent*> timeline READ timeline NOTIFY eventsChanged)
+    Q_PROPERTY(ScheduledEvent* current READ current NOTIFY eventsChanged)
 
   public:
     explicit ScheduledEvents(QObject* parent = nullptr);
 
-    enum Roles {
-        TitleRole = Qt::UserRole + 1,
-        StartTimeRole,
-        EndTimeRole,
-        ColorRole,
-        SecondsSinceMidnightRole,
-        DurationSecondsRole
-    };
+    QList<ScheduledEvent*> all() const { return m_events; }
 
-    int rowCount(const QModelIndex& parent = QModelIndex()) const override {
-        return parent.isValid() ? 0 : m_events.size();
+    QList<ScheduledEvent*> timeline() const;
+
+    ScheduledEvent* current() const {
+        if (m_events.isEmpty()) return nullptr;
+        return m_events.front();
     }
 
-    QVariant data(const QModelIndex& index, int role = Qt::DisplayRole) const override {
-        if (!index.isValid() || index.row() < 0 || index.row() >= m_events.size()) return QVariant();
-
-        const auto event = m_events[index.row()];
-        switch (role) {
-        case TitleRole:
-            return event->title();
-        case StartTimeRole:
-            return QVariant::fromValue(event->startTime());
-        case EndTimeRole:
-            return QVariant::fromValue(event->endTime());
-        case ColorRole:
-            return QVariant::fromValue(event->color());
-        case SecondsSinceMidnightRole:
-            return event->secondsSinceMidnight();
-        case DurationSecondsRole:
-            return event->durationInSeconds();
-        default:
-            return QVariant();
+    Q_INVOKABLE QList<ScheduledEvent*> ofType(const QString& type) const {
+        QList<ScheduledEvent*> result;
+        for (auto event : std::as_const(m_events)) {
+            if (event->type() == type) result.append(event);
         }
+        return result;
     }
 
-    QHash<int, QByteArray> roleNames() const override {
-        QHash<int, QByteArray> roles;
-        roles[TitleRole]                = "title";
-        roles[StartTimeRole]            = "startTime";
-        roles[EndTimeRole]              = "endTime";
-        roles[ColorRole]                = "color";
-        roles[SecondsSinceMidnightRole] = "secondsSinceMidnight";
-        roles[DurationSecondsRole]      = "durationInSeconds";
-        return roles;
-    }
+  signals:
+    void eventsChanged();
 
   private:
-    void updateNow() { update(QDateTime::currentDateTime()); }
+    void updateNow() {
+        if (!m_use_clock) m_localDateTime = QDateTime::currentDateTime();
+        update(m_localDateTime);
+    }
     void update(const QDateTime& localDateTime);
 
-    QList<std::shared_ptr<ScheduledEvent>> m_events;
+    static void sortEvents(QList<ScheduledEvent*>& events, const QDateTime& localDateTime);
+
+  private slots:
+    void onUpdated();
+
+  private:
+    QDateTime                              m_localDateTime;    // Local date and time.
+    QList<ScheduledEvent*>                 m_events;           // All events.
+    QHash<QString, QList<ScheduledEvent*>> m_events_by_type;   //
+    QFutureWatcher<QList<ScheduledEvent*>> m_watcher;          // Tracks the async task.
+    bool                                   m_use_clock{false}; // Whether to listen to the UI clock.
 };
 
 } // namespace dsqt::model

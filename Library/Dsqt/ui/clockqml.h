@@ -9,10 +9,12 @@ namespace dsqt::ui {
 
 class ClockQML : public QObject {
     Q_OBJECT
-    Q_PROPERTY(double secondsSinceMidnight READ secondsSinceMidnight NOTIFY secondsChanged)
+    Q_PROPERTY(QDateTime now READ now NOTIFY secondsChanged)
+    Q_PROPERTY(QDate date READ date NOTIFY dateChanged)
+    Q_PROPERTY(QTime time READ time NOTIFY secondsChanged)
     Q_PROPERTY(QString timeHM READ timeHM NOTIFY minutesChanged)
     Q_PROPERTY(QString timeHMS READ timeHMS NOTIFY secondsChanged)
-    Q_PROPERTY(QDateTime localDateTime READ localDateTime NOTIFY secondsChanged)
+    Q_PROPERTY(double secondsSinceMidnight READ secondsSinceMidnight NOTIFY secondsChanged)
 
   public:
     explicit ClockQML(QObject* parent = nullptr)
@@ -23,18 +25,24 @@ class ClockQML : public QObject {
         m_localDateTime = QDateTime::currentDateTime();
     }
 
-    double secondsSinceMidnight() const { return QTime(0, 0).secsTo(m_localDateTime.time()); }
-
+    // Returns the current local date and time.
+    QDateTime now() const { return m_localDateTime; }
+    // Returns the current local date.
+    QDate date() const { return m_localDateTime.date(); }
+    // Returns the current local time.
+    QTime time() const { return m_localDateTime.time(); }
+    // Returns the current local time as HH:mm string.
     QString timeHM() const { return m_localDateTime.toString("HH:mm"); }
-
+    // Returns the current local time as HH:mm:ss string.
     QString timeHMS() const { return m_localDateTime.toString("HH:mm:ss"); }
-
-    QDateTime localDateTime() const { return m_localDateTime; }
+    // Returns the current local time in seconds since midnight.
+    double secondsSinceMidnight() const { return QTime(0, 0).secsTo(m_localDateTime.time()); }
 
   signals:
     void secondsChanged();
     void minutesChanged();
     void hoursChanged();
+    void dateChanged();
 
   private:
     void update() {
@@ -43,8 +51,9 @@ class ClockQML : public QObject {
 
         // m_localDateTime = QDateTime::currentDateTime();
         m_localDateTime.setSecsSinceEpoch(lastDateTime.toSecsSinceEpoch() + 30);
-        const int currentSeconds = QTime(0, 0).secsTo(m_localDateTime.time());
+        if (lastDateTime.date() != m_localDateTime.date()) emit dateChanged();
 
+        const int currentSeconds = QTime(0, 0).secsTo(m_localDateTime.time());
         if (currentSeconds != lastSeconds) emit secondsChanged();
         if (currentSeconds / 60 != lastSeconds / 60) emit minutesChanged();
         if (currentSeconds / 3600 != lastSeconds / 3600) emit hoursChanged();

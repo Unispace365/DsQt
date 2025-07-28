@@ -1,5 +1,7 @@
 #include "ds_qml_obj.h"
 
+#include <bitset>
+
 Q_LOGGING_CATEGORY(lgQmlObj, "core.qmlobj");
 Q_LOGGING_CATEGORY(lgQmlObjVerbose, "core.qmlobj.verbose");
 namespace dsqt {
@@ -135,9 +137,9 @@ bool DsQmlObj::isEventNow(const model::ContentModelRef& event, QDateTime localDa
         qCWarning(lgQmlObjVerbose) << "End Time of event: " << event.getPropertyString("end_time");
         return false;
     }
-    if (localDateTime.time() < startTime || localDateTime.time() > endTime) {
-        qCDebug(lgQmlObjVerbose) << "Event happens outside the current time: " << event.getName() << "(" << event.getId()
-                          << ")";
+    if (localDateTime.time() < startTime || localDateTime.time() >= endTime) {
+        qCDebug(lgQmlObjVerbose) << "Event happens outside the current time: " << event.getName() << "("
+                                 << event.getId() << ")";
         return false;
     }
 
@@ -174,8 +176,8 @@ bool DsQmlObj::isEventToday(const model::ContentModelRef& event, QDate localDate
         return true;
     }
 
-    qCDebug(lgQmlObjVerbose) << "Event not scheduled for the current weekday: " << event.getName() << "(" << event.getId()
-                      << ")";
+    qCDebug(lgQmlObjVerbose) << "Event not scheduled for the current weekday: " << event.getName() << "("
+                             << event.getId() << ")";
     return false;
 }
 
@@ -226,12 +228,20 @@ void DsQmlObj::sortEvents(std::vector<model::ContentModelRef>& events, QDateTime
         const auto startB      = b.getPropertyTime("start_time");
         const auto sinceStartA = startA.secsTo(localDateTime.time());
         const auto sinceStartB = startB.secsTo(localDateTime.time());
-        if (glm::sign(sinceStartA) > 0 && glm::sign(sinceStartB) > 0)
-            return sinceStartB > sinceStartA; // A and B have started
-        else if (glm::sign(sinceStartA) > 0)
-            return true; // Only A has started.
+        if (sinceStartA == sinceStartB) { // Starting at the same time.
+            const auto durationA = startA.secsTo(a.getPropertyTime("end_time"));
+            const auto durationB = startB.secsTo(b.getPropertyTime("end_time"));
+            if (durationA == durationB)                                             // Same duration:
+                return std::bitset<8>(a.getPropertyInt("effective_days")).count() < // Fewer days has higher priority.
+                       std::bitset<8>(b.getPropertyInt("effective_days")).count();
+            else                                           // Different duration:
+                return durationA < durationB;              // Shorter duration has higher priority.
+        } else if ((sinceStartA < 0) != (sinceStartB < 0)) // Only one has already started.
+            return sinceStartA >= 0;                       // A has started, priority over B.
 
-        return sinceStartB < sinceStartA;
+        return sinceStartA >= 0
+                   ? sinceStartA < sinceStartB  // Both have started: later start time has higher priority.
+                   : sinceStartA > sinceStartB; // Both have not yet started: earlier start time has higher priority.
     };
 
     // Sort from highest priority to lowest priority.
