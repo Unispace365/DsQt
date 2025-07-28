@@ -139,7 +139,7 @@ class DsQmlEvent : public QObject {
 // Provides a list of scheduled events, optionally filtered by type, and exposes it to QML.
 class DsQmlEventSchedule : public QObject {
     Q_OBJECT
-    QML_ELEMENT
+    QML_NAMED_ELEMENT(DsEventSchedule)
     Q_PROPERTY(QString type READ type WRITE setType NOTIFY typeChanged)
     Q_PROPERTY(QList<DsQmlEvent*> events READ events NOTIFY eventsChanged)
     Q_PROPERTY(QList<DsQmlEvent*> timeline READ timeline NOTIFY eventsChanged)
