@@ -14,7 +14,7 @@
 #include <windows.h>
 #endif
 
-#include <core/dsqmlapplicationengine.h>
+#include <core/dsQmlApplicationEngine.h>
 #include <model/content_model.h>
 #include <model/dsresource.h>
 #include <model/property_map_diff.h>
@@ -83,7 +83,7 @@ class DsBridgeSqlQuery : public QObject {
     Q_OBJECT
     Q_DISABLE_COPY(DsBridgeSqlQuery)
   public:
-    explicit DsBridgeSqlQuery(DSQmlApplicationEngine* parent = nullptr);
+    explicit DsBridgeSqlQuery(DsQmlApplicationEngine* parent = nullptr);
     ~DsBridgeSqlQuery() override;
 
   public:

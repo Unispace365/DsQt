@@ -12,7 +12,7 @@ vec4 ✔
 namespace dsqt {
 
 template <>
-std::optional<ValueWMeta<glm::vec4>> DSSettings::getWithMeta(const std::string& key) {
+std::optional<ValueWMeta<glm::vec4>> DsSettings::getWithMeta(const std::string& key) {
 	qCDebug(lgSPVerbose) << "RUNNING glm::vec4";
 	auto val = getNodeViewWithMeta(key);
 	if (!val.has_value()) return {};
@@ -34,7 +34,7 @@ std::optional<ValueWMeta<glm::vec4>> DSSettings::getWithMeta(const std::string& 
 }
 
 template <>
-std::optional<ValueWMeta<glm::vec3>> DSSettings::getWithMeta(const std::string& key) {
+std::optional<ValueWMeta<glm::vec3>> DsSettings::getWithMeta(const std::string& key) {
 	qCDebug(lgSPVerbose) << "RUNNING glm::vec3";
 	auto val = getNodeViewWithMeta(key);
 	if (!val.has_value()) return {};
@@ -56,7 +56,7 @@ std::optional<ValueWMeta<glm::vec3>> DSSettings::getWithMeta(const std::string& 
 }
 
 template <>
-std::optional<ValueWMeta<glm::vec2>> DSSettings::getWithMeta(const std::string& key) {
+std::optional<ValueWMeta<glm::vec2>> DsSettings::getWithMeta(const std::string& key) {
 	qCDebug(lgSPVerbose) << "RUNNING glm::vec2";
 	auto val = getNodeViewWithMeta(key);
 	if (!val.has_value()) return {};

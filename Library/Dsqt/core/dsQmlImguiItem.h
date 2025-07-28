@@ -1,17 +1,17 @@
-#ifndef DSIMGUI_ITEM_H
-#define DSIMGUI_ITEM_H
+#ifndef DSQMLIMGUIITEM_H
+#define DSQMLIMGUIITEM_H
 
 #include <qrhiimguiitem.h>
 #include <QQuickItem>
 #include <QtQml/qqmlregistration.h>
 
-class DsImguiItem : public QRhiImguiItem
+class DsQmlImguiItem : public QRhiImguiItem
 {
 	Q_OBJECT
 	QML_NAMED_ELEMENT(Imgui)
 
   public:
-	DsImguiItem(QQuickItem* parent=nullptr):QRhiImguiItem(parent){
+    DsQmlImguiItem(QQuickItem* parent=nullptr):QRhiImguiItem(parent){
 
 	}
 	QVector<std::function<void()>> callbacks;
@@ -23,4 +23,4 @@ class DsImguiItem : public QRhiImguiItem
 
 };
 
-#endif // DSIMGUI_ITEM_H
+#endif // DSQMLIMGUIITEM_H

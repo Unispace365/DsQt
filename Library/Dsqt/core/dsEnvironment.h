@@ -9,16 +9,16 @@ Q_DECLARE_LOGGING_CATEGORY(lgEnv)
 Q_DECLARE_LOGGING_CATEGORY(lgEnvVerbose)
 namespace dsqt {
 
-class DSSettings;
-typedef std::shared_ptr<DSSettings> DSSettingsRef;
+class DsSettings;
+typedef std::shared_ptr<DsSettings> DSSettingsRef;
 /**
  * @brief DSEnvironment
  * Access to the environment data, i.e. file paths etc.
  */
-class DSEnvironment {
+class DsEnvironment {
 public:
-    DSEnvironment() = delete;
-    DSEnvironment(const DSEnvironment&) = delete;
+    DsEnvironment() = delete;
+    DsEnvironment(const DsEnvironment&) = delete;
 
     /// Return the same path but with any environment variables expanded. Current variables:
     ///	%APP% -- expanded to app folder
@@ -60,7 +60,7 @@ public:
 
     /// Convenience to save a settings file to the local path
     /// NOT IMPLEMENTED
-    static void					saveSettings(const std::string& filename, dsqt::DSSettings& setting);
+    static void					saveSettings(const std::string& filename, dsqt::DsSettings& setting);
 
 
 	static void					setConfigDirFileExpandOverride(const bool doOverride);
@@ -80,5 +80,5 @@ public:
 };
 
 }//namepace dsqt
-using DSEnv = dsqt::DSEnvironment;
+using DSEnv = dsqt::DsEnvironment;
 #endif // DSENVIRONMENT_H

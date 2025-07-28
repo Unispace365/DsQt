@@ -1,11 +1,11 @@
-#ifndef DS_QML_OBJ_H
-#define DS_QML_OBJ_H
+#ifndef DSQMLOBJ_H
+#define DSQMLOBJ_H
 
 #include <QObject>
 #include <QQmlEngine>
 #include <QDebug>
-#include "core/dsqmlapplicationengine.h"
-#include "core/dsenvironmentqml.h"
+#include "core/dsQmlApplicationEngine.h"
+#include "core/dsQmlEnvironment.h"
 #include "settings/dssettings_proxy.h"
 #include "model/content_model.h"
 #include "model/content_helper.h"
@@ -23,17 +23,17 @@ class DsQmlObj : public QObject
     QML_SINGLETON
     QML_NAMED_ELEMENT(DS)
 
-    Q_PROPERTY(dsqt::DSEnvironmentQML* env READ env NOTIFY envChanged)
-    Q_PROPERTY(dsqt::DSSettingsProxy* appSettings READ appSettings NOTIFY appSettingsChanged)
-    Q_PROPERTY(dsqt::DSQmlApplicationEngine* engine READ engine NOTIFY engineChanged)
+    Q_PROPERTY(dsqt::DsQmlEnvironment* env READ env NOTIFY envChanged)
+    Q_PROPERTY(dsqt::DsQmlSettingsProxy* appSettings READ appSettings NOTIFY appSettingsChanged)
+    Q_PROPERTY(dsqt::DsQmlApplicationEngine* engine READ engine NOTIFY engineChanged)
     Q_PROPERTY(dsqt::model::QmlContentModel* platform READ platform NOTIFY platformChanged)
     //Q_PROPERTY(dsqt::model::ContentHelper name READ name WRITE setname NOTIFY nameChanged FINAL)
 public:
     explicit DsQmlObj(int force,QObject *parent = nullptr);
     static DsQmlObj* create(QQmlEngine *qmlEngine, QJSEngine *);
-    DSSettingsProxy* appSettings() const;
-    DSEnvironmentQML* env() const;
-    DSQmlApplicationEngine* engine() const;
+    DsQmlSettingsProxy* appSettings() const;
+    DsQmlEnvironment* env() const;
+    DsQmlApplicationEngine* engine() const;
     model::QmlContentModel *platform();
 
     //QML_INVOKABLES
@@ -61,7 +61,7 @@ signals:
     void platformChanged();
 
 private:
-    DSQmlApplicationEngine* mEngine = nullptr;
+    DsQmlApplicationEngine* mEngine = nullptr;
     model::QmlContentModel* m_platform_qml = nullptr;
     model::ContentModelRef m_platform;
 
@@ -71,4 +71,4 @@ private slots:
 };
 }
 
-#endif // DS_QML_OBJ_H
+#endif // DSQMLOBJ_H

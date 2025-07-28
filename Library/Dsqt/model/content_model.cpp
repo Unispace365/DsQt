@@ -2,7 +2,7 @@
 
 #include "content_model.h"
 
-#include <core/dsqmlapplicationengine.h>
+#include <core/dsQmlApplicationEngine.h>
 #include <utility/string_util.h>
 #include <QJsonArray>
 #include <QJsonObject>

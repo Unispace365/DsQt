@@ -5,7 +5,7 @@
 #include <QObject>
 #include <QQmlEngine>
 #include "icontent_helper.h"
-#include "dsqmlapplicationengine.h"
+#include "dsQmlApplicationEngine.h"
 
 Q_DECLARE_LOGGING_CATEGORY(lgContentHelper)
 Q_DECLARE_LOGGING_CATEGORY(lgContentHelperVerbose)
@@ -43,7 +43,7 @@ public:
     virtual QString getStreamSourceTypeKey(ContentModelRef model, const QString &category) override;
     virtual std::vector<ContentModelRef> getRecordsOfType(const std::vector<ContentModelRef> &records, const QString &type) override;
     virtual std::vector<ContentProperty> findAllProperties(const std::vector<ContentModelRef> &records, const QString &propertyName) override;
-    virtual void setEngine(DSQmlApplicationEngine* engine) override;
+    virtual void setEngine(DsQmlApplicationEngine* engine) override;
     virtual ContentModelRef getPlatform() override;
 
 protected:
@@ -63,7 +63,7 @@ protected:
     std::unordered_map<QString, std::unordered_map<QString, QString>> mStreamSourceTypeProps;
     std::unordered_map<QString, std::unordered_map<QString, QString>> mStreamMatchProp;
     std::unordered_map<QString, std::unordered_map<QString, QString>> mMediaProps;
-    DSQmlApplicationEngine* mEngine;
+    DsQmlApplicationEngine* mEngine;
 private:
     QStringList splitCategory(QString category);
 };

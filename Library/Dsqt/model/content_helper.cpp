@@ -1,6 +1,6 @@
 #include "content_helper.h"
 #include <QString>
-#include "core/dsenvironment.h"
+#include "core/dsEnvironment.h"
 #include "dsresource.h"
 Q_LOGGING_CATEGORY(lgContentHelper, "model.contenthelper")
 Q_LOGGING_CATEGORY(lgContentHelperVerbose, "model.contenthelper.verbose")
@@ -84,7 +84,7 @@ ContentModelRef ContentHelper::getPlatform()
     // emit platformChanged();
 }
 
-void ContentHelper::setEngine(DSQmlApplicationEngine *engine)
+void ContentHelper::setEngine(DsQmlApplicationEngine *engine)
 {
     mEngine = engine;
 }
@@ -131,7 +131,7 @@ DSResource ContentHelper::getBackgroundForPlatform() {
 
     qCWarning(lgContentHelperVerbose()) << "No platform background for platform '" << platform.getPropertyString("name") << "'. Using default background.";
 
-    return {DSEnvironment::expandq("%APP%/data/images/default_background.png")};
+    return {DsEnvironment::expandq("%APP%/data/images/default_background.png")};
 }
 
 ContentModelRef ContentHelper::getPresentation() {

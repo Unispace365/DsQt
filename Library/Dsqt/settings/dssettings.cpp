@@ -4,7 +4,7 @@
 #include <iostream>
 #include <string>
 #include <qtimezone.h>
-#include "core/dsenvironment.h"
+#include "core/dsEnvironment.h"
 
 Q_LOGGING_CATEGORY(lgSettingsParser, "settings.parser")
 Q_LOGGING_CATEGORY(lgSPVerbose, "settings.parser.verbose")
@@ -12,19 +12,19 @@ Q_LOGGING_CATEGORY(lgSPVerbose, "settings.parser.verbose")
 namespace dsqt {
 struct GeomElements;
 
-std::string									   DSSettings::mConfigurationDirectory = "";
-bool										   DSSettings::mLoadedConfiguration	   = false;
-std::unordered_map<std::string, DSSettingsRef> DSSettings::sSettings;
+std::string									   DsSettings::mConfigurationDirectory = "";
+bool										   DsSettings::mLoadedConfiguration	   = false;
+std::unordered_map<std::string, DSSettingsRef> DsSettings::sSettings;
 
-DSSettings::DSSettings(std::string name, QObject* parent) : QObject(parent) {
+DsSettings::DsSettings(std::string name, QObject* parent) : QObject(parent) {
 	mName = name;
 }
 
-DSSettings::~DSSettings() {}
+DsSettings::~DsSettings() {}
 
-bool DSSettings::loadSettingFile(const std::string& file) {
+bool DsSettings::loadSettingFile(const std::string& file) {
 
-	std::string fullFile = DSEnvironment::expand(file);
+    std::string fullFile = DsEnvironment::expand(file);
 	if (!std::filesystem::exists(fullFile)) {
 		qCWarning(lgSPVerbose) << "File doesn't exist warning: Attempting to load file \"" << fullFile.c_str()
 							   << "\" but it does not exist";
@@ -58,19 +58,19 @@ bool DSSettings::loadSettingFile(const std::string& file) {
 }
 
 
-std::tuple<bool, DSSettingsRef> DSSettings::getSettingsOrCreate(const std::string& name, QObject* parent) {
+std::tuple<bool, DSSettingsRef> DsSettings::getSettingsOrCreate(const std::string& name, QObject* parent) {
 
 	if (sSettings.find(name) != sSettings.end()) {
 		qCDebug(lgSPVerbose) << "getSettingsOrCreate: Found Setting " << QString::fromStdString(name);
 		return {true, sSettings[name]};
 	}
 
-	DSSettingsRef retVal = DSSettingsRef(new DSSettings(name, parent));
+    DSSettingsRef retVal = DSSettingsRef(new DsSettings(name, parent));
 	sSettings[name]		 = retVal;
 	return {false, retVal};
 }
 
-DSSettingsRef DSSettings::getSettings(const std::string& name) {
+DSSettingsRef DsSettings::getSettings(const std::string& name) {
 
 	if (sSettings.find(name) == sSettings.end()) {
 		return DSSettingsRef(nullptr);
@@ -79,7 +79,7 @@ DSSettingsRef DSSettings::getSettings(const std::string& name) {
 	return sSettings[name];
 }
 
-bool DSSettings::forgetSettings(const std::string& name) {
+bool DsSettings::forgetSettings(const std::string& name) {
 	auto iter = sSettings.find(name);
 	if (iter != sSettings.end()) {
 		sSettings.erase(iter);
@@ -106,7 +106,7 @@ bool DSSettings::forgetSettings(const std::string& name) {
 //      return std::optional<std::string>();
 // }
 
-toml::node* DSSettings::getRawNode(const std::string& key,bool onlyBase) {
+toml::node* DsSettings::getRawNode(const std::string& key,bool onlyBase) {
     if (onlyBase){
         auto baseResult = mResultStack[0].data.at_path(key);
         if(baseResult){
@@ -127,7 +127,55 @@ toml::node* DSSettings::getRawNode(const std::string& key,bool onlyBase) {
 	return nullptr;
 }
 
-std::optional<NodeWMeta> DSSettings::getNodeViewWithMeta(const std::string& key) {
+std::vector<std::pair<std::string,std::optional<NodeWMeta>>> DsSettings::getNodeViewStackWithMeta(const std::string& key){
+    std::string returnPath = "";
+    auto stack = std::vector<std::pair<std::string,std::optional<NodeWMeta>>>();
+    for (auto iter = mResultStack.begin(); iter != mResultStack.end(); ++iter) {
+        auto& stackItem = *iter;
+        //        if(key==std::string("config_folder")){
+        //            std::stringstream ss;
+        //            ss << stackItem.data;
+        //            qDebug() << ss.str().c_str();
+        //        }
+        if (stackItem.data.at_path(key)) {
+            returnPath				  = stackItem.filepath;
+            toml::table*	metaTable = nullptr;
+            toml::node_view value	  = toml::node_view<toml::node>();
+            const auto&		nodeView  = stackItem.data.at_path(key);
+            value					  = nodeView;
+            if (nodeView.is_array() && nodeView.as_array()->size() > 0) {
+                value = toml::node_view<toml::node>(nodeView.as_array()->at(0));
+            }
+            if (nodeView.is_array() && nodeView.as_array()->size() > 1 && nodeView.as_array()->at(1).is_table()) {
+                metaTable = nodeView.as_array()->at(1).as_table();
+            }
+            stack.push_back(std::make_pair(returnPath,std::optional(NodeWMeta({value, metaTable, returnPath}))));
+        }
+    }
+
+    if (mRuntimeResult.data.contains(key)) {
+        mRuntimeResult.filepath	  = "runtime";
+        returnPath				  = mRuntimeResult.filepath;
+        toml::table*	metaTable = nullptr;
+        toml::node_view value	  = toml::node_view<toml::node>();
+        const auto&		nodeView  = mRuntimeResult.data.at_path(key);
+
+        if (nodeView.is_array() && nodeView.as_array()->size() > 0) {
+            value = toml::node_view<toml::node>(nodeView.as_array()->at(0));
+        }
+        if (nodeView.is_array() && nodeView.as_array()->size() > 1 && nodeView.as_array()->at(1).is_table()) {
+            metaTable = nodeView.as_array()->at(1).as_table();
+        }
+         stack.push_back(std::make_pair(returnPath,std::optional(NodeWMeta({value, metaTable, returnPath}))));
+    }
+    if(stack.empty()){
+        qCDebug(lgSettingsParser) << "Did not find any settings for key \"" << key.c_str() << "\"";
+    }
+
+    return stack;
+}
+
+std::optional<NodeWMeta> DsSettings::getNodeViewWithMeta(const std::string& key) {
 	std::string returnPath = "";
 
 	if (mRuntimeResult.data.contains(key)) {
@@ -174,7 +222,7 @@ std::optional<NodeWMeta> DSSettings::getNodeViewWithMeta(const std::string& key)
 
 
 template <typename T>
-void DSSettings::set(std::string& key, T& value) {
+void DsSettings::set(std::string& key, T& value) {
 	toml::path p(key);
 	// build any missing parts
 	auto iter = p.begin();
@@ -187,8 +235,8 @@ void DSSettings::set(std::string& key, T& value) {
 
 //-----------------------------------------------------------------------
 
-// Convert a toml::node_view<const toml::node> to QVariant
-QVariant DSSettings::tomlNodeViewToQVariant(const toml::node_view<const toml::node>& n)
+// Convert a toml::node_view<const toml::node> to QVariant. this function
+QVariant DsSettings::tomlNodeViewToQVariant(const toml::node_view<const toml::node>& n)
 {
     // Boolean?
     if (n.is_boolean())
@@ -267,7 +315,7 @@ QVariant DSSettings::tomlNodeViewToQVariant(const toml::node_view<const toml::no
 }
 
 // Recursively convert a toml::node_view<const toml::array> into QVariantList
-QVariantList DSSettings::tomlArrayViewToVariantList(const toml::node_view<const toml::node>& arrView)
+QVariantList DsSettings::tomlArrayViewToVariantList(const toml::node_view<const toml::node>& arrView)
 {
     QVariantList list;
     //list.reserve(static_cast<int>(arrView->size()));
@@ -283,7 +331,7 @@ QVariantList DSSettings::tomlArrayViewToVariantList(const toml::node_view<const 
 }
 
 // Recursively convert a toml::node_view<const toml::table> into QVariantMap
-QVariantMap DSSettings::tomlTableViewToVariantMap(const toml::node_view<const toml::node>& tabView)
+QVariantMap DsSettings::tomlTableViewToVariantMap(const toml::node_view<const toml::node>& tabView)
 {
     QVariantMap map;
     //map.reserve(static_cast<int>(tabView->size()));

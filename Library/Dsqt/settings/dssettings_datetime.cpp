@@ -21,7 +21,7 @@ std::optional<toml::date_time> getDateTimeFromNode(toml::node_view<toml::node>& 
     return retval;
 };
 
-template<> std::optional<ValueWMeta<QDate>> DSSettings::getWithMeta(const std::string& key){
+template<> std::optional<ValueWMeta<QDate>> DsSettings::getWithMeta(const std::string& key){
 
     auto val = getNodeViewWithMeta(key);
     if(!val.has_value()){
@@ -54,7 +54,7 @@ template<> std::optional<ValueWMeta<QDate>> DSSettings::getWithMeta(const std::s
 
 }
 
-template<> std::optional<ValueWMeta<QTime>> DSSettings::getWithMeta(const std::string& key){
+template<> std::optional<ValueWMeta<QTime>> DsSettings::getWithMeta(const std::string& key){
 
     auto val = getNodeViewWithMeta(key);
     if(!val.has_value()){
@@ -90,7 +90,7 @@ template<> std::optional<ValueWMeta<QTime>> DSSettings::getWithMeta(const std::s
 
 }
 
-template<> std::optional<ValueWMeta<QDateTime>> DSSettings::getWithMeta(const std::string& key){
+template<> std::optional<ValueWMeta<QDateTime>> DsSettings::getWithMeta(const std::string& key){
 
     auto val = getNodeViewWithMeta(key);
     if(!val.has_value()){

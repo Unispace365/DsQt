@@ -17,7 +17,8 @@ Window {
     property string mode:"normal"
     ///The path to the QML object to load as the root
     property url rootSrc:"";
-    
+
+
     Item {
         id: root
         width: window.width;
@@ -133,7 +134,7 @@ Window {
 
     Connections {
         target: DS.engine
-        function onFileChanged(path) {
+        function onResetting(path) {
             console.log("file changed qml");
             loadera.reload();
         }

@@ -1,7 +1,7 @@
 #ifndef DSNODEWATCHER_H
 #define DSNODEWATCHER_H
 
-#include "core/dsqmlapplicationengine.h"
+#include "core/dsQmlApplicationEngine.h"
 
 #include <QFuture>
 #include <QMutex>
@@ -29,7 +29,7 @@ public:
 class Loop: public QObject {
     Q_OBJECT
 public:
-    Loop(DSQmlApplicationEngine* engine,const QString host, const int port);
+    Loop(DsQmlApplicationEngine* engine,const QString host, const int port);
     ~Loop();
 public:
     QMutex      mMutex;
@@ -46,7 +46,7 @@ private:
     const QString   mHost;
     const int       mPort;
     const long      mRefreshRateMs; // in milliseconds
-    DSQmlApplicationEngine* mEngine;
+    DsQmlApplicationEngine* mEngine;
 
     // QRunnable interface
 public:
@@ -58,7 +58,7 @@ class DsNodeWatcher : public QObject
     Q_OBJECT
 
 public:
-  DsNodeWatcher(DSQmlApplicationEngine* parent = nullptr, QString host = "localhost", int port = 7788, bool autoStart = true);
+  DsNodeWatcher(DsQmlApplicationEngine* parent = nullptr, QString host = "localhost", int port = 7788, bool autoStart = true);
 
   void handleMessage();
   void start();
@@ -82,7 +82,7 @@ signals:
 
 	QFuture<void>			mWatcher;
 	QMutex					mMutex;
-	DSQmlApplicationEngine* mEngine;
+	DsQmlApplicationEngine* mEngine;
 	QUdpSocket*				mSocket = nullptr;
 };
 }

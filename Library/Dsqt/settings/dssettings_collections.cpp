@@ -6,7 +6,7 @@
 namespace dsqt {
 
 using toml_nv = toml::node_view<toml::node>;
-template<> std::optional<ValueWMeta<toml_nv>> DSSettings::getWithMeta(const std::string& key){
+template<> std::optional<ValueWMeta<toml_nv>> DsSettings::getWithMeta(const std::string& key){
 
     auto val = getNodeViewWithMeta(key);
     if(!val.has_value()){
@@ -23,7 +23,7 @@ template<> std::optional<ValueWMeta<toml_nv>> DSSettings::getWithMeta(const std:
 
 }
 
-template<> std::optional<ValueWMeta<QVariantList>> DSSettings::getWithMeta(const std::string& key){
+template<> std::optional<ValueWMeta<QVariantList>> DsSettings::getWithMeta(const std::string& key){
     auto val = getNodeViewWithMeta(key);
     if(!val.has_value()){
         qDebug(lgSettingsParser)<<"Failed to find value at key "<<key.c_str();
@@ -45,7 +45,7 @@ template<> std::optional<ValueWMeta<QVariantList>> DSSettings::getWithMeta(const
     return std::optional<ValueWMeta<QVariantList>>(ValueWMeta<QVariantList>(QVariantList(),meta,place));
 }
 
-template<> std::optional<ValueWMeta<QVariantMap>> DSSettings::getWithMeta(const std::string& key){
+template<> std::optional<ValueWMeta<QVariantMap>> DsSettings::getWithMeta(const std::string& key){
     auto val = getNodeViewWithMeta(key);
     if(!val.has_value()){
         qDebug(lgSettingsParser)<<"Failed to find value at key "<<key.c_str();

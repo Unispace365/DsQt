@@ -1,4 +1,4 @@
-#include "dsenvironment.h"
+#include "dsEnvironment.h"
 #include <functional>
 #include <QStandardPaths>
 #include <QDir>
@@ -13,19 +13,19 @@ Q_LOGGING_CATEGORY(lgEnvVerbose, "core.environment.verbose");
 /// \defgroup QML QML Elements
 namespace dsqt {
 using namespace Qt::Literals::StringLiterals;
-bool DSEnvironment::sInitialized = false;
-std::string DSEnvironment::sDocuments = "%DOCUMENTS%";
-std::string DSEnvironment::sDocumentsDownstream = "%LOCAL%";
-std::string DSEnvironment::sProjectPath = "%PP%";
-std::string DSEnvironment::sAppRootFolder="";
-std::string DSEnvironment::sConfigFolder = "%CFG_FOLDER%";
-std::string DSEnvironment::sSharedFolder = "%SHARED%";
-QRegularExpression DSEnvironment::sEnvRe = QRegularExpression(R"((.*?)(\%ENV\%)\((.*?)\)(.*))");
+bool DsEnvironment::sInitialized = false;
+std::string DsEnvironment::sDocuments = "%DOCUMENTS%";
+std::string DsEnvironment::sDocumentsDownstream = "%LOCAL%";
+std::string DsEnvironment::sProjectPath = "%PP%";
+std::string DsEnvironment::sAppRootFolder="";
+std::string DsEnvironment::sConfigFolder = "%CFG_FOLDER%";
+std::string DsEnvironment::sSharedFolder = "%SHARED%";
+QRegularExpression DsEnvironment::sEnvRe = QRegularExpression(R"((.*?)(\%ENV\%)\((.*?)\)(.*))");
 
 
-std::string DSEnvironment::expand(const std::string &_path)
+std::string DsEnvironment::expand(const std::string &_path)
 {
-    if (!sInitialized) DSEnvironment::initialize();
+    if (!sInitialized) DsEnvironment::initialize();
 
         QString	p = QString::fromStdString(_path);
 
@@ -65,8 +65,8 @@ std::string DSEnvironment::expand(const std::string &_path)
         return p.toStdString();
 }
 
-std::string DSEnvironment::contract(const std::string &_path) {
-	if (!sInitialized) DSEnvironment::initialize();
+std::string DsEnvironment::contract(const std::string& _path) {
+    if (!sInitialized) DsEnvironment::initialize();
 
 	QString p = QString::fromStdString(_path);
 
@@ -93,10 +93,10 @@ std::string DSEnvironment::contract(const std::string &_path) {
 	return p.toStdString();
 }
 
-bool DSEnvironment::loadEngineSettings(){
+bool DsEnvironment::loadEngineSettings(){
 	auto baseConfigFile = expand("%APP%/settings/configuration.toml");
 	auto docConfigFile = expand("%LOCAL%/settings/%PP%/configuration.toml");
-    auto [found,setting] = DSSettings::getSettingsOrCreate("engine",nullptr);
+    auto [found,setting] = DsSettings::getSettingsOrCreate("engine",nullptr);
 	auto loaded = setting->loadSettingFile(expand("%APP%/settings/engine.toml"));
 	if(loaded){
         std::optional<std::string> projectPath = setting->get<std::string>(std::string("engine.project_path"));
@@ -105,7 +105,7 @@ bool DSEnvironment::loadEngineSettings(){
 			qCDebug(lgEnv) << "Project Path:" << sProjectPath.c_str();
 		}
 
-        auto [cfgFound,config] = DSSettings::getSettingsOrCreate("config",nullptr);
+        auto [cfgFound,config] = DsSettings::getSettingsOrCreate("config",nullptr);
         config->loadSettingFile(baseConfigFile);
         config->loadSettingFile(docConfigFile);
 
@@ -120,22 +120,22 @@ bool DSEnvironment::loadEngineSettings(){
     return false;
 }
 
-DSSettingsRef DSEnvironment::engineSettings(){
-	auto engineSettingsRef = DSSettings::getSettings("engine");
+DSSettingsRef DsEnvironment::engineSettings(){
+    auto engineSettingsRef = DsSettings::getSettings("engine");
 	if(!engineSettingsRef) {
 		loadEngineSettings();
 	}
-	return DSSettings::getSettings("engine");
+    return DsSettings::getSettings("engine");
 }
 
-DSSettingsRef DSEnvironment::loadSettings(const std::string &settingsName, const std::string &filename,const bool lookForOverrides)
+DSSettingsRef DsEnvironment::loadSettings(const std::string &settingsName, const std::string &filename,const bool lookForOverrides)
 {
     std::string name = settingsName;
     std::string filepath = "%APP%/settings/"+filename;
     std::string cfgFilepath = "%APP%/settings/%CFG_FOLDER%/"+filename;
     std::string docFilepath = "%LOCAL%/settings/%PP%/"+filename;
     std::string cfgDocFilepath = "%LOCAL%/settings/%PP%/%CFG_FOLDER%/"+filename;
-    auto [found,setting] = DSSettings::getSettingsOrCreate(name,nullptr);
+    auto [found,setting] = DsSettings::getSettingsOrCreate(name,nullptr);
     auto loaded = setting->loadSettingFile(expand(filepath));
     if(loaded && lookForOverrides){
         setting->loadSettingFile(expand(cfgFilepath));
@@ -146,7 +146,7 @@ DSSettingsRef DSEnvironment::loadSettings(const std::string &settingsName, const
 	return setting;
 }
 
-bool DSEnvironment::initialize(){
+bool DsEnvironment::initialize(){
     if (sInitialized)
             return true;
         sInitialized = true;
@@ -208,7 +208,7 @@ bool DSEnvironment::initialize(){
         return true;
 }
 
-std::string DSEnvironment::getDownstreamDocumentsFolder()
+std::string DsEnvironment::getDownstreamDocumentsFolder()
 {
     //if (!sInitialized) ds::Environment::initialize();
     //return DOWNSTREAM_DOCUMENTS;

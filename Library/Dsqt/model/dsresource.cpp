@@ -6,7 +6,7 @@
 #include <QImageReader>
 #include <iostream>
 #include <sstream>
-#include "core/dsenvironment.h"
+#include "core/dsEnvironment.h"
 #include "utility/file_meta_data.h"
 
 
@@ -247,7 +247,7 @@ void DSResource::Id::setupPaths(const std::string& resource, const std::string& 
 	}
 
 	// Portable path. We want it as small as possible to ease network traffic.
-	std::string local = dsqt::DSEnvironment::expand("%LOCAL%");
+	std::string local = dsqt::DsEnvironment::expand("%LOCAL%");
 	std::string cmsPortableResourcePath;
 	if (resource.rfind(local, 0) == 0) {
 		cmsPortableResourcePath = "%LOCAL%";
@@ -264,7 +264,7 @@ void DSResource::Id::setupPaths(const std::string& resource, const std::string& 
 
 	// If the project path exists, then setup our app-local resources path.
 	if (!projectPath.empty()) {
-		fs::path p((DSEnvironment::getDownstreamDocumentsFolder()));
+		fs::path p((DsEnvironment::getDownstreamDocumentsFolder()));
 		p.append("resources");
 		p.append(projectPath);
 		p.append("app");
@@ -469,7 +469,7 @@ QString DSResource::getAbsoluteFilePath() const {
 
 QString DSResource::getPortableFilePath() const {
 	if (!mLocalFilePath.isEmpty()) {
-		return DSEnvironment::contract(mLocalFilePath);
+		return DsEnvironment::contract(mLocalFilePath);
 	}
 
 	if (mFileName.isEmpty()) return EMPTY_SZ;

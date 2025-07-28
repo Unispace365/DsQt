@@ -6,7 +6,7 @@
 #include "model/content_model.h"
 
 namespace dsqt {
-   class DSQmlApplicationEngine;
+   class DsQmlApplicationEngine;
 }
 namespace dsqt::model {
 
@@ -69,7 +69,7 @@ public:
 
     virtual std::vector<ContentProperty> findAllProperties(const std::vector<ContentModelRef>& records,
                                                            const QString&				   propertyName)=0;
-    virtual void setEngine(DSQmlApplicationEngine* engine) = 0;
+    virtual void setEngine(DsQmlApplicationEngine* engine) = 0;
     virtual ContentModelRef getPlatform()=0;
 };
 }

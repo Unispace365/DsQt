@@ -2,7 +2,7 @@
 namespace dsqt {
 
 std::unordered_map<std::string,std::function<void(QColor&,float,float,float,float,float)>>
-    DSSettings::sColorConversionFuncs = {
+    DsSettings::sColorConversionFuncs = {
 {"float_rgb",[](QColor& resultcolor,float v1,float v2,float v3,float v4,float v5){
     resultcolor.setRgbF(v1,v2,v3,v4);
 }}
@@ -29,7 +29,7 @@ std::unordered_map<std::string,std::function<void(QColor&,float,float,float,floa
 }}
 };
 
-template<> std::optional<ValueWMeta<QColor>> DSSettings::getWithMeta(const std::string& key){
+template<> std::optional<ValueWMeta<QColor>> DsSettings::getWithMeta(const std::string& key){
     auto val = getNodeViewWithMeta(key);
     if(!val.has_value()) return std::optional<ValueWMeta<QColor>>();
 

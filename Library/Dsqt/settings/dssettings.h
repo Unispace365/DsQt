@@ -34,8 +34,8 @@ struct GeomElements {
 const GeomElements getGeomElementsFromTable(toml::node_view<toml::node> node);
 
 
-class DSSettings;
-using DSSettingsRef	   = std::shared_ptr<DSSettings>;
+class DsSettings;
+using DSSettingsRef	   = std::shared_ptr<DsSettings>;
 using parse_resultWRef = std::weak_ptr<toml::parse_result>;
 using NodeWMeta		   = std::tuple<toml::node_view<toml::node>, toml::table*, std::string>;
 template <typename T>
@@ -69,7 +69,7 @@ using tomlType	 = std::variant<ValueWMeta<toml::value<bool>>, ValueWMeta<toml::v
 ///
 ///\see dsqt::DSSettingsProxy
 ///\see dsqt::DSEnvironment
-class DSSettings : public QObject {
+class DsSettings : public QObject {
 	Q_OBJECT
   public:
     /// struct to hold setting file
@@ -80,11 +80,11 @@ class DSSettings : public QObject {
 	};
 
   protected:
-	DSSettings(std::string name = "", QObject* parent = nullptr);
+	DsSettings(std::string name = "", QObject* parent = nullptr);
 
   public:
-	DSSettings(QObject* parent = nullptr) = delete;
-	~DSSettings();
+	DsSettings(QObject* parent = nullptr) = delete;
+	~DsSettings();
 
 	template <typename T>
 	static constexpr bool is_valid_setting_type = std::is_same_v<T, toml::node> || //
@@ -113,7 +113,7 @@ class DSSettings : public QObject {
 												  std::is_same_v<T, QColor>;		 //
 
 	/// Get a DSSettingsRef by name.
-	/// Get the DSSettingRef (a std::shared_ptr<DSSettings> typedef) to a setting collection associated with \b name.
+	/// Get the DSSettingRef (a std::shared_ptr<DsSettings> typedef) to a setting collection associated with \b name.
 	/// If the setting collection does not exist it will create it and return a DSSettingsRef to it.
     /// \param name name of the settings object to search for or create.
     /// \param parent a QObject derived parent.
@@ -121,7 +121,7 @@ class DSSettings : public QObject {
 	static std::tuple<bool, DSSettingsRef> getSettingsOrCreate(const std::string& name, QObject* parent = nullptr);
 
 	/// Get a setting collection by name.
-	/// Get the DSSettingsRef (a std::shared_ptr<DSSettings> typedef)to a setting collection associated with \b name.
+	/// Get the DSSettingsRef (a std::shared_ptr<DsSettings> typedef)to a setting collection associated with \b name.
 	/// If the setting collection does not exist it will return an empty DSSettingsRef.
     /// \param name the name of the settings object to search for.
     /// \returns DSSettingsRef \b settings.
@@ -179,6 +179,7 @@ class DSSettings : public QObject {
 		}
 		return std::optional<T>();
 	}
+
 
     template<> std::optional<QVariantList> get(const std::string& key) {
         auto retval = getWithMeta<QVariantList>(key);
@@ -373,6 +374,7 @@ class DSSettings : public QObject {
 
     toml::node* getRawNode(const std::string& key,bool onlyBase=false);
 
+    std::vector<std::pair<std::string, std::optional<NodeWMeta> > > getNodeViewStackWithMeta(const std::string &key);
   private:
 	// meta data
 	Qt::DateFormat										  mDateFormat		= Qt::ISODateWithMs;

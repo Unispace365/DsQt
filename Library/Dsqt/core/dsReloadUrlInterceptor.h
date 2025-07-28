@@ -1,5 +1,5 @@
-#ifndef RELOADURLINTERCEPTOR_H
-#define RELOADURLINTERCEPTOR_H
+#ifndef DSRELOADURLINTERCEPTOR_H
+#define DSRELOADURLINTERCEPTOR_H
 
 #include <QQmlAbstractUrlInterceptor>
 #include <QUrl>
@@ -9,10 +9,10 @@
 Q_DECLARE_LOGGING_CATEGORY(lgReloadUrl)
 Q_DECLARE_LOGGING_CATEGORY(lgReloadUrlVerbose)
 namespace dsqt {
-class ReloadUrlInterceptor : public QQmlAbstractUrlInterceptor
+class DsReloadUrlInterceptor : public QQmlAbstractUrlInterceptor
 {
 public:
-    ReloadUrlInterceptor();
+    DsReloadUrlInterceptor();
     void setPrefixes(QString proj_from,QString proj_to,QString framework_from="--",QString framework_to="--");
 
 public:
@@ -24,4 +24,4 @@ private:
     QString mFrameworkToPrefix;
 };
 }//namespace dsqt
-#endif // RELOADURLINTERCEPTOR_H
+#endif // DSRELOADURLINTERCEPTOR_H

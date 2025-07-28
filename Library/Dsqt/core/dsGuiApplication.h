@@ -6,10 +6,10 @@
 
 
 
-class DSGuiApplication : public QGuiApplication
+class DsGuiApplication : public QGuiApplication
 {
   public:
-    DSGuiApplication(int &argc, char **argv);
+    DsGuiApplication(int &argc, char **argv);
 };
 
 #endif // DSGUIAPPLICATION_H

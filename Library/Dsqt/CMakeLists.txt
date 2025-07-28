@@ -6,6 +6,9 @@ set(QML_IMPORT_PATH
      CACHE PATH "QT creator qml import path" FORCE
  )
 
+find_package(Qt6 REQUIRED COMPONENTS Core)
+find_package(Qt6 REQUIRED COMPONENTS Quick)
+
 qt_add_qml_module(Dsqt
     URI Dsqt
     STATIC
@@ -27,10 +30,10 @@ qt_add_qml_module(Dsqt
 
     SOURCES
     #dsqtbase.cpp dsqtbase.h
-    core/dsenvironment.cpp core/dsenvironment.h
-    core/dsguiapplication.cpp core/dsguiapplication.h
-    core/dsimgui_item.h
-    core/dsqmlapplicationengine.cpp core/dsqmlapplicationengine.h
+    core/dsEnvironment.cpp core/dsEnvironment.h
+    core/dsGuiApplication.cpp core/dsGuiApplication.h
+    core/dsQmlImguiItem.h
+    core/dsQmlApplicationEngine.cpp core/dsQmlApplicationEngine.h
     model/content_model.cpp model/content_model.h
     model/qmlcontentmodel.h model/qmlcontentmodel.cpp
     model/qjsonmodel.cpp model/qjsonmodel.h
@@ -54,17 +57,22 @@ qt_add_qml_module(Dsqt
     waffles.qrc
     SOURCES ui/clustermanager.h ui/clustermanager.cpp
     SOURCES ui/clusterview.h ui/clusterview.cpp
-    SOURCES core/dsenvironmentqml.h core/dsenvironmentqml.cpp
-    SOURCES core/ds_qml_obj.h core/ds_qml_obj.cpp
+    SOURCES core/dsQmlEnvironment.h core/dsQmlEnvironment.cpp
+    SOURCES core/dsQmlObj.h core/dsQmlObj.cpp
     SOURCES model/icontent_helper.h model/icontent_helper.cpp
     SOURCES model/content_helper.h model/content_helper.cpp
     SOURCES model/property_map_diff.h model/property_map_diff.cpp
     SOURCES model/reference_map.h
-    SOURCES core/reloadurlinterceptor.h core/reloadurlinterceptor.cpp
+    SOURCES core/dsReloadUrlInterceptor.h core/dsReloadUrlInterceptor.cpp
     DEPENDENCIES
          QtQuick
          Dsqtplugin
+         SOURCES core/dsQmlIdle.h core/dsQmlIdle.cpp
+         SOURCES core/dsQmlIdlePreventer.h core/dsQmlIdlePreventer.cpp
 
 )
+
+target_link_libraries(Dsqtplugin PRIVATE Qt6::Core)
+target_link_libraries(Dsqtplugin PRIVATE Qt6::Quick)
 
 target_include_directories(Dsqt PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} bridge core model network qml resources settings ui utility)

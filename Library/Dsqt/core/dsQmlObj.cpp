@@ -1,4 +1,4 @@
-#include "ds_qml_obj.h"
+#include "dsQmlObj.h"
 
 Q_LOGGING_CATEGORY(lgQmlObj, "core.qmlobj");
 Q_LOGGING_CATEGORY(lgQmlObjVerbose, "core.qmlobj.verbose");
@@ -11,31 +11,31 @@ DsQmlObj::DsQmlObj(int force,QObject *parent)
 DsQmlObj *DsQmlObj::create(QQmlEngine *qmlEngine, QJSEngine *)
 {
     auto obj = new DsQmlObj(0);
-    obj->mEngine = dynamic_cast<DSQmlApplicationEngine*>(qmlEngine);
+    obj->mEngine = dynamic_cast<DsQmlApplicationEngine*>(qmlEngine);
     if(obj->mEngine == nullptr)
     {
         qWarning() << "Engine is not a DSQmlApplicationEngine or a subclass. $DS functionality will not be available";
     }
-    obj->connect(obj->mEngine,&DSQmlApplicationEngine::rootUpdated,obj,[obj](){
+    obj->connect(obj->mEngine,&DsQmlApplicationEngine::rootUpdated,obj,[obj](){
         obj->updatePlatform();
     });
     obj->updatePlatform();
     return obj;
 }
 
-DSSettingsProxy* DsQmlObj::appSettings() const
+DsQmlSettingsProxy* DsQmlObj::appSettings() const
 {
     if (!mEngine) return nullptr;
     return mEngine->getAppSettingsProxy();
 }
 
-DSEnvironmentQML* DsQmlObj::env() const
+DsQmlEnvironment* DsQmlObj::env() const
 {
     if (!mEngine) return nullptr;
     return mEngine->getEnvQml();
 }
 
-DSQmlApplicationEngine *DsQmlObj::engine() const
+DsQmlApplicationEngine *DsQmlObj::engine() const
 {
     if (!mEngine) return nullptr;
     return mEngine;

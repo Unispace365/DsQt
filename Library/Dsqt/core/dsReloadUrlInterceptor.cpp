@@ -1,4 +1,4 @@
-#include "reloadurlinterceptor.h"
+#include "dsReloadUrlInterceptor.h"
 #include <QDebug>
 #include <QGuiApplication>
 #include <QRandomGenerator>
@@ -6,9 +6,9 @@
 Q_LOGGING_CATEGORY(lgReloadUrl, "reloadUrl")
 Q_LOGGING_CATEGORY(lgReloadUrlVerbose, "reloadUrl.verbose")
 namespace dsqt {
-ReloadUrlInterceptor::ReloadUrlInterceptor() {}
+DsReloadUrlInterceptor::DsReloadUrlInterceptor() {}
 
-void ReloadUrlInterceptor::setPrefixes(QString proj_from, QString proj_to, QString framework_from, QString framework_to)
+void DsReloadUrlInterceptor::setPrefixes(QString proj_from, QString proj_to, QString framework_from, QString framework_to)
 {
     mProjectFromPrefix = proj_from;
     mProjectToPrefix = proj_to;
@@ -16,7 +16,7 @@ void ReloadUrlInterceptor::setPrefixes(QString proj_from, QString proj_to, QStri
     mFrameworkToPrefix = framework_to;
 }
 
-QUrl ReloadUrlInterceptor::intercept(const QUrl &path, DataType type)
+QUrl DsReloadUrlInterceptor::intercept(const QUrl &path, DataType type)
 {
 #ifdef _DEBUG //only for debug.
     if(type == QQmlAbstractUrlInterceptor::DataType::QmlFile){

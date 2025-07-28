@@ -32,7 +32,7 @@ ArrayType getArrayTypeFromMeta(toml::table* metaData) {
 
 
 template <>
-std::optional<ValueWMeta<QVector4D>> DSSettings::getWithMeta(const std::string& key) {
+std::optional<ValueWMeta<QVector4D>> DsSettings::getWithMeta(const std::string& key) {
 	qCDebug(lgSPVerbose) << "RUNNING QVector4D";
 	auto val = getNodeViewWithMeta(key);
 	if (!val.has_value()) return {};
@@ -54,7 +54,7 @@ std::optional<ValueWMeta<QVector4D>> DSSettings::getWithMeta(const std::string& 
 }
 
 template <>
-std::optional<ValueWMeta<QVector3D>> DSSettings::getWithMeta(const std::string& key) {
+std::optional<ValueWMeta<QVector3D>> DsSettings::getWithMeta(const std::string& key) {
 	qCDebug(lgSPVerbose) << "RUNNING QVector3D";
 	auto val = getNodeViewWithMeta(key);
 	if (!val.has_value()) return {};
@@ -76,7 +76,7 @@ std::optional<ValueWMeta<QVector3D>> DSSettings::getWithMeta(const std::string& 
 }
 
 template <>
-std::optional<ValueWMeta<QVector2D>> DSSettings::getWithMeta(const std::string& key) {
+std::optional<ValueWMeta<QVector2D>> DsSettings::getWithMeta(const std::string& key) {
 	qCDebug(lgSPVerbose) << "RUNNING QVector2D";
 	auto val = getNodeViewWithMeta(key);
 	if (!val.has_value()) return {};
@@ -96,7 +96,7 @@ std::optional<ValueWMeta<QVector2D>> DSSettings::getWithMeta(const std::string& 
 }
 
 template <>
-std::optional<ValueWMeta<QRectF>> DSSettings::getWithMeta(const std::string& key) {
+std::optional<ValueWMeta<QRectF>> DsSettings::getWithMeta(const std::string& key) {
 	qCDebug(lgSPVerbose) << "RUNNING QRectF";
 	auto val = getNodeViewWithMeta(key);
 	if (!val.has_value()) return {};
@@ -135,7 +135,7 @@ std::optional<ValueWMeta<QRectF>> DSSettings::getWithMeta(const std::string& key
 }
 
 template <>
-std::optional<ValueWMeta<QRect>> DSSettings::getWithMeta(const std::string& key) {
+std::optional<ValueWMeta<QRect>> DsSettings::getWithMeta(const std::string& key) {
 	qCDebug(lgSPVerbose) << "RUNNING QRect";
 	auto val = getWithMeta<QRectF>(key);
 	if (!val.has_value()) return {};
@@ -146,7 +146,7 @@ std::optional<ValueWMeta<QRect>> DSSettings::getWithMeta(const std::string& key)
 }
 
 template <>
-std::optional<ValueWMeta<QPointF>> DSSettings::getWithMeta(const std::string& key) {
+std::optional<ValueWMeta<QPointF>> DsSettings::getWithMeta(const std::string& key) {
 	qCDebug(lgSPVerbose) << "RUNNING QPointF";
 	auto val = getNodeViewWithMeta(key);
 	if (!val.has_value()) return {};
@@ -179,7 +179,7 @@ std::optional<ValueWMeta<QPointF>> DSSettings::getWithMeta(const std::string& ke
 }
 
 template <>
-std::optional<ValueWMeta<QPoint>> DSSettings::getWithMeta(const std::string& key) {
+std::optional<ValueWMeta<QPoint>> DsSettings::getWithMeta(const std::string& key) {
 	qCDebug(lgSPVerbose) << "RUNNING QPoint";
 	auto val = getWithMeta<QPointF>(key);
 	if (!val.has_value()) return {};
@@ -190,7 +190,7 @@ std::optional<ValueWMeta<QPoint>> DSSettings::getWithMeta(const std::string& key
 }
 
 template <>
-std::optional<ValueWMeta<QSizeF>> DSSettings::getWithMeta(const std::string& key) {
+std::optional<ValueWMeta<QSizeF>> DsSettings::getWithMeta(const std::string& key) {
 	qCDebug(lgSPVerbose) << "RUNNING QSizeF";
 	auto val = getWithMeta<QPointF>(key);
 	if (!val.has_value()) return {};
@@ -201,7 +201,7 @@ std::optional<ValueWMeta<QSizeF>> DSSettings::getWithMeta(const std::string& key
 }
 
 template <>
-std::optional<ValueWMeta<QSize>> DSSettings::getWithMeta(const std::string& key) {
+std::optional<ValueWMeta<QSize>> DsSettings::getWithMeta(const std::string& key) {
 	qCDebug(lgSPVerbose) << "RUNNING QSize";
 	auto val = getWithMeta<QPointF>(key);
 	if (!val.has_value()) return {};

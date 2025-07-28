@@ -3,13 +3,13 @@
 #include <QHostAddress>
 #include <QTcpSocket>
 #include <QUdpSocket>
-#include "core/dsenvironment.h"
+#include "core/dsEnvironment.h"
 
 Q_LOGGING_CATEGORY(lgNodeWatcher, "network.nodewatcher")
 Q_LOGGING_CATEGORY(lgNodeWatcherVerbose, "network.nodewatcher.verbose")
 
 namespace dsqt::network {
-DsNodeWatcher::DsNodeWatcher(DSQmlApplicationEngine* parent, QString url, int port, bool autoStart)
+DsNodeWatcher::DsNodeWatcher(DsQmlApplicationEngine* parent, QString url, int port, bool autoStart)
   : QObject(parent), mLoop(parent, url, port), mPort(port), mEngine(parent) {
 
 	if (autoStart) {
@@ -99,8 +99,8 @@ void Message::swap(Message &o)
     mData.swap(o.mData);
 }
 
-static long get_refresh_rate(DSQmlApplicationEngine* engine){
-	auto  settings = DSEnvironment::engineSettings();
+static long get_refresh_rate(DsQmlApplicationEngine* engine){
+	auto  settings = DsEnvironment::engineSettings();
 	float rate	   = settings->getOr("node.refresh_rate", .1f);
 	long  ans	   = static_cast<long>(rate * 1000.0f);
 	if (ans < 10) {
@@ -111,7 +111,7 @@ static long get_refresh_rate(DSQmlApplicationEngine* engine){
 	return ans;
 }
 
-Loop::Loop(DSQmlApplicationEngine* engine,const QString host, const int port):QObject(engine),
+Loop::Loop(DsQmlApplicationEngine* engine,const QString host, const int port):QObject(engine),
     mAbort(false),
     mHost(host),
     mPort(port),

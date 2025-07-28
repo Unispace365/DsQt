@@ -2,7 +2,7 @@
 #include "file_meta_data.h"
 
 
-#include <core/dsenvironment.h>
+#include <core/dsEnvironment.h>
 #include <utility/string_util.h>
 
 Q_LOGGING_CATEGORY(lgFileMetaData, "file_meta_data")
@@ -89,7 +89,7 @@ bool safeFileExistsCheck(const std::string filePath, const bool allowDirectory) 
 
 std::string filePathRelativeTo(const std::string& base, const std::string& relative) {
 	if (relative.find("%APP%") != std::string::npos || relative.find("%LOCAL%") != std::string::npos) {
-		return DSEnvironment::expand(relative);
+		return DsEnvironment::expand(relative);
 	}
 
 	using namespace std::filesystem;

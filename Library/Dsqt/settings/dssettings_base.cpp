@@ -6,7 +6,7 @@
 namespace dsqt {
 
 
-template<> std::optional<ValueWMeta<std::string>> DSSettings::getWithMeta(const std::string& key){
+template<> std::optional<ValueWMeta<std::string>> DsSettings::getWithMeta(const std::string& key){
 
     auto val = getNodeViewWithMeta(key);
     if(!val.has_value()){
@@ -54,7 +54,7 @@ template<> std::optional<ValueWMeta<std::string>> DSSettings::getWithMeta(const 
 
 }
 
-template<> std::optional<ValueWMeta<QString>> DSSettings::getWithMeta(const std::string& key){
+template<> std::optional<ValueWMeta<QString>> DsSettings::getWithMeta(const std::string& key){
     auto temp = getWithMeta<std::string>(key);
     if(temp.has_value()){
         auto [val,meta,place] = temp.value();
@@ -63,7 +63,7 @@ template<> std::optional<ValueWMeta<QString>> DSSettings::getWithMeta(const std:
     return std::nullopt;
 }
 
-template<> std::optional<ValueWMeta<int64_t>> DSSettings::getWithMeta(const std::string& key){
+template<> std::optional<ValueWMeta<int64_t>> DsSettings::getWithMeta(const std::string& key){
 	qCDebug(lgSPVerbose) << "RUNNING int64";
 	auto val = getNodeViewWithMeta(key);
     if(!val.has_value()) return std::optional<ValueWMeta<int64_t>>();
@@ -87,7 +87,7 @@ template<> std::optional<ValueWMeta<int64_t>> DSSettings::getWithMeta(const std:
     return std::optional<ValueWMeta<int64_t>>();
 }
 
-template<> std::optional<ValueWMeta<int32_t>> DSSettings::getWithMeta(const std::string& key){
+template<> std::optional<ValueWMeta<int32_t>> DsSettings::getWithMeta(const std::string& key){
 	qCDebug(lgSPVerbose) << "RUNNING int32";
 	auto val = getNodeViewWithMeta(key);
     if(!val.has_value()) return std::optional<ValueWMeta<int32_t>>();
@@ -111,7 +111,7 @@ template<> std::optional<ValueWMeta<int32_t>> DSSettings::getWithMeta(const std:
     return std::optional<ValueWMeta<int32_t>>();
 }
 
-template<> std::optional<ValueWMeta<double>> DSSettings::getWithMeta(const std::string& key){
+template<> std::optional<ValueWMeta<double>> DsSettings::getWithMeta(const std::string& key){
 	qCDebug(lgSPVerbose) << "RUNNING double";
 	auto val = getNodeViewWithMeta(key);
     if(!val.has_value()) return std::optional<ValueWMeta<double>>();
@@ -136,7 +136,7 @@ template<> std::optional<ValueWMeta<double>> DSSettings::getWithMeta(const std::
     return std::optional<ValueWMeta<double>>();
 }
 
-template<> std::optional<ValueWMeta<float>> DSSettings::getWithMeta(const std::string& key){
+template<> std::optional<ValueWMeta<float>> DsSettings::getWithMeta(const std::string& key){
 	qCDebug(lgSPVerbose) << "RUNNING float";
 	auto val = getNodeViewWithMeta(key);
     if(!val.has_value()) return std::optional<ValueWMeta<float>>();
@@ -162,7 +162,7 @@ template<> std::optional<ValueWMeta<float>> DSSettings::getWithMeta(const std::s
     return std::optional<ValueWMeta<float>>();
 }
 
-template<> std::optional<ValueWMeta<bool>> DSSettings::getWithMeta(const std::string& key){
+template<> std::optional<ValueWMeta<bool>> DsSettings::getWithMeta(const std::string& key){
     qCDebug(lgSPVerbose) << "RUNNING bool";
 	auto val = getNodeViewWithMeta(key);
     if(!val.has_value()) return std::optional<ValueWMeta<float>>();
