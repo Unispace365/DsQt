@@ -349,7 +349,7 @@ bool DsBridgeSqlQuery::queryTables() {
 
         timer.start();
         slotQuery.exec(query);
-        qDebug() << "slotQuery took" << timer.elapsed() << "milliseconds";
+        qDebug(lgBridgeSyncAppVerbose) << "slotQuery took" << timer.elapsed() << "milliseconds";
 
         query = "SELECT "                 //
                 " r.uid,"                 // 0
@@ -374,7 +374,7 @@ bool DsBridgeSqlQuery::queryTables() {
 
         timer.start();
         recordQuery.exec(query);
-        qDebug() << "recordQuery took" << timer.elapsed() << "milliseconds";
+        qDebug(lgBridgeSyncAppVerbose) << "recordQuery took" << timer.elapsed() << "milliseconds";
 
         query = "SELECT "
                 " lookup.uid,"    // 0
@@ -384,7 +384,7 @@ bool DsBridgeSqlQuery::queryTables() {
 
         timer.start();
         selectQuery.exec(query);
-        qDebug() << "selectQuery took" << timer.elapsed() << "milliseconds";
+        qDebug(lgBridgeSyncAppVerbose) << "selectQuery took" << timer.elapsed() << "milliseconds";
 
         query = "SELECT "
                 " record.uid,"                  // 0
@@ -410,7 +410,7 @@ bool DsBridgeSqlQuery::queryTables() {
 
         timer.start();
         defaultsQuery.exec(query);
-        qDebug() << "defaultsQuery took" << timer.elapsed() << "milliseconds";
+        qDebug(lgBridgeSyncAppVerbose) << "defaultsQuery took" << timer.elapsed() << "milliseconds";
 
         // Determine the datetime field expression.
         QString datetimeSelect;
@@ -485,7 +485,7 @@ bool DsBridgeSqlQuery::queryTables() {
 
         timer.start();
         valueQuery.exec(query);
-        qDebug() << "valueQuery took" << timer.elapsed() << "milliseconds";
+        qDebug(lgBridgeSyncAppVerbose) << "valueQuery took" << timer.elapsed() << "milliseconds";
 
         // Commit the transaction (see above).
         if (!mDatabase.commit()) {
@@ -521,7 +521,7 @@ bool DsBridgeSqlQuery::queryTables() {
         }
     }
 
-    qDebug() << "Processing slotQuery took" << timer.elapsed() << "milliseconds";
+    qDebug(lgBridgeSyncAppVerbose) << "Processing slotQuery took" << timer.elapsed() << "milliseconds";
 
     // Process record query.
     timer.start();
@@ -537,10 +537,6 @@ bool DsBridgeSqlQuery::queryTables() {
             ContentModelRef record(result.value(7).toString() + "(" + result.value(0).toString() + ")");
             auto val = QCryptographicHash::hash(result.value(0).toString().toUtf8(), QCryptographicHash::Md5);
             record.setId(result.value(0).toString());
-            if (record.getId() == "CniWJvnMsq3d") {
-                qDebug() << "found it";
-            }
-
             record.setProperty("record_name", result.value(7).toString());
             record.setProperty("uid", result.value(0).toString());
             record.setProperty("type_uid", result.value(1).toString());
@@ -603,7 +599,7 @@ bool DsBridgeSqlQuery::queryTables() {
         }
     }
 
-    qDebug() << "Processing recordQuery took" << timer.elapsed() << "milliseconds";
+    qDebug(lgBridgeSyncAppVerbose) << "Processing recordQuery took" << timer.elapsed() << "milliseconds";
 
     // Process select query.
     timer.start();
@@ -616,7 +612,7 @@ bool DsBridgeSqlQuery::queryTables() {
         }
     }
 
-    qDebug() << "Processing selectQuery took" << timer.elapsed() << "milliseconds";
+    qDebug(lgBridgeSyncAppVerbose) << "Processing selectQuery took" << timer.elapsed() << "milliseconds";
 
     // Process defaults query.
     timer.start();
@@ -657,7 +653,7 @@ bool DsBridgeSqlQuery::queryTables() {
         }
     }
 
-    qDebug() << "Processing defaultsQuery took" << timer.elapsed() << "milliseconds";
+    qDebug(lgBridgeSyncAppVerbose) << "Processing defaultsQuery took" << timer.elapsed() << "milliseconds";
 
     // Process value query.
     timer.start();
@@ -785,7 +781,7 @@ bool DsBridgeSqlQuery::queryTables() {
         }
     }
 
-    qDebug() << "Processing valueQuery took" << timer.elapsed() << "milliseconds";
+    qDebug(lgBridgeSyncAppVerbose) << "Processing valueQuery took" << timer.elapsed() << "milliseconds";
 
     // Update our content.
     ContentModelRef root = DSQmlApplicationEngine::DefEngine()->getContentRoot();
