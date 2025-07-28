@@ -9,8 +9,12 @@
 namespace dsqt::model {
 
 ScheduledEvents::ScheduledEvents(QObject* parent)
-    : QObject(parent) {
+    : ScheduledEvents("", parent) {
+}
 
+ScheduledEvents::ScheduledEvents(const QString& type_name, QObject* parent)
+    : QObject(parent)
+    , m_type_name(type_name) {
     auto engine = DSQmlApplicationEngine::DefEngine();
 
     // Listen to content updates.
@@ -27,8 +31,8 @@ ScheduledEvents::ScheduledEvents(QObject* parent)
         connect(
             clock, &ui::ClockQML::minutesChanged, this,
             [this, clock]() {
-                m_localDateTime = clock->now();
-                update(m_localDateTime);
+                m_local_date_time = clock->now();
+                update(m_local_date_time);
             },
             Qt::ConnectionType::QueuedConnection);
     }
@@ -52,7 +56,7 @@ QList<ScheduledEvent*> ScheduledEvents::timeline() const {
         QList<ScheduledEvent*> sortable = m_events;
 
         // For each of the checkpoints, sort the events and add the first event to the result.
-        auto localDateTime = m_localDateTime;
+        auto localDateTime = m_local_date_time;
         for (const auto& checkpoint : checkpoints) {
             localDateTime.setTime(checkpoint);
             sortEvents(sortable, localDateTime);
@@ -138,6 +142,8 @@ void ScheduledEvents::update(const QDateTime& localDateTime) {
         auto allEvents = content.getChildByName("all_events");
         auto events    = allEvents.getChildren();
 
+        // Only keep events of a specific type.
+        DsQmlObj::filterEvents(events, m_type_name);
         // Only keep today's events.
         DsQmlObj::filterEvents(events, localDateTime.date());
         // Sort them by priority.

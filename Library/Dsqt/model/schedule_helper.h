@@ -7,6 +7,7 @@
 #include <QDateTime>
 #include <QFutureWatcher>
 #include <QObject>
+#include <QQmlEngine>
 #include <QQmlListProperty>
 #include <QtConcurrentRun>
 
@@ -14,6 +15,7 @@ namespace dsqt::model {
 
 class ScheduledEvent : public QObject {
     Q_OBJECT
+    QML_ELEMENT
     Q_PROPERTY(QString uid READ uid CONSTANT)
     Q_PROPERTY(QString type READ type CONSTANT)
     Q_PROPERTY(QString title READ title WRITE setTitle NOTIFY titleChanged)
@@ -135,28 +137,23 @@ class ScheduledEvent : public QObject {
 
 class ScheduledEvents : public QObject {
     Q_OBJECT
+    QML_ELEMENT
     Q_PROPERTY(QList<ScheduledEvent*> all READ all NOTIFY eventsChanged)
     Q_PROPERTY(QList<ScheduledEvent*> timeline READ timeline NOTIFY eventsChanged)
     Q_PROPERTY(ScheduledEvent* current READ current NOTIFY eventsChanged)
 
   public:
     explicit ScheduledEvents(QObject* parent = nullptr);
+    ScheduledEvents(const QString& type_name, QObject* parent = nullptr);
 
+    // Returns all events, sorted from highest to lowest priority.
     QList<ScheduledEvent*> all() const { return m_events; }
-
+    // Returns all events as a timeline, with all overlapping events resolved to a single event.
     QList<ScheduledEvent*> timeline() const;
-
+    // Returns the currently active event, or nullptr if no event is active.
     ScheduledEvent* current() const {
         if (m_events.isEmpty()) return nullptr;
         return m_events.front();
-    }
-
-    Q_INVOKABLE QList<ScheduledEvent*> ofType(const QString& type) const {
-        QList<ScheduledEvent*> result;
-        for (auto event : std::as_const(m_events)) {
-            if (event->type() == type) result.append(event);
-        }
-        return result;
     }
 
   signals:
@@ -164,8 +161,8 @@ class ScheduledEvents : public QObject {
 
   private:
     void updateNow() {
-        if (!m_use_clock) m_localDateTime = QDateTime::currentDateTime();
-        update(m_localDateTime);
+        if (!m_use_clock) m_local_date_time = QDateTime::currentDateTime();
+        update(m_local_date_time);
     }
     void update(const QDateTime& localDateTime);
 
@@ -175,7 +172,8 @@ class ScheduledEvents : public QObject {
     void onUpdated();
 
   private:
-    QDateTime                              m_localDateTime;    // Local date and time.
+    QString                                m_type_name;        // Event record type. If empty, all events are included.
+    QDateTime                              m_local_date_time;  // Local date and time.
     QList<ScheduledEvent*>                 m_events;           // All events.
     QHash<QString, QList<ScheduledEvent*>> m_events_by_type;   //
     QFutureWatcher<QList<ScheduledEvent*>> m_watcher;          // Tracks the async task.
