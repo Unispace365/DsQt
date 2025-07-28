@@ -1,6 +1,8 @@
 #ifndef SCHEDULE_HELPER_H
 #define SCHEDULE_HELPER_H
 
+#include "content_model.h"
+
 #include <QColor>
 #include <QDateTime>
 #include <QFutureWatcher>
@@ -12,70 +14,57 @@ namespace dsqt::model {
 
 class ScheduledEvent : public QObject {
     Q_OBJECT
-    Q_PROPERTY(QString uid READ title CONSTANT)
-    Q_PROPERTY(QString type READ title CONSTANT)
+    Q_PROPERTY(QString uid READ uid CONSTANT)
+    Q_PROPERTY(QString type READ type CONSTANT)
     Q_PROPERTY(QString title READ title WRITE setTitle NOTIFY titleChanged)
     Q_PROPERTY(QDateTime start READ start WRITE setStart NOTIFY startChanged)
     Q_PROPERTY(QDateTime end READ end WRITE setEnd NOTIFY endChanged)
-    Q_PROPERTY(qint8 days READ days WRITE setDays NOTIFY daysChanged)
+    Q_PROPERTY(qint8 days READ days CONSTANT)
     Q_PROPERTY(qsizetype order READ order WRITE setOrder NOTIFY orderChanged)
-    Q_PROPERTY(double secondsSinceMidnight READ secondsSinceMidnight NOTIFY startChanged)
-    Q_PROPERTY(double durationInSeconds READ durationInSeconds NOTIFY endChanged)
+    Q_PROPERTY(double secondsSinceMidnight READ secondsSinceMidnight CONSTANT)
+    Q_PROPERTY(double durationInSeconds READ durationInSeconds CONSTANT)
 
   public:
     explicit ScheduledEvent(QObject* parent = nullptr)
         : QObject(parent) {}
 
-    ScheduledEvent(const QString& uid, const QString& type, const QString& title, QDateTime start, QDateTime end,
-                   int days, qsizetype order, QObject* parent = nullptr)
+    ScheduledEvent(ContentModelRef model, qsizetype order, QObject* parent = nullptr)
         : QObject(parent)
-        , m_uid(uid)
-        , m_type(type)
-        , m_title(title)
-        , m_start(start)
-        , m_end(end)
-        , m_days(days)
-        , m_order(order) {}
-
-    ScheduledEvent* duplicate() const {
-        return new ScheduledEvent(uid(), type(), title(), start(), end(), days(), m_order, parent());
+        , m_model(model)
+        , m_order(order) {
+        m_title = m_model.getPropertyString("record_name");
+        m_start = m_model.getPropertyDateTime("start_date", "start_time");
+        m_end   = m_model.getPropertyDateTime("end_date", "end_time");
     }
 
-    QString uid() const { return m_uid; }
+    ScheduledEvent* duplicate() const { return new ScheduledEvent(m_model, m_order, parent()); }
 
-    QString type() const { return m_type; }
+    QString uid() const { return m_model.getPropertyString("uid"); }
+
+    QString type() const { return m_model.getPropertyString("type_name"); }
 
     QString title() const { return m_title; }
     void    setTitle(const QString& title) {
-        if (m_title != title) {
-            m_title = title;
-            emit titleChanged();
-        }
+        if (m_title == title) return;
+        m_title = title;
+        emit titleChanged();
     }
 
     QDateTime start() const { return m_start; }
-    void      setStart(QDateTime start) {
-        if (m_start != start) {
-            m_start = start;
-            emit startChanged();
-        }
+    void      setStart(const QDateTime& start) {
+        if (m_start == start) return;
+        m_start = start;
+        emit startChanged();
     }
 
     QDateTime end() const { return m_end; }
-    void      setEnd(QDateTime end) {
-        if (m_end != end) {
-            m_end = end;
-            emit endChanged();
-        }
+    void      setEnd(const QDateTime& end) {
+        if (m_end == end) return;
+        m_end = end;
+        emit endChanged();
     }
 
-    qint8 days() const { return m_days; }
-    void  setDays(quint8 days) {
-        if (m_days != days) {
-            m_days = days;
-            emit daysChanged();
-        }
-    }
+    int days() const { return m_model.getPropertyInt("effective_days"); }
 
     qsizetype order() const { return m_order; }
     void      setOrder(qsizetype order) {
@@ -99,10 +88,7 @@ class ScheduledEvent : public QObject {
     // weekdays.
     bool isNow(const QDateTime& localDateTime) const {
         if (!isToday(localDateTime.date())) return false;
-        if (!m_start.isValid()) return false;
-        if (!m_end.isValid()) return false;
         if (localDateTime.time() < m_start.time() || localDateTime.time() >= m_end.time()) return false;
-
         return true;
     }
     // Returns whether the event is scheduled for the specified day, taking into account the weekdays.
@@ -114,7 +100,7 @@ class ScheduledEvent : public QObject {
         // Returns the weekday (0 to 6, where 0 = Sunday, 1 = Monday, ..., 6 = Saturday).
         const auto dayNumber = localDate.dayOfWeek() % 7;
         const int  dayFlag   = 0x1 << dayNumber;
-        if (m_days & dayFlag) return true;
+        if (days() & dayFlag) return true;
 
         return false;
     }
@@ -129,7 +115,7 @@ class ScheduledEvent : public QObject {
 
     bool operator==(const ScheduledEvent& rhs) const {
         // Do not compare titles.
-        return (m_order == rhs.m_order && m_start == rhs.m_start && m_end == rhs.m_end && m_uid == rhs.m_uid);
+        return (m_order == rhs.m_order && m_start == rhs.m_start && m_end == rhs.m_end && uid() == rhs.uid());
     }
     bool operator!=(const ScheduledEvent& rhs) const { return !(*this == rhs); }
 
@@ -137,17 +123,14 @@ class ScheduledEvent : public QObject {
     void titleChanged();
     void startChanged();
     void endChanged();
-    void daysChanged();
     void orderChanged();
 
   private:
-    QString   m_uid;
-    QString   m_type;
-    QString   m_title;
-    QDateTime m_start;
-    QDateTime m_end;
-    qint8     m_days{0x7f};
-    qsizetype m_order;
+    model::ContentModelRef m_model;
+    QString                m_title;
+    QDateTime              m_start;
+    QDateTime              m_end;
+    qsizetype              m_order;
 };
 
 class ScheduledEvents : public QObject {

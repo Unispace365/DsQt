@@ -146,16 +146,8 @@ void ScheduledEvents::update(const QDateTime& localDateTime) {
         // Convert events to internal representation.
         QList<ScheduledEvent*> result;
         for (const auto& event : events) {
-            auto uid       = event.getPropertyString("uid");
-            auto type      = event.getPropertyString("type_name");
-            auto title     = event.getPropertyString("record_name");
-            auto startTime = event.getPropertyDateTime("start_date", "start_time");
-            auto endTime   = event.getPropertyDateTime("end_date", "end_time");
-            auto days      = event.getPropertyInt("effective_days");
-
             // No parent yet, as we're in a different thread.
-            ScheduledEvent* item =
-                new ScheduledEvent(uid, type, title, startTime, endTime, days, result.size(), nullptr);
+            ScheduledEvent* item = new ScheduledEvent(event, result.size(), nullptr);
             // Move to main thread.
             item->moveToThread(mainThread);
 
