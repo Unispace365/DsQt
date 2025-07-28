@@ -191,6 +191,19 @@ bool DsQmlObj::isEventWithinSpan(const model::ContentModelRef& event, QDateTime 
     return (spanEnd >= eventStart && eventEnd >= spanStart);
 }
 
+size_t DsQmlObj::filterEvents(std::vector<model::ContentModelRef>& events, const QString& typeName) {
+    size_t count = events.size();
+    if (!typeName.isEmpty()) {
+        events.erase(std::remove_if(events.begin(), events.end(),
+                                    [&](const model::ContentModelRef& item) {
+                                        const auto type = item.getPropertyString("type_name");
+                                        return item.getPropertyString("type_name") != typeName;
+                                    }),
+                     events.end());
+    }
+    return count - events.size();
+}
+
 size_t DsQmlObj::filterEvents(std::vector<model::ContentModelRef>& events, QDateTime localDateTime) {
     size_t count = events.size();
     events.erase(std::remove_if(events.begin(), events.end(),

@@ -77,6 +77,8 @@ class DsQmlObj : public QObject {
     // Returns whether the specified event is within the time span.
     static bool isEventWithinSpan(const model::ContentModelRef& event, QDateTime spanStart, QDateTime spanEnd);
 
+    // Removes all events that are not of the specified type. Returns the number of removed events.
+    static size_t filterEvents(std::vector<model::ContentModelRef>& events, const QString& typeName);
     // Removes all events that are not scheduled at the specified date and time. Returns the number of removed events.
     static size_t filterEvents(std::vector<model::ContentModelRef>& events, QDateTime localDateTime);
     // Removes all events that are not scheduled at the specified date. Returns the number of removed events.
