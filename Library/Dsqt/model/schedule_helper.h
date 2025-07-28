@@ -13,7 +13,8 @@
 
 namespace dsqt::model {
 
-class ScheduledEvent : public QObject {
+// Wraps a scheduled event into a QML object.
+class DsQmlEvent : public QObject {
     Q_OBJECT
     QML_ELEMENT
     Q_PROPERTY(QString uid READ uid CONSTANT)
@@ -27,10 +28,10 @@ class ScheduledEvent : public QObject {
     Q_PROPERTY(double durationInSeconds READ durationInSeconds CONSTANT)
 
   public:
-    explicit ScheduledEvent(QObject* parent = nullptr)
+    explicit DsQmlEvent(QObject* parent = nullptr)
         : QObject(parent) {}
 
-    ScheduledEvent(ContentModelRef model, qsizetype order, QObject* parent = nullptr)
+    DsQmlEvent(ContentModelRef model, qsizetype order, QObject* parent = nullptr)
         : QObject(parent)
         , m_model(model)
         , m_order(order) {
@@ -39,7 +40,7 @@ class ScheduledEvent : public QObject {
         m_end   = m_model.getPropertyDateTime("end_date", "end_time");
     }
 
-    ScheduledEvent* duplicate() const { return new ScheduledEvent(m_model, m_order, parent()); }
+    DsQmlEvent* duplicate() const { return new DsQmlEvent(m_model, m_order, parent()); }
 
     QString uid() const { return m_model.getPropertyString("uid"); }
 
@@ -115,11 +116,11 @@ class ScheduledEvent : public QObject {
         return (spanEnd >= m_start && m_end >= spanStart);
     }
 
-    bool operator==(const ScheduledEvent& rhs) const {
+    bool operator==(const DsQmlEvent& rhs) const {
         // Do not compare titles.
         return (m_order == rhs.m_order && m_start == rhs.m_start && m_end == rhs.m_end && uid() == rhs.uid());
     }
-    bool operator!=(const ScheduledEvent& rhs) const { return !(*this == rhs); }
+    bool operator!=(const DsQmlEvent& rhs) const { return !(*this == rhs); }
 
   signals:
     void titleChanged();
@@ -135,49 +136,60 @@ class ScheduledEvent : public QObject {
     qsizetype              m_order;
 };
 
-class ScheduledEvents : public QObject {
+// Provides a list of scheduled events, optionally filtered by type, and exposes it to QML.
+class DsQmlEventSchedule : public QObject {
     Q_OBJECT
     QML_ELEMENT
-    Q_PROPERTY(QList<ScheduledEvent*> all READ all NOTIFY eventsChanged)
-    Q_PROPERTY(QList<ScheduledEvent*> timeline READ timeline NOTIFY eventsChanged)
-    Q_PROPERTY(ScheduledEvent* current READ current NOTIFY eventsChanged)
+    Q_PROPERTY(QString type READ type WRITE setType NOTIFY typeChanged)
+    Q_PROPERTY(QList<DsQmlEvent*> events READ events NOTIFY eventsChanged)
+    Q_PROPERTY(QList<DsQmlEvent*> timeline READ timeline NOTIFY eventsChanged)
+    Q_PROPERTY(DsQmlEvent* current READ current NOTIFY eventsChanged)
 
   public:
-    explicit ScheduledEvents(QObject* parent = nullptr);
-    ScheduledEvents(const QString& type_name, QObject* parent = nullptr);
+    explicit DsQmlEventSchedule(QObject* parent = nullptr);
+    DsQmlEventSchedule(const QString& type_name, QObject* parent = nullptr);
+
+    // Returns the event type, or an empty string if not set.
+    const QString& type() const { return m_type_name; }
+    // Sets the event type, causing events to be filtered if not empty.
+    void setType(const QString& type) {
+        if (type == m_type_name) return;
+
+        m_type_name = type;
+        emit typeChanged();
+
+        updateNow();
+    }
 
     // Returns all events, sorted from highest to lowest priority.
-    QList<ScheduledEvent*> all() const { return m_events; }
+    QList<DsQmlEvent*> events() const { return m_events; }
     // Returns all events as a timeline, with all overlapping events resolved to a single event.
-    QList<ScheduledEvent*> timeline() const;
+    QList<DsQmlEvent*> timeline() const;
     // Returns the currently active event, or nullptr if no event is active.
-    ScheduledEvent* current() const {
+    DsQmlEvent* current() const {
         if (m_events.isEmpty()) return nullptr;
         return m_events.front();
     }
 
   signals:
+    void typeChanged();
     void eventsChanged();
 
   private:
-    void updateNow() {
-        if (!m_use_clock) m_local_date_time = QDateTime::currentDateTime();
-        update(m_local_date_time);
-    }
+    void updateNow();
     void update(const QDateTime& localDateTime);
 
-    static void sortEvents(QList<ScheduledEvent*>& events, const QDateTime& localDateTime);
+    static void sortEvents(QList<DsQmlEvent*>& events, const QDateTime& localDateTime);
 
   private slots:
     void onUpdated();
 
   private:
-    QString                                m_type_name;        // Event record type. If empty, all events are included.
-    QDateTime                              m_local_date_time;  // Local date and time.
-    QList<ScheduledEvent*>                 m_events;           // All events.
-    QHash<QString, QList<ScheduledEvent*>> m_events_by_type;   //
-    QFutureWatcher<QList<ScheduledEvent*>> m_watcher;          // Tracks the async task.
-    bool                                   m_use_clock{false}; // Whether to listen to the UI clock.
+    QString                    m_type_name;       // Event record type. If empty, all events are included.
+    QDateTime                  m_local_date_time; // Local date and time.
+    QList<DsQmlEvent*>         m_events;          // All events.
+    mutable QList<DsQmlEvent*> m_timeline; // List of events where overlapping events are resolved to a single event.
+    QFutureWatcher<QList<DsQmlEvent*>> m_watcher; // Tracks the async task.
 };
 
 } // namespace dsqt::model

@@ -8,41 +8,35 @@
 
 namespace dsqt::model {
 
-ScheduledEvents::ScheduledEvents(QObject* parent)
-    : ScheduledEvents("", parent) {
+DsQmlEventSchedule::DsQmlEventSchedule(QObject* parent)
+    : DsQmlEventSchedule("", parent) {
 }
 
-ScheduledEvents::ScheduledEvents(const QString& type_name, QObject* parent)
+DsQmlEventSchedule::DsQmlEventSchedule(const QString& type_name, QObject* parent)
     : QObject(parent)
     , m_type_name(type_name) {
     auto engine = DSQmlApplicationEngine::DefEngine();
 
     // Listen to content updates.
-    connect(engine, &DSQmlApplicationEngine::rootUpdated, this, &ScheduledEvents::updateNow,
+    connect(engine, &DSQmlApplicationEngine::rootUpdated, this, &DsQmlEventSchedule::updateNow,
             Qt::ConnectionType::QueuedConnection);
 
     // Connect the watcher to handle task completion.
-    connect(&m_watcher, &QFutureWatcher<QList<ScheduledEvent*>>::finished, this, &ScheduledEvents::onUpdated);
+    connect(&m_watcher, &QFutureWatcher<QList<DsQmlEvent*>>::finished, this, &DsQmlEventSchedule::onUpdated);
 
     // Use the built-in QML clock if available. Refresh every minute.
     ui::ClockQML* clock = engine->rootContext()->contextProperty("clock").value<ui::ClockQML*>();
     if (clock) {
-        m_use_clock = true;
-        connect(
-            clock, &ui::ClockQML::minutesChanged, this,
-            [this, clock]() {
-                m_local_date_time = clock->now();
-                update(m_local_date_time);
-            },
-            Qt::ConnectionType::QueuedConnection);
+        connect(clock, &ui::ClockQML::minutesChanged, this, &DsQmlEventSchedule::updateNow,
+                Qt::ConnectionType::QueuedConnection);
     }
 
     // Refresh now.
     updateNow();
 }
 
-QList<ScheduledEvent*> ScheduledEvents::timeline() const {
-    QList<ScheduledEvent*> result;
+QList<DsQmlEvent*> DsQmlEventSchedule::timeline() const {
+    if (m_events.isEmpty() || !m_timeline.isEmpty()) return m_timeline;
 
     if (!m_events.isEmpty()) {
         // Create a sorted list of start and end times.
@@ -53,7 +47,7 @@ QList<ScheduledEvent*> ScheduledEvents::timeline() const {
         }
 
         // Create a copy of the events, that we can freely sort.
-        QList<ScheduledEvent*> sortable = m_events;
+        QList<DsQmlEvent*> sortable = m_events;
 
         // For each of the checkpoints, sort the events and add the first event to the result.
         auto localDateTime = m_local_date_time;
@@ -62,43 +56,54 @@ QList<ScheduledEvent*> ScheduledEvents::timeline() const {
             sortEvents(sortable, localDateTime);
             // if (sortable.front()->isNow(localDateTime)) {
             //  Truncate previous event if needed.
-            if (!result.isEmpty() && result.back()->end().time() > localDateTime.time()) {
-                result.back()->setEnd(localDateTime);
-                if (result.back()->durationInSeconds() <= 0) result.pop_back();
+            if (!m_timeline.isEmpty() && m_timeline.back()->end().time() > localDateTime.time()) {
+                m_timeline.back()->setEnd(localDateTime);
+                if (m_timeline.back()->durationInSeconds() <= 0) m_timeline.pop_back();
             }
             // Add next event.
-            result.append(sortable.front()->duplicate());
-            result.back()->setStart(localDateTime);
+            m_timeline.append(sortable.front()->duplicate());
+            m_timeline.back()->setStart(localDateTime);
             //}
         }
 
         // Handle the last event.
-        if (!result.isEmpty()) {
-            result.back()->setEnd(localDateTime);
-            if (result.back()->durationInSeconds() <= 0) result.pop_back();
+        if (!m_timeline.isEmpty()) {
+            m_timeline.back()->setEnd(localDateTime);
+            if (m_timeline.back()->durationInSeconds() <= 0) m_timeline.pop_back();
         }
 
         // Merge events if needed.
-        ScheduledEvent* previous = nullptr;
-        for (auto itr = result.begin(); itr != result.end();) {
+        DsQmlEvent* previous = nullptr;
+        for (auto itr = m_timeline.begin(); itr != m_timeline.end();) {
             // Set correct order.
-            (*itr)->setOrder(std::distance(result.begin(), itr));
+            (*itr)->setOrder(std::distance(m_timeline.begin(), itr));
             // Merge with previous if the same.
             if (previous && previous->uid() == (*itr)->uid() && previous->end() == (*itr)->start()) {
                 previous->setEnd((*itr)->end());
-                itr = result.erase(itr);
+                itr = m_timeline.erase(itr);
             } else {
                 previous = *itr++;
             }
         }
     }
 
-    return result;
+    return m_timeline;
 }
 
-void ScheduledEvents::onUpdated() {
+void DsQmlEventSchedule::updateNow() {
+    auto engine = DSQmlApplicationEngine::DefEngine();
+    auto clock  = engine->rootContext()->contextProperty("clock").value<ui::ClockQML*>();
+    if (clock)
+        m_local_date_time = clock->now();
+    else
+        m_local_date_time = QDateTime::currentDateTime();
+    update(m_local_date_time);
+}
+
+void DsQmlEventSchedule::onUpdated() {
     // This runs in the main thread when the background task completes.
-    QList<ScheduledEvent*> result = m_watcher.result();
+    QList<DsQmlEvent*> result = m_watcher.result();
+
     // Check if something changed.
     bool areEqual = (result.size() == m_events.size());
     if (areEqual) {
@@ -111,6 +116,8 @@ void ScheduledEvents::onUpdated() {
     }
 
     if (!areEqual) {
+        // Clear timeline, it will be lazily reconstructed if needed.
+        m_timeline.clear();
         // Set parent now that we're in the main thread.
         for (auto event : std::as_const(result)) {
             event->setParent(this);
@@ -119,21 +126,21 @@ void ScheduledEvents::onUpdated() {
         for (auto event : std::as_const(m_events)) {
             event->deleteLater();
         }
-        //
+        // Store result.
         m_events = std::move(result);
         //
         emit eventsChanged();
     }
 }
 
-void ScheduledEvents::update(const QDateTime& localDateTime) {
+void DsQmlEventSchedule::update(const QDateTime& localDateTime) {
     if (m_watcher.isRunning()) return; // TODO handle this better.
 
     // Capture main thread pointer.
     QThread* mainThread = QThread::currentThread();
 
     // Perform update on a background thread.
-    QFuture<QList<ScheduledEvent*>> future = QtConcurrent::run([=]() {
+    QFuture<QList<DsQmlEvent*>> future = QtConcurrent::run([=]() {
         // Obtain engine pointer.
         auto engine = DSQmlApplicationEngine::DefEngine();
 
@@ -150,10 +157,10 @@ void ScheduledEvents::update(const QDateTime& localDateTime) {
         DsQmlObj::sortEvents(events, localDateTime);
 
         // Convert events to internal representation.
-        QList<ScheduledEvent*> result;
+        QList<DsQmlEvent*> result;
         for (const auto& event : events) {
             // No parent yet, as we're in a different thread.
-            ScheduledEvent* item = new ScheduledEvent(event, result.size(), nullptr);
+            DsQmlEvent* item = new DsQmlEvent(event, result.size(), nullptr);
             // Move to main thread.
             item->moveToThread(mainThread);
 
@@ -167,8 +174,8 @@ void ScheduledEvents::update(const QDateTime& localDateTime) {
     m_watcher.setFuture(future);
 }
 
-void ScheduledEvents::sortEvents(QList<ScheduledEvent*>& events, const QDateTime& localDateTime) {
-    auto heuristic = [&localDateTime](const ScheduledEvent* a, const ScheduledEvent* b) -> bool {
+void DsQmlEventSchedule::sortEvents(QList<DsQmlEvent*>& events, const QDateTime& localDateTime) {
+    auto heuristic = [&localDateTime](const DsQmlEvent* a, const DsQmlEvent* b) -> bool {
         // Active Event trumps Inactive event
         const auto isActiveA = a->isNow(localDateTime);
         const auto isActiveB = b->isNow(localDateTime);

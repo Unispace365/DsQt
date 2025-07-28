@@ -10,19 +10,19 @@ namespace {
     const QString DATE_TIME_FORMAT = "yyyy-MM-ddTHH:mm:ss";
 }
 
-DsQmlObj::DsQmlObj(int force, QObject* parent)
-    : QObject{parent} {
+DsQmlObj::DsQmlObj(QQmlEngine* qmlEngine, QJSEngine* jsEngine, QObject* parent)
+    : QObject{parent}
+    , mEngine(dynamic_cast<DSQmlApplicationEngine*>(qmlEngine)) {
+    if (!mEngine) {
+        qWarning() << "Engine is not a DSQmlApplicationEngine or a subclass. $DS functionality will not be available";
+    } else {
+        connect(mEngine, &DSQmlApplicationEngine::rootUpdated, this, &DsQmlObj::updatePlatform);
+        updatePlatform();
+    }
 }
 
-DsQmlObj* DsQmlObj::create(QQmlEngine* qmlEngine, QJSEngine*) {
-    auto obj     = new DsQmlObj(0);
-    obj->mEngine = dynamic_cast<DSQmlApplicationEngine*>(qmlEngine);
-    if (!obj->mEngine) {
-        qWarning() << "Engine is not a DSQmlApplicationEngine or a subclass. $DS functionality will not be available";
-    }
-    obj->connect(obj->mEngine, &DSQmlApplicationEngine::rootUpdated, obj, [obj]() { obj->updatePlatform(); });
-    obj->updatePlatform();
-    return obj;
+DsQmlObj* DsQmlObj::create(QQmlEngine* qmlEngine, QJSEngine* jsEngine) {
+    return new DsQmlObj(qmlEngine, jsEngine);
 }
 
 DSSettingsProxy* DsQmlObj::appSettings() const {
@@ -44,13 +44,16 @@ model::QmlContentModel* DsQmlObj::platform() {
 }
 
 void DsQmlObj::updatePlatform() {
-    qDebug() << "Updating platform";
-    auto platform = mEngine->getContentHelper()->getPlatform();
-    if (platform == mPlatform) return;
+    if (!mEngine) return;
 
-    mPlatform    = platform.duplicate();
-    mPlatformQml = mEngine->getReferenceMap()->value(mPlatform.getId());
-    emit platformChanged();
+    qDebug() << "Updating platform";
+
+    auto platform = mEngine->getContentHelper()->getPlatform();
+    if (platform != mPlatform) {
+        mPlatform    = platform.duplicate();
+        mPlatformQml = mEngine->getReferenceMap()->value(mPlatform.getId());
+        emit platformChanged();
+    }
 }
 
 
@@ -59,66 +62,66 @@ model::QmlContentModel* DsQmlObj::getRecordById(QString id) const {
     return mEngine->getReferenceMap()->value(id);
 }
 
-bool DsQmlObj::isEventNow(QString event_id, QString localDateTime) const {
-    auto event = mEngine->getContentRoot().getChildByName("events").getChildById(event_id);
-    return isEventNow(event, QDateTime::fromString(localDateTime, DATE_TIME_FORMAT));
-}
+// bool DsQmlObj::isEventNow(QString event_id, QString localDateTime) const {
+//     auto event = mEngine->getContentRoot().getChildByName("events").getChildById(event_id);
+//     return isEventNow(event, QDateTime::fromString(localDateTime, DATE_TIME_FORMAT));
+// }
 
-bool DsQmlObj::isEventNow(model::QmlContentModel* model, QString localDateTime) const {
-    auto event = mEngine->getContentRoot().getChildByName("events").getChildById(model->value("id").toString());
-    return isEventNow(event, QDateTime::fromString(localDateTime, DATE_TIME_FORMAT));
-}
+// bool DsQmlObj::isEventNow(model::QmlContentModel* model, QString localDateTime) const {
+//     auto event = mEngine->getContentRoot().getChildByName("events").getChildById(model->value("id").toString());
+//     return isEventNow(event, QDateTime::fromString(localDateTime, DATE_TIME_FORMAT));
+// }
 
-bool DsQmlObj::isEventToday(QString event_id, QString localDateTime) const {
-    auto event = mEngine->getContentRoot().getChildByName("events").getChildById(event_id);
-    return isEventToday(event, QDateTime::fromString(localDateTime, DATE_TIME_FORMAT).date());
-}
+// bool DsQmlObj::isEventToday(QString event_id, QString localDateTime) const {
+//     auto event = mEngine->getContentRoot().getChildByName("events").getChildById(event_id);
+//     return isEventToday(event, QDateTime::fromString(localDateTime, DATE_TIME_FORMAT).date());
+// }
 
-bool DsQmlObj::isEventToday(model::QmlContentModel* model, QString localDateTime) const {
-    auto event = mEngine->getContentRoot().getChildByName("events").getChildById(model->value("id").toString());
-    return isEventToday(event, QDateTime::fromString(localDateTime, DATE_TIME_FORMAT).date());
-}
+// bool DsQmlObj::isEventToday(model::QmlContentModel* model, QString localDateTime) const {
+//     auto event = mEngine->getContentRoot().getChildByName("events").getChildById(model->value("id").toString());
+//     return isEventToday(event, QDateTime::fromString(localDateTime, DATE_TIME_FORMAT).date());
+// }
 
-QVariantList DsQmlObj::getEventsForSpan(QString spanStart, QString spanEnd) {
-    QVariantList retval;
-    const auto   events = getEventsForSpan(QDateTime::fromString(spanStart, DATE_TIME_FORMAT),
-                                           QDateTime::fromString(spanEnd, DATE_TIME_FORMAT));
-    for (const auto& event : events) {
-        const auto& eventId = event.getId();
-        QVariant    eventVariant;
-        eventVariant.setValue(mEngine->getReferenceMap()->value(eventId));
-        retval.append(eventVariant);
-    }
-    return retval;
-}
+// QVariantList DsQmlObj::getEventsForSpan(QString spanStart, QString spanEnd) {
+//     QVariantList retval;
+//     const auto   events = getEventsForSpan(QDateTime::fromString(spanStart, DATE_TIME_FORMAT),
+//                                            QDateTime::fromString(spanEnd, DATE_TIME_FORMAT));
+//     for (const auto& event : events) {
+//         const auto& eventId = event.getId();
+//         QVariant    eventVariant;
+//         eventVariant.setValue(mEngine->getReferenceMap()->value(eventId));
+//         retval.append(eventVariant);
+//     }
+//     return retval;
+// }
 
-std::vector<model::ContentModelRef> DsQmlObj::getScheduledEvents() {
-    auto platformHolder = mEngine->getContentRoot().getChildByName("platform");
-    if (platformHolder.hasChildren()) {
-        auto platform        = platformHolder.getChildren()[0];
-        auto scheduledEvents = platform.getChildByName("scheduled_events");
-        if (scheduledEvents.hasChildren()) return scheduledEvents.getChildren(); // Returns a copy.
-    }
-    return {};
-}
+// std::vector<model::ContentModelRef> DsQmlObj::getScheduledEvents() {
+//     auto platformHolder = mEngine->getContentRoot().getChildByName("platform");
+//     if (platformHolder.hasChildren()) {
+//         auto platform        = platformHolder.getChildren()[0];
+//         auto scheduledEvents = platform.getChildByName("scheduled_events");
+//         if (scheduledEvents.hasChildren()) return scheduledEvents.getChildren(); // Returns a copy.
+//     }
+//     return {};
+// }
 
-std::vector<model::ContentModelRef> DsQmlObj::getEventsAtTime(QDateTime localDateTime) {
-    auto events = getScheduledEvents();
-    filterEvents(events, localDateTime);
-    return events;
-}
+// std::vector<model::ContentModelRef> DsQmlObj::getEventsAtTime(QDateTime localDateTime) {
+//     auto events = getScheduledEvents();
+//     filterEvents(events, localDateTime);
+//     return events;
+// }
 
-std::vector<model::ContentModelRef> DsQmlObj::getEventsAtDate(QDate localDate) {
-    auto events = getScheduledEvents();
-    filterEvents(events, localDate);
-    return events;
-}
+// std::vector<model::ContentModelRef> DsQmlObj::getEventsAtDate(QDate localDate) {
+//     auto events = getScheduledEvents();
+//     filterEvents(events, localDate);
+//     return events;
+// }
 
-std::vector<model::ContentModelRef> DsQmlObj::getEventsForSpan(QDateTime spanStart, QDateTime spanEnd) {
-    auto events = getScheduledEvents();
-    filterEvents(events, spanStart, spanEnd);
-    return events;
-}
+// std::vector<model::ContentModelRef> DsQmlObj::getEventsForSpan(QDateTime spanStart, QDateTime spanEnd) {
+//     auto events = getScheduledEvents();
+//     filterEvents(events, spanStart, spanEnd);
+//     return events;
+// }
 
 bool DsQmlObj::isEventNow(const model::ContentModelRef& event, QDateTime localDateTime) {
     if (!isEventToday(event, localDateTime.date())) return false;

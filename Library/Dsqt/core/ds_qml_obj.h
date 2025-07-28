@@ -26,12 +26,11 @@ class DsQmlObj : public QObject {
     Q_PROPERTY(dsqt::DSSettingsProxy* appSettings READ appSettings NOTIFY appSettingsChanged)
     Q_PROPERTY(dsqt::DSQmlApplicationEngine* engine READ engine NOTIFY engineChanged)
     Q_PROPERTY(dsqt::model::QmlContentModel* platform READ platform NOTIFY platformChanged)
-    // Q_PROPERTY(dsqt::model::ContentHelper name READ name WRITE setname NOTIFY nameChanged FINAL)
 
   public:
-    explicit DsQmlObj(int force, QObject* parent = nullptr);
+    explicit DsQmlObj(QQmlEngine* qmlEngine, QJSEngine* jsEngine = nullptr, QObject* parent = nullptr);
     //
-    static DsQmlObj* create(QQmlEngine* qmlEngine, QJSEngine*);
+    static DsQmlObj* create(QQmlEngine* qmlEngine, QJSEngine* jsEngine = nullptr);
     //
     DSSettingsProxy* appSettings() const;
     //
@@ -49,26 +48,26 @@ class DsQmlObj : public QObject {
      * @return
      */
     Q_INVOKABLE model::QmlContentModel* getRecordById(QString id) const;
-    //
-    Q_INVOKABLE bool isEventNow(QString event_id, QString localDateTime) const;
-    //
-    Q_INVOKABLE bool isEventNow(model::QmlContentModel* model, QString localDateTime) const;
-    //
-    Q_INVOKABLE bool isEventToday(QString event_id, QString localDateTime) const;
-    //
-    Q_INVOKABLE bool isEventToday(model::QmlContentModel* model, QString localDateTime) const;
-    // Returns all events overlapping the specified span. Does not check for specific times or weekdays.
-    Q_INVOKABLE QVariantList getEventsForSpan(QString start, QString end);
+    // //
+    // Q_INVOKABLE bool isEventNow(QString event_id, QString localDateTime) const;
+    // //
+    // Q_INVOKABLE bool isEventNow(model::QmlContentModel* model, QString localDateTime) const;
+    // //
+    // Q_INVOKABLE bool isEventToday(QString event_id, QString localDateTime) const;
+    // //
+    // Q_INVOKABLE bool isEventToday(model::QmlContentModel* model, QString localDateTime) const;
+    // // Returns all events overlapping the specified span. Does not check for specific times or weekdays.
+    // Q_INVOKABLE QVariantList getEventsForSpan(QString start, QString end);
 
-    // Returns all scheduled events. Does not sort the events.
-    std::vector<model::ContentModelRef> getScheduledEvents();
-    // Returns all events active at the specific date and time. Does not sort the events.
-    std::vector<model::ContentModelRef> getEventsAtTime(QDateTime localDateTime);
-    // Returns all events active at the specific date. Does not sort the events.
-    std::vector<model::ContentModelRef> getEventsAtDate(QDate localDate);
-    // Returns all events overlapping the specified span. Does not check for specific times or weekdays. Does not sort
-    // the events.
-    std::vector<model::ContentModelRef> getEventsForSpan(QDateTime spanStart, QDateTime spanEnd);
+    // // Returns all scheduled events. Does not sort the events.
+    // std::vector<model::ContentModelRef> getScheduledEvents();
+    // // Returns all events active at the specific date and time. Does not sort the events.
+    // std::vector<model::ContentModelRef> getEventsAtTime(QDateTime localDateTime);
+    // // Returns all events active at the specific date. Does not sort the events.
+    // std::vector<model::ContentModelRef> getEventsAtDate(QDate localDate);
+    // // Returns all events overlapping the specified span. Does not check for specific times or weekdays. Does not sort
+    // // the events.
+    // std::vector<model::ContentModelRef> getEventsForSpan(QDateTime spanStart, QDateTime spanEnd);
 
     // Returns whether the specified event is currently scheduled, taking into account specific times or weekdays.
     static bool isEventNow(const model::ContentModelRef& event, QDateTime localDateTime);
