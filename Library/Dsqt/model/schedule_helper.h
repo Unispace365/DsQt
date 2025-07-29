@@ -1,6 +1,7 @@
 #ifndef SCHEDULE_HELPER_H
 #define SCHEDULE_HELPER_H
 
+#include "ds_qml_clock.h"
 #include "content_model.h"
 
 #include <QColor>
@@ -144,6 +145,7 @@ class DsQmlEventSchedule : public QObject {
     Q_PROPERTY(QList<DsQmlEvent*> events READ events NOTIFY eventsChanged)
     Q_PROPERTY(QList<DsQmlEvent*> timeline READ timeline NOTIFY eventsChanged)
     Q_PROPERTY(DsQmlEvent* current READ current NOTIFY eventsChanged)
+    Q_PROPERTY(ui::DsQmlClock* clock READ clock WRITE setClock NOTIFY clockChanged)
 
   public:
     explicit DsQmlEventSchedule(QObject* parent = nullptr);
@@ -170,10 +172,30 @@ class DsQmlEventSchedule : public QObject {
         if (m_events.isEmpty()) return nullptr;
         return m_events.front();
     }
+    //
+    ui::DsQmlClock* clock() const { return m_clock; }
+    //
+    void setClock(ui::DsQmlClock* clock) {
+        if (m_clock == clock) return;
+
+        if (m_clock) {
+            disconnect(m_clock, &ui::DsQmlClock::minutesChanged, this, &DsQmlEventSchedule::updateNow);
+        }
+
+        m_clock = clock;
+
+        if (m_clock) {
+            connect(m_clock, &ui::DsQmlClock::minutesChanged, this, &DsQmlEventSchedule::updateNow,
+                    Qt::ConnectionType::QueuedConnection);
+        }
+
+        emit clockChanged();
+    }
 
   signals:
     void typeChanged();
     void eventsChanged();
+    void clockChanged();
 
   private:
     void updateNow();
@@ -189,7 +211,8 @@ class DsQmlEventSchedule : public QObject {
     QDateTime                  m_local_date_time; // Local date and time.
     QList<DsQmlEvent*>         m_events;          // All events.
     mutable QList<DsQmlEvent*> m_timeline; // List of events where overlapping events are resolved to a single event.
-    QFutureWatcher<QList<DsQmlEvent*>> m_watcher; // Tracks the async task.
+    QFutureWatcher<QList<DsQmlEvent*>> m_watcher;         // Tracks the async task.
+    dsqt::ui::DsQmlClock*              m_clock = nullptr; //
 };
 
 } // namespace dsqt::model

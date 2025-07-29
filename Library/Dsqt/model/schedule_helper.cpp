@@ -2,7 +2,7 @@
 
 #include "ds_qml_obj.h"
 #include "dsqmlapplicationengine.h"
-#include "ui/clockqml.h"
+#include "ui/ds_qml_clock.h"
 
 #include <bitset>
 
@@ -23,13 +23,6 @@ DsQmlEventSchedule::DsQmlEventSchedule(const QString& type_name, QObject* parent
 
     // Connect the watcher to handle task completion.
     connect(&m_watcher, &QFutureWatcher<QList<DsQmlEvent*>>::finished, this, &DsQmlEventSchedule::onUpdated);
-
-    // Use the built-in QML clock if available. Refresh every minute.
-    ui::ClockQML* clock = engine->rootContext()->contextProperty("clock").value<ui::ClockQML*>();
-    if (clock) {
-        connect(clock, &ui::ClockQML::minutesChanged, this, &DsQmlEventSchedule::updateNow,
-                Qt::ConnectionType::QueuedConnection);
-    }
 
     // Refresh now.
     updateNow();
@@ -92,9 +85,8 @@ QList<DsQmlEvent*> DsQmlEventSchedule::timeline() const {
 
 void DsQmlEventSchedule::updateNow() {
     auto engine = DSQmlApplicationEngine::DefEngine();
-    auto clock  = engine->rootContext()->contextProperty("clock").value<ui::ClockQML*>();
-    if (clock)
-        m_local_date_time = clock->now();
+    if (m_clock)
+        m_local_date_time = m_clock->now();
     else
         m_local_date_time = QDateTime::currentDateTime();
     update(m_local_date_time);
