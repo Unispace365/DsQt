@@ -6,7 +6,7 @@
 #include <QRegularExpression>
 #include <QRegularExpressionMatch>
 #include <qapplicationstatic.h>
-#include "settings/dssettings.h"
+#include "settings/dsSettings.h"
 
 Q_LOGGING_CATEGORY(lgEnv, "core.environment");
 Q_LOGGING_CATEGORY(lgEnvVerbose, "core.environment.verbose");

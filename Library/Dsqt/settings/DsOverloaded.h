@@ -1,5 +1,5 @@
-#ifndef OVERLOAD_H
-#define OVERLOAD_H
+#ifndef DSOVERLOADED_H
+#define DSOVERLOADED_H
 
 #include <string>
 #include <optional>
@@ -99,4 +99,4 @@ template<class S> struct BaseConversion<std::string, S>{
 
 
 }//namespace dsqt
-#endif // OVERLOAD_H
+#endif // DSOVERLOADED_H

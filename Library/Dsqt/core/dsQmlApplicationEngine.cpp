@@ -8,7 +8,7 @@
 #include <QStringLiteral>
 #include "dsEnvironment.h"
 #include "model/dsContentModel.h"
-#include "settings/dssettings_proxy.h"
+#include "settings/dsQmlSettingsProxy.h"
 #include "dsQmlEnvironment.h"
 #include "model/dsQmlContentHelper.h"
 #include "network/dsNodeWatcher.h"

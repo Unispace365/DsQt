@@ -3,7 +3,7 @@
 #define DS_UTIL_FILEMETADATA_H_
 
 
-#include <utility/string_util.h>
+#include <utility/dsStringUtils.h>
 #include <QLoggingCategory>
 #include <filesystem>
 #include <string>
@@ -30,10 +30,10 @@ std::string getNormalizedPath(const fs::path& path);
  * \class FileMetaData
  * Collection of file meta data.
  */
-class FileMetaData {
+class DsFileMetaData {
   public:
-	FileMetaData();
-	explicit FileMetaData(const std::string& filename);
+    DsFileMetaData();
+    explicit DsFileMetaData(const std::string& filename);
 
 	void parse(const std::string& filename);
 
@@ -50,7 +50,7 @@ class FileMetaData {
 };
 
 template <typename T>
-T FileMetaData::findValueType(const std::string& key, const T error) const {
+T DsFileMetaData::findValueType(const std::string& key, const T error) const {
 	const std::string& v = findValue(key);
 	if (v.empty()) return error;
 	T ans;

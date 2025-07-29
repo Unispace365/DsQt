@@ -9,8 +9,8 @@
 #include "model/dsPropertyMapDiff.h"
 #include "network/dsNodeWatcher.h"
 #include "qqmlcontext.h"
-#include "settings/dssettings.h"
-#include "settings/dssettings_proxy.h"
+#include "settings/dsSettings.h"
+#include "settings/dsQmlSettingsProxy.h"
 
 Q_LOGGING_CATEGORY(lgBridgeSyncApp, "bridgeSync.app")
 Q_LOGGING_CATEGORY(lgBridgeSyncQuery, "bridgeSync.query")

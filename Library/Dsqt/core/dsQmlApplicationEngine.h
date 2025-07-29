@@ -9,7 +9,7 @@
 #include "dsQmlImguiItem.h"
 #include "model/dsContentModel.h"
 #include "model/dsQmlContentModel.h"
-#include "settings/dssettings.h"
+#include "settings/dsSettings.h"
 #include "model/dsIContentHelper.h"
 #include "model/dsPropertyMapDiff.h"
 #include "dsQmlIdle.h"

@@ -40,23 +40,23 @@ qt_add_qml_module(Dsqt
     # model/dsresource.cpp model/dsresource.h
     network/dsNodeWatcher.cpp network/dsNodeWatcher.h
     settings/dsSettings.cpp settings/dsSettings.h
-    settings/dsSettingsBase.cpp
-    settings/dsSettingsCollections.cpp
-    settings/dsSettingsDatetime.cpp
-    settings/dsSettingsGeomCommon.cpp
-    settings/dsSettingsGeomGlm.cpp
-    settings/dsSettingsGeomQt.cpp
-    settings/dsSettingsQColor.cpp
-    settings/dsQmlSettingsProxy.cpp settings/dsQmlSettingsProxy.h
-    settings/DsOverloaded.h
-    ui/dsQmlTouchcluster.h ui/dsQmlTouchcluster.cpp
-    utility/dsFileMetaData.cpp utility/dsFileMetaData.h
-    utility/dsStringUtils.cpp utility/dsStringUtils.h
-    utility/dsUrlImageLoader.cpp utility/dsUrlImageLoader.h
+    settings/dssettings_base.cpp
+    settings/dssettings_collections.cpp
+    settings/dssettings_datetime.cpp
+    settings/dssettings_geom_common.cpp
+    settings/dssettings_geom_glm.cpp
+    settings/dssettings_geom_qt.cpp
+    settings/dssettings_qcolor.cpp
+    settings/dssettings_proxy.cpp settings/dssettings_proxy.h
+    settings/overload.h
+    ui/touchcluster.h ui/touchcluster.cpp
+    utility/file_meta_data.cpp utility/file_meta_data.h
+    utility/string_util.cpp utility/string_util.h
+    utility/url_image_loader.cpp utility/url_image_loader.h
     bridge/dsBridgeQuery.cpp bridge/dsBridgeQuery.h
     waffles.qrc
-    SOURCES ui/dsQmlClustermanager.h ui/dsQmlClustermanager.cpp
-    SOURCES ui/dsQmlClusterView.h ui/dsQmlClusterView.cpp
+    SOURCES ui/clustermanager.h ui/clustermanager.cpp
+    SOURCES ui/clusterview.h ui/clusterview.cpp
     SOURCES core/dsQmlEnvironment.h core/dsQmlEnvironment.cpp
     SOURCES core/dsQmlObj.h core/dsQmlObj.cpp
     # SOURCES model/icontent_helper.h model/icontent_helper.cpp

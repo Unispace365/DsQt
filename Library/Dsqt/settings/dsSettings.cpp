@@ -1,4 +1,4 @@
-#include "dssettings.h"
+#include "dsSettings.h"
 #include <toml++/toml.h>
 #include <filesystem>
 #include <iostream>

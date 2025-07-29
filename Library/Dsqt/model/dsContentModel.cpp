@@ -3,7 +3,7 @@
 #include "dsContentModel.h"
 
 #include <core/dsQmlApplicationEngine.h>
-#include <utility/string_util.h>
+#include <utility/dsStringUtils.h>
 #include <QJsonArray>
 #include <QJsonObject>
 #include <QJsonValue>

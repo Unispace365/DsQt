@@ -1,14 +1,14 @@
-#ifndef CLUSTERMANAGER_H
-#define CLUSTERMANAGER_H
+#ifndef DSQMLCLUSTERMANAGER_H
+#define DSQMLCLUSTERMANAGER_H
 
-#include "touchcluster.h"
+#include "dsQmlTouchcluster.h"
 #include <QQuickItem>
 #include <QEvent>
 #include <QPointerEvent>
 namespace dsqt::ui {
 
 
-class ClusterManager : public QQuickItem
+class DsQmlClusterManager : public QQuickItem
 {
     Q_OBJECT
     QML_NAMED_ELEMENT(DsClusterManager)
@@ -19,16 +19,16 @@ class ClusterManager : public QQuickItem
     Q_PROPERTY(bool holdOpenOnTouch READ holdOpenOnTouch WRITE setHoldOpenOnTouch NOTIFY holdOpenOnTouchChanged FINAL)
     Q_PROPERTY(float minClusterSeperation READ minClusterSeperation WRITE setMinClusterSeperation NOTIFY minClusterSeperationChanged FINAL)
     Q_PROPERTY(float triggerTime READ triggerTime WRITE setTriggerTime NOTIFY triggerTimeChanged FINAL)
-    Q_PROPERTY(TouchClusterList* clusters READ clusters NOTIFY clustersChanged FINAL)
+    Q_PROPERTY(dsqt::ui::DsQmlTouchClusterList* clusters READ clusters NOTIFY clustersChanged FINAL)
 
 public:
-    explicit ClusterManager(QQuickItem* parent=nullptr);
+    explicit DsQmlClusterManager(QQuickItem* parent=nullptr);
     bool event(QEvent *event) override;
 
     int minClusterTouchCount() const;
     void setMinClusterTouchCount(int newClusterTouchCount);
 
-    TouchClusterList* clusters() const;
+    DsQmlTouchClusterList* clusters() const;
 
     bool holdOpenOnTouch() const;
     void setHoldOpenOnTouch(bool newHoldOpenOnTouch);
@@ -54,9 +54,9 @@ signals:
     void boundingBoxSizeChanged();
 
     //non property signals
-    void clusterUpdated(const QEventPoint::State& state, TouchCluster*);
-    void triggerableChanged(bool triggerable,TouchCluster*);
-    void triggered(TouchCluster*);
+    void clusterUpdated(const QEventPoint::State& state, DsQmlTouchCluster*);
+    void triggerableChanged(bool triggerable,DsQmlTouchCluster*);
+    void triggered(DsQmlTouchCluster*);
     void minClusterSeperationChanged();
 
     void triggerTimeChanged();
@@ -67,12 +67,12 @@ private:
      */
 
 
-    TouchCluster* closeToCluster(const QPointF& point);
-    TouchCluster* findCluster(int fingerId, const QPointF& point);
+    DsQmlTouchCluster* closeToCluster(const QPointF& point);
+    DsQmlTouchCluster* findCluster(int fingerId, const QPointF& point);
 
 
     void updateClusters(const QPointerEvent::Type& type);
-    TouchClusterList* mClusters;
+    DsQmlTouchClusterList* mClusters;
     static uint64_t mMaxClusterId;
     bool m_holdOpenOnTouch = false;
     int m_minClusterTouchCount = 3;
@@ -84,4 +84,4 @@ private:
     float m_triggerTime;
 };
 }
-#endif // CLUSTERMANAGER_H
+#endif // DSQMLCLUSTERMANAGER_H

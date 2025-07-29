@@ -1,17 +1,17 @@
-#include "clustermanager.h"
+#include "dsQmlClustermanager.h"
 #include "glm/gtx/rotate_vector.hpp"
 #include "glm/gtx/scalar_multiplication.hpp"
 #include <QPointerEvent>
 namespace dsqt::ui {
-ClusterManager::ClusterManager(QQuickItem* parent):QQuickItem(parent) {
+DsQmlClusterManager::DsQmlClusterManager(QQuickItem* parent):QQuickItem(parent) {
     this->setAcceptTouchEvents(true);
     this->setAcceptedMouseButtons(Qt::MouseButton::AllButtons);
-    mClusters = new TouchClusterList(this);
+    mClusters = new DsQmlTouchClusterList(this);
 }
 
-uint64_t ClusterManager::mMaxClusterId = 1;
+uint64_t DsQmlClusterManager::mMaxClusterId = 1;
 
-bool ClusterManager::event(QEvent *event)
+bool DsQmlClusterManager::event(QEvent *event)
 {
 
     //qDebug()<<event->type();
@@ -121,12 +121,12 @@ bool ClusterManager::event(QEvent *event)
     return QQuickItem::event(event);
 }
 
-TouchCluster* ClusterManager::closeToCluster(const QPointF& in_point)
+DsQmlTouchCluster* DsQmlClusterManager::closeToCluster(const QPointF& in_point)
 {
     QVector2D point(in_point);
     float deltaX(0), deltaY(0);
     for (int i = 0; i < mClusters->rowCount(); i++) {
-        TouchCluster* c = mClusters->cluster(i);
+        DsQmlTouchCluster* c = mClusters->cluster(i);
         for (int t = 0; t < c->mTouches.size(); t++) {
             TouchInfo& ti = c->mTouches[t];
             deltaX				  = ti.mPoint.x() - in_point.x();
@@ -142,9 +142,9 @@ TouchCluster* ClusterManager::closeToCluster(const QPointF& in_point)
 
 }
 
-TouchCluster* ClusterManager::findCluster(int fingerId, const QPointF& point){
+DsQmlTouchCluster* DsQmlClusterManager::findCluster(int fingerId, const QPointF& point){
     for (int i = 0; i < mClusters->rowCount(); i++) {
-        TouchCluster* c = mClusters->cluster(i);
+        DsQmlTouchCluster* c = mClusters->cluster(i);
         for (auto it = c->mTouches.begin(); it < c->mTouches.end(); ++it) {
             if ((*it).mFingerId == fingerId) {
                 (*it).mPoint = point;
@@ -156,14 +156,14 @@ TouchCluster* ClusterManager::findCluster(int fingerId, const QPointF& point){
     return nullptr;
 }
 
-void ClusterManager::parseTouch(const TouchInfo& ti) {
+void DsQmlClusterManager::parseTouch(const TouchInfo& ti) {
 
     if (ti.mState == QEventPoint::Pressed) {
         TouchInfo nt			 = ti;
-        TouchCluster* relatedCluster = closeToCluster(ti.mPoint);
-        TouchCluster* alreadyCluster = findCluster(ti.mFingerId,ti.mPoint);
+        DsQmlTouchCluster* relatedCluster = closeToCluster(ti.mPoint);
+        DsQmlTouchCluster* alreadyCluster = findCluster(ti.mFingerId,ti.mPoint);
         if (relatedCluster == nullptr && alreadyCluster == nullptr) {
-            TouchCluster* clust = new TouchCluster(this);
+            DsQmlTouchCluster* clust = new DsQmlTouchCluster(this);
 
             clust->mTouches.push_back(nt);
             clust->mBoundingBox.setRect(nt.mPoint.x(), nt.mPoint.y(), 0.001, 0.001);
@@ -176,7 +176,7 @@ void ClusterManager::parseTouch(const TouchInfo& ti) {
 
             emit clusterUpdated(QEventPoint::Pressed, clust);
         } else if(!alreadyCluster) {
-            TouchCluster* clusty = relatedCluster;
+            DsQmlTouchCluster* clusty = relatedCluster;
 
             clusty->mTouches.push_back(nt);
             if (clusty->mTouches.size() == 1) {
@@ -194,7 +194,7 @@ void ClusterManager::parseTouch(const TouchInfo& ti) {
 
 
     } else if (ti.mState == QEventPoint::Updated) {
-        TouchCluster* relatedCluster = findCluster(ti.mFingerId, ti.mPoint);
+        DsQmlTouchCluster* relatedCluster = findCluster(ti.mFingerId, ti.mPoint);
         if (relatedCluster == nullptr) {
             // This seems to happen only if moved gets called before added,
             // which only happens in case of weird touch errors or from clicks.
@@ -203,7 +203,7 @@ void ClusterManager::parseTouch(const TouchInfo& ti) {
             return;
         }
 
-        TouchCluster* clustyMcClustClust = relatedCluster;
+        DsQmlTouchCluster* clustyMcClustClust = relatedCluster;
         clustyMcClustClust->addToBoundingBox(ti.mPoint, clustyMcClustClust->mBoundingBox);
         clustyMcClustClust->configureCurrentBoundingBox();
 
@@ -232,7 +232,7 @@ void ClusterManager::parseTouch(const TouchInfo& ti) {
             }
         }
     } else if (ti.mState == QEventPoint::Released) {
-        TouchCluster* relatedCluster = findCluster(ti.mFingerId, ti.mPoint);
+        DsQmlTouchCluster* relatedCluster = findCluster(ti.mFingerId, ti.mPoint);
         if (relatedCluster == nullptr) {
             // Disabling warning. This seems to happen only if removed gets called before added,
             // which only happens in case of weird touch errors or from RE clicks.
@@ -242,7 +242,7 @@ void ClusterManager::parseTouch(const TouchInfo& ti) {
             return;
         }
 
-        TouchCluster* clustyMcClustClust = relatedCluster;
+        DsQmlTouchCluster* clustyMcClustClust = relatedCluster;
         auto size = clustyMcClustClust->mTouches.size();
         for (int i = 0; i < size; i++) {
             if (clustyMcClustClust->mTouches[i].mFingerId == ti.mFingerId) {
@@ -281,12 +281,12 @@ void ClusterManager::parseTouch(const TouchInfo& ti) {
     }
 }
 
-int ClusterManager::minClusterTouchCount() const
+int DsQmlClusterManager::minClusterTouchCount() const
 {
     return m_minClusterTouchCount;
 }
 
-void ClusterManager::setMinClusterTouchCount(int newClusterTouchCount)
+void DsQmlClusterManager::setMinClusterTouchCount(int newClusterTouchCount)
 {
     if (m_minClusterTouchCount == newClusterTouchCount)
         return;
@@ -294,17 +294,17 @@ void ClusterManager::setMinClusterTouchCount(int newClusterTouchCount)
     emit minClusterTouchCountChanged();
 }
 
-TouchClusterList* ClusterManager::clusters() const
+DsQmlTouchClusterList* DsQmlClusterManager::clusters() const
 {
     return mClusters;
 }
 
-bool ClusterManager::holdOpenOnTouch() const
+bool DsQmlClusterManager::holdOpenOnTouch() const
 {
     return m_holdOpenOnTouch;
 }
 
-void ClusterManager::setHoldOpenOnTouch(bool newHoldOpenOnTouch)
+void DsQmlClusterManager::setHoldOpenOnTouch(bool newHoldOpenOnTouch)
 {
     if (m_holdOpenOnTouch == newHoldOpenOnTouch)
         return;
@@ -312,12 +312,12 @@ void ClusterManager::setHoldOpenOnTouch(bool newHoldOpenOnTouch)
     emit holdOpenOnTouchChanged();
 }
 
-bool ClusterManager::doubleTapActivation() const
+bool DsQmlClusterManager::doubleTapActivation() const
 {
     return m_doubleTapActivation;
 }
 
-void ClusterManager::setDoubleTapActivation(bool newDoubleTapActivation)
+void DsQmlClusterManager::setDoubleTapActivation(bool newDoubleTapActivation)
 {
     if (m_doubleTapActivation == newDoubleTapActivation)
         return;
@@ -325,12 +325,12 @@ void ClusterManager::setDoubleTapActivation(bool newDoubleTapActivation)
     emit doubleTapActivationChanged();
 }
 
-float ClusterManager::boundingBoxSize() const
+float DsQmlClusterManager::boundingBoxSize() const
 {
     return m_boundingBoxSize;
 }
 
-void ClusterManager::setBoundingBoxSize(float newBoundingBoxSize)
+void DsQmlClusterManager::setBoundingBoxSize(float newBoundingBoxSize)
 {
     if (qFuzzyCompare(m_boundingBoxSize, newBoundingBoxSize))
         return;
@@ -339,12 +339,12 @@ void ClusterManager::setBoundingBoxSize(float newBoundingBoxSize)
 }
 
 
-float ClusterManager::minClusterSeperation() const
+float DsQmlClusterManager::minClusterSeperation() const
 {
     return m_minClusterSeparation;
 }
 
-void ClusterManager::setMinClusterSeperation(float newMinClusterSeperation)
+void DsQmlClusterManager::setMinClusterSeperation(float newMinClusterSeperation)
 {
     if (qFuzzyCompare(m_minClusterSeparation, newMinClusterSeperation))
         return;
@@ -352,12 +352,12 @@ void ClusterManager::setMinClusterSeperation(float newMinClusterSeperation)
     emit minClusterSeperationChanged();
 }
 
-float ClusterManager::triggerTime() const
+float DsQmlClusterManager::triggerTime() const
 {
     return m_triggerTime;
 }
 
-void ClusterManager::setTriggerTime(float newTriggerTime)
+void DsQmlClusterManager::setTriggerTime(float newTriggerTime)
 {
     if (qFuzzyCompare(m_triggerTime, newTriggerTime))
         return;

@@ -8,11 +8,11 @@
 #include <QObject>
 
 namespace dsqt {
-class UrlImageLoader : public QObject {
+class DsUrlImageLoader : public QObject {
 	Q_OBJECT
 
   public:
-	explicit UrlImageLoader(QObject *parent = nullptr);
+    explicit DsUrlImageLoader(QObject *parent = nullptr);
 
 	void loadImage(const QUrl &url);
 

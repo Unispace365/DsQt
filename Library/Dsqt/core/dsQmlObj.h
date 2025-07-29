@@ -6,7 +6,7 @@
 #include <QDebug>
 #include "core/dsQmlApplicationEngine.h"
 #include "core/dsQmlEnvironment.h"
-#include "settings/dssettings_proxy.h"
+#include "settings/dsQmlSettingsProxy.h"
 #include "model/dsContentModel.h"
 #include "model/dsQmlContentHelper.h"
 #include "model/dsQmlContentHelper.h"

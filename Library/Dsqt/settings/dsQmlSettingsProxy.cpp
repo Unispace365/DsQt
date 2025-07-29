@@ -1,4 +1,4 @@
-#include "dssettings_proxy.h"
+#include "dsQmlSettingsProxy.h"
 #include "core/dsEnvironment.h"
 #include <QDateTime>
 namespace dsqt {

@@ -1,9 +1,9 @@
 
-#include "file_meta_data.h"
+#include "dsFileMetaData.h"
 
 
 #include <core/dsEnvironment.h>
-#include <utility/string_util.h>
+#include <utility/dsStringUtils.h>
 
 Q_LOGGING_CATEGORY(lgFileMetaData, "file_meta_data")
 Q_LOGGING_CATEGORY(lgFileMetaDataVerbose, "file_meta_data.verbose")
@@ -16,13 +16,13 @@ namespace {
 /**
  * \class FileMetaData
  */
-FileMetaData::FileMetaData() {}
+DsFileMetaData::DsFileMetaData() {}
 
-FileMetaData::FileMetaData(const std::string& filename) {
+DsFileMetaData::DsFileMetaData(const std::string& filename) {
 	parse(filename);
 }
 
-void FileMetaData::parse(const std::string& filename) {
+void DsFileMetaData::parse(const std::string& filename) {
 	mAttrib.clear();
 
 	fs::path p(filename);
@@ -41,28 +41,28 @@ void FileMetaData::parse(const std::string& filename) {
 	}
 }
 
-size_t FileMetaData::keyCount() const {
+size_t DsFileMetaData::keyCount() const {
 	return mAttrib.size();
 }
 
-bool FileMetaData::contains(const std::string& key) const {
+bool DsFileMetaData::contains(const std::string& key) const {
 	for (auto it = mAttrib.begin(), end = mAttrib.end(); it != end; ++it) {
 		if (it->first == key) return true;
 	}
 	return false;
 }
 
-const std::string& FileMetaData::keyAt(const size_t index) const {
+const std::string& DsFileMetaData::keyAt(const size_t index) const {
 	if (index >= mAttrib.size()) return EMPTY_SZ;
 	return mAttrib[index].first;
 }
 
-const std::string& FileMetaData::valueAt(const size_t index) const {
+const std::string& DsFileMetaData::valueAt(const size_t index) const {
 	if (index >= mAttrib.size()) return EMPTY_SZ;
 	return mAttrib[index].second;
 }
 
-const std::string& FileMetaData::findValue(const std::string& key) const {
+const std::string& DsFileMetaData::findValue(const std::string& key) const {
 	for (auto it = mAttrib.begin(), end = mAttrib.end(); it != end; ++it) {
 		if (it->first == key) return it->second;
 	}

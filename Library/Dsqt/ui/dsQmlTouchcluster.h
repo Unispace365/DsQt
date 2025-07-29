@@ -1,5 +1,5 @@
-#ifndef TOUCHCLUSTER_H
-#define TOUCHCLUSTER_H
+#ifndef DSQMLTOUCHCLUSTER_H
+#define DSQMLTOUCHCLUSTER_H
 
 #include <QObject>
 #include <QQmlEngine>
@@ -20,11 +20,11 @@ struct TouchInfo {
     QPointF mPoint = QPointF(0,0);
 };
 
-class ClusterManager;
+class DsQmlClusterManager;
 
-class TouchCluster : public QQuickItem
+class DsQmlTouchCluster : public QQuickItem
 {
-    friend ClusterManager;
+    friend DsQmlClusterManager;
     Q_OBJECT
     QML_NAMED_ELEMENT(DsTouchCluster)
     //QML_UNCREATABLE("")
@@ -33,7 +33,7 @@ class TouchCluster : public QQuickItem
     Q_PROPERTY(bool active READ active NOTIFY activeChanged FINAL)
     Q_PROPERTY(bool closing READ closing NOTIFY closingChanged FINAL)
 public:
-    explicit TouchCluster(QQuickItem *parent = nullptr);
+    explicit DsQmlTouchCluster(QQuickItem *parent = nullptr);
 
     void addToBoundingBox(QPointF point,QRectF& boundingBox);
     void configureCurrentBoundingBox();
@@ -74,9 +74,9 @@ private:
     bool m_closing;
 };
 
-typedef std::shared_ptr<TouchCluster> TouchClusterPtr;
+typedef std::shared_ptr<DsQmlTouchCluster> TouchClusterPtr;
 
-class TouchClusterList : public QAbstractListModel
+class DsQmlTouchClusterList : public QAbstractListModel
 {
     Q_OBJECT
     QML_NAMED_ELEMENT(DsTouchClusterList)
@@ -84,19 +84,19 @@ public:
     enum Roles {
         Cluster = Qt::UserRole + 1
     };
-    friend ClusterManager;
-    explicit TouchClusterList(QObject * parent= nullptr);
-    ~TouchClusterList();
+    friend DsQmlClusterManager;
+    explicit DsQmlTouchClusterList(QObject * parent= nullptr);
+    ~DsQmlTouchClusterList();
 
     int rowCount(const QModelIndex& parent = QModelIndex()) const override;
     QVariant data(const QModelIndex& index,int role = Qt::DisplayRole) const override;
-    void addCluster(TouchCluster* cluster);
-    void removeCluster(TouchCluster* cluster);
+    void addCluster(DsQmlTouchCluster* cluster);
+    void removeCluster(DsQmlTouchCluster* cluster);
 
 public slots:
-    TouchCluster* cluster(int idx);
+    dsqt::ui::DsQmlTouchCluster* cluster(int idx);
 private:
-    std::vector<TouchCluster*> mClusters;
+    std::vector<DsQmlTouchCluster*> mClusters;
 
 
     // QAbstractItemModel interface
@@ -110,6 +110,6 @@ public:
 
 }
 
-Q_DECLARE_METATYPE(dsqt::ui::TouchCluster)
+Q_DECLARE_METATYPE(dsqt::ui::DsQmlTouchCluster)
 
-#endif // TOUCHCLUSTER_H
+#endif // DSQMLTOUCHCLUSTER_H

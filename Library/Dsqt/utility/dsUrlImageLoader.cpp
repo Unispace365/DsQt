@@ -1,22 +1,22 @@
-#include "url_image_loader.h"
+#include "dsUrlImageLoader.h"
 
 namespace dsqt {
 
-UrlImageLoader::UrlImageLoader(QObject* parent) : QObject(parent), m_manager(new QNetworkAccessManager(this)) {
-	connect(m_manager, &QNetworkAccessManager::finished, this, &UrlImageLoader::onFinished);
+DsUrlImageLoader::DsUrlImageLoader(QObject* parent) : QObject(parent), m_manager(new QNetworkAccessManager(this)) {
+    connect(m_manager, &QNetworkAccessManager::finished, this, &DsUrlImageLoader::onFinished);
 }
 
-void UrlImageLoader::loadImage(const QUrl& url) {
+void DsUrlImageLoader::loadImage(const QUrl& url) {
 	QNetworkRequest request(url);
 	QNetworkReply*	reply = m_manager->get(request);
 
-	connect(reply, &QNetworkReply::downloadProgress, this, &UrlImageLoader::downloadProgress);
-	connect(reply, &QNetworkReply::finished, this, &UrlImageLoader::onFinished);
+    connect(reply, &QNetworkReply::downloadProgress, this, &DsUrlImageLoader::downloadProgress);
+    connect(reply, &QNetworkReply::finished, this, &DsUrlImageLoader::onFinished);
 
 	emit downloadStarted();
 }
 
-QImage dsqt::UrlImageLoader::loadImageSync(const QUrl& url) {
+QImage dsqt::DsUrlImageLoader::loadImageSync(const QUrl& url) {
 	QNetworkRequest request(url);
 	QNetworkReply*	reply = m_manager->get(request);
 
@@ -38,7 +38,7 @@ QImage dsqt::UrlImageLoader::loadImageSync(const QUrl& url) {
 	return image;
 }
 
-void UrlImageLoader::onFinished() {
+void DsUrlImageLoader::onFinished() {
 	QNetworkReply* reply = qobject_cast<QNetworkReply*>(sender());
 	if (reply->error()) {
 		emit errorOccurred(reply->errorString());

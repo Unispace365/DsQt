@@ -1,26 +1,26 @@
-#ifndef CLUSTERVIEW_H
-#define CLUSTERVIEW_H
+#ifndef DSQMLCLUSTERVIEW_H
+#define DSQMLCLUSTERVIEW_H
 
-#include "clustermanager.h"
-#include "touchcluster.h"
+#include "dsQmlClustermanager.h"
+#include "dsQmlTouchcluster.h"
 
 #include <QEvent>
 #include <QObject>
 #include <QQuickItem>
 
 namespace dsqt::ui {
-class ClusterView;
-class ClusterAttachedType:public QObject
+class DsQmlClusterView;
+class DsQmlClusterAttachedType:public QObject
 {
     Q_OBJECT
     QML_ANONYMOUS
     Q_PROPERTY(bool minimumMet READ minimumMet WRITE setMinimumMet NOTIFY minimumMetChanged FINAL)
 public:
-    ClusterAttachedType(QObject *parent);
+    DsQmlClusterAttachedType(QObject *parent);
     bool minimumMet() const;
     void setMinimumMet(bool newMinimumMet);
 
-    void setClusterView(ClusterView* view);
+    void setClusterView(DsQmlClusterView* view);
     Q_INVOKABLE void closeCluster();
 
 signals:
@@ -32,16 +32,16 @@ signals:
     void updated(QPointF location);
 private:
     bool m_minimumMet;
-    ClusterView* m_clusterView;
+    DsQmlClusterView* m_clusterView;
 };
 
-class ClusterView : public QQuickItem
+class DsQmlClusterView : public QQuickItem
 {
     Q_OBJECT
-    QML_ATTACHED(ClusterAttachedType)
+    QML_ATTACHED(DsQmlClusterAttachedType)
     QML_NAMED_ELEMENT(DsClusterView)
     Q_PROPERTY(QQmlComponent* delegate READ delegate WRITE setDelegate NOTIFY delegateChanged FINAL)
-    Q_PROPERTY(dsqt::ui::ClusterManager* manager READ manager WRITE setManager NOTIFY managerChanged FINAL)
+    Q_PROPERTY(dsqt::ui::DsQmlClusterManager* manager READ manager WRITE setManager NOTIFY managerChanged FINAL)
     Q_PROPERTY(QVariantList menuModel READ menuModel WRITE setMenuModel NOTIFY menuModelChanged FINAL)
     Q_PROPERTY(QVariantMap menuConfig READ menuConfig WRITE setMenuConfig NOTIFY menuConfigChanged FINAL)
     //Q_PROPERTY(QQuickItem* target READ target WRITE setTarget NOTIFY targetChanged FINAL)
@@ -52,13 +52,13 @@ public:
         bool mInUse = false;
         QMetaObject::Connection mConnection;
     };
-    ClusterView(QQuickItem* parent=nullptr);
+    DsQmlClusterView(QQuickItem* parent=nullptr);
     QQmlComponent *delegate() const;
     void setDelegate(QQmlComponent *newDelegate);
-    ClusterManager *manager() const;
-    void setManager(ClusterManager *newManager);
-    static ClusterAttachedType* qmlAttachedProperties(QObject* object){
-        return new ClusterAttachedType(object);
+    DsQmlClusterManager *manager() const;
+    void setManager(DsQmlClusterManager *newManager);
+    static DsQmlClusterAttachedType* qmlAttachedProperties(QObject* object){
+        return new DsQmlClusterAttachedType(object);
     }
 
     QVariantList menuModel() const;
@@ -70,7 +70,7 @@ protected:
     void componentComplete() override;
 
 public slots:
-    void onClusterUpdated(const QEventPoint::State& state, dsqt::ui::TouchCluster*);
+    void onClusterUpdated(const QEventPoint::State& state, dsqt::ui::DsQmlTouchCluster*);
 
 
 signals:
@@ -84,15 +84,15 @@ signals:
 
 private:
     QQmlComponent *mDelegate = nullptr;
-    ClusterManager *mManager = nullptr;
+    DsQmlClusterManager *mManager = nullptr;
     std::vector<QMetaObject::Connection> mManagerConnections;
     std::unordered_map<int,DelegateInstance*> mInstanceMap;
     std::vector<DelegateInstance*> mInstanceStorage;
     int mMinimumTouchesNeeded = 2;
-    void updateInstanceFromCluster(DelegateInstance* instance,TouchCluster* cluster);
+    void updateInstanceFromCluster(DelegateInstance* instance,DsQmlTouchCluster* cluster);
     QVariantList m_menuModel;
     QVariantMap m_menuConfig;
 };
 }//namespace dsqt::ui
 
-#endif // CLUSTERVIEW_H
+#endif // DSQMLCLUSTERVIEW_H

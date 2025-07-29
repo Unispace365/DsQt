@@ -1,15 +1,15 @@
-#include "clusterview.h"
+#include "dsQmlClusterView.h"
 
 
 namespace dsqt::ui {
-ClusterView::ClusterView(QQuickItem* parent):QQuickItem(parent) {}
+DsQmlClusterView::DsQmlClusterView(QQuickItem* parent):QQuickItem(parent) {}
 
-QQmlComponent *ClusterView::delegate() const
+QQmlComponent *DsQmlClusterView::delegate() const
 {
     return mDelegate;
 }
 
-void ClusterView::setDelegate(QQmlComponent *newDelegate)
+void DsQmlClusterView::setDelegate(QQmlComponent *newDelegate)
 {
     if (mDelegate == newDelegate)
         return;
@@ -17,12 +17,12 @@ void ClusterView::setDelegate(QQmlComponent *newDelegate)
     emit delegateChanged();
 }
 
-ClusterManager *ClusterView::manager() const
+DsQmlClusterManager *DsQmlClusterView::manager() const
 {
     return mManager;
 }
 
-void ClusterView::setManager(ClusterManager *newManager)
+void DsQmlClusterView::setManager(DsQmlClusterManager *newManager)
 {
     if (mManager == newManager)
         return;
@@ -36,13 +36,13 @@ void ClusterView::setManager(ClusterManager *newManager)
     mManager = newManager;
 
     //connect to signals
-    auto conn=connect(mManager,&ClusterManager::clusterUpdated,this,&ClusterView::onClusterUpdated);
+    auto conn=connect(mManager,&DsQmlClusterManager::clusterUpdated,this,&DsQmlClusterView::onClusterUpdated);
     mManagerConnections.push_back(conn);
     mMinimumTouchesNeeded = mManager->minClusterTouchCount();
     emit managerChanged();
 }
 
-void ClusterView::onClusterUpdated(const QEventPoint::State &state, TouchCluster *cluster)
+void DsQmlClusterView::onClusterUpdated(const QEventPoint::State &state, DsQmlTouchCluster *cluster)
 {
 
     switch(state){
@@ -91,10 +91,10 @@ void ClusterView::onClusterUpdated(const QEventPoint::State &state, TouchCluster
                 mInstanceMap[cluster->mClusterId] = instance;
                 instance->mInUse = true;
                 instance->mItem->setParentItem(this);
-                ClusterAttachedType* attached = qobject_cast<ClusterAttachedType*>(qmlAttachedPropertiesObject<ClusterView>(instance->mItem));
+                DsQmlClusterAttachedType* attached = qobject_cast<DsQmlClusterAttachedType*>(qmlAttachedPropertiesObject<DsQmlClusterView>(instance->mItem));
                 if(attached){
                     auto id = cluster->mClusterId;
-                    instance->mConnection = connect(attached,&ClusterAttachedType::animateOffFinished,this,[this,instance,id](){
+                    instance->mConnection = connect(attached,&DsQmlClusterAttachedType::animateOffFinished,this,[this,instance,id](){
                         mInstanceMap.erase(id);
                         //qDebug()<<"Cluster ID Removed:"<<id<<":";
                         instance->mInUse = false;
@@ -120,7 +120,7 @@ void ClusterView::onClusterUpdated(const QEventPoint::State &state, TouchCluster
                 DelegateInstance *instance = mInstanceMap.at(cluster->mClusterId);
 
                 if(instance){
-                    ClusterAttachedType* attached = qobject_cast<ClusterAttachedType*>(qmlAttachedPropertiesObject<ClusterView>(instance->mItem));
+                    DsQmlClusterAttachedType* attached = qobject_cast<DsQmlClusterAttachedType*>(qmlAttachedPropertiesObject<DsQmlClusterView>(instance->mItem));
                     emit attached->released();
                     if(!mManager->holdOpenOnTouch()){
                         emit attached->removed();
@@ -149,9 +149,9 @@ void ClusterView::onClusterUpdated(const QEventPoint::State &state, TouchCluster
     }
 }
 
-void dsqt::ui::ClusterView::updateInstanceFromCluster(DelegateInstance *instance, TouchCluster *cluster)
+void dsqt::ui::DsQmlClusterView::updateInstanceFromCluster(DelegateInstance *instance, DsQmlTouchCluster *cluster)
 {
-    ClusterAttachedType* attached = qobject_cast<ClusterAttachedType*>(qmlAttachedPropertiesObject<ClusterView>(instance->mItem));
+    DsQmlClusterAttachedType* attached = qobject_cast<DsQmlClusterAttachedType*>(qmlAttachedPropertiesObject<DsQmlClusterView>(instance->mItem));
     if(cluster->mTouchCount>=mMinimumTouchesNeeded){
         //get the attached property object.
         if(attached->minimumMet() == false){
@@ -168,17 +168,17 @@ void dsqt::ui::ClusterView::updateInstanceFromCluster(DelegateInstance *instance
     emit attached->updated(point);
 }
 
-ClusterAttachedType::ClusterAttachedType(QObject *parent):QObject(parent)
+DsQmlClusterAttachedType::DsQmlClusterAttachedType(QObject *parent):QObject(parent)
 {
 
 }
 
-bool ClusterAttachedType::minimumMet() const
+bool DsQmlClusterAttachedType::minimumMet() const
 {
     return m_minimumMet;
 }
 
-void ClusterAttachedType::setMinimumMet(bool newMinimumMet)
+void DsQmlClusterAttachedType::setMinimumMet(bool newMinimumMet)
 {
     if (m_minimumMet == newMinimumMet)
         return;
@@ -186,22 +186,22 @@ void ClusterAttachedType::setMinimumMet(bool newMinimumMet)
     emit minimumMetChanged();
 }
 
-void ClusterAttachedType::setClusterView(ClusterView *view)
+void DsQmlClusterAttachedType::setClusterView(DsQmlClusterView *view)
 {
     m_clusterView = view;
 }
 
-void ClusterAttachedType::closeCluster()
+void DsQmlClusterAttachedType::closeCluster()
 {
    // m_clusterView->manager()->
 }
 
-QVariantList ClusterView::menuModel() const
+QVariantList DsQmlClusterView::menuModel() const
 {
     return m_menuModel;
 }
 
-void ClusterView::setMenuModel(const QVariantList &newModel)
+void DsQmlClusterView::setMenuModel(const QVariantList &newModel)
 {
     if (m_menuModel == newModel)
         return;
@@ -209,12 +209,12 @@ void ClusterView::setMenuModel(const QVariantList &newModel)
     emit menuModelChanged();
 }
 
-QVariantMap ClusterView::menuConfig() const
+QVariantMap DsQmlClusterView::menuConfig() const
 {
     return m_menuConfig;
 }
 
-void ClusterView::setMenuConfig(const QVariantMap &newMenuConfig)
+void DsQmlClusterView::setMenuConfig(const QVariantMap &newMenuConfig)
 {
     if (m_menuConfig == newMenuConfig)
         return;
@@ -222,7 +222,7 @@ void ClusterView::setMenuConfig(const QVariantMap &newMenuConfig)
     emit menuConfigChanged();
 }
 
-void ClusterView::componentComplete()
+void DsQmlClusterView::componentComplete()
 {
     QQuickItem::componentComplete();
 

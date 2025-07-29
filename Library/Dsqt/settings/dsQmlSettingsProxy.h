@@ -3,7 +3,7 @@
 
 #include <QObject>
 #include <qqmlintegration.h>
-#include "settings/dssettings.h"
+#include "settings/dsSettings.h"
 
 namespace dsqt {
 ///

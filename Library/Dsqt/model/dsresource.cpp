@@ -7,7 +7,7 @@
 #include <iostream>
 #include <sstream>
 #include "core/dsEnvironment.h"
-#include "utility/file_meta_data.h"
+#include "utility/dsFileMetaData.h"
 
 
 // if we don't support 128bits we make a unsigned 32bit hash because value is a signed 64bit int

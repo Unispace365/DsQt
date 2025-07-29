@@ -1,15 +1,15 @@
-#include "touchcluster.h"
+#include "dsQmlTouchcluster.h"
 
 
 namespace dsqt::ui {
 
-TouchCluster::TouchCluster(QQuickItem *parent): QQuickItem(parent)
+DsQmlTouchCluster::DsQmlTouchCluster(QQuickItem *parent): QQuickItem(parent)
 {
     //addTouch(touchPoint);
     //updateTouchCount();
 }
 
-void TouchCluster::addToBoundingBox(QPointF point, QRectF &boundingBox)
+void DsQmlTouchCluster::addToBoundingBox(QPointF point, QRectF &boundingBox)
 {
     if(!boundingBox.contains(point)){
         auto box = boundingBox.united(QRectF(point,QSizeF(0.001,0.001)));
@@ -17,7 +17,7 @@ void TouchCluster::addToBoundingBox(QPointF point, QRectF &boundingBox)
     }
 }
 
-void TouchCluster::configureCurrentBoundingBox(){
+void DsQmlTouchCluster::configureCurrentBoundingBox(){
     auto oldbb = mCurrentBoundingBox;
     auto oldCenter = m_center;
     if(mTouches.size()<1){
@@ -45,17 +45,17 @@ void TouchCluster::configureCurrentBoundingBox(){
 
 
 //TouchClusterList
-TouchClusterList::TouchClusterList(QObject *parent):QAbstractListModel(parent)
+DsQmlTouchClusterList::DsQmlTouchClusterList(QObject *parent):QAbstractListModel(parent)
 {
 
 }
 
-TouchClusterList::~TouchClusterList()
+DsQmlTouchClusterList::~DsQmlTouchClusterList()
 {
 
 }
 
-int TouchClusterList::rowCount(const QModelIndex &parent) const
+int DsQmlTouchClusterList::rowCount(const QModelIndex &parent) const
 {
     //qDebug()<<"CLUSTER SIZE:"<<mClusters.size();
     if(parent.isValid()){
@@ -64,7 +64,7 @@ int TouchClusterList::rowCount(const QModelIndex &parent) const
     return mClusters.size();
 }
 
-QVariant TouchClusterList::data(const QModelIndex &index, int role) const
+QVariant DsQmlTouchClusterList::data(const QModelIndex &index, int role) const
 {
     int i = index.row();
     if(i <0 || i >= mClusters.size())
@@ -76,7 +76,7 @@ QVariant TouchClusterList::data(const QModelIndex &index, int role) const
 
 }
 
-void TouchClusterList::addCluster(TouchCluster *cluster)
+void DsQmlTouchClusterList::addCluster(DsQmlTouchCluster *cluster)
 {
 
     if(std::find(mClusters.begin(),mClusters.end(),cluster) == mClusters.end()){
@@ -86,7 +86,7 @@ void TouchClusterList::addCluster(TouchCluster *cluster)
     }
 }
 
-void TouchClusterList::removeCluster(TouchCluster *cluster)
+void DsQmlTouchClusterList::removeCluster(DsQmlTouchCluster *cluster)
 {
     auto itr = std::find(mClusters.begin(),mClusters.end(),cluster);
     if(itr == mClusters.end()) return;
@@ -98,7 +98,7 @@ void TouchClusterList::removeCluster(TouchCluster *cluster)
 }
 
 
-TouchCluster *TouchClusterList::cluster(int idx)
+DsQmlTouchCluster *DsQmlTouchClusterList::cluster(int idx)
 {
     if(idx <0 || idx >= mClusters.size())
         return nullptr;
@@ -106,7 +106,7 @@ TouchCluster *TouchClusterList::cluster(int idx)
     return mClusters.at(idx);
 }
 
-QHash<int, QByteArray> TouchClusterList::roleNames() const
+QHash<int, QByteArray> DsQmlTouchClusterList::roleNames() const
 {
     QHash<int, QByteArray> roles;
     roles[Cluster] = "cluster";
@@ -114,22 +114,22 @@ QHash<int, QByteArray> TouchClusterList::roleNames() const
 
 }
 
-QRectF TouchCluster::boundingBox() const
+QRectF DsQmlTouchCluster::boundingBox() const
 {
     return mCurrentBoundingBox;
 }
 
-QPointF TouchCluster::clusterCenter() const
+QPointF DsQmlTouchCluster::clusterCenter() const
 {
     return m_center;
 }
 
-bool TouchCluster::active() const
+bool DsQmlTouchCluster::active() const
 {
     return m_active;
 }
 
-bool TouchCluster::closing() const
+bool DsQmlTouchCluster::closing() const
 {
     return m_closing;
 }

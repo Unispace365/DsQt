@@ -1,4 +1,4 @@
-#include "dssettings.h"
+#include "dsSettings.h"
 #include <algorithm>
 #include <string>
 

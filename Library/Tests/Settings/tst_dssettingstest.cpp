@@ -1,5 +1,5 @@
 #include <QtTest>
-#include <settings/dssettings.h>
+#include <settings/dsSettings.h>
 #include <dsEnvironment.h>
 #include <optional>
 
