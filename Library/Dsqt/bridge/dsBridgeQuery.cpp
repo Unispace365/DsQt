@@ -7,7 +7,7 @@
 #include "model/dsContentModel.h"
 #include "model/dsresource.h"
 #include "model/dsPropertyMapDiff.h"
-#include "network/dsnodewatcher.h"
+#include "network/dsNodeWatcher.h"
 #include "qqmlcontext.h"
 #include "settings/dssettings.h"
 #include "settings/dssettings_proxy.h"

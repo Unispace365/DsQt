@@ -11,7 +11,7 @@
 #include "settings/dssettings_proxy.h"
 #include "dsQmlEnvironment.h"
 #include "model/dsQmlContentHelper.h"
-#include "network/dsnodewatcher.h"
+#include "network/dsNodeWatcher.h"
 #include <QGuiApplication>
 
 Q_LOGGING_CATEGORY(lgAppEngine, "engine")

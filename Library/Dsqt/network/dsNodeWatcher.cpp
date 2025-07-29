@@ -1,4 +1,4 @@
-#include "dsnodewatcher.h"
+#include "dsNodeWatcher.h"
 
 #include <QHostAddress>
 #include <QTcpSocket>
