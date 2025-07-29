@@ -12,7 +12,6 @@
 #include <QQmlApplicationEngine>
 #include <QTimer>
 #include <model/qjsonmodel.h>
-#include <ui/clockqml.h>
 
 Q_DECLARE_LOGGING_CATEGORY(lgAppEngine)
 Q_DECLARE_LOGGING_CATEGORY(lgAppEngineVerbose)
@@ -30,6 +29,7 @@ class DSQmlApplicationEngine : public QQmlApplicationEngine {
     QML_UNCREATABLE("Ya don't need to make an engine. get it from DS.engine")
   public:
     explicit DSQmlApplicationEngine(QObject* parent = nullptr);
+
     void                           initialize();
     DSSettingsRef                  getAppSettings();
     model::ContentModelRef         getContentRoot();
@@ -73,7 +73,6 @@ class DSQmlApplicationEngine : public QQmlApplicationEngine {
     QTimer                         mTrigger;
     DSSettingsProxy*               mAppProxy      = nullptr;
     DSEnvironmentQML*              mQmlEnv        = nullptr;
-    ui::ClockQML*                  mClock         = nullptr;
     model::IContentHelper*         mContentHelper = nullptr;
     network::DsNodeWatcher*        mNodeWatcher   = nullptr;
 };

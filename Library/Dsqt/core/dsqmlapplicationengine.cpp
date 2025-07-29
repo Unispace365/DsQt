@@ -136,29 +136,14 @@ void dsqt::DSQmlApplicationEngine::readSettings(bool reset) {
 }
 
 void DSQmlApplicationEngine::init() {
-    // setup nodeWatcher
-    mNodeWatcher = new network::DsNodeWatcher(this);
-    // auto starts, but could also be this:
-    // mNodeWatcher = new network::DsNodeWatcher(this,"localhost",7788,/*autostart*/false)
-    // mNodeWatcher->start();
-
+    //
     readSettings();
-    mAppProxy = new DSSettingsProxy(this);
-
-    // Create the clock instance and expose it to QML.
-    mClock = new dsqt::ui::ClockQML(this);
-    rootContext()->setContextProperty("clock", mClock);
-
-    // Create the environment instance and expose it to QML.
-    mQmlEnv = new DSEnvironmentQML(this);
-    rootContext()->setContextProperty("environment", mQmlEnv);
+    if (!mAppProxy) mAppProxy = new DSSettingsProxy(this);
 
     // get watcher elements
     auto node = dsqt::DSEnvironment::engineSettings()->getRawNode("engine.reload.paths");
     if (node) {
-
-
-        auto& paths = *node->as_array();
+        const auto& paths = *node->as_array();
 
         for (auto&& path_node : paths) {
             auto path    = path_node.as_table();
@@ -181,6 +166,15 @@ void DSQmlApplicationEngine::init() {
     // rootContext()->setContextProperty("app_settings",mAppProxy);
     // rootContext()->setContextProperty("$QmlEngine", this);
     // rootContext()->setContextProperty("$Env",mQmlEnv);
+
+    // setup QML environment
+    if (!mQmlEnv) mQmlEnv = new DSEnvironmentQML(this);
+
+    // setup nodeWatcher
+    if (!mNodeWatcher) mNodeWatcher = new network::DsNodeWatcher(this);
+    // auto starts, but could also be this:
+    // mNodeWatcher = new network::DsNodeWatcher(this,"localhost",7788,/*autostart*/false)
+    // mNodeWatcher->start();
 }
 
 void DSQmlApplicationEngine::postInit() {
