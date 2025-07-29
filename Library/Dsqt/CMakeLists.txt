@@ -55,7 +55,8 @@ qt_add_qml_module(Dsqt
     waffles.qrc
     SOURCES ui/clustermanager.h ui/clustermanager.cpp
     SOURCES ui/clusterview.h ui/clusterview.cpp
-    SOURCES ui/clockqml.h ui/clockqml.cpp
+    SOURCES ui/ds_qml_clock.h ui/ds_qml_clock.cpp
+    SOURCES ui/ds_qml_fps_monitor.h ui/ds_qml_fps_monitor.cpp
     SOURCES core/dsenvironmentqml.h core/dsenvironmentqml.cpp
     SOURCES core/ds_qml_obj.h core/ds_qml_obj.cpp
     SOURCES model/icontent_helper.h model/icontent_helper.cpp
