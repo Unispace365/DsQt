@@ -1,10 +1,10 @@
-#ifndef CONTENT_HELPER_H
-#define CONTENT_HELPER_H
+#ifndef DSCONTENTHELPER_H
+#define DSCONTENTHELPER_H
 
 
 #include <QObject>
 #include <QQmlEngine>
-#include "icontent_helper.h"
+#include "dsIContentHelper.h"
 #include "dsQmlApplicationEngine.h"
 
 Q_DECLARE_LOGGING_CATEGORY(lgContentHelper)
@@ -13,7 +13,7 @@ namespace dsqt::model {
 class ContentHelper : public IContentHelper
 {
     Q_OBJECT
-    QML_ELEMENT
+    QML_NAMED_ELEMENT(DSContentHelper)
 public:
     explicit ContentHelper(QObject *parent = nullptr);
 
@@ -68,4 +68,4 @@ private:
     QStringList splitCategory(QString category);
 };
 }
-#endif // CONTENT_HELPER_H
+#endif // DSCONTENTHELPER_H

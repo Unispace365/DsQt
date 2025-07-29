@@ -14,19 +14,19 @@ qt_add_qml_module(Dsqt
     STATIC
     VERSION 1.0
     #QML_FILES DsqtBaseControls.qml
-    QML_FILES qml/DSAppBase.qml
-    QML_FILES qml/DSScaleLoader.qml
-    QML_FILES qml/waffles/DSRadialMenu.qml
-    QML_FILES qml/waffles/DSRadialMenuIconItem.qml
-    QML_FILES qml/waffles/menu_launcher/Section.qml
-    QML_FILES qml/waffles/WaffleStage.qml
+    QML_FILES qml/DsAppBase.qml
+    QML_FILES qml/DsScaleLoader.qml
+    QML_FILES
+    QML_FILES
+    QML_FILES qml/waffles/menu_launcher/DsSection.qml
+    QML_FILES qml/waffles/DsWaffleStage.qml
     QML_FILES qml/bridge/DsBridgeQueryControls.qml
-    QML_FILES qml/waffles/menu_launcher/TestLauncher.qml
-    QML_FILES qml/waffles/media_viewer/TitledMediaViewer.qml
-    QML_FILES qml/waffles/media_viewer/ControlSet.qml
-    QML_FILES qml/waffles/Viewer.qml
-    QML_FILES qml/waffles/QuickMenu.qml
-    QML_FILES qml/waffles/menu_launcher/ContentLauncher.qml
+    QML_FILES qml/waffles/menu_launcher/DsTestLauncher.qml
+    QML_FILES qml/waffles/media_viewer/DsTitledMediaViewer.qml
+    QML_FILES qml/waffles/media_viewer/DsControlSet.qml
+    QML_FILES qml/waffles/DsViewer.qml
+    QML_FILES qml/waffles/DsQuickMenu.qml
+    QML_FILES qml/waffles/menu_launcher/DsContentLauncher.qml
 
     SOURCES
     #dsqtbase.cpp dsqtbase.h
@@ -34,10 +34,10 @@ qt_add_qml_module(Dsqt
     core/dsGuiApplication.cpp core/dsGuiApplication.h
     core/dsQmlImguiItem.h
     core/dsQmlApplicationEngine.cpp core/dsQmlApplicationEngine.h
-    model/content_model.cpp model/content_model.h
-    model/qmlcontentmodel.h model/qmlcontentmodel.cpp
-    model/qjsonmodel.cpp model/qjsonmodel.h
-    model/dsresource.cpp model/dsresource.h
+    # model/content_model.cpp model/content_model.h
+    # model/qmlcontentmodel.h model/qmlcontentmodel.cpp
+    # model/qjsonmodel.cpp model/qjsonmodel.h
+    # model/dsresource.cpp model/dsresource.h
     network/dsnodewatcher.cpp network/dsnodewatcher.h
     settings/dssettings.cpp settings/dssettings.h
     settings/dssettings_base.cpp
@@ -59,11 +59,19 @@ qt_add_qml_module(Dsqt
     SOURCES ui/clusterview.h ui/clusterview.cpp
     SOURCES core/dsQmlEnvironment.h core/dsQmlEnvironment.cpp
     SOURCES core/dsQmlObj.h core/dsQmlObj.cpp
-    SOURCES model/icontent_helper.h model/icontent_helper.cpp
-    SOURCES model/content_helper.h model/content_helper.cpp
-    SOURCES model/property_map_diff.h model/property_map_diff.cpp
-    SOURCES model/reference_map.h
+    # SOURCES model/icontent_helper.h model/icontent_helper.cpp
+    # SOURCES model/dsContentHelper.h model/dsContentHelper.cpp
+    # SOURCES model/property_map_diff.h model/property_map_diff.cpp
+    # SOURCES model/reference_map.h
     SOURCES core/dsReloadUrlInterceptor.h core/dsReloadUrlInterceptor.cpp
+
+    SOURCES model/dsContentModel.cpp model/dsContentModel.h
+    SOURCES model/dsIContentHelper.cpp model/dsIContentHelper.h
+    SOURCES model/dsPropertyMapDiff.cpp model/dsPropertyMapDiff.h
+    SOURCES model/dsQmlContentHelper.cpp model/dsQmlContentHelper.h
+    SOURCES model/dsQmlContentModel.cpp model/dsQmlContentModel.h
+    SOURCES model/dsReferenceMap.h model/dsResource.cpp model/dsResource.h
+    SOURCES model/qjsonmodel.cpp model/qjsonmodel.h
     DEPENDENCIES
          QtQuick
          Dsqtplugin

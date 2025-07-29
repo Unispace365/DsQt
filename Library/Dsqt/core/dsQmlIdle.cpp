@@ -70,7 +70,7 @@ void DsQmlIdle::preventionChanged(bool preventIdle)
     //drop us out of Idle
     if(preventIdle == false) {
         if(mWouldHaveGoneToIdle){
-            startIdling();
+            //startIdling();
         }
     }
 }
@@ -128,9 +128,9 @@ void DsQmlIdle::setIdleTimeout(int newIdleTimeout)
 bool DsQmlIdle::eventFilter(QObject *watched, QEvent *ev)
 {
     if(ev->isPointerEvent()){
-        if(!mIdling){
-            stopIdling(true);
-        }
+        //if(!mIdling){
+        //    stopIdling(true);
+        //}
         auto mouseEv = dynamic_cast<QMouseEvent*>(ev);
         if(mouseEv && mouseEv->button() != Qt::NoButton && mouseEv->isBeginEvent()) {
             // mouse button pressed, stop idling

@@ -15,9 +15,9 @@
 #endif
 
 #include <core/dsQmlApplicationEngine.h>
-#include <model/content_model.h>
-#include <model/dsresource.h>
-#include <model/property_map_diff.h>
+#include <model/dsContentModel.h>
+#include <model/dsResource.h>
+#include <model/dsPropertyMapDiff.h>
 #include <settings/dssettings_proxy.h>
 
 Q_DECLARE_LOGGING_CATEGORY(lgBridgeSyncApp)

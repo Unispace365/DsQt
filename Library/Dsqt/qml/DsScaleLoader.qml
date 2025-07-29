@@ -17,7 +17,7 @@ Loader {
     property url rootSource: ""
     source: rootSource
 
-    DSSettingsProxy {
+    DsSettingsProxy {
         id:windowProxy
         target:"engine"
         prefix: "engine.window"

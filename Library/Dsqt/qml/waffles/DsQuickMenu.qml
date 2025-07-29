@@ -35,7 +35,7 @@ Item {
         y: -root.height*0.5
     }
 
-    DSSettingsProxy {
+    DsSettingsProxy {
         id:appSettings
         target:"app_settings"
     }
@@ -712,17 +712,17 @@ Item {
         }
     }
 
-    ClusterView.onMinimumMetChanged: {
-        if(ClusterView.minimumMet){
+    DsClusterView.onMinimumMetChanged: {
+        if(DsClusterView.minimumMet){
             root.state = "On"
         }
     }
 
-    ClusterView.onRemoved: {
+    DsClusterView.onRemoved: {
         root.state = "Off"
     }
 
-    ClusterView.onReleased: {
+    DsClusterView.onReleased: {
         for(let seg=0;seg<root.model.length;seg++){
             if((root.selection >> seg) & 1){
                 console.log("Selected segment "+seg);
@@ -737,7 +737,7 @@ Item {
         }
     }
 
-    ClusterView.onUpdated: (point)=>{
+    DsClusterView.onUpdated: (point)=>{
         updatePoint(point);
     }
 

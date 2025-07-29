@@ -1,8 +1,8 @@
-#include "property_map_diff.h"
+#include "dsPropertyMapDiff.h"
 #include <QSet>
 #include <QStringLiteral>
 #include <QRegularExpression>
-#include "model/qmlcontentmodel.h"
+#include "model/dsQmlContentHelper.h"
 namespace dsqt::model {
 using namespace Qt::StringLiterals;
 PropertyMapDiff::PropertyMapDiff(const QmlContentModel &from, const QmlContentModel &to)

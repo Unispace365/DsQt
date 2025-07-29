@@ -26,7 +26,7 @@ class TouchCluster : public QQuickItem
 {
     friend ClusterManager;
     Q_OBJECT
-    QML_ELEMENT
+    QML_NAMED_ELEMENT(DsTouchCluster)
     //QML_UNCREATABLE("")
     Q_PROPERTY(QRectF boundingBox MEMBER mCurrentBoundingBox READ boundingBox NOTIFY boundingBoxChanged FINAL)
     Q_PROPERTY(QPointF clusterCenter MEMBER m_center READ clusterCenter NOTIFY clusterCenterChanged FINAL)
@@ -79,7 +79,7 @@ typedef std::shared_ptr<TouchCluster> TouchClusterPtr;
 class TouchClusterList : public QAbstractListModel
 {
     Q_OBJECT
-    QML_ELEMENT
+    QML_NAMED_ELEMENT(DsTouchClusterList)
 public:
     enum Roles {
         Cluster = Qt::UserRole + 1

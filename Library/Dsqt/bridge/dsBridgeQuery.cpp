@@ -4,9 +4,9 @@
 #include <QString>
 
 #include "core/dsEnvironment.h"
-#include "model/content_model.h"
+#include "model/dsContentModel.h"
 #include "model/dsresource.h"
-#include "model/property_map_diff.h"
+#include "model/dsPropertyMapDiff.h"
 #include "network/dsnodewatcher.h"
 #include "qqmlcontext.h"
 #include "settings/dssettings.h"

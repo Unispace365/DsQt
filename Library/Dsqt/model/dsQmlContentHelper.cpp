@@ -1,4 +1,4 @@
-#include "content_helper.h"
+#include "dsQmlContentHelper.h"
 #include <QString>
 #include "core/dsEnvironment.h"
 #include "dsresource.h"

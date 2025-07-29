@@ -11,7 +11,7 @@ namespace dsqt::ui {
 class ClusterManager : public QQuickItem
 {
     Q_OBJECT
-    QML_ELEMENT
+    QML_NAMED_ELEMENT(DsClusterManager)
 
     Q_PROPERTY(int minClusterTouchCount READ minClusterTouchCount WRITE setMinClusterTouchCount NOTIFY minClusterTouchCountChanged FINAL)
     Q_PROPERTY(float boundingBoxSize READ boundingBoxSize WRITE setBoundingBoxSize NOTIFY boundingBoxSizeChanged FINAL)

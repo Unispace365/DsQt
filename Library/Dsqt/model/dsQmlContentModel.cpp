@@ -1,5 +1,5 @@
-#include "qmlcontentmodel.h"
-#include "content_model.h"
+#include "dsQmlContentModel.h"
+#include "dsContentModel.h"
 #include "dsQmlApplicationEngine.h"
 #include <QVector>
 #include <execution>

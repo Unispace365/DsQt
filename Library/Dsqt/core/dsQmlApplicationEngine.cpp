@@ -7,10 +7,10 @@
 #include <QQmlContext>
 #include <QStringLiteral>
 #include "dsEnvironment.h"
-#include "model/content_model.h"
+#include "model/dsContentModel.h"
 #include "settings/dssettings_proxy.h"
 #include "dsQmlEnvironment.h"
-#include "model/content_helper.h"
+#include "model/dsQmlContentHelper.h"
 #include "network/dsnodewatcher.h"
 #include <QGuiApplication>
 

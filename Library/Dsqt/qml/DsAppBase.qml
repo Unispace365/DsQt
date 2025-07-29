@@ -36,19 +36,19 @@ Window {
     
 
 
-    DSSettingsProxy {
+    DsSettingsProxy {
         id:appProxy
         target:"app_settings"
     }
 
-    DSSettingsProxy {
+    DsSettingsProxy {
         id:windowProxy
         target:"engine"
         prefix: "engine.window"
     }
 
 
-    DSScaleLoader {
+    DsScaleLoader {
        width: windowProxy.getRect("source").width
        height: windowProxy.getRect("source").height
        id: loadera

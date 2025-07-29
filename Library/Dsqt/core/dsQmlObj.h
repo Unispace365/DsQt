@@ -7,10 +7,10 @@
 #include "core/dsQmlApplicationEngine.h"
 #include "core/dsQmlEnvironment.h"
 #include "settings/dssettings_proxy.h"
-#include "model/content_model.h"
-#include "model/content_helper.h"
-#include "model/qmlcontentmodel.h"
-#include "model/reference_map.h"
+#include "model/dsContentModel.h"
+#include "model/dsQmlContentHelper.h"
+#include "model/dsQmlContentHelper.h"
+#include "model/dsReferenceMap.h"
 #include <qqmlintegration.h>
 
 Q_DECLARE_LOGGING_CATEGORY(lgQmlObj)

@@ -8,7 +8,7 @@ namespace dsqt {
 class DsQmlEnvironment : public QObject
 {
     Q_OBJECT
-    QML_ELEMENT
+    QML_NAMED_ELEMENT(DsEnvironment)
     QML_UNCREATABLE("Aint no need for you to be making one.")
 public:
     explicit DsQmlEnvironment(QObject *parent = nullptr);

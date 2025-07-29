@@ -5,8 +5,8 @@
 #include <QQmlPropertyMap>
 #include <QObject>
 #include <QtQml>
-#include "content_model.h"
-#include "reference_map.h"
+#include "dsContentModel.h"
+#include "dsReferenceMap.h"
 namespace dsqt::model {
 // wrapper around QQmlPropertyMap with functions around creating a
 // QmlContentModel from a ContentModelRef
@@ -14,7 +14,7 @@ namespace dsqt::model {
 class QmlContentModel : public QQmlPropertyMap
 {
     Q_OBJECT
-    QML_ELEMENT
+    QML_NAMED_ELEMENT(DsContentModel)
     QML_UNCREATABLE("QmlContentModels are proxys of ContentModels")
     //Q_PROPERTY(QJsonModel* qmlModel READ qmlModel NOTIFY qmlModelChanged FINAL)
 public:

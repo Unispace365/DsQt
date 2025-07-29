@@ -14,7 +14,7 @@ class DsQmlSettingsProxy : public QObject
 	Q_OBJECT
 	Q_PROPERTY(QString target READ target WRITE setTarget NOTIFY targetChanged);
 	Q_PROPERTY(QString prefix READ prefix WRITE setPrefix NOTIFY prefixChanged);
-	QML_ELEMENT
+    QML_NAMED_ELEMENT(DsSettingsProxy)
   public:
     explicit DsQmlSettingsProxy(QObject *parent = nullptr);
 

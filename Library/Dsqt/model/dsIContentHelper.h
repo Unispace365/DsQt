@@ -3,7 +3,7 @@
 
 #include <QObject>
 #include <QQmlEngine>
-#include "model/content_model.h"
+#include "model/dsContentModel.h"
 
 namespace dsqt {
    class DsQmlApplicationEngine;

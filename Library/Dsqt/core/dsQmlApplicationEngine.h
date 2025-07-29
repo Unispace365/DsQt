@@ -7,11 +7,11 @@
 #include <QQmlApplicationEngine>
 #include <QTimer>
 #include "dsQmlImguiItem.h"
-#include "model/content_model.h"
-#include "model/qmlcontentmodel.h"
+#include "model/dsContentModel.h"
+#include "model/dsQmlContentModel.h"
 #include "settings/dssettings.h"
-#include "model/icontent_helper.h"
-#include "model/property_map_diff.h"
+#include "model/dsIContentHelper.h"
+#include "model/dsPropertyMapDiff.h"
 #include "dsQmlIdle.h"
 Q_DECLARE_LOGGING_CATEGORY(lgAppEngine)
 Q_DECLARE_LOGGING_CATEGORY(lgAppEngineVerbose)

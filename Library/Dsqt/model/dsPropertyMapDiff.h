@@ -5,7 +5,7 @@
 #include <QVariant>
 #include <QList>
 #include <QStringList>
-#include "model/reference_map.h"
+#include "model/dsReferenceMap.h"
 
 namespace dsqt::model {
 class QmlContentModel;

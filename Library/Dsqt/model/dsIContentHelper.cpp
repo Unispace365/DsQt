@@ -1,4 +1,4 @@
-#include "icontent_helper.h"
+#include "dsIContentHelper.h"
 
 namespace dsqt::model {
 const QString IContentHelper::DEFAULTCATEGORY	  = "default!";

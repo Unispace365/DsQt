@@ -10,7 +10,7 @@ namespace dsqt {
 class DsQmlIdle;
 class DsQmlIdlePreventer : public QObject {
     Q_OBJECT
-    QML_ELEMENT
+    QML_NAMED_ELEMENT(DsIdlePreventer)
     Q_PROPERTY(bool preventIdle READ preventIdle WRITE setPreventIdle NOTIFY preventIdleChanged FINAL)
     Q_PROPERTY(DsQmlIdle* targetIdle READ targetIdle WRITE setTargetIdle NOTIFY targetIdleChanged FINAL)
   public:

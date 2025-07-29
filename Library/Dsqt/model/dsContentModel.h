@@ -16,7 +16,7 @@
 #include <memory>
 #include <string>
 #include <vector>
-#include "reference_map.h"
+#include "dsReferenceMap.h"
 
 #include "dsresource.h"
 Q_DECLARE_LOGGING_CATEGORY(lgContentModel)

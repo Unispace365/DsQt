@@ -39,7 +39,7 @@ class ClusterView : public QQuickItem
 {
     Q_OBJECT
     QML_ATTACHED(ClusterAttachedType)
-    QML_ELEMENT
+    QML_NAMED_ELEMENT(DsClusterView)
     Q_PROPERTY(QQmlComponent* delegate READ delegate WRITE setDelegate NOTIFY delegateChanged FINAL)
     Q_PROPERTY(dsqt::ui::ClusterManager* manager READ manager WRITE setManager NOTIFY managerChanged FINAL)
     Q_PROPERTY(QVariantList menuModel READ menuModel WRITE setMenuModel NOTIFY menuModelChanged FINAL)
