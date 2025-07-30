@@ -279,7 +279,7 @@ Item {
             Image {
                 id: arrowSvg
                 //source: "qrc:/res/data/waffles/ui/quickMenuSelectionArrow"
-                source: DS.env.expand("file:///%APP%/data/images/waffles/quick_menu/quickMenuSelectionArrowwt.svg")
+                source: Ds.env.expand("file:///%APP%/data/images/waffles/quick_menu/quickMenuSelectionArrowwt.svg")
                 visible: false
                 width: 24; height: 24;
                 smooth: true
@@ -440,7 +440,7 @@ Item {
                 Image {
                     id: icon
                     source: Qt.url(
-                            DS.env.expand(
+                            Ds.env.expand(
                                     (iconSet.modelData.iconPath ? iconSet.modelData.iconPath ?? "" : root.config.iconPath ?? "")
                                     + iconSet.modelData?.icon ?? ""))
                     fillMode: Image.PreserveAspectFit
@@ -623,7 +623,7 @@ Item {
         Image {
             id: closeUp
             visible: !closeTapHandler.pressed
-            source: DS.env.expandUrl("file:///%APP%/data/images/waffles/quick_menu/close.svg");
+            source: Ds.env.expandUrl("file:///%APP%/data/images/waffles/quick_menu/close.svg");
             fillMode: Image.PreserveAspectFit
             width: closeUp.implicitWidth
             height: closeUp.implicitHeight
@@ -633,7 +633,7 @@ Item {
         Image {
             id: closeDwn
             visible: closeTapHandler.pressed
-            source: DS.env.expandUrl("file:///%APP%/data/images/waffles/quick_menu/close_pressed.svg");
+            source: Ds.env.expandUrl("file:///%APP%/data/images/waffles/quick_menu/close_pressed.svg");
             fillMode: Image.PreserveAspectFit
             width: closeDwn.implicitWidth
             height: closeDwn.implicitHeight
