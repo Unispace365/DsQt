@@ -1,14 +1,11 @@
+#include "model/dsContentModel.h"
+#include "model/dsQmlContentModel.h"
 
-
-#include "dsContentModel.h"
-
-#include <core/dsQmlApplicationEngine.h>
-#include <utility/dsStringUtils.h>
 #include <QJsonArray>
 #include <QJsonObject>
 #include <QJsonValue>
-#include "dsQmlContentModel.h"
-#include "qdebug.h"
+#include <qdebug.h>
+#include <utility/dsStringUtils.h>
 
 Q_LOGGING_CATEGORY(lgContentModel, "model.contentmodel")
 Q_LOGGING_CATEGORY(lgContentModelVerbose, "model.contentmodel.verbose")

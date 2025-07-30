@@ -1,9 +1,10 @@
-#include "dsSettings.h"
-#include <string>
-#include <algorithm>
+#include "settings/dsSettings.h"
+
 #include <QDate>
-#include <QTime>
 #include <QDateTime>
+#include <QTime>
+
+#include <string>
 
 namespace dsqt {
 

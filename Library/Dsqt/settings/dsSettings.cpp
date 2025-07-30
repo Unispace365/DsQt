@@ -1,10 +1,10 @@
-#include "dsSettings.h"
-#include <toml++/toml.h>
-#include <filesystem>
-#include <iostream>
-#include <string>
-#include <qtimezone.h>
+#include "settings/dsSettings.h"
 #include "core/dsEnvironment.h"
+
+#include <filesystem>
+#include <qtimezone.h>
+#include <string>
+#include <toml++/toml.h>
 
 Q_LOGGING_CATEGORY(lgSettingsParser, "settings.parser")
 Q_LOGGING_CATEGORY(lgSPVerbose, "settings.parser.verbose")

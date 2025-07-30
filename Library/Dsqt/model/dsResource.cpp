@@ -1,14 +1,12 @@
-
-
 #include "model/dsResource.h"
-#include <QDir>
-#include <QFileInfo>
-#include <QImageReader>
-#include <iostream>
-#include <sstream>
 #include "core/dsEnvironment.h"
 #include "utility/dsFileMetaData.h"
 
+#include <QDir>
+#include <QFileInfo>
+#include <QImageReader>
+
+#include <iostream>
 
 // if we don't support 128bits we make a unsigned 32bit hash because value is a signed 64bit int
 // and we don't want negative values for the value; if we do support 128bits we use the 64bit hash

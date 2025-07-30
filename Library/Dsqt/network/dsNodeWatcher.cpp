@@ -1,9 +1,9 @@
-#include "dsNodeWatcher.h"
+#include "network/dsNodeWatcher.h"
+#include "core/dsEnvironment.h"
 
 #include <QHostAddress>
 #include <QTcpSocket>
 #include <QUdpSocket>
-#include "core/dsEnvironment.h"
 
 Q_LOGGING_CATEGORY(lgNodeWatcher, "network.nodewatcher")
 Q_LOGGING_CATEGORY(lgNodeWatcherVerbose, "network.nodewatcher.verbose")

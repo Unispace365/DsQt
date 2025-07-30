@@ -1,5 +1,4 @@
-#include "dsQmlClusterView.h"
-
+#include "ui/dsQmlClusterView.h"
 
 namespace dsqt::ui {
 DsQmlClusterView::DsQmlClusterView(QQuickItem* parent):QQuickItem(parent) {}

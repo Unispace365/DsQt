@@ -1,7 +1,6 @@
-#include "dsSettings.h"
-#include <string>
-#include <algorithm>
+#include "settings/dsSettings.h"
 
+#include <string>
 
 namespace dsqt {
 

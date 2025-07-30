@@ -1,8 +1,7 @@
-#include "dsQmlContentModel.h"
-#include "dsContentModel.h"
-#include "dsQmlApplicationEngine.h"
+#include "model/dsQmlContentModel.h"
+#include "model/dsContentModel.h"
+
 #include <QVector>
-#include <execution>
 
 namespace dsqt::model {
 

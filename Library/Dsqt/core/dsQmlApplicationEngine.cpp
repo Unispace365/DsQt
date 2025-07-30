@@ -1,18 +1,20 @@
-#include "dsQmlApplicationEngine.h"
-#include <toml++/toml.h>
+#include "core/dsQmlApplicationEngine.h"
+#include "core/dsEnvironment.h"
+#include "core/dsQmlEnvironment.h"
+#include "model/dsContentModel.h"
+#include "model/dsQmlContentHelper.h"
+#include "network/dsNodeWatcher.h"
+#include "settings/dsQmlSettingsProxy.h"
+
 #include <QDir>
 #include <QDirIterator>
 #include <QFileInfo>
+#include <QGuiApplication>
 #include <QImageReader>
 #include <QQmlContext>
 #include <QStringLiteral>
-#include "dsEnvironment.h"
-#include "model/dsContentModel.h"
-#include "settings/dsQmlSettingsProxy.h"
-#include "dsQmlEnvironment.h"
-#include "model/dsQmlContentHelper.h"
-#include "network/dsNodeWatcher.h"
-#include <QGuiApplication>
+
+#include <toml++/toml.h>
 
 Q_LOGGING_CATEGORY(lgAppEngine, "engine")
 Q_LOGGING_CATEGORY(lgAppEngineVerbose, "engine.verbose")

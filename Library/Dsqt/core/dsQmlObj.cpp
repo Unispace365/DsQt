@@ -1,4 +1,4 @@
-#include "dsQmlObj.h"
+#include "core/dsQmlObj.h"
 
 Q_LOGGING_CATEGORY(lgQmlObj, "core.qmlobj");
 Q_LOGGING_CATEGORY(lgQmlObjVerbose, "core.qmlobj.verbose");

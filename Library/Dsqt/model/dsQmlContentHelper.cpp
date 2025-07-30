@@ -1,12 +1,13 @@
-#include "dsQmlContentHelper.h"
-#include <QString>
+#include "model/dsQmlContentHelper.h"
 #include "core/dsEnvironment.h"
-#include "dsResource.h"
+#include "model/dsResource.h"
+
+#include <QString>
+
 Q_LOGGING_CATEGORY(lgContentHelper, "model.contenthelper")
 Q_LOGGING_CATEGORY(lgContentHelperVerbose, "model.contenthelper.verbose")
-
-
 namespace dsqt::model {
+
 using namespace Qt::Literals::StringLiterals;
 ContentHelper::ContentHelper(QObject *parent)
     : IContentHelper(parent)

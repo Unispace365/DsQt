@@ -1,12 +1,11 @@
-#include "dsEnvironment.h"
-#include <functional>
-#include <QStandardPaths>
+#include "core/dsEnvironment.h"
+#include "settings/dsSettings.h"
 #include <QDir>
-#include <QString>
 #include <QRegularExpression>
 #include <QRegularExpressionMatch>
+#include <QStandardPaths>
+#include <QString>
 #include <qapplicationstatic.h>
-#include "settings/dsSettings.h"
 
 Q_LOGGING_CATEGORY(lgEnv, "core.environment");
 Q_LOGGING_CATEGORY(lgEnvVerbose, "core.environment.verbose");

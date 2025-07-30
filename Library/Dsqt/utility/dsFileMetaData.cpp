@@ -1,9 +1,6 @@
-
-#include "dsFileMetaData.h"
-
-
-#include <core/dsEnvironment.h>
-#include <utility/dsStringUtils.h>
+#include "utility/dsFileMetaData.h"
+#include "core/dsEnvironment.h"
+#include "utility/dsStringUtils.h"
 
 Q_LOGGING_CATEGORY(lgFileMetaData, "file_meta_data")
 Q_LOGGING_CATEGORY(lgFileMetaDataVerbose, "file_meta_data.verbose")

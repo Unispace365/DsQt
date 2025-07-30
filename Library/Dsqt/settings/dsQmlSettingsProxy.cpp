@@ -1,6 +1,8 @@
-#include "dsQmlSettingsProxy.h"
+#include "settings/dsQmlSettingsProxy.h"
 #include "core/dsEnvironment.h"
+
 #include <QDateTime>
+
 namespace dsqt {
 DsQmlSettingsProxy::DsQmlSettingsProxy(QObject* parent) : QObject{parent} {}
 

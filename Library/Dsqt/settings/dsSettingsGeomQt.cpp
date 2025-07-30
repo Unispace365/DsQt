@@ -1,5 +1,5 @@
-#include "dsSettings.h"
-#include <algorithm>
+#include "settings/dsSettings.h"
+
 #include <string>
 
 

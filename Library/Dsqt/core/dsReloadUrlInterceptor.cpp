@@ -1,4 +1,5 @@
-#include "dsReloadUrlInterceptor.h"
+#include "core/dsReloadUrlInterceptor.h"
+
 #include <QDebug>
 #include <QGuiApplication>
 #include <QRandomGenerator>
