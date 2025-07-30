@@ -1,5 +1,4 @@
 #include "model/dsQmlEventSchedule.h"
-
 #include "core/dsQmlApplicationEngine.h"
 #include "core/dsQmlObj.h"
 #include "ui/dsQmlClock.h"
@@ -84,7 +83,6 @@ QList<DsQmlEvent*> DsQmlEventSchedule::timeline() const {
 }
 
 void DsQmlEventSchedule::updateNow() {
-    auto engine = DsQmlApplicationEngine::DefEngine();
     if (m_clock)
         m_local_date_time = m_clock->now();
     else

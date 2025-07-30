@@ -12,6 +12,8 @@
 #include <QQmlListProperty>
 #include <QtConcurrentRun>
 
+Q_DECLARE_LOGGING_CATEGORY(lgEventSchedule)
+Q_DECLARE_LOGGING_CATEGORY(lgEventScheduleVerbose)
 namespace dsqt::model {
 
 // Wraps a scheduled event into a QML object.
