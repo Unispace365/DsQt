@@ -39,7 +39,7 @@ Item {
         id:vds
         anchors.right: root.right
         anchors.bottom: root.bottom
-        source:DS.env.expand("file:%APP%/data/images/2025_Downstream_Logo_white.svg")
+        source:Ds.env.expand("file:%APP%/data/images/2025_Downstream_Logo_white.svg")
         fillMode: Image.PreserveAspectFit
        //preferredRendererType: VectorImage.CurveRenderer
 
@@ -55,16 +55,16 @@ Item {
         border.color: "black"
     }
 
-    WaffleStage {
+    DsWaffleStage {
         id: wStage
         anchors.fill: root
-        viewer: TitledMediaViewer {
+        viewer: DsTitledMediaViewer {
             id: viewer
             source:DS.env.expand("file:%APP%/data/images/landscape.jpeg")
             controls: [
-                ControlSet {
+                DsControlSet {
                     id:controlRoot
-                    edge: WaffleStage.Edge.TopOuter
+                    edge: DsWaffleStage.Edge.TopOuter
                     height: close.height
                     //required property string contentModel
 
@@ -100,7 +100,7 @@ Item {
             ]
         }
 
-        launcher: TestLauncher {
+        launcher: DsTestLauncher {
             stage: wStage
         }
     }

@@ -10,7 +10,7 @@
 #include <dsqmlapplicationengine.h>
 #include <dsBridgeQuery.h>
 #include <dsnodewatcher.h>
-#include <reloadurlinterceptor.h>
+
 
 int main(int argc, char *argv[])
 {
@@ -31,14 +31,7 @@ int main(int argc, char *argv[])
     //    qDebug() << qrc.next();
 
     //create our custom engine.
-    dsqt::DSQmlApplicationEngine engine;
-
-    //setup url interceptor so we can reload QML files on change.
-    dsqt::ReloadUrlInterceptor* interceptor = new dsqt::ReloadUrlInterceptor();
-    QString projectFrom = "qrc:/qt/qml/WhiteLabelWaffles/";
-    QString projectTo = "file:///"+QCoreApplication::applicationDirPath()+"/../../";
-    interceptor->setPrefixes(projectFrom,projectTo);
-    engine.addUrlInterceptor(interceptor);
+    dsqt::DsQmlApplicationEngine engine;
 
 
     //create the query object

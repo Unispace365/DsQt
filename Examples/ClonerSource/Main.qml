@@ -3,10 +3,10 @@ import QtQuick.VirtualKeyboard
 
 import Dsqt
 
-DSAppBase {
+DsAppBase {
     id: base
 
-    rootSrc: DS.env.expand("file:%APP%/qml/Gallery.qml")//Qt.resolvedUrl("file:DsqtApp/qml/Gallery.qml");
+    rootSrc: Ds.env.expand("file:%APP%/qml/Sizer.qml")//Qt.resolvedUrl("file:DsqtApp/qml/Gallery.qml");
     Component.onCompleted: {
 
         //console.log("WOOOT!")

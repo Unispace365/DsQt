@@ -6,17 +6,17 @@ import QtMultimedia
 Item {
     id:sizer
     Component.onCompleted: {
-        console.log("platform id is "+BridgeUtility.platform["uid"])
-        console.log("Moment is "+moment().format("YYYY-MM-DDTHH:mm:ss"))
-        console.log("Sizer size:"+sizer.width+","+sizer.height)
-        var events = BridgeUtility.getEventsForSpan("1970-01-01T00:00:00","2088-01-01T00:00:00");
-        console.log("events size:"+events.length);
+        //console.log("platform id is "+BridgeUtility.platform["uid"])
+        //console.log("Moment is "+moment().format("YYYY-MM-DDTHH:mm:ss"))
+        //console.log("Sizer size:"+sizer.width+","+sizer.height)
+        //var events = BridgeUtility.getEventsForSpan("1970-01-01T00:00:00","2088-01-01T00:00:00");
+        //console.log("events size:"+events.length);
     }
 
     Rectangle {
         id:baseRect
         anchors.fill: parent
-        color: "#0000ff"
+        color: "#ffffff"
         enabled: false;
     }
 
@@ -39,8 +39,10 @@ Item {
     Repeater {
         id: repline
         model: sizer.width/150.0
+
         Text {
             required property var modelData
+            visible: !Ds.engine.idle.idling
             y:sizer.height*0.5+20;
             x:modelData*150
             width:contentWidth
@@ -115,59 +117,30 @@ Item {
         }
     }*/
 
-    ClusterView {
+    DsSettingsProxy {
+        id:appProxy
+        target:"app_settings"
+    }
+
+    DsClusterView {
         id: jawa
         manager: wookie
+        menuConfig: appProxy.getObj("menu")
+        menuModel: appProxy.getList("menu.item")
 
-        DSRadialMenu {
-            id: radialMenu
-            radius: 250
-            width: 500
-            height: 500
-            visible: false
-            state: "Start"
-            model: [
-                {
-                    text: "Menu",
-                    icon: "qrc:/res/data/waffles/icons/1x/Home_64.png",
-                    action: function() {
-                        console.log("Menu clicked");
-                    }
-                },
-                {
-                    text: "Settings",
-                    icon: "qrc:/icons/settings.svg",
-                    action: function() {
-                        console.log("Settings clicked");
-                    }
-                },
-                {
-                    text: "what",
-                    icon: "qrc:/icons/close.svg",
-                    action: function() {
-                        console.log("Close clicked");
-                    }
-                }
-            ]
-            delegate: DSRadialMenuIconItem {
-                property int index
-                text: modelData.text
-            }
-            DragHandler {
-                target: radialMenu
-            }
-
-
+        DsQuickMenu {
         }
     }
 
-
-    ClusterManager {
+    DsClusterManager {
         id: wookie
         enabled:true;
         minClusterTouchCount: 3
         minClusterSeperation: 500
+        holdOpenOnTouch: true
         anchors.fill: parent
     }
+
+
 
 }
