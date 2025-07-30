@@ -5,6 +5,7 @@
 
 #include <QLoggingCategory>
 #include <QRectF>
+
 #include <functional>
 #include <string>
 #include <vector>

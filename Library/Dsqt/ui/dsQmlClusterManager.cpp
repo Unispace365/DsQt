@@ -1,4 +1,4 @@
-#include "dsQmlClustermanager.h"
+#include "dsQmlClusterManager.h"
 #include "glm/gtx/rotate_vector.hpp"
 #include "glm/gtx/scalar_multiplication.hpp"
 #include <QPointerEvent>

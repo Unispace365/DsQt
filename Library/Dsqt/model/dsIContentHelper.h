@@ -1,9 +1,10 @@
 #ifndef DSCONTENTHELPER_H
 #define DSCONTENTHELPER_H
 
+#include "model/dsContentModel.h"
+
 #include <QObject>
 #include <QQmlEngine>
-#include "model/dsContentModel.h"
 
 namespace dsqt {
    class DsQmlApplicationEngine;

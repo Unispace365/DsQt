@@ -1,16 +1,15 @@
 #ifndef DSQMLOBJ_H
 #define DSQMLOBJ_H
 
-#include <QObject>
-#include <QQmlEngine>
-#include <QDebug>
 #include "core/dsQmlApplicationEngine.h"
 #include "core/dsQmlEnvironment.h"
-#include "settings/dsQmlSettingsProxy.h"
 #include "model/dsContentModel.h"
-#include "model/dsQmlContentHelper.h"
-#include "model/dsQmlContentHelper.h"
 #include "model/dsReferenceMap.h"
+#include "settings/dsQmlSettingsProxy.h"
+
+#include <QDebug>
+#include <QObject>
+#include <QQmlEngine>
 #include <qqmlintegration.h>
 
 Q_DECLARE_LOGGING_CATEGORY(lgQmlObj)

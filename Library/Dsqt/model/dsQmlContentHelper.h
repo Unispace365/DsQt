@@ -1,11 +1,11 @@
 #ifndef DSQMLCONTENTHELPER_H
 #define DSQMLCONTENTHELPER_H
 
+#include "core/dsQmlApplicationEngine.h"
+#include "model/dsIContentHelper.h"
 
 #include <QObject>
 #include <QQmlEngine>
-#include "dsIContentHelper.h"
-#include "dsQmlApplicationEngine.h"
 
 Q_DECLARE_LOGGING_CATEGORY(lgContentHelper)
 Q_DECLARE_LOGGING_CATEGORY(lgContentHelperVerbose)

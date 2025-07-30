@@ -2,8 +2,8 @@
 #ifndef DSSTRINGUTILS_H
 #define DSSTRINGUTILS_H
 
-
 #include <QRect>
+
 #include <functional>
 #include <glm/glm.hpp>
 #include <sstream>

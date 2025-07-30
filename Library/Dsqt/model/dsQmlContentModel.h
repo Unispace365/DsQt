@@ -1,12 +1,13 @@
 #ifndef DSQMLCONTENTMODEL_H
 #define DSQMLCONTENTMODEL_H
 
+#include "model/dsContentModel.h"
+#include "model/dsReferenceMap.h"
 
-#include <QQmlPropertyMap>
 #include <QObject>
+#include <QQmlPropertyMap>
 #include <QtQml>
-#include "dsContentModel.h"
-#include "dsReferenceMap.h"
+
 namespace dsqt::model {
 // wrapper around QQmlPropertyMap with functions around creating a
 // QmlContentModel from a ContentModelRef

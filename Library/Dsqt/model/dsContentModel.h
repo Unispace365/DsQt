@@ -3,22 +3,23 @@
 #ifndef DSCONTENTMODEL_H
 #define DSCONTENTMODEL_H
 
+#include "model/dsReferenceMap.h"
+#include "model/dsResource.h"
+#include "model/qJsonModel.h"
 
-#include <model/qJsonModel.h>
 #include <QColor>
 #include <QLoggingCategory>
 #include <QRect>
 #include <QSharedData>
 #include <QSharedDataPointer>
 #include <QUrl>
+
 #include <glm/glm.hpp>
 #include <map>
 #include <memory>
 #include <string>
 #include <vector>
-#include "dsReferenceMap.h"
 
-#include "dsResource.h"
 Q_DECLARE_LOGGING_CATEGORY(lgContentModel)
 Q_DECLARE_LOGGING_CATEGORY(lgContentModelVerbose)
 namespace dsqt::model {

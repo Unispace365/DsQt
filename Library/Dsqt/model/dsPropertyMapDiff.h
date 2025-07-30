@@ -1,11 +1,11 @@
 #ifndef DSPROPERTYMAPDIFF_H
 #define DSPROPERTYMAPDIFF_H
 
+#include "model/dsReferenceMap.h"
 
-#include <QVariant>
 #include <QList>
 #include <QStringList>
-#include "model/dsReferenceMap.h"
+#include <QVariant>
 
 namespace dsqt::model {
 class QmlContentModel;

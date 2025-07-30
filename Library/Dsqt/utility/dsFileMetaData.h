@@ -2,9 +2,10 @@
 #ifndef DSFILEMETADATA_H_
 #define DSFILEMETADATA_H_
 
+#include "utility/dsStringUtils.h"
 
-#include <utility/dsStringUtils.h>
 #include <QLoggingCategory>
+
 #include <filesystem>
 #include <string>
 #include <vector>

@@ -55,7 +55,7 @@ qt_add_qml_module(Dsqt
     utility/dsUrlImageLoader.cpp utility/dsUrlImageLoader.h
     bridge/dsBridgeQuery.cpp bridge/dsBridgeQuery.h
     waffles.qrc
-    SOURCES ui/dsQmlClustermanager.h ui/dsQmlClustermanager.cpp
+    SOURCES ui/dsQmlClusterManager.h ui/dsQmlClusterManager.cpp
     SOURCES ui/dsQmlClusterView.h ui/dsQmlClusterView.cpp
     SOURCES core/dsQmlEnvironment.h core/dsQmlEnvironment.cpp
     SOURCES core/dsQmlObj.h core/dsQmlObj.cpp
