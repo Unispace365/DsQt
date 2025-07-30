@@ -133,7 +133,7 @@ Window {
 
 
     Connections {
-        target: DS.engine
+        target: Ds.engine
         function onResetting(path) {
             console.log("file changed qml");
             loadera.reload();
