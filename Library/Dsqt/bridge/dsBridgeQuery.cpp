@@ -5,7 +5,7 @@
 
 #include "core/dsEnvironment.h"
 #include "model/dsContentModel.h"
-#include "model/dsresource.h"
+#include "model/dsResource.h"
 #include "model/dsPropertyMapDiff.h"
 #include "network/dsNodeWatcher.h"
 #include "qqmlcontext.h"
@@ -658,7 +658,7 @@ bool DsBridgeSqlQuery::queryTables() {
     // Process value query.
     timer.start();
 
-    const dsqt::DSResource::Id cms(dsqt::DSResource::Id::CMS_TYPE, 0);
+    const dsqt::DsResource::Id cms(dsqt::DsResource::Id::CMS_TYPE, 0);
     if (handleQueryError(valueQuery, "Value Query")) {
         while (valueQuery.next()) {
             auto        result    = valueQuery.record();
@@ -683,16 +683,16 @@ bool DsBridgeSqlQuery::queryTables() {
             } else if (type == "FILE_IMAGE" || type == "FILE_VIDEO" || type == "FILE_PDF") {
                 if (!resourceId.isEmpty()) {
                     // TODO: finish converting this section.
-                    auto res = dsqt::DSResource(
-                        resourceId, dsqt::DSResource::Id::CMS_TYPE, double(result.value(33).toDouble()),
+                    auto res = dsqt::DsResource(
+                        resourceId, dsqt::DsResource::Id::CMS_TYPE, double(result.value(33).toDouble()),
                         float(result.value(31).toInt()), float(result.value(32).toInt()), result.value(51).toString(),
                         result.value(30).toString(), -1, cms.getResourcePath() + result.value(30).toString());
                     if (type == "FILE_IMAGE")
-                        res.setType(dsqt::DSResource::IMAGE_TYPE);
+                        res.setType(dsqt::DsResource::IMAGE_TYPE);
                     else if (type == "FILE_VIDEO")
-                        res.setType(dsqt::DSResource::VIDEO_TYPE);
+                        res.setType(dsqt::DsResource::VIDEO_TYPE);
                     else if (type == "FILE_PDF")
-                        res.setType(dsqt::DSResource::PDF_TYPE);
+                        res.setType(dsqt::DsResource::PDF_TYPE);
                     else
                         continue;
 
@@ -711,12 +711,12 @@ bool DsBridgeSqlQuery::queryTables() {
                 if (!previewId.isEmpty()) {
                     const auto& previewType = result.value(40).toString();
 
-                    auto res = dsqt::DSResource(
-                        previewId, dsqt::DSResource::Id::CMS_TYPE, double(result.value(44).toFloat()),
+                    auto res = dsqt::DsResource(
+                        previewId, dsqt::DsResource::Id::CMS_TYPE, double(result.value(44).toFloat()),
                         float(result.value(42).toInt()), float(result.value(43).toInt()), result.value(41).toString(),
                         result.value(41).toString(), -1, cms.getResourcePath() + result.value(41).toString());
-                    res.setType(previewType == "FILE_IMAGE" ? dsqt::DSResource::IMAGE_TYPE
-                                                            : dsqt::DSResource::VIDEO_TYPE);
+                    res.setType(previewType == "FILE_IMAGE" ? dsqt::DsResource::IMAGE_TYPE
+                                                            : dsqt::DsResource::VIDEO_TYPE);
 
                     auto preview_uid = field_uid + "_preview";
                     record.setPropertyResource(preview_uid, res);
@@ -731,7 +731,7 @@ bool DsBridgeSqlQuery::queryTables() {
                 record.setProperty(field_uid, toUpdate);
             } else if (type == "LINK_WEB") {
                 const auto& linkUrl = result.value(30).toString();
-                auto        res     = dsqt::DSResource(resourceId, dsqt::DSResource::Id::CMS_TYPE,
+                auto        res     = dsqt::DsResource(resourceId, dsqt::DsResource::Id::CMS_TYPE,
                                                        double(result.value(33).toFloat()), float(result.value(31).toInt()),
                                                        float(result.value(32).toInt()), linkUrl, linkUrl, -1, linkUrl);
 
@@ -739,16 +739,16 @@ bool DsBridgeSqlQuery::queryTables() {
                 auto webSize = appsettings->getOr<glm::vec2>("web:default_size", glm::vec2(1920.f, 1080.f));
                 res.setWidth(webSize.x);
                 res.setHeight(webSize.y);
-                res.setType(dsqt::DSResource::WEB_TYPE);
+                res.setType(dsqt::DsResource::WEB_TYPE);
                 record.setPropertyResource(field_uid, res);
 
                 if (!previewId.isEmpty()) {
                     const auto& previewType = result.value(40).toString();
-                    auto        res         = dsqt::DSResource(
-                        previewId, dsqt::DSResource::Id::CMS_TYPE, double(result.value(44).toFloat()),
+                    auto        res         = dsqt::DsResource(
+                        previewId, dsqt::DsResource::Id::CMS_TYPE, double(result.value(44).toFloat()),
                         float(result.value(42).toInt()), float(result.value(43).toInt()), result.value(41).toString(),
                         result.value(41).toString(), -1, cms.getResourcePath() + result.value(41).toString());
-                    res.setType(type == "FILE_IMAGE" ? dsqt::DSResource::IMAGE_TYPE : dsqt::DSResource::VIDEO_TYPE);
+                    res.setType(type == "FILE_IMAGE" ? dsqt::DsResource::IMAGE_TYPE : dsqt::DsResource::VIDEO_TYPE);
 
                     auto preview_uid = field_uid + "_preview";
                     record.setPropertyResource(preview_uid, res);

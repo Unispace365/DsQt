@@ -1,6 +1,6 @@
 #pragma once
-#ifndef DS_UTIL_FILEMETADATA_H_
-#define DS_UTIL_FILEMETADATA_H_
+#ifndef DSFILEMETADATA_H_
+#define DSFILEMETADATA_H_
 
 
 #include <utility/dsStringUtils.h>

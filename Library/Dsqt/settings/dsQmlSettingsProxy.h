@@ -1,5 +1,5 @@
-#ifndef DSSETTINGPROXY_H
-#define DSSETTINGPROXY_H
+#ifndef DSQMLSETTINGPROXY_H
+#define DSQMLSETTINGPROXY_H
 
 #include <QObject>
 #include <qqmlintegration.h>

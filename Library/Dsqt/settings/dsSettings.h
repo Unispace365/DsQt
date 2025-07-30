@@ -9,7 +9,7 @@
 #include <QtGui/QVector4D>
 #include <glm/glm.hpp>
 #include "QtGui/qcolor.h"
-#include "DsOverloaded.h"
+#include "dsOverloaded.h"
 
 #include <type_traits>
 #include <typeindex>

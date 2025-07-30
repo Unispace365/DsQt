@@ -1,4 +1,4 @@
-#include "dsQmlTouchcluster.h"
+#include "dsQmlTouchCluster.h"
 
 
 namespace dsqt::ui {

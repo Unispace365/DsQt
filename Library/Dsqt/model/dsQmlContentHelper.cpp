@@ -1,7 +1,7 @@
 #include "dsQmlContentHelper.h"
 #include <QString>
 #include "core/dsEnvironment.h"
-#include "dsresource.h"
+#include "dsResource.h"
 Q_LOGGING_CATEGORY(lgContentHelper, "model.contenthelper")
 Q_LOGGING_CATEGORY(lgContentHelperVerbose, "model.contenthelper.verbose")
 
@@ -105,7 +105,7 @@ ContentModelRef ContentHelper::getRecordByUid(const QString& uid) {
     return mEngine->getContentRoot().getReference("all_records", uid);
 }
 
-DSResource ContentHelper::getBackgroundForPlatform() {
+DsResource ContentHelper::getBackgroundForPlatform() {
 
     auto	 platform = mEngine->getContentHelper()->getPlatform();
     if (platform.empty()) return {};
@@ -189,7 +189,7 @@ std::vector<ContentModelRef> ContentHelper::getContentForPlatform() {
     return allContent;
 }
 
-std::vector<DSResource> ContentHelper::findMediaResources() {
+std::vector<DsResource> ContentHelper::findMediaResources() {
     return {};
 }
 

@@ -1,5 +1,5 @@
-#ifndef IMAGELOADER_H
-#define IMAGELOADER_H
+#ifndef DSURLIMAGELOADER_H
+#define DSURLIMAGELOADER_H
 
 #include <QEventLoop>
 #include <QImage>

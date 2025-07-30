@@ -1,5 +1,5 @@
-#ifndef REFERENCE_MAP_H
-#define REFERENCE_MAP_H
+#ifndef DSREFERENCEMAP_H
+#define DSREFERENCEMAP_H
 
 
 #include <QString>

@@ -48,8 +48,8 @@ qt_add_qml_module(Dsqt
     settings/dsSettingsGeomQt.cpp
     settings/dsSettingsQColor.cpp
     settings/dsQmlSettingsProxy.cpp settings/dsQmlSettingsProxy.h
-    settings/DsOverloaded.h
-    ui/dsQmlTouchcluster.h ui/dsQmlTouchcluster.cpp
+    settings/dsOverloaded.h
+    ui/dsQmlTouchCluster.h ui/dsQmlTouchCluster.cpp
     utility/dsFileMetaData.cpp utility/dsFileMetaData.h
     utility/dsStringUtils.cpp utility/dsStringUtils.h
     utility/dsUrlImageLoader.cpp utility/dsUrlImageLoader.h
@@ -71,7 +71,7 @@ qt_add_qml_module(Dsqt
     SOURCES model/dsQmlContentHelper.cpp model/dsQmlContentHelper.h
     SOURCES model/dsQmlContentModel.cpp model/dsQmlContentModel.h
     SOURCES model/dsReferenceMap.h model/dsResource.cpp model/dsResource.h
-    SOURCES model/qjsonmodel.cpp model/qjsonmodel.h
+    SOURCES model/qJsonModel.cpp model/qJsonModel.h
     DEPENDENCIES
          QtQuick
          Dsqtplugin

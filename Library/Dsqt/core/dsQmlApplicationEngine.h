@@ -1,7 +1,7 @@
 #ifndef DSQMLAPPLICATIONENGINE_H
 #define DSQMLAPPLICATIONENGINE_H
 
-#include <model/qjsonmodel.h>
+#include <model/qJsonModel.h>
 #include <QFileSystemWatcher>
 #include <QObject>
 #include <QQmlApplicationEngine>

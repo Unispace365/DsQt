@@ -21,7 +21,7 @@ class DsQmlObj : public QObject
 
     Q_OBJECT
     QML_SINGLETON
-    QML_NAMED_ELEMENT(DS)
+    QML_NAMED_ELEMENT(Ds)
 
     Q_PROPERTY(dsqt::DsQmlEnvironment* env READ env NOTIFY envChanged)
     Q_PROPERTY(dsqt::DsQmlSettingsProxy* appSettings READ appSettings NOTIFY appSettingsChanged)

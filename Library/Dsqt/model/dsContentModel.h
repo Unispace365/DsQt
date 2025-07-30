@@ -1,10 +1,10 @@
 #pragma once
 
-#ifndef DS_CONTENT_CONTENT_MODEL
-#define DS_CONTENT_CONTENT_MODEL
+#ifndef DSCONTENTMODEL_H
+#define DSCONTENTMODEL_H
 
 
-#include <model/qjsonmodel.h>
+#include <model/qJsonModel.h>
 #include <QColor>
 #include <QLoggingCategory>
 #include <QRect>
@@ -18,7 +18,7 @@
 #include <vector>
 #include "dsReferenceMap.h"
 
-#include "dsresource.h"
+#include "dsResource.h"
 Q_DECLARE_LOGGING_CATEGORY(lgContentModel)
 Q_DECLARE_LOGGING_CATEGORY(lgContentModelVerbose)
 namespace dsqt::model {
@@ -66,8 +66,8 @@ class ContentProperty {
 
 	// im guesing we don't need to worry about
 	// resources as we'll rely on QML's system.
-    DSResource getResource() const;
-    void	 setResource(const dsqt::DSResource& resource);
+    DsResource getResource() const;
+    void	 setResource(const dsqt::DsResource& resource);
 
 	// replace resources with urls
 	void setValue(const QUrl& value);
@@ -100,7 +100,7 @@ class ContentProperty {
 	QString					  mValue;  // this should always be valid.
 	int			  mIntValue;
 	double		  mDoubleValue;
-    std::shared_ptr<DSResource> mResource;
+    std::shared_ptr<DsResource> mResource;
 };
 
 class ContentModelRef;
@@ -215,7 +215,7 @@ class ContentModelRef {
 	glm::vec4 getPropertyVec4(const QString& propertyName) const;
 	QRectF	  getPropertyRect(const QString& propertyName) const;
 	QUrl	  getPropertyUrl(const QString& propertyName) const;
-    DSResource  getPropertyResource(const QString& propertyName) const;
+    DsResource  getPropertyResource(const QString& propertyName) const;
 
 	/// Set the property with a given name
 	void setProperty(const QString& propertyName, ContentProperty& theProp);
@@ -231,7 +231,7 @@ class ContentModelRef {
 	void setProperty(const QString& propertyName, const glm::vec4& value);
 	void setProperty(const QString& propertyName, const QRectF& value);
 	void setProperty(const QString& propertyName, const QUrl& value);
-    void setPropertyResource(const QString& propertyName, const DSResource& resource);
+    void setPropertyResource(const QString& propertyName, const DsResource& resource);
 
 	/// property lists are stored separately from regular properties
 	const std::map<QString, std::vector<ContentProperty>>& getAllPropertyLists() const;

@@ -1,5 +1,5 @@
-#ifndef PROPERTY_MAP_DIFF_H
-#define PROPERTY_MAP_DIFF_H
+#ifndef DSPROPERTYMAPDIFF_H
+#define DSPROPERTYMAPDIFF_H
 
 
 #include <QVariant>

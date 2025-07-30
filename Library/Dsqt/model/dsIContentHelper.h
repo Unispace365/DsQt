@@ -1,5 +1,5 @@
-#ifndef ICONTENT_HELPER_H
-#define ICONTENT_HELPER_H
+#ifndef DSCONTENTHELPER_H
+#define DSCONTENTHELPER_H
 
 #include <QObject>
 #include <QQmlEngine>
@@ -40,7 +40,7 @@ public:
 
     virtual QString		getCompositeKeyForPlatform()		   = 0;
     virtual ContentModelRef getRecordByUid(const QString& uid) = 0;
-    virtual DSResource		getBackgroundForPlatform()			   = 0;
+    virtual DsResource		getBackgroundForPlatform()			   = 0;
 
     virtual ContentModelRef getPresentation()			= 0; // getInteractivePlaylist
     virtual ContentModelRef getAmbientPlaylist()		= 0;
@@ -51,7 +51,7 @@ public:
     virtual std::vector<ContentModelRef> getStreamSources(const QString& category = DEFAULTCATEGORY) = 0;
     virtual ContentModelRef				 getStreamSourceForStream(ContentModelRef stream, const QString& category = DEFAULTCATEGORY) = 0;
 
-    virtual std::vector<DSResource> findMediaResources() = 0;
+    virtual std::vector<DsResource> findMediaResources() = 0;
 
     virtual bool isValidFolder(ContentModelRef model, const QString& category = DEFAULTCATEGORY)	   = 0;
     virtual bool isValidMedia(ContentModelRef model, const QString& category = DEFAULTCATEGORY)		   = 0;

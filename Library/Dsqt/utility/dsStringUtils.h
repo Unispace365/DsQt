@@ -1,6 +1,6 @@
 #pragma once
-#ifndef DS_UTIL_STRINGUTIL_H_
-#define DS_UTIL_STRINGUTIL_H_
+#ifndef DSSTRINGUTILS_H
+#define DSSTRINGUTILS_H
 
 
 #include <QRect>

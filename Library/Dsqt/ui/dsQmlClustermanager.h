@@ -1,7 +1,7 @@
 #ifndef DSQMLCLUSTERMANAGER_H
 #define DSQMLCLUSTERMANAGER_H
 
-#include "dsQmlTouchcluster.h"
+#include "dsQmlTouchCluster.h"
 #include <QQuickItem>
 #include <QEvent>
 #include <QPointerEvent>

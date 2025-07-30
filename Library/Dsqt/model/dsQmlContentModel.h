@@ -1,5 +1,5 @@
-#ifndef QMLCONTENTMODEL_H
-#define QMLCONTENTMODEL_H
+#ifndef DSQMLCONTENTMODEL_H
+#define DSQMLCONTENTMODEL_H
 
 
 #include <QQmlPropertyMap>

@@ -2,7 +2,7 @@
 #define DSQMLCLUSTERVIEW_H
 
 #include "dsQmlClustermanager.h"
-#include "dsQmlTouchcluster.h"
+#include "dsQmlTouchCluster.h"
 
 #include <QEvent>
 #include <QObject>
