@@ -42,7 +42,7 @@ qt_add_qml_module(Dsqt
     settings/dsSettings.cpp settings/dsSettings.h
     settings/dsSettingsBase.cpp
     settings/dsSettingsCollections.cpp
-    settings/dsSettingsDatetime.cpp
+    settings/dsSettingsDateTime.cpp
     settings/dsSettingsGeomCommon.cpp
     settings/dsSettingsGeomGlm.cpp
     settings/dsSettingsGeomQt.cpp
