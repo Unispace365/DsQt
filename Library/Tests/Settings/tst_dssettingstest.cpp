@@ -1,6 +1,6 @@
 #include <QtTest>
-#include <settings/dssettings.h>
-#include <dsenvironment.h>
+#include <settings/dsSettings.h>
+#include <dsEnvironment.h>
 #include <optional>
 
 
@@ -111,7 +111,7 @@ void DSSettingsTest::init()
 {
     QLoggingCategory::setFilterRules("settings.parser*=false\n");
 
-	auto [existed,test] = dsqt::DSSettings::getSettingsOrCreate("test_settings");
+	auto [existed,test] = dsqt::DsSettings::getSettingsOrCreate("test_settings");
 	test_settings = test;
 	if(!existed){
 		//qWarning()<<"test_settings did not already exist";
@@ -122,20 +122,20 @@ void DSSettingsTest::init()
 
 void DSSettingsTest::cleanup()
 {
-	dsqt::DSSettings::forgetSettings("test_settings");
+	dsqt::DsSettings::forgetSettings("test_settings");
 }
 
 //settings creation
 void DSSettingsTest::getOrCreateSettings_shouldReturnExisitngSettingsAndTrueWhenSettingsExist()
 {
-	auto [existed,test] = dsqt::DSSettings::getSettingsOrCreate("test_settings");
+	auto [existed,test] = dsqt::DsSettings::getSettingsOrCreate("test_settings");
 	QVERIFY(existed);
 	QVERIFY(test);
 }
 
 void DSSettingsTest::getOrCreateSettings_shouldReturnNewSettingsAndFalseWhenSettingsDoNotExist()
 {
-	auto [existed,test] = dsqt::DSSettings::getSettingsOrCreate("new_settings");
+	auto [existed,test] = dsqt::DsSettings::getSettingsOrCreate("new_settings");
 	QVERIFY(!existed);
 	QVERIFY(test);
 }

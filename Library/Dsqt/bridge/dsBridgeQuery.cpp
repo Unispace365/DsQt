@@ -1,16 +1,15 @@
-﻿#include "dsBridgeQuery.h"
+﻿#include "bridge/dsBridgeQuery.h"
+#include "core/dsEnvironment.h"
+#include "model/dsContentModel.h"
+#include "model/dsPropertyMapDiff.h"
+#include "model/dsResource.h"
+#include "network/dsNodeWatcher.h"
+#include "qqmlcontext.h"
+#include "settings/dsQmlSettingsProxy.h"
+#include "settings/dsSettings.h"
 
 #include <QSharedPointer>
 #include <QString>
-
-#include "core/dsenvironment.h"
-#include "model/content_model.h"
-#include "model/dsresource.h"
-#include "model/property_map_diff.h"
-#include "network/dsnodewatcher.h"
-#include "qqmlcontext.h"
-#include "settings/dssettings.h"
-#include "settings/dssettings_proxy.h"
 
 Q_LOGGING_CATEGORY(lgBridgeSyncApp, "bridgeSync.app")
 Q_LOGGING_CATEGORY(lgBridgeSyncQuery, "bridgeSync.query")
@@ -21,12 +20,12 @@ using namespace dsqt::model;
 
 namespace dsqt::bridge {
 
-DsBridgeSqlQuery::DsBridgeSqlQuery(DSQmlApplicationEngine* parent)
+DsBridgeSqlQuery::DsBridgeSqlQuery(DsQmlApplicationEngine* parent)
     : QObject(parent) {
     using namespace Qt::StringLiterals;
 
     connect(
-        parent, &DSQmlApplicationEngine::onInit, this,
+        parent, &DsQmlApplicationEngine::initializing, this,
         [this]() {
             // If bridge sync is not running, try to launch it.
             if (!isBridgeSyncRunning()) {
@@ -34,7 +33,7 @@ DsBridgeSqlQuery::DsBridgeSqlQuery(DSQmlApplicationEngine* parent)
             }
 
             // Setup the connections first.
-            auto engine = DSQmlApplicationEngine::DefEngine();
+            auto engine = DsQmlApplicationEngine::DefEngine();
             connect(
                 engine->getNodeWatcher(), &network::DsNodeWatcher::messageArrived, this,
                 [this](dsqt::network::Message msg) { QueryDatabase(); }, Qt::ConnectionType::QueuedConnection);
@@ -47,15 +46,15 @@ DsBridgeSqlQuery::DsBridgeSqlQuery(DSQmlApplicationEngine* parent)
             //
             qCDebug(lgBridgeSyncQuery) << "Starting Query";
             mDatabase = QSqlDatabase::addDatabase("QSQLITE");
-            DSSettingsProxy engSettings;
+            DsQmlSettingsProxy engSettings;
             engSettings.setTarget("engine");
             engSettings.setPrefix("engine.resource");
 
             // Find DB file.
-            QString resourceLocation = DSEnvironment::expandq(engSettings.getString("location", "").value<QString>());
+            QString resourceLocation = DsEnvironment::expandq(engSettings.getString("location", "").value<QString>());
             auto    opFile           = engSettings.getString("resource_db", "").value<QString>();
             if (!opFile.isEmpty()) {
-                auto file = DSEnvironment::expandq(opFile);
+                auto file = DsEnvironment::expandq(opFile);
                 if (QDir::isRelativePath(file)) {
                     file = QDir::cleanPath(resourceLocation + "/" + file);
                 }
@@ -66,7 +65,7 @@ DsBridgeSqlQuery::DsBridgeSqlQuery(DSQmlApplicationEngine* parent)
             }
 
             // Fake a nodewatcher message to force the database to open.
-            emit DSQmlApplicationEngine::DefEngine()->getNodeWatcher()->messageArrived(dsqt::network::Message());
+            emit DsQmlApplicationEngine::DefEngine()->getNodeWatcher()->messageArrived(dsqt::network::Message());
         },
         Qt::ConnectionType::QueuedConnection);
 }
@@ -86,7 +85,7 @@ DsBridgeSqlQuery::~DsBridgeSqlQuery() {
 }
 
 DsBridgeSyncSettings DsBridgeSqlQuery::getBridgeSyncSettings() {
-    DSSettingsProxy engSettings;
+    DsQmlSettingsProxy engSettings;
     engSettings.setTarget("engine");
     engSettings.setPrefix("engine.bridgesync");
 
@@ -101,7 +100,7 @@ DsBridgeSyncSettings DsBridgeSqlQuery::getBridgeSyncSettings() {
     settings.asyncRecords = engSettings.getBool("connection.asyncRecords", true);
 
     const auto appPath = engSettings.getString("app_path", "%SHARE%/bridgesync/bridge_sync_console.exe").toString();
-    settings.appPath   = DSEnvironment::expandq(appPath);
+    settings.appPath   = DsEnvironment::expandq(appPath);
 
     const auto launchBridgeSync = engSettings.getBool("launch_bridgesync", false);
     settings.doLaunch           = launchBridgeSync.toBool();
@@ -144,7 +143,7 @@ bool DsBridgeSqlQuery::tryLaunchBridgeSync() {
     if (!validateBridgeSyncSettings(bridgeSyncSettings)) return false;
 
     // Check path to executable.
-    const auto appPath = DSEnvironment::expandq(bridgeSyncSettings.appPath);
+    const auto appPath = DsEnvironment::expandq(bridgeSyncSettings.appPath);
     if (!QFile::exists(appPath)) {
         qCWarning(lgBridgeSyncApp) << "BridgeSync's app path does not exist. BridgeSync will not launch\n" << appPath;
         return false;
@@ -168,7 +167,7 @@ bool DsBridgeSqlQuery::tryLaunchBridgeSync() {
         args << "--clientSecret" << bridgeSyncSettings.clientSecret.toString();
     }
     if (!bridgeSyncSettings.directory.toString().isEmpty()) {
-        args << "--directory" << DSEnvironment::expandq(bridgeSyncSettings.directory.toString());
+        args << "--directory" << DsEnvironment::expandq(bridgeSyncSettings.directory.toString());
     }
     if (bridgeSyncSettings.interval.toFloat() > 0) {
         args << "--interval" << bridgeSyncSettings.interval.toString();
@@ -268,7 +267,7 @@ void DsBridgeSqlQuery::QueryDatabase() {
     // Take a snapshot of the current data.
     ReferenceMap tempRefMap;
     tempRefMap.isTemp         = true;
-    ContentModelRef  root     = DSQmlApplicationEngine::DefEngine()->getContentRoot();
+    ContentModelRef  root     = DsQmlApplicationEngine::DefEngine()->getContentRoot();
     QmlContentModel* preModel = root.getQml(&tempRefMap, nullptr);
 
     if (!queryTables()) {
@@ -280,7 +279,7 @@ void DsBridgeSqlQuery::QueryDatabase() {
     // Take a snapshot of the new data.
     ReferenceMap tempRefMap2;
     tempRefMap2.isTemp         = true;
-    root                       = DSQmlApplicationEngine::DefEngine()->getContentRoot();
+    root                       = DsQmlApplicationEngine::DefEngine()->getContentRoot();
     QmlContentModel* postModel = root.getQml(&tempRefMap2, nullptr);
 
     // Compare the data.
@@ -302,7 +301,7 @@ bool DsBridgeSqlQuery::queryTables() {
     qCInfo(lgBridgeSyncQuery) << "BridgeService is loading content.";
 
     // Get settings.
-    auto appsettings = DSSettings::getSettings("app_settings");
+    auto appsettings = DsSettings::getSettings("app_settings");
 
     // Create query objects.
     QSqlQuery slotQuery(mDatabase);
@@ -658,7 +657,7 @@ bool DsBridgeSqlQuery::queryTables() {
     // Process value query.
     timer.start();
 
-    const dsqt::DSResource::Id cms(dsqt::DSResource::Id::CMS_TYPE, 0);
+    const dsqt::DsResource::Id cms(dsqt::DsResource::Id::CMS_TYPE, 0);
     if (handleQueryError(valueQuery, "Value Query")) {
         while (valueQuery.next()) {
             auto        result    = valueQuery.record();
@@ -683,16 +682,16 @@ bool DsBridgeSqlQuery::queryTables() {
             } else if (type == "FILE_IMAGE" || type == "FILE_VIDEO" || type == "FILE_PDF") {
                 if (!resourceId.isEmpty()) {
                     // TODO: finish converting this section.
-                    auto res = dsqt::DSResource(
-                        resourceId, dsqt::DSResource::Id::CMS_TYPE, double(result.value(33).toDouble()),
+                    auto res = dsqt::DsResource(
+                        resourceId, dsqt::DsResource::Id::CMS_TYPE, double(result.value(33).toDouble()),
                         float(result.value(31).toInt()), float(result.value(32).toInt()), result.value(51).toString(),
                         result.value(30).toString(), -1, cms.getResourcePath() + result.value(30).toString());
                     if (type == "FILE_IMAGE")
-                        res.setType(dsqt::DSResource::IMAGE_TYPE);
+                        res.setType(dsqt::DsResource::IMAGE_TYPE);
                     else if (type == "FILE_VIDEO")
-                        res.setType(dsqt::DSResource::VIDEO_TYPE);
+                        res.setType(dsqt::DsResource::VIDEO_TYPE);
                     else if (type == "FILE_PDF")
-                        res.setType(dsqt::DSResource::PDF_TYPE);
+                        res.setType(dsqt::DsResource::PDF_TYPE);
                     else
                         continue;
 
@@ -711,12 +710,12 @@ bool DsBridgeSqlQuery::queryTables() {
                 if (!previewId.isEmpty()) {
                     const auto& previewType = result.value(40).toString();
 
-                    auto res = dsqt::DSResource(
-                        previewId, dsqt::DSResource::Id::CMS_TYPE, double(result.value(44).toFloat()),
+                    auto res = dsqt::DsResource(
+                        previewId, dsqt::DsResource::Id::CMS_TYPE, double(result.value(44).toFloat()),
                         float(result.value(42).toInt()), float(result.value(43).toInt()), result.value(41).toString(),
                         result.value(41).toString(), -1, cms.getResourcePath() + result.value(41).toString());
-                    res.setType(previewType == "FILE_IMAGE" ? dsqt::DSResource::IMAGE_TYPE
-                                                            : dsqt::DSResource::VIDEO_TYPE);
+                    res.setType(previewType == "FILE_IMAGE" ? dsqt::DsResource::IMAGE_TYPE
+                                                            : dsqt::DsResource::VIDEO_TYPE);
 
                     auto preview_uid = field_uid + "_preview";
                     record.setPropertyResource(preview_uid, res);
@@ -731,7 +730,7 @@ bool DsBridgeSqlQuery::queryTables() {
                 record.setProperty(field_uid, toUpdate);
             } else if (type == "LINK_WEB") {
                 const auto& linkUrl = result.value(30).toString();
-                auto        res     = dsqt::DSResource(resourceId, dsqt::DSResource::Id::CMS_TYPE,
+                auto        res     = dsqt::DsResource(resourceId, dsqt::DsResource::Id::CMS_TYPE,
                                                        double(result.value(33).toFloat()), float(result.value(31).toInt()),
                                                        float(result.value(32).toInt()), linkUrl, linkUrl, -1, linkUrl);
 
@@ -739,16 +738,16 @@ bool DsBridgeSqlQuery::queryTables() {
                 auto webSize = appsettings->getOr<glm::vec2>("web:default_size", glm::vec2(1920.f, 1080.f));
                 res.setWidth(webSize.x);
                 res.setHeight(webSize.y);
-                res.setType(dsqt::DSResource::WEB_TYPE);
+                res.setType(dsqt::DsResource::WEB_TYPE);
                 record.setPropertyResource(field_uid, res);
 
                 if (!previewId.isEmpty()) {
                     const auto& previewType = result.value(40).toString();
-                    auto        res         = dsqt::DSResource(
-                        previewId, dsqt::DSResource::Id::CMS_TYPE, double(result.value(44).toFloat()),
+                    auto        res         = dsqt::DsResource(
+                        previewId, dsqt::DsResource::Id::CMS_TYPE, double(result.value(44).toFloat()),
                         float(result.value(42).toInt()), float(result.value(43).toInt()), result.value(41).toString(),
                         result.value(41).toString(), -1, cms.getResourcePath() + result.value(41).toString());
-                    res.setType(type == "FILE_IMAGE" ? dsqt::DSResource::IMAGE_TYPE : dsqt::DSResource::VIDEO_TYPE);
+                    res.setType(type == "FILE_IMAGE" ? dsqt::DsResource::IMAGE_TYPE : dsqt::DsResource::VIDEO_TYPE);
 
                     auto preview_uid = field_uid + "_preview";
                     record.setPropertyResource(preview_uid, res);
@@ -784,7 +783,7 @@ bool DsBridgeSqlQuery::queryTables() {
     qDebug(lgBridgeSyncAppVerbose) << "Processing valueQuery took" << timer.elapsed() << "milliseconds";
 
     // Update our content.
-    ContentModelRef root = DSQmlApplicationEngine::DefEngine()->getContentRoot();
+    ContentModelRef root = DsQmlApplicationEngine::DefEngine()->getContentRoot();
     root.replaceChild(content);
     root.replaceChild(events);
     root.replaceChild(platforms);
