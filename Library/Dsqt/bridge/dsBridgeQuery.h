@@ -1,6 +1,12 @@
 #ifndef DSBRIDGEQUERY_H
 #define DSBRIDGEQUERY_H
 
+#include <core/dsQmlApplicationEngine.h>
+#include <model/dsContentModel.h>
+#include <model/dsPropertyMapDiff.h>
+#include <model/dsResource.h>
+#include <settings/dsQmlSettingsProxy.h>
+
 #include <QLoggingCategory>
 #include <QObject>
 #include <QProcess>
@@ -13,12 +19,6 @@
 #define NOMINMAX
 #include <windows.h>
 #endif
-
-#include <core/dsQmlApplicationEngine.h>
-#include <model/dsContentModel.h>
-#include <model/dsResource.h>
-#include <model/dsPropertyMapDiff.h>
-#include <settings/dsQmlSettingsProxy.h>
 
 Q_DECLARE_LOGGING_CATEGORY(lgBridgeSyncApp)
 Q_DECLARE_LOGGING_CATEGORY(lgBridgeSyncQuery)

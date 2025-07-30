@@ -3,9 +3,9 @@
 
 #include "core/dsQmlApplicationEngine.h"
 #include "core/dsQmlEnvironment.h"
-#include "settings/dsQmlSettingsProxy.h"
 #include "model/dsContentModel.h"
 #include "model/dsReferenceMap.h"
+#include "settings/dsQmlSettingsProxy.h"
 
 #include <QDebug>
 #include <QObject>

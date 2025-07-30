@@ -1,14 +1,14 @@
 #ifndef DSQMLTOUCHCLUSTER_H
 #define DSQMLTOUCHCLUSTER_H
 
-#include <QObject>
-#include <QQmlEngine>
-#include <QPointerEvent>
-#include <QEventPoint>
 #include <QAbstractListModel>
-#include <qproperty.h>
+#include <QEventPoint>
+#include <QObject>
+#include <QPointerEvent>
+#include <QQmlEngine>
 #include <QQuickItem>
 #include <glm/vec2.hpp>
+#include <qproperty.h>
 
 namespace dsqt::ui {
 

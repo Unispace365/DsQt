@@ -1,18 +1,17 @@
 #ifndef DSSETTINGS_H
 #define DSSETTINGS_H
 
+#include "settings/dsOverloaded.h"
 
-#include <qqml.h>
-#include <toml++/toml.h>
 #include <QLoggingCategory>
 #include <QQmlPropertyMap>
 #include <QtGui/QVector4D>
+#include <QtGui/qcolor.h>
 #include <glm/glm.hpp>
-#include "QtGui/qcolor.h"
-#include "DsOverloaded.h"
+#include <qqml.h>
+#include <toml++/toml.h>
 
 #include <type_traits>
-#include <typeindex>
 
 Q_DECLARE_LOGGING_CATEGORY(lgSettingsParser)
 Q_DECLARE_LOGGING_CATEGORY(lgSPVerbose)

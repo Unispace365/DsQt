@@ -1,18 +1,18 @@
 #ifndef DSQMLAPPLICATIONENGINE_H
 #define DSQMLAPPLICATIONENGINE_H
 
+#include "core/dsQmlIdle.h"
 #include "core/dsQmlImguiItem.h"
 #include "model/dsContentModel.h"
 #include "model/dsIContentHelper.h"
 #include "model/dsPropertyMapDiff.h"
 #include "model/dsQmlContentModel.h"
 #include "settings/dsSettings.h"
+
 #include <QFileSystemWatcher>
 #include <QObject>
 #include <QQmlApplicationEngine>
 #include <QTimer>
-#include "core/dsQmlImguiItem.h"
-#include "core/dsQmlIdle.h"
 
 Q_DECLARE_LOGGING_CATEGORY(lgAppEngine)
 Q_DECLARE_LOGGING_CATEGORY(lgAppEngineVerbose)

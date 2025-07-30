@@ -26,11 +26,11 @@
 #define QJSONMODEL_H
 
 #include <QAbstractItemModel>
+#include <QIcon>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonValue>
-#include <QIcon>
 
 namespace QUtf8Functions
 {

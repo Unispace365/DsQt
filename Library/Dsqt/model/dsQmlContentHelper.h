@@ -1,11 +1,11 @@
-#ifndef DSCONTENTHELPER_H
-#define DSCONTENTHELPER_H
+#ifndef DSQMLCONTENTHELPER_H
+#define DSQMLCONTENTHELPER_H
 
+#include "core/dsQmlApplicationEngine.h"
+#include "model/dsIContentHelper.h"
 
 #include <QObject>
 #include <QQmlEngine>
-#include "dsIContentHelper.h"
-#include "dsQmlApplicationEngine.h"
 
 Q_DECLARE_LOGGING_CATEGORY(lgContentHelper)
 Q_DECLARE_LOGGING_CATEGORY(lgContentHelperVerbose)
@@ -23,7 +23,7 @@ signals:
 public:
     virtual QString getCompositeKeyForPlatform() override;
     virtual ContentModelRef getRecordByUid(const QString &uid) override;
-    virtual dsqt::DSResource getBackgroundForPlatform() override;
+    virtual dsqt::DsResource getBackgroundForPlatform() override;
     virtual ContentModelRef getPresentation() override;
     virtual ContentModelRef getAmbientPlaylist() override;
     virtual QString getInitialPresentationUid() override;
@@ -31,7 +31,7 @@ public:
     virtual std::vector<ContentModelRef> getContentForPlatform() override;
     virtual std::vector<ContentModelRef> getStreamSources(const QString &category) override;
     virtual ContentModelRef getStreamSourceForStream(ContentModelRef stream, const QString &category) override;
-    virtual std::vector<DSResource> findMediaResources() override;
+    virtual std::vector<DsResource> findMediaResources() override;
     virtual bool isValidFolder(ContentModelRef model, const QString &category) override;
     virtual bool isValidMedia(ContentModelRef model, const QString &category) override;
     virtual bool isValidStreamSource(ContentModelRef model, const QString &category) override;

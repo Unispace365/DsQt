@@ -1,10 +1,12 @@
 #ifndef DSQMLCLUSTERMANAGER_H
 #define DSQMLCLUSTERMANAGER_H
 
-#include "dsQmlTouchcluster.h"
-#include <QQuickItem>
+#include "ui/dsQmlTouchCluster.h"
+
 #include <QEvent>
 #include <QPointerEvent>
+#include <QQuickItem>
+
 namespace dsqt::ui {
 
 

@@ -21,7 +21,7 @@ namespace {
     const std::vector<ContentModelRef>                    EMPTY_DATAMODELREF_VECTOR;
     const ContentModelRef                                 EMPTY_DATAMODEL;
     const ContentProperty                                 EMPTY_PROPERTY;
-    const DSResource                                      EMPTY_RESOURCE;
+const DsResource										  EMPTY_RESOURCE;
     const std::vector<ContentProperty>                    EMPTY_PROPERTY_LIST;
     const std::map<QString, ContentProperty>              EMPTY_PROPERTY_MAP;
     const std::map<QString, std::vector<ContentProperty>> EMPTY_PROPERTY_LIST_MAP;
@@ -142,14 +142,14 @@ void ContentProperty::setValue(const QRectF& value) {
     mDoubleValue = 0.0;
 }
 
-DSResource ContentProperty::getResource() const {
+DsResource ContentProperty::getResource() const {
     if (mResource) return *mResource;
     return EMPTY_RESOURCE;
 }
 
-void ContentProperty::setResource(const dsqt::DSResource& resource) {
-    dsqt::DSResource reccy = resource;
-    mResource              = std::make_shared<dsqt::DSResource>(reccy);
+void ContentProperty::setResource(const dsqt::DsResource& resource) {
+    dsqt::DsResource reccy = resource;
+    mResource			 = std::make_shared<dsqt::DsResource>(reccy);
 }
 void ContentProperty::setValue(const QUrl& value) {
     mValue = value.toString(QUrl::FormattingOptions(QUrl::FullyEncoded));
@@ -556,7 +556,8 @@ QUrl ContentModelRef::getPropertyUrl(const QString& propertyName) const {
     return getProperty(propertyName).getUrl();
 }
 
-DSResource ContentModelRef::getPropertyResource(const QString& propertyName) const {
+DsResource ContentModelRef::getPropertyResource(const QString &propertyName) const
+{
     return getProperty(propertyName).getResource();
 }
 
@@ -626,7 +627,7 @@ void ContentModelRef::setProperty(const QString& propertyName, const QUrl& value
     setProperty(propertyName, dp);
 }
 
-void ContentModelRef::setPropertyResource(const QString& propertyName, const DSResource& value) {
+void ContentModelRef::setPropertyResource(const QString& propertyName, const DsResource& value) {
     ContentProperty dp;
     dp.setName(propertyName);
     dp.setResource(value);

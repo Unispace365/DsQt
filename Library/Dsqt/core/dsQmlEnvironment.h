@@ -3,7 +3,7 @@
 
 #include <QObject>
 #include <QQmlEngine>
-#include <dsEnvironment.h>
+
 
 namespace dsqt {
 class DsQmlEnvironment : public QObject {

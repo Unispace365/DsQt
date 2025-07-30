@@ -1,6 +1,6 @@
 
 
-#include "model/dsresource.h"
+#include "model/dsResource.h"
 #include <QDir>
 #include <QFileInfo>
 #include <QImageReader>
@@ -68,84 +68,84 @@ namespace dsqt {
 /**
  * ds::Resource::Id
  */
-DSResource::Id::Id()
+DsResource::Id::Id()
   : mType(CMS_TYPE)
   , mValue(0) {}
 
 
-DSResource::Id::Id(const valType__ value) : mType(CMS_TYPE), mValue(value) {}
+DsResource::Id::Id(const valType__ value) : mType(CMS_TYPE), mValue(value) {}
 
-DSResource::Id::Id(const QString value) : mType(CMS_TYPE), mValue(qHashHalf(value)) {}
+DsResource::Id::Id(const QString value) : mType(CMS_TYPE), mValue(qHashHalf(value)) {}
 
-DSResource::Id::Id(const char type, const valType__ value) : mType(type), mValue(value) {}
+DsResource::Id::Id(const char type, const valType__ value) : mType(type), mValue(value) {}
 
-DSResource::Id::Id(const char type, const QString value) : mType(type), mValue(qHashHalf(value)) {}
+DsResource::Id::Id(const char type, const QString value) : mType(type), mValue(qHashHalf(value)) {}
 
-bool DSResource::Id::operator==(const Id& o) const {
+bool DsResource::Id::operator==(const Id& o) const {
 	return mType == o.mType && mValue == o.mValue;
 }
 
-bool DSResource::Id::operator!=(const Id& o) const {
+bool DsResource::Id::operator!=(const Id& o) const {
 	return mType != o.mType || mValue != o.mValue;
 }
 
-bool DSResource::Id::operator>(const Id& o) const {
+bool DsResource::Id::operator>(const Id& o) const {
 	if (mType == o.mType) return mValue > o.mValue;
 	return mType > o.mType;
 }
 
-bool DSResource::Id::operator<(const Id& o) const {
+bool DsResource::Id::operator<(const Id& o) const {
 	if (mType == o.mType) return mValue < o.mValue;
 	return mType < o.mType;
 }
 
-bool DSResource::Id::operator>(const valType__ value) const {
+bool DsResource::Id::operator>(const valType__ value) const {
 	return mValue > value;
 }
 
-bool DSResource::Id::operator>=(const valType__ value) const {
+bool DsResource::Id::operator>=(const valType__ value) const {
 	return mValue >= value;
 }
 
-bool DSResource::Id::operator<(const valType__ value) const {
+bool DsResource::Id::operator<(const valType__ value) const {
 	return mValue < value;
 }
 
-bool DSResource::Id::operator<=(const valType__ value) const {
+bool DsResource::Id::operator<=(const valType__ value) const {
 	return mValue <= value;
 }
 
-bool DSResource::Id::operator>(const QString value) const {
+bool DsResource::Id::operator>(const QString value) const {
 	return mValue > qHashHalf(value);
 }
 
-bool DSResource::Id::operator>=(const QString value) const {
+bool DsResource::Id::operator>=(const QString value) const {
 	return mValue >= qHashHalf(value);
 }
 
-bool DSResource::Id::operator<(const QString value) const {
+bool DsResource::Id::operator<(const QString value) const {
 	return mValue < qHashHalf(value);
 }
 
-bool DSResource::Id::operator<=(const QString value) const {
+bool DsResource::Id::operator<=(const QString value) const {
 	return mValue <= qHashHalf(value);
 }
 
-bool DSResource::Id::empty() const {
+bool DsResource::Id::empty() const {
 	// Database IDs must start with 1, so that's our notion of valid.
 	return mValue < 1;
 }
 
-void DSResource::Id::clear() {
+void DsResource::Id::clear() {
 	*this = Id();
 }
 
-void DSResource::Id::swap(Id& id) {
+void DsResource::Id::swap(Id& id) {
 	std::swap(mType, id.mType);
 	std::swap(mValue, id.mValue);
 }
 
-static bool try_parse(const QString& s, const QString& typeStr, const char type, DSResource::Id& out) {
+static bool try_parse(const QString& s, const QString& typeStr, const char type, DsResource::Id& out) {
 
 	if (s.startsWith(typeStr) != true) return false;
 	if (s.length() <= typeStr.size()) return false;
@@ -155,7 +155,7 @@ static bool try_parse(const QString& s, const QString& typeStr, const char type,
 	return true;
 }
 
-bool DSResource::Id::tryParse(const QString& s) {
+bool DsResource::Id::tryParse(const QString& s) {
 	static const char		 TYPE_A[] = {CMS_TYPE, APP_TYPE};
 	static const QString	 TAG_A[]  = {"cms:", "app:"};
 	for (int k = 0; k < 2; ++k) {
@@ -169,7 +169,7 @@ bool DSResource::Id::tryParse(const QString& s) {
 	return false;
 }
 
-bool DSResource::Id::verifyPaths() const {
+bool DsResource::Id::verifyPaths() const {
 	if (getResourcePath().isEmpty()) {
 		//		DS_LOG_ERROR_M("resource_id (" << *this << ") missing resource path", ds::GENERAL_LOG);
 		return false;
@@ -207,36 +207,36 @@ QString		  APP_RESOURCE_PATH("");
 QString		  APP_DB_PATH("");
 const QString EMPTY_PATH("");
 // Function for generating custom paths
-std::function<const QString&(const DSResource::Id&)> CUSTOM_RESOURCE_PATH;
-std::function<const QString&(const DSResource::Id&)> CUSTOM_DB_PATH;
+std::function<const QString&(const DsResource::Id&)> CUSTOM_RESOURCE_PATH;
+std::function<const QString&(const DsResource::Id&)> CUSTOM_DB_PATH;
 } // namespace
 
-const QString& DSResource::Id::getResourcePath() const {
+const QString& DsResource::Id::getResourcePath() const {
 	if (mType == CMS_TYPE) return CMS_RESOURCE_PATH;
 	if (mType == APP_TYPE) return APP_RESOURCE_PATH;
 	if (mType <= CUSTOM_TYPE && CUSTOM_RESOURCE_PATH) return CUSTOM_RESOURCE_PATH(*this);
 	return EMPTY_PATH;
 }
 
-const QString& DSResource::Id::getDatabasePath() const {
+const QString& DsResource::Id::getDatabasePath() const {
 	if (mType == CMS_TYPE) return CMS_DB_PATH;
 	if (mType == APP_TYPE) return APP_DB_PATH;
 	if (mType <= CUSTOM_TYPE && CUSTOM_DB_PATH) return CUSTOM_DB_PATH(*this);
 	return EMPTY_PATH;
 }
 
-const QString& DSResource::Id::getPortableResourcePath() const {
+const QString& DsResource::Id::getPortableResourcePath() const {
 	if (mType == CMS_TYPE) return CMS_PORTABLE_RESOURCE_PATH;
 	if (mType <= CUSTOM_TYPE && CUSTOM_RESOURCE_PATH) return CUSTOM_RESOURCE_PATH(*this);
 	return EMPTY_PATH;
 }
 
 
-void DSResource::Id::setupPaths(const QString& resource, const QString& db, const QString& projectPath) {
+void DsResource::Id::setupPaths(const QString& resource, const QString& db, const QString& projectPath) {
 	setupPaths(resource.toStdString(), db.toStdString(), projectPath.toStdString());
 }
 
-void DSResource::Id::setupPaths(const std::string& resource, const std::string& db, const std::string& projectPath) {
+void DsResource::Id::setupPaths(const std::string& resource, const std::string& db, const std::string& projectPath) {
 	// todo: switch this function to use std::filesystem
 	CMS_RESOURCE_PATH = QString::fromStdString(resource);
 	{
@@ -285,8 +285,8 @@ void DSResource::Id::setupPaths(const std::string& resource, const std::string& 
 	qCInfo(lgResource) << "APP_RESOURCE_PATH: " << APP_RESOURCE_PATH;
 }
 
-void DSResource::Id::setupCustomPaths(const std::function<const QString&(const DSResource::Id&)>& resourcePath,
-                                    const std::function<const QString&(const DSResource::Id&)>& dbPath) {
+void DsResource::Id::setupCustomPaths(const std::function<const QString&(const DsResource::Id&)>& resourcePath,
+                                    const std::function<const QString&(const DsResource::Id&)>& dbPath) {
 	CUSTOM_RESOURCE_PATH = resourcePath;
 	CUSTOM_DB_PATH		 = dbPath;
 }
@@ -294,8 +294,8 @@ void DSResource::Id::setupCustomPaths(const std::function<const QString&(const D
 /**
  * ds::Resource
  */
-DSResource DSResource::fromImage(const QString& full_path) {
-    DSResource r;
+DsResource DsResource::fromImage(const QString& full_path) {
+    DsResource r;
 	r.mType			 = IMAGE_TYPE;
 	r.mLocalFilePath = QString::fromStdString(fs::path(full_path.toStdString()).lexically_normal().string());
 	QImageReader imgReader(r.mLocalFilePath);
@@ -305,7 +305,7 @@ DSResource DSResource::fromImage(const QString& full_path) {
 	return r;
 }
 
-DSResource::DSResource()
+DsResource::DsResource()
   : mType(ERROR_TYPE)
   , mDuration(0)
   , mWidth(0)
@@ -314,7 +314,7 @@ DSResource::DSResource()
   , mParentId(0)
   , mParentIndex(0) {}
 
-DSResource::DSResource(const DSResource::Id& dbId, const int type)
+DsResource::DsResource(const DsResource::Id& dbId, const int type)
   : mDbId(dbId)
   , mType(type)
   , mDuration(0)
@@ -323,7 +323,7 @@ DSResource::DSResource(const DSResource::Id& dbId, const int type)
   , mThumbnailId(0)
   , mParentId(0)
   , mParentIndex(0) {}
-DSResource::DSResource(const QString& fullPath)
+DsResource::DsResource(const QString& fullPath)
   : mDbId(0)
   , mType(parseTypeFromFilename(fullPath))
   , mDuration(0)
@@ -336,7 +336,7 @@ DSResource::DSResource(const QString& fullPath)
 	setLocalFilePath(fullPath);
 }
 
-DSResource::DSResource(const QString& fullPath, const int type)
+DsResource::DsResource(const QString& fullPath, const int type)
   : mDbId(0)
   , mType(type)
   , mDuration(0)
@@ -349,7 +349,7 @@ DSResource::DSResource(const QString& fullPath, const int type)
 	setLocalFilePath(fullPath);
 }
 
-DSResource::DSResource(const QString& localFullPath, const float width, const float height)
+DsResource::DsResource(const QString& localFullPath, const float width, const float height)
   : mDbId(0)
   , mType(parseTypeFromFilename(localFullPath))
   , mDuration(0)
@@ -362,7 +362,7 @@ DSResource::DSResource(const QString& localFullPath, const float width, const fl
 	setLocalFilePath(localFullPath);
 }
 
-DSResource::DSResource(const DSResource::Id dbid, const int type, const double duration, const float width, const float height,
+DsResource::DsResource(const DsResource::Id dbid, const int type, const double duration, const float width, const float height,
 				   const QString filename, const QString path, const int thumbnailId, const QString fullFilePath)
   : mDbId(dbid)
   , mType(type)
@@ -379,17 +379,17 @@ DSResource::DSResource(const DSResource::Id dbid, const int type, const double d
 }
 
 
-bool DSResource::operator==(const DSResource& o) const {
+bool DsResource::operator==(const DsResource& o) const {
 	if (mLocalFilePath != o.mLocalFilePath) return false;
 	return mDbId == o.mDbId && mType == o.mType && mDuration == o.mDuration && mWidth == o.mWidth &&
 		   mHeight == o.mHeight && mFileName == o.mFileName && mPath == o.mPath;
 }
 
-bool DSResource::operator!=(const DSResource& o) const {
+bool DsResource::operator!=(const DsResource& o) const {
 	return (!(*this == o));
 }
 
-const std::wstring& DSResource::getTypeName() const {
+const std::wstring& DsResource::getTypeName() const {
 	if (mType == FONT_TYPE)
 		return FONT_NAME_SZ;
 	else if (mType == IMAGE_TYPE)
@@ -411,7 +411,7 @@ const std::wstring& DSResource::getTypeName() const {
 	return ERROR_NAME_SZ;
 }
 
-const QString& DSResource::getTypeChar() const {
+const QString& DsResource::getTypeChar() const {
 	if (mType == FONT_TYPE)
 		return FONT_TYPE_SZ;
 	else if (mType == IMAGE_TYPE)
@@ -433,7 +433,7 @@ const QString& DSResource::getTypeChar() const {
 	return ERROR_TYPE_SZ;
 }
 
-void DSResource::setLocalFilePath(const QString& localPath, const bool normalizeThePath /*= true*/) {
+void DsResource::setLocalFilePath(const QString& localPath, const bool normalizeThePath /*= true*/) {
 	if (mType == YOUTUBE_TYPE) {
 		// we're assuming the link type here is like https://www.youtube.com/watch?v=GP55q2lBqbY
 		// TODO: parse the video url better!
@@ -455,7 +455,7 @@ void DSResource::setLocalFilePath(const QString& localPath, const bool normalize
 	}
 }
 
-QString DSResource::getAbsoluteFilePath() const {
+QString DsResource::getAbsoluteFilePath() const {
 	if (!mLocalFilePath.isEmpty()) return mLocalFilePath;
 
 	if (mFileName.isEmpty()) return EMPTY_SZ;
@@ -467,7 +467,7 @@ QString DSResource::getAbsoluteFilePath() const {
 	return QString::fromStdString(path);
 }
 
-QString DSResource::getPortableFilePath() const {
+QString DsResource::getPortableFilePath() const {
 	if (!mLocalFilePath.isEmpty()) {
 		return DsEnvironment::contract(mLocalFilePath);
 	}
@@ -485,7 +485,7 @@ QString DSResource::getPortableFilePath() const {
 	return QString::fromStdString(path);
 }
 
-void DSResource::clear() {
+void DsResource::clear() {
 	mDbId.clear();
 	mType	  = ERROR_TYPE;
 	mDuration = 0.0;
@@ -497,13 +497,13 @@ void DSResource::clear() {
 	mLocalFilePath.clear();
 }
 
-bool DSResource::empty() const {
+bool DsResource::empty() const {
 	if (!mLocalFilePath.isEmpty()) return false;
 	if (!mFileName.isEmpty()) return false;
 	return mDbId.empty();
 }
 
-void DSResource::swap(DSResource& r) {
+void DsResource::swap(DsResource& r) {
 	mDbId.swap(r.mDbId);
 	std::swap(mType, r.mType);
 	std::swap(mDuration, r.mDuration);
@@ -515,17 +515,17 @@ void DSResource::swap(DSResource& r) {
 	mLocalFilePath.swap(r.mLocalFilePath);
 }
 
-bool DSResource::isLocal() const {
+bool DsResource::isLocal() const {
 	// parameters mFileName and mPath correspond to their fields in the resources table
 	return !mLocalFilePath.isEmpty() && mFileName.isEmpty() && mPath.isEmpty();
 }
 
-void DSResource::setTypeFromString(const QString& typeChar) {
+void DsResource::setTypeFromString(const QString& typeChar) {
 	mType = makeTypeFromString(typeChar);
 }
 
 
-const int DSResource::makeTypeFromString(const QString& typeChar) {
+const int DsResource::makeTypeFromString(const QString& typeChar) {
 	if (FONT_TYPE_SZ == typeChar)
 		return FONT_TYPE;
 	else if (IMAGE_TYPE_SZ == typeChar)
@@ -550,48 +550,48 @@ const int DSResource::makeTypeFromString(const QString& typeChar) {
 		return ERROR_TYPE;
 }
 
-const int DSResource::parseTypeFromFilename(const QString& newMedia) {
+const int DsResource::parseTypeFromFilename(const QString& newMedia) {
 
 	// creating a Poco::File from an empty string and performing
 	// any checks throws a runtime exception
 	if (newMedia.isEmpty()) {
-        return dsqt::DSResource::ERROR_TYPE;
+        return dsqt::DsResource::ERROR_TYPE;
 	}
 
 	if (newMedia.startsWith("https://www.youtube.com/")) {
-        return dsqt::DSResource::YOUTUBE_TYPE;
+        return dsqt::DsResource::YOUTUBE_TYPE;
 	}
 
 	auto html	  = newMedia.endsWith(".html");
 	auto htmlEnd  = newMedia.size() - 5;
 	if (newMedia.startsWith("http") || newMedia.endsWith(".html") || newMedia.startsWith("ftp://") ||
 		newMedia.startsWith("ftps://")) {
-        return dsqt::DSResource::WEB_TYPE;
+        return dsqt::DsResource::WEB_TYPE;
 	}
 
 	if (newMedia.startsWith("udp") || newMedia.startsWith("rtsp")) {
-        return dsqt::DSResource::VIDEO_STREAM_TYPE;
+        return dsqt::DsResource::VIDEO_STREAM_TYPE;
 	}
 
 	if (!dsqt::safeFileExistsCheck(newMedia.toStdString(), false)) {
-        return dsqt::DSResource::ERROR_TYPE;
+        return dsqt::DsResource::ERROR_TYPE;
 	}
 
 	QFileInfo filey		  = QFileInfo(newMedia);
 	auto	  extensionay = filey.suffix();
 	extensionay			  = extensionay.toLower();
 	if (extensionay.contains("gif") || extensionay.contains("svg")) {
-        return dsqt::DSResource::WEB_TYPE;
+        return dsqt::DsResource::WEB_TYPE;
 	} else if (extensionay.contains("pdf")) {
-        return dsqt::DSResource::PDF_TYPE;
+        return dsqt::DsResource::PDF_TYPE;
 
 	} else if (extensionay.contains("png") || extensionay.contains("jpg") || extensionay.contains("jpeg")) {
-        return dsqt::DSResource::IMAGE_TYPE;
+        return dsqt::DsResource::IMAGE_TYPE;
 
 	} else if (extensionay.contains("ttf") || extensionay.contains("otf")) {
-        return dsqt::DSResource::FONT_TYPE;
+        return dsqt::DsResource::FONT_TYPE;
 	} else if (extensionay.contains("zip")) {
-        return dsqt::DSResource::ZIP_TYPE;
+        return dsqt::DsResource::ZIP_TYPE;
 	} else if (extensionay.contains("mov") || extensionay.contains("mp4") || extensionay.contains("mp3") ||
 			   extensionay.contains("wav") || extensionay.contains("avi") || extensionay.contains("wmv") ||
 			   extensionay.contains("flv") || extensionay.contains("m2v") || extensionay.contains("m4v") ||
@@ -603,9 +603,9 @@ const int DSResource::parseTypeFromFilename(const QString& newMedia) {
 			   extensionay.contains("mts") || extensionay.contains("nsv") || extensionay.contains("ogm") ||
 			   extensionay.contains("qt") || extensionay.contains("tod") || extensionay.contains("ts") ||
 			   extensionay.contains("vob") || extensionay.contains("m4a") || extensionay.contains("mxf")) {
-        return dsqt::DSResource::VIDEO_TYPE;
+        return dsqt::DsResource::VIDEO_TYPE;
 	} else {
-        return dsqt::DSResource::ERROR_TYPE;
+        return dsqt::DsResource::ERROR_TYPE;
 	}
 }
 
@@ -657,7 +657,7 @@ std::wstring convert_to_wstr(const valType__ cval) {
 	return (result);
 }
 
-std::ostream& operator<<(std::ostream& os, const dsqt::DSResource::Id& o) {
+std::ostream& operator<<(std::ostream& os, const dsqt::DsResource::Id& o) {
 
 	if (o.mType == o.CMS_TYPE)
 		os << "cms:";
@@ -669,7 +669,7 @@ std::ostream& operator<<(std::ostream& os, const dsqt::DSResource::Id& o) {
 }
 
 using ::operator<<;
-std::wostream& operator<<(std::wostream& os, const dsqt::DSResource::Id& o) {
+std::wostream& operator<<(std::wostream& os, const dsqt::DsResource::Id& o) {
 
 	if (o.mType == o.CMS_TYPE)
 		os << L"cms:";
