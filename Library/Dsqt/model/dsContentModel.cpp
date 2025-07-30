@@ -1,14 +1,11 @@
+#include "model/dsContentModel.h"
+#include "model/dsQmlContentModel.h"
 
-
-#include "dsContentModel.h"
-
-#include <core/dsQmlApplicationEngine.h>
-#include <utility/dsStringUtils.h>
+#include "qdebug.h"
 #include <QJsonArray>
 #include <QJsonObject>
 #include <QJsonValue>
-#include "dsQmlContentModel.h"
-#include "qdebug.h"
+#include <utility/dsStringUtils.h>
 
 Q_LOGGING_CATEGORY(lgContentModel, "model.contentmodel")
 Q_LOGGING_CATEGORY(lgContentModelVerbose, "model.contentmodel.verbose")
@@ -21,7 +18,7 @@ namespace {
     const std::vector<ContentModelRef>                    EMPTY_DATAMODELREF_VECTOR;
     const ContentModelRef                                 EMPTY_DATAMODEL;
     const ContentProperty                                 EMPTY_PROPERTY;
-const DsResource										  EMPTY_RESOURCE;
+    const DsResource                                      EMPTY_RESOURCE;
     const std::vector<ContentProperty>                    EMPTY_PROPERTY_LIST;
     const std::map<QString, ContentProperty>              EMPTY_PROPERTY_MAP;
     const std::map<QString, std::vector<ContentProperty>> EMPTY_PROPERTY_LIST_MAP;
@@ -41,7 +38,7 @@ const DsResource										  EMPTY_RESOURCE;
 
 } // namespace
 
-QmlContentModel* ContentModelRef::mEmptyQmlContentModel = new QmlContentModel(ContentModelRef(), nullptr);
+DsQmlContentModel* ContentModelRef::mEmptyQmlContentModel = new DsQmlContentModel(ContentModelRef(), nullptr);
 ContentProperty::ContentProperty()
     : mName("")
     , mValue("")
@@ -149,7 +146,7 @@ DsResource ContentProperty::getResource() const {
 
 void ContentProperty::setResource(const dsqt::DsResource& resource) {
     dsqt::DsResource reccy = resource;
-    mResource			 = std::make_shared<dsqt::DsResource>(reccy);
+    mResource              = std::make_shared<dsqt::DsResource>(reccy);
 }
 void ContentProperty::setValue(const QUrl& value) {
     mValue = value.toString(QUrl::FormattingOptions(QUrl::FullyEncoded));
@@ -556,8 +553,7 @@ QUrl ContentModelRef::getPropertyUrl(const QString& propertyName) const {
     return getProperty(propertyName).getUrl();
 }
 
-DsResource ContentModelRef::getPropertyResource(const QString &propertyName) const
-{
+DsResource ContentModelRef::getPropertyResource(const QString& propertyName) const {
     return getProperty(propertyName).getResource();
 }
 
@@ -1054,17 +1050,17 @@ QJsonModel* ContentModelRef::getModel(QObject* parent) {
     return model;
 }
 
-void ContentModelRef::updateQml(QmlContentModel* mapIn) {
+void ContentModelRef::updateQml(DsQmlContentModel* mapIn) {
 }
 
 
-QmlContentModel* ContentModelRef::getQml(ReferenceMap* refMap, QObject* parent, QString deep) const {
+DsQmlContentModel* ContentModelRef::getQml(ReferenceMap* refMap, QObject* parent, QString deep) const {
     // skip this if we aren't sending this model to qml.
     if (!mData || mData->mNotToQml) {
         return mEmptyQmlContentModel;
     }
-    // do we already have a QmlContentModel for this model?
-    QmlContentModel* map = QmlContentModel::getQmlContentModel(*this, refMap, parent);
+    // do we already have a DsQmlContentModel for this model?
+    DsQmlContentModel* map = DsQmlContentModel::getQmlContentModel(*this, refMap, parent);
 
     if (!refMap->isTemp) {
         auto sid = getId();

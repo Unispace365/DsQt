@@ -269,7 +269,7 @@ void DsBridgeSqlQuery::QueryDatabase() {
     ReferenceMap tempRefMap;
     tempRefMap.isTemp         = true;
     ContentModelRef  root     = DsQmlApplicationEngine::DefEngine()->getContentRoot();
-    QmlContentModel* preModel = root.getQml(&tempRefMap, nullptr);
+    DsQmlContentModel* preModel = root.getQml(&tempRefMap, nullptr);
 
     if (!queryTables()) {
         // Try again in a few.
@@ -281,7 +281,7 @@ void DsBridgeSqlQuery::QueryDatabase() {
     ReferenceMap tempRefMap2;
     tempRefMap2.isTemp         = true;
     root                       = DsQmlApplicationEngine::DefEngine()->getContentRoot();
-    QmlContentModel* postModel = root.getQml(&tempRefMap2, nullptr);
+    DsQmlContentModel* postModel = root.getQml(&tempRefMap2, nullptr);
 
     // Compare the data.
     QSharedPointer<PropertyMapDiff> diff = QSharedPointer<PropertyMapDiff>::create(*preModel, *postModel);

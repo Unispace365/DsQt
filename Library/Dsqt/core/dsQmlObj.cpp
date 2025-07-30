@@ -43,7 +43,7 @@ DsQmlApplicationEngine *DsQmlObj::engine() const
     return mEngine;
 }
 
-model::QmlContentModel* DsQmlObj::platform() {
+model::DsQmlContentModel* DsQmlObj::platform() {
     return mPlatformQml;
 }
 
@@ -61,7 +61,7 @@ void DsQmlObj::updatePlatform() {
 }
 
 
-model::QmlContentModel* DsQmlObj::getRecordById(QString id) const {
+model::DsQmlContentModel* DsQmlObj::getRecordById(QString id) const {
     if (id.isEmpty()) return nullptr;
     return mEngine->getReferenceMap()->value(id);
 }

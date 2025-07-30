@@ -99,7 +99,7 @@ model::ContentModelRef DsQmlApplicationEngine::getContentRoot() {
 
 model::IContentHelper* DsQmlApplicationEngine::getContentHelper() {
     if (mContentHelper == nullptr) {
-        setContentHelper(new model::ContentHelper(this));
+        setContentHelper(new model::DsQmlContentHelper(this));
     }
     return mContentHelper;
 }

@@ -86,7 +86,7 @@ class DsQmlApplicationEngine : public QQmlApplicationEngine {
   protected:
     model::ContentModelRef         mContentRoot;
     model::ReferenceMap            mQmlRefMap;
-    model::QmlContentModel*        mRootMap = nullptr;
+    model::DsQmlContentModel*        mRootMap = nullptr;
     static DsQmlApplicationEngine* sDefaultEngine;
 	DsQmlImguiItem*				   mImgui;
     QFileSystemWatcher*            mWatcher = nullptr;

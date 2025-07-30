@@ -3,7 +3,7 @@
 
 #include "core/dsQmlApplicationEngine.h"
 #include "core/dsQmlEnvironment.h"
-#include "model/dsContentModel.h"
+#include "model/dsQmlContentModel.h"
 #include "model/dsReferenceMap.h"
 #include "settings/dsQmlSettingsProxy.h"
 
@@ -25,7 +25,7 @@ class DsQmlObj : public QObject {
     Q_PROPERTY(dsqt::DsQmlEnvironment* env READ env NOTIFY envChanged)
     Q_PROPERTY(dsqt::DsQmlSettingsProxy* appSettings READ appSettings NOTIFY appSettingsChanged)
     Q_PROPERTY(dsqt::DsQmlApplicationEngine* engine READ engine NOTIFY engineChanged)
-    Q_PROPERTY(dsqt::model::QmlContentModel* platform READ platform NOTIFY platformChanged)
+    Q_PROPERTY(dsqt::model::DsQmlContentModel* platform READ platform NOTIFY platformChanged)
 
   public:
     explicit DsQmlObj(QQmlEngine* qmlEngine, QJSEngine* jsEngine = nullptr, QObject* parent = nullptr);
@@ -33,10 +33,12 @@ class DsQmlObj : public QObject {
     static DsQmlObj* create(QQmlEngine* qmlEngine, QJSEngine* jsEngine = nullptr);
     //
     DsQmlSettingsProxy* appSettings() const;
+    //
     DsQmlEnvironment* env() const;
+    //
     DsQmlApplicationEngine* engine() const;
     //
-    model::QmlContentModel* platform();
+    model::DsQmlContentModel* platform();
 
     /**
      * @brief getRecord searches for a record with an app_id
@@ -45,7 +47,7 @@ class DsQmlObj : public QObject {
      * @param name
      * @return
      */
-    Q_INVOKABLE model::QmlContentModel* getRecordById(QString id) const;
+    Q_INVOKABLE model::DsQmlContentModel* getRecordById(QString id) const;
     // //
     // Q_INVOKABLE bool isEventNow(QString event_id, QString localDateTime) const;
     // //
@@ -63,7 +65,8 @@ class DsQmlObj : public QObject {
     // std::vector<model::ContentModelRef> getEventsAtTime(QDateTime localDateTime);
     // // Returns all events active at the specific date. Does not sort the events.
     // std::vector<model::ContentModelRef> getEventsAtDate(QDate localDate);
-    // // Returns all events overlapping the specified span. Does not check for specific times or weekdays. Does not sort
+    // // Returns all events overlapping the specified span. Does not check for specific times or weekdays. Does not
+    // sort
     // // the events.
     // std::vector<model::ContentModelRef> getEventsForSpan(QDateTime spanStart, QDateTime spanEnd);
 
@@ -94,9 +97,9 @@ class DsQmlObj : public QObject {
     void platformChanged();
 
   private:
-    DsQmlApplicationEngine* mEngine = nullptr;
-    model::QmlContentModel* mPlatformQml = nullptr;
-    model::ContentModelRef  mPlatform;
+    DsQmlApplicationEngine*   mEngine      = nullptr;
+    model::DsQmlContentModel* mPlatformQml = nullptr;
+    model::ContentModelRef    mPlatform;
 
   private slots:
     void updatePlatform();

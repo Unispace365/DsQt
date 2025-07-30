@@ -25,7 +25,7 @@ Q_DECLARE_LOGGING_CATEGORY(lgContentModel)
 Q_DECLARE_LOGGING_CATEGORY(lgContentModelVerbose)
 namespace dsqt::model {
 
-class QmlContentModel;
+class DsQmlContentModel;
 
 
 /**
@@ -354,20 +354,20 @@ class ContentModelRef {
     /// break this content model from other copies. (copy on write behavior)
     // void detach();
     /// get a property map for this content model
-    QmlContentModel* getQml(ReferenceMap* refMap, QObject* parent = nullptr, QString deep = "") const;
+    DsQmlContentModel* getQml(ReferenceMap* refMap, QObject* parent = nullptr, QString deep = "") const;
     void             setNotToQml(bool toQml) {
         createData();
         mData->mNotToQml = toQml;
     }
     void     detach();
-    void     updateQml(QmlContentModel* map = nullptr);
+    void     updateQml(DsQmlContentModel* map = nullptr);
     QObject* getRefQObject();
 
   private:
     void                                            createData();
     QJsonValue                                      getJson();
     QExplicitlySharedDataPointer<dsqt::model::Data> mData;
-    static QmlContentModel*                         mEmptyQmlContentModel;
+    static DsQmlContentModel*                         mEmptyQmlContentModel;
 };
 
 } // namespace dsqt::model

@@ -10,12 +10,13 @@
 Q_DECLARE_LOGGING_CATEGORY(lgContentHelper)
 Q_DECLARE_LOGGING_CATEGORY(lgContentHelperVerbose)
 namespace dsqt::model {
-class ContentHelper : public IContentHelper
+
+class DsQmlContentHelper : public IContentHelper
 {
     Q_OBJECT
     QML_NAMED_ELEMENT(DsContentHelper)
 public:
-    explicit ContentHelper(QObject *parent = nullptr);
+    explicit DsQmlContentHelper(QObject *parent = nullptr);
 
 signals:
 

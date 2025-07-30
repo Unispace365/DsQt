@@ -8,7 +8,7 @@
 #include <QVariant>
 
 namespace dsqt::model {
-class QmlContentModel;
+class DsQmlContentModel;
 /**
  * Encapsulates the differences between two QmlContentModels (including their nested children trees).
  * You can compute a diff, apply it to a map to bring it in sync,
@@ -36,8 +36,8 @@ public:
     /**
      * Compute the diff that turns @p from into @p to, recursing into "children".
      */
-    PropertyMapDiff(const QmlContentModel &from,
-                        const QmlContentModel &to);
+    PropertyMapDiff(const DsQmlContentModel &from,
+                        const DsQmlContentModel &to);
 
     PropertyMapDiff();
 
@@ -49,7 +49,7 @@ public:
      * map (and its children) will have the same structure & values
      * as the “to” map used to construct this diff.
      */
-    void apply(QmlContentModel &map,ReferenceMap* itemMap) const;
+    void apply(DsQmlContentModel &map,ReferenceMap* itemMap) const;
 
     /**
      * Return a new diff which is the inverse of this one.
@@ -62,14 +62,14 @@ private:
     QList<Change> m_changes;
     QSet<const QString> m_visited;
     // Recursively compare two maps at the given path
-    void diffMaps(const QmlContentModel &from,
-                  const QmlContentModel &to,
+    void diffMaps(const DsQmlContentModel &from,
+                  const DsQmlContentModel &to,
                   const QStringList    &path);
 
-    // Helpers to traverse a QmlContentModel tree by path
-    QmlContentModel* nodeAtPath(QmlContentModel &root,
+    // Helpers to traverse a DsQmlContentModel tree by path
+    DsQmlContentModel* nodeAtPath(DsQmlContentModel &root,
                                 const QStringList &path) const;
-    const QmlContentModel* nodeAtPath(const QmlContentModel &root,
+    const DsQmlContentModel* nodeAtPath(const DsQmlContentModel &root,
                                       const QStringList &path) const;
 
 };
