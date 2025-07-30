@@ -43,7 +43,7 @@ Loader {
         console.log("reloading")
         loadera.source = "";
         //loadera.asynchronous = false;
-        DS.engine.clearQmlCache();
+        Ds.engine.clearQmlCache();
         //loadera.source = rootSrc;
         // loadera.asynchronous = true;
         //$QmlEngine.clearQmlCache();
@@ -57,7 +57,7 @@ Loader {
         running: false
         repeat: false
         onTriggered: {
-            DS.engine.clearQmlCache();
+            Ds.engine.clearQmlCache();
             loadera.source = loadera.rootSource+"?tip="+Math.random()
         }
     }

@@ -27,7 +27,7 @@ class DsQmlEnvironment;
 class DsQmlApplicationEngine : public QQmlApplicationEngine {
     Q_OBJECT
     QML_ELEMENT
-    QML_UNCREATABLE("Ya don't need to make an engine. get it from DS.engine")
+    QML_UNCREATABLE("Ya don't need to make an engine. get it from Ds.engine")
     Q_PROPERTY(DsQmlIdle* idle READ idle NOTIFY idleChanged FINAL)
   public:
     explicit DsQmlApplicationEngine(QObject *parent = nullptr);
