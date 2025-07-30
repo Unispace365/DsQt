@@ -14,11 +14,11 @@
 #include <windows.h>
 #endif
 
-#include <core/dsqmlapplicationengine.h>
-#include <model/content_model.h>
-#include <model/dsresource.h>
-#include <model/property_map_diff.h>
-#include <settings/dssettings_proxy.h>
+#include <core/dsQmlApplicationEngine.h>
+#include <model/dsContentModel.h>
+#include <model/dsResource.h>
+#include <model/dsPropertyMapDiff.h>
+#include <settings/dsQmlSettingsProxy.h>
 
 Q_DECLARE_LOGGING_CATEGORY(lgBridgeSyncApp)
 Q_DECLARE_LOGGING_CATEGORY(lgBridgeSyncQuery)
@@ -83,7 +83,7 @@ class DsBridgeSqlQuery : public QObject {
     Q_OBJECT
     Q_DISABLE_COPY(DsBridgeSqlQuery)
   public:
-    explicit DsBridgeSqlQuery(DSQmlApplicationEngine* parent = nullptr);
+    explicit DsBridgeSqlQuery(DsQmlApplicationEngine* parent = nullptr);
     ~DsBridgeSqlQuery() override;
 
   public:

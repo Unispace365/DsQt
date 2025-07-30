@@ -6,68 +6,70 @@ set(QML_IMPORT_PATH
      CACHE PATH "QT creator qml import path" FORCE
  )
 
+find_package(Qt6 REQUIRED COMPONENTS Core Multimedia Quick)
+
 qt_add_qml_module(Dsqt
     URI Dsqt
     STATIC
     VERSION 1.0
-    #QML_FILES DsqtBaseControls.qml
-    QML_FILES qml/DSAppBase.qml
-    QML_FILES qml/DSScaleLoader.qml
-    QML_FILES qml/waffles/DSRadialMenu.qml
-    QML_FILES qml/waffles/DSRadialMenuIconItem.qml
-    QML_FILES qml/waffles/menu_launcher/Section.qml
-    QML_FILES qml/waffles/WaffleStage.qml
     QML_FILES qml/bridge/DsBridgeQueryControls.qml
-    QML_FILES qml/waffles/menu_launcher/TestLauncher.qml
-    QML_FILES qml/waffles/media_viewer/TitledMediaViewer.qml
-    QML_FILES qml/waffles/media_viewer/ControlSet.qml
-    QML_FILES qml/waffles/Viewer.qml
-    QML_FILES qml/waffles/QuickMenu.qml
-    QML_FILES qml/waffles/menu_launcher/ContentLauncher.qml
+    QML_FILES qml/DsAppBase.qml
+    QML_FILES qml/DsScaleLoader.qml
+    QML_FILES qml/waffles/DsQuickMenu.qml
+    QML_FILES qml/waffles/DsViewer.qml
+    QML_FILES qml/waffles/DsWaffleStage.qml
+    QML_FILES qml/waffles/media_viewer/DsControlSet.qml
+    QML_FILES qml/waffles/media_viewer/DsTitledMediaViewer.qml
+    QML_FILES qml/waffles/menu_launcher/DsContentLauncher.qml
+    QML_FILES qml/waffles/menu_launcher/DsSection.qml
+    QML_FILES qml/waffles/menu_launcher/DsTestLauncher.qml
 
     SOURCES
-    #dsqtbase.cpp dsqtbase.h
-    core/dsenvironment.cpp core/dsenvironment.h
-    core/dsguiapplication.cpp core/dsguiapplication.h
-    core/dsimgui_item.h
-    core/dsqmlapplicationengine.cpp core/dsqmlapplicationengine.h
-    model/content_model.cpp model/content_model.h
-    model/qmlcontentmodel.h model/qmlcontentmodel.cpp
-    model/qjsonmodel.cpp model/qjsonmodel.h
-    model/dsresource.cpp model/dsresource.h
-    model/schedule_helper.cpp model/schedule_helper.h
-    network/dsnodewatcher.cpp network/dsnodewatcher.h
-    settings/dssettings.cpp settings/dssettings.h
-    settings/dssettings_base.cpp
-    settings/dssettings_collections.cpp
-    settings/dssettings_datetime.cpp
-    settings/dssettings_geom_common.cpp
-    settings/dssettings_geom_glm.cpp
-    settings/dssettings_geom_qt.cpp
-    settings/dssettings_qcolor.cpp
-    settings/dssettings_proxy.cpp settings/dssettings_proxy.h
-    settings/overload.h
-    ui/touchcluster.h ui/touchcluster.cpp
-    utility/file_meta_data.cpp utility/file_meta_data.h
-    utility/string_util.cpp utility/string_util.h
-    utility/url_image_loader.cpp utility/url_image_loader.h
     bridge/dsBridgeQuery.cpp bridge/dsBridgeQuery.h
+    core/dsEnvironment.cpp core/dsEnvironment.h
+    core/dsGuiApplication.cpp core/dsGuiApplication.h
+    core/dsQmlApplicationEngine.cpp core/dsQmlApplicationEngine.h
+    core/dsQmlEnvironment.h core/dsQmlEnvironment.cpp
+    core/dsQmlImguiItem.h
+    core/dsQmlObj.h core/dsQmlObj.cpp
+    core/dsReloadUrlInterceptor.h core/dsReloadUrlInterceptor.cpp
+    model/dsContentModel.cpp model/dsContentModel.h
+    model/dsIContentHelper.cpp model/dsIContentHelper.h
+    model/dsPropertyMapDiff.cpp model/dsPropertyMapDiff.h
+    model/dsQmlContentHelper.cpp model/dsQmlContentHelper.h
+    model/dsQmlContentModel.cpp model/dsQmlContentModel.h
+    model/dsQmlEventSchedule.cpp model/dsQmlEventSchedule.h
+    model/dsReferenceMap.h model/dsResource.cpp model/dsResource.h
+    model/qjsonmodel.cpp model/qjsonmodel.h
+    network/dsNodeWatcher.cpp network/dsNodeWatcher.h
+    settings/DsOverloaded.h
+    settings/dsQmlSettingsProxy.cpp settings/dsQmlSettingsProxy.h
+    settings/dsSettings.cpp settings/dsSettings.h
+    settings/dsSettingsBase.cpp
+    settings/dsSettingsCollections.cpp
+    settings/dsSettingsDatetime.cpp
+    settings/dsSettingsGeomCommon.cpp
+    settings/dsSettingsGeomGlm.cpp
+    settings/dsSettingsGeomQt.cpp
+    settings/dsSettingsQColor.cpp
+    ui/dsQmlClock.h ui/dsQmlClock.cpp
+    ui/dsQmlClustermanager.h ui/dsQmlClustermanager.cpp
+    ui/dsQmlClusterView.h ui/dsQmlClusterView.cpp
+    ui/dsQmlFpsMonitor.h ui/dsQmlFpsMonitor.cpp
+    ui/dsQmlTouchcluster.h ui/dsQmlTouchcluster.cpp
+    utility/dsFileMetaData.cpp utility/dsFileMetaData.h
+    utility/dsStringUtils.cpp utility/dsStringUtils.h
+    utility/dsUrlImageLoader.cpp utility/dsUrlImageLoader.h
     waffles.qrc
-    SOURCES ui/clustermanager.h ui/clustermanager.cpp
-    SOURCES ui/clusterview.h ui/clusterview.cpp
-    SOURCES ui/ds_qml_clock.h ui/ds_qml_clock.cpp
-    SOURCES ui/ds_qml_fps_monitor.h ui/ds_qml_fps_monitor.cpp
-    SOURCES core/dsenvironmentqml.h core/dsenvironmentqml.cpp
-    SOURCES core/ds_qml_obj.h core/ds_qml_obj.cpp
-    SOURCES model/icontent_helper.h model/icontent_helper.cpp
-    SOURCES model/content_helper.h model/content_helper.cpp
-    SOURCES model/property_map_diff.h model/property_map_diff.cpp
-    SOURCES model/reference_map.h
-    SOURCES core/reloadurlinterceptor.h core/reloadurlinterceptor.cpp
+
     DEPENDENCIES
          QtQuick
          Dsqtplugin
+         SOURCES core/dsQmlIdle.h core/dsQmlIdle.cpp
+         SOURCES core/dsQmlIdlePreventer.h core/dsQmlIdlePreventer.cpp
 
 )
+
+target_link_libraries(Dsqtplugin PRIVATE Qt6::Core Qt6::Multimedia Qt6::Quick)
 
 target_include_directories(Dsqt PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} bridge core model network qml resources settings ui utility)
