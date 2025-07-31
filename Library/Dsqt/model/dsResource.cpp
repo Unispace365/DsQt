@@ -262,7 +262,7 @@ void DsResource::Id::setupPaths(const std::string& resource, const std::string& 
 
 	// If the project path exists, then setup our app-local resources path.
 	if (!projectPath.empty()) {
-		fs::path p((DsEnvironment::getDownstreamDocumentsFolder()));
+        fs::path p((DsEnvironment::getDownstreamDocumentsFolder().toStdString()));
 		p.append("resources");
 		p.append(projectPath);
 		p.append("app");

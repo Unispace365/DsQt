@@ -62,33 +62,41 @@ QString DsEnvironment::contract(QString path) {
 }
 
 bool DsEnvironment::loadEngineSettings() {
-    auto baseConfigFile   = expand("%APP%/settings/configuration.toml");
-    auto docConfigFile    = expand("%LOCAL%/settings/%PP%/configuration.toml");
-    auto [found, setting] = DsSettings::getSettingsOrCreate("engine", nullptr);
-    auto loaded           = setting->loadSettingFile(expand("%APP%/settings/engine.toml"));
+    // Create or obtain the engine settings.
+    auto [settingsFound, settings] = DsSettings::getSettingsOrCreate("engine", nullptr);
+
+    // Load the default engine settings.
+    auto loaded = settings->loadSettingFile(expand("%APP%/settings/engine.toml"));
     if (loaded) {
-        std::optional<std::string> projectPath = setting->get<std::string>(std::string("engine.project_path"));
+        // Obtain the project path, if available.
+        std::optional<std::string> projectPath = settings->get<std::string>(std::string("engine.project_path"));
         if (projectPath.has_value()) {
             sProjectPath = QString::fromStdString(projectPath.value());
             qCDebug(lgEnv) << "Project Path:" << sProjectPath;
         }
 
-        auto [cfgFound, config] = DsSettings::getSettingsOrCreate("config", nullptr);
-        config->loadSettingFile(baseConfigFile);
-        config->loadSettingFile(docConfigFile);
+        // Create or obtain the configuration settings.
+        auto [configFound, config] = DsSettings::getSettingsOrCreate("config", nullptr);
+        config->loadSettingFile(expand("%APP%/settings/configuration.toml"));
 
+        // Load configuration overrides.
+        config->loadSettingFile(expand("%LOCAL%/settings/%PP%/configuration.toml"));
+
+        // Obtain the configuration folder name.
         auto cfgFolder = config->get<std::string>("config_folder");
         if (cfgFolder.has_value()) {
             sConfigFolder = QString::fromStdString(cfgFolder.value());
             qCDebug(lgEnv) << "Config Folder:" << sConfigFolder;
         }
+
+        // With all names resolved, load the engine settings and its overrides.
         loadSettings("engine", "engine.toml");
         return true;
     }
     return false;
 }
 
-DSSettingsRef DsEnvironment::engineSettings() {
+DsSettingsRef DsEnvironment::engineSettings() {
     auto engineSettingsRef = DsSettings::getSettings("engine");
     if (!engineSettingsRef) {
         loadEngineSettings();
@@ -96,20 +104,17 @@ DSSettingsRef DsEnvironment::engineSettings() {
     return DsSettings::getSettings("engine");
 }
 
-DSSettingsRef DsEnvironment::loadSettings(const std::string& settingsName, const std::string& filename,
+DsSettingsRef DsEnvironment::loadSettings(const QString& settingsName, const QString& filename,
                                           const bool lookForOverrides) {
-    std::string name           = settingsName;
-    std::string filepath       = "%APP%/settings/" + filename;
-    std::string cfgFilepath    = "%APP%/settings/%CFG_FOLDER%/" + filename;
-    std::string docFilepath    = "%LOCAL%/settings/%PP%/" + filename;
-    std::string cfgDocFilepath = "%LOCAL%/settings/%PP%/%CFG_FOLDER%/" + filename;
-    auto [found, setting]      = DsSettings::getSettingsOrCreate(name, nullptr);
-    auto loaded                = setting->loadSettingFile(expand(filepath));
+    auto [found, setting] = DsSettings::getSettingsOrCreate(settingsName.toStdString(), nullptr);
+
+    auto loaded = setting->loadSettingFile(expandq("%APP%/settings/" + filename).toStdString());
     if (loaded && lookForOverrides) {
-        setting->loadSettingFile(expand(cfgFilepath));
-        setting->loadSettingFile(expand(docFilepath));
-        setting->loadSettingFile(expand(cfgDocFilepath));
+        setting->loadSettingFile(expandq("%APP%/settings/%CFG_FOLDER%/" + filename).toStdString());
+        setting->loadSettingFile(expandq("%LOCAL%/settings/%PP%/" + filename).toStdString());
+        setting->loadSettingFile(expandq("%LOCAL%/settings/%PP%/%CFG_FOLDER%/" + filename).toStdString());
     }
+
     return setting;
 }
 
@@ -155,10 +160,9 @@ void DsEnvironment::initialize() {
     });
 }
 
-std::string DsEnvironment::getDownstreamDocumentsFolder() {
-    // if (!sInitialized) ds::Environment::initialize();
-    // return DOWNSTREAM_DOCUMENTS;
-    return "";
+QString DsEnvironment::getDownstreamDocumentsFolder() {
+    DsEnvironment::initialize();
+    return sDocumentsDownstream;
 }
 
 } // namespace dsqt

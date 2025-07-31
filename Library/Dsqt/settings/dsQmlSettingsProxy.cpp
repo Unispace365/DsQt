@@ -27,7 +27,7 @@ void DsQmlSettingsProxy::setPrefix(const QString& in_val) {
 
 void DsQmlSettingsProxy::loadFromFile(const QString& filename) {
 	if (_settings) {
-		_settings = DsEnvironment::loadSettings(_target.toStdString(), filename.toStdString());
+        _settings = DsEnvironment::loadSettings(_target, filename);
 	}
 }
 

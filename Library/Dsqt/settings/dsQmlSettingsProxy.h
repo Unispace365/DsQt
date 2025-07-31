@@ -46,7 +46,7 @@ signals:
 	QString _target;
 	QString _prefix="";
 	std::string _prefix_str="";
-	DSSettingsRef _settings;
+	DsSettingsRef _settings;
 
 };
 }

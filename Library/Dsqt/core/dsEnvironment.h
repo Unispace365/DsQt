@@ -1,80 +1,172 @@
 #ifndef DSENVIRONMENT_H
 #define DSENVIRONMENT_H
 
-#include "qloggingcategory.h"
 #include <QDebug>
+#include <qloggingcategory.h>
 #include <string>
 
 Q_DECLARE_LOGGING_CATEGORY(lgEnv)
 Q_DECLARE_LOGGING_CATEGORY(lgEnvVerbose)
 namespace dsqt {
 
-class DsSettings;
-typedef std::shared_ptr<DsSettings> DSSettingsRef;
 /**
- * @brief DSEnvironment
- * Access to the environment data, i.e. file paths etc.
+ * @brief Forward declaration of DsSettings class.
+ */
+class DsSettings;
+
+using DsSettingsRef = std::shared_ptr<DsSettings>;
+
+/**
+ * @brief The DsEnvironment class provides access to environment data, such as file paths.
+ *
+ * This class offers static methods to handle path expansion, contraction, and retrieval of
+ * various application and system folders. It is non-instantiable.
  */
 class DsEnvironment {
   public:
     DsEnvironment()                     = delete;
     DsEnvironment(const DsEnvironment&) = delete;
 
-    /// Return the same path but with any environment variables expanded. Current variables:
-    ///	 %APP% -- expanded to app folder
-    ///	 %LOCAL% -- expanded to downstream documents folder
-    ///  %PP% -- expand the project path, i.e. "%LOCAL%/cache/%PP%/images/"
-    ///  %CFG_FOLDER% -- expand to the configuration folder, if it exists
-    /// "%DOCUMENTS%" -- expand to current user documents folder
+    /**
+     * @brief Expands the given path by replacing environment variables with their actual values.
+     *
+     * Supported variables:
+     * - %APP% -- expanded to the application folder
+     * - %LOCAL% -- expanded to the downstream documents folder
+     * - %PP% -- expands to the project path, e.g., "%LOCAL%/cache/%PP%/images/"
+     * - %CFG_FOLDER% -- expands to the configuration folder, if it exists
+     * - %DOCUMENTS% -- expands to the current user documents folder
+     *
+     * @param path The path string to expand.
+     * @return The expanded path as a std::string.
+     */
     static std::string expand(const std::string& path);
 
-    /// Return the same path but with any environment variables expanded. Current variables:
-    ///	 %APP% -- expanded to app folder
-    ///	 %LOCAL% -- expanded to downstream documents folder
-    ///  %PP% -- expand the project path, i.e. "%LOCAL%/cache/%PP%/images/"
-    ///  %CFG_FOLDER% -- expand to the configuration folder, if it exists
-    /// "%DOCUMENTS%" -- expand to current user documents folder
+    /**
+     * @brief Expands the given path by replacing environment variables with their actual values (QString version).
+     *
+     * Supported variables:
+     * - %APP% -- expanded to the application folder
+     * - %LOCAL% -- expanded to the downstream documents folder
+     * - %PP% -- expands to the project path, e.g., "%LOCAL%/cache/%PP%/images/"
+     * - %CFG_FOLDER% -- expands to the configuration folder, if it exists
+     * - %DOCUMENTS% -- expands to the current user documents folder
+     *
+     * @param path The path QString to expand.
+     * @return The expanded path as a QString.
+     */
     static QString expandq(QString path);
 
-    /// Return the path but with any applicable environment variables inserted. See expand for variables
-    static std::string contract(const std::string& fullPath);
-    /// Return the path but with any applicable environment variables inserted. See expand for variables
-    static QString contract(QString fullPath);
+    /**
+     * @brief Contracts the given path by inserting applicable environment variables where possible.
+     *
+     * See expand() for the list of supported variables.
+     *
+     * @param path The path string to contract.
+     * @return The contracted path as a std::string.
+     */
+    static std::string contract(const std::string& path);
 
-    /// Answer an app folder -- currently only SETTINGS() is valid for arg 1.
-    /// If fileName is valid, then it will be appended to the found app folder, if it exists.
-    /// This function assumes that I don't actually know the location of the folderName
-    /// relative to my appPath, and searches up the appPath looking for it.  This makes
-    /// it so no configuration is needed between dev and production environments.
-    /// If verify is true, then verify that the folder or file exists, otherwise answer a blank string.
-    static std::string getAppFolder(const std::string& folderName, const std::string& fileName = "",
-                                    const bool verify = false);
+    /**
+     * @brief Contracts the given path by inserting applicable environment variables where possible (QString version).
+     *
+     * See expand() for the list of supported variables.
+     *
+     * @param path The path QString to contract.
+     * @return The contracted path as a QString.
+     */
+    static QString contract(QString path);
 
-    /// Answer a complete path to a local settings file.  Supply an empty file name
-    /// to just get the local settings folder.
-    static std::string getLocalSettingsPath(const std::string& fileName);
+    /**
+     * @brief Retrieves the path to a specified app folder, optionally appending a file name.
+     *
+     * Currently, only "SETTINGS" is valid for folderName. The function searches up the application path
+     * to locate the folder, making it suitable for both development and production environments.
+     * If fileName is provided, it is appended if the folder exists.
+     *
+     * @param folderName The name of the application folder to find (e.g., "SETTINGS").
+     * @param fileName Optional file name to append to the folder path.
+     * @param verify If true, verifies that the folder or file exists; otherwise returns an empty string if not found.
+     * @return The path to the application folder (with optional file appended), or empty if not found and verify is
+     * true.
+     */
+    static QString getAppFolder(const QString& folderName, const QString& fileName = {}, bool verify = false);
 
-    /// Convenience to load in a settings file, first from the app path, then the local path
-    /// @note loading settings from a settings object does not follow the fallback path.
-    static DSSettingsRef loadSettings(const std::string& settingsName, const std::string& filename,
-                                      const bool lookForOverrides = true);
+    /**
+     * @brief Retrieves the path to a local settings file or folder.
+     *
+     * If fileName is empty, returns the local settings folder path.
+     *
+     * @param fileName The name of the settings file (optional).
+     * @return The path to the local settings file or folder.
+     */
+    static QString getLocalSettingsPath(const QString& fileName);
 
-    /// load the engine settings;
+    /**
+     * @brief Loads settings from a file, first attempting the app path, then the local path.
+     *
+     * Note: Loading settings directly from a DsSettings object does not follow the fallback path.
+     *
+     * @param settingsName The name of the settings to load.
+     * @param fileName The file name to load from.
+     * @param lookForOverrides If true, looks for override files.
+     * @return A shared pointer to the loaded DsSettings, or nullptr on failure.
+     */
+    static DsSettingsRef loadSettings(const QString& settingsName, const QString& fileName,
+                                      bool lookForOverrides = true);
+
+    /**
+     * @brief Loads the engine settings.
+     *
+     * @return True if settings were loaded successfully, false otherwise.
+     */
     static bool loadEngineSettings();
 
-    /// Check if there are settings at the appropriate paths
-    /// NOT IMPLEMENTED
-    static bool hasSettings(const std::string& filename);
+    /**
+     * @brief Checks if settings files exist at the appropriate paths.
+     *
+     * @note This method is not implemented.
+     *
+     * @param fileName The settings file name to check.
+     * @return True if settings exist, false otherwise.
+     */
+    static bool hasSettings(const QString& fileName);
 
-    /// Convenience to save a settings file to the local path
-    /// NOT IMPLEMENTED
-    static void saveSettings(const std::string& filename, dsqt::DsSettings& setting);
+    /**
+     * @brief Saves settings to a local file path.
+     *
+     * @note This method is not implemented.
+     *
+     * @param fileName The file name to save to.
+     * @param setting The DsSettings object to save.
+     */
+    static void saveSettings(const QString& fileName, dsqt::DsSettings& setting);
 
+    /**
+     * @brief Overrides the expansion behavior for config directory files.
+     *
+     * @param doOverride True to enable override, false otherwise.
+     */
+    static void setConfigDirFileExpandOverride(bool doOverride);
 
-    static void          setConfigDirFileExpandOverride(const bool doOverride);
-    static void          initialize();
-    static DSSettingsRef engineSettings();
-    static std::string   getDownstreamDocumentsFolder();
+    /**
+     * @brief Initializes the environment.
+     */
+    static void initialize();
+
+    /**
+     * @brief Retrieves the engine settings.
+     *
+     * @return A shared pointer to the engine DsSettings.
+     */
+    static DsSettingsRef engineSettings();
+
+    /**
+     * @brief Retrieves the downstream documents folder path.
+     *
+     * @return The path to the downstream documents folder.
+     */
+    static QString getDownstreamDocumentsFolder();
 
   private:
     static QString            sDocuments;
@@ -87,5 +179,7 @@ class DsEnvironment {
 };
 
 } // namespace dsqt
-using DSEnv = dsqt::DsEnvironment;
+
+using DsEnv = dsqt::DsEnvironment;
+
 #endif // DSENVIRONMENT_H
