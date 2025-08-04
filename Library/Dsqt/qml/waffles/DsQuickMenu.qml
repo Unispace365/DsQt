@@ -23,7 +23,7 @@ Item {
     property bool fullyOpen: false
     property int closeTimer: appSettings.getInt("quickMenu.closeDelay") ?? 5000 //in ms, how long to wait before closing the menu after a click
     signal itemHighlighted(index: int, highlight: bool)
-    signal itemSelected(index: int)
+    signal itemSelected(index: int, position: point)
 
     state: "Off"
 
@@ -579,7 +579,13 @@ Item {
                     onTapped: {
                         root.state = "Off"
                         root.selection = 0
-                        root.itemSelected(button.index);
+                        root.itemSelected(
+                            button.index,
+                            {
+                                x: (root.x + button.x) - (root.width * 0.5),
+                                y: (root.y + button.y) - (root.height * 0.5),
+                            }
+                        );
                     }
                 }
             }
@@ -728,7 +734,7 @@ Item {
                 console.log("Selected segment "+seg);
                 root.state = "Off"
                 root.selection = 0
-                root.itemSelected(seg);
+                root.itemSelected(seg, Qt.point(0, 0)); // TODO: how to get button position from here?
                 break;
             }
         }
@@ -740,9 +746,6 @@ Item {
     DsClusterView.onUpdated: (point)=>{
         updatePoint(point);
     }
-
-
-
 
     //ClusterView.onUpdated: (point)=>{
     //    root.clusterPoint = point;
