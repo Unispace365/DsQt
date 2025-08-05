@@ -27,6 +27,8 @@ qt_add_qml_module(Dsqt
 
     SOURCES
         bridge/dsBridgeQuery.cpp bridge/dsBridgeQuery.h
+        bridge/dsBridgeWatcher.cpp bridge/dsBridgeWatcher.h
+        bridge/dsQmlBridgeLog.cpp bridge/dsQmlBridgeLog.h
         core/dsEnvironment.cpp core/dsEnvironment.h
         core/dsGuiApplication.cpp core/dsGuiApplication.h
         core/dsQmlApplicationEngine.cpp core/dsQmlApplicationEngine.h

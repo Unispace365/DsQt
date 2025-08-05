@@ -1,11 +1,9 @@
 #ifndef DSBRIDGEQUERY_H
 #define DSBRIDGEQUERY_H
 
-#include <core/dsQmlApplicationEngine.h>
-#include <model/dsContentModel.h>
-#include <model/dsPropertyMapDiff.h>
-#include <model/dsResource.h>
-#include <settings/dsQmlSettingsProxy.h>
+#include "bridge/dsBridgeWatcher.h"
+#include "core/dsQmlApplicationEngine.h"
+#include "model/dsPropertyMapDiff.h"
 
 #include <QLoggingCategory>
 #include <QObject>
@@ -108,7 +106,8 @@ class DsBridgeSqlQuery : public QObject {
     QString slugifyKey(QString appKey);
 
   private:
-    QSqlDatabase mDatabase;
+    QSqlDatabase     mDatabase;
+    DsBridgeWatcher* mWatcher = nullptr;
 
 #ifndef Q_OS_WASM
     QProcess                                mBridgeSyncProcess;

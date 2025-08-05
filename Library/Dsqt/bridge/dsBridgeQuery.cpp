@@ -5,12 +5,12 @@
 
 #include "core/dsEnvironment.h"
 #include "model/dsContentModel.h"
-#include "model/dsResource.h"
 #include "model/dsPropertyMapDiff.h"
+#include "model/dsResource.h"
 #include "network/dsNodeWatcher.h"
 #include "qqmlcontext.h"
-#include "settings/dsSettings.h"
 #include "settings/dsQmlSettingsProxy.h"
+#include "settings/dsSettings.h"
 
 Q_LOGGING_CATEGORY(lgBridgeSyncApp, "bridgeSync.app")
 Q_LOGGING_CATEGORY(lgBridgeSyncQuery, "bridgeSync.query")
@@ -36,10 +36,6 @@ DsBridgeSqlQuery::DsBridgeSqlQuery(DsQmlApplicationEngine* parent)
             // Setup the connections first.
             auto engine = DsQmlApplicationEngine::DefEngine();
             connect(
-                engine->getNodeWatcher(), &network::DsNodeWatcher::messageArrived, this,
-                [this](dsqt::network::Message msg) { QueryDatabase(); }, Qt::ConnectionType::QueuedConnection);
-
-            connect(
                 this, &DsBridgeSqlQuery::syncCompleted, engine,
                 [engine](QSharedPointer<PropertyMapDiff> diff) { engine->updateContentRoot(diff); },
                 Qt::ConnectionType::QueuedConnection);
@@ -52,21 +48,36 @@ DsBridgeSqlQuery::DsBridgeSqlQuery(DsQmlApplicationEngine* parent)
             engSettings.setPrefix("engine.resource");
 
             // Find DB file.
-            QString resourceLocation = DsEnvironment::expandq(engSettings.getString("location", "").value<QString>());
-            auto    opFile           = engSettings.getString("resource_db", "").value<QString>();
-            if (!opFile.isEmpty()) {
-                auto file = DsEnvironment::expandq(opFile);
-                if (QDir::isRelativePath(file)) {
-                    file = QDir::cleanPath(resourceLocation + "/" + file);
+            auto dbFileName = engSettings.getString("resource_db", "").value<QString>();
+            if (!dbFileName.isEmpty()) {
+                QFileInfo file(DsEnvironment::expandq(dbFileName));
+                if (file.isRelative()) {
+                    QString resourceLocation =
+                        DsEnvironment::expandq(engSettings.getString("location", "").value<QString>());
+                    file.setFile(QDir::cleanPath(resourceLocation), dbFileName);
                 }
 
-                mDatabase.setDatabaseName(file);
                 // Open DB file in read-only mode. This facilitates concurrency.
+                mDatabase.setDatabaseName(file.absoluteFilePath());
                 mDatabase.setConnectOptions("QSQLITE_OPEN_READONLY");
-            }
 
-            // Fake a nodewatcher message to force the database to open.
-            emit DsQmlApplicationEngine::DefEngine()->getNodeWatcher()->messageArrived(dsqt::network::Message());
+                // Read the database.
+                QueryDatabase();
+
+                // Watch for database updates using notification file (BridgeSync > v4.4.0)
+                if (!mWatcher) mWatcher = new DsBridgeWatcher(file, this);
+                connect(
+                    mWatcher, &bridge::DsBridgeWatcher::databaseUpdated, this, [this]() { QueryDatabase(); },
+                    Qt::ConnectionType::QueuedConnection);
+
+                // Watch for database updates using UDP message (BridgeSync <= v4.4.0)
+                auto nodeWatcher = engine->getNodeWatcher();
+                if (nodeWatcher) {
+                    connect(
+                        engine->getNodeWatcher(), &network::DsNodeWatcher::messageArrived, this,
+                        [this](dsqt::network::Message msg) { QueryDatabase(); }, Qt::ConnectionType::QueuedConnection);
+                }
+            }
         },
         Qt::ConnectionType::QueuedConnection);
 }
@@ -267,20 +278,23 @@ void DsBridgeSqlQuery::QueryDatabase() {
 
     // Take a snapshot of the current data.
     ReferenceMap tempRefMap;
-    tempRefMap.isTemp         = true;
-    ContentModelRef  root     = DsQmlApplicationEngine::DefEngine()->getContentRoot();
+    tempRefMap.isTemp           = true;
+    ContentModelRef    root     = DsQmlApplicationEngine::DefEngine()->getContentRoot();
     DsQmlContentModel* preModel = root.getQml(&tempRefMap, nullptr);
 
     if (!queryTables()) {
-        // Try again in a few.
-        QTimer::singleShot(500, this, &DsBridgeSqlQuery::QueryDatabase);
+        QFileInfo info(mDatabase.databaseName());
+        if (info.exists()) {
+            // Try again in a few.
+            QTimer::singleShot(500, this, &DsBridgeSqlQuery::QueryDatabase);
+        }
         return;
     }
 
     // Take a snapshot of the new data.
     ReferenceMap tempRefMap2;
-    tempRefMap2.isTemp         = true;
-    root                       = DsQmlApplicationEngine::DefEngine()->getContentRoot();
+    tempRefMap2.isTemp           = true;
+    root                         = DsQmlApplicationEngine::DefEngine()->getContentRoot();
     DsQmlContentModel* postModel = root.getQml(&tempRefMap2, nullptr);
 
     // Compare the data.
