@@ -13,7 +13,9 @@
 
 namespace dsqt::ui {
 
-// True frame rate monitor.
+/**
+ * @brief True frame rate monitor.
+ */
 class DsQmlFpsMonitor : public QQuickItem {
     Q_OBJECT
     QML_NAMED_ELEMENT(DsFpsMonitor)
@@ -22,27 +24,54 @@ class DsQmlFpsMonitor : public QQuickItem {
     Q_PROPERTY(double fps READ fps NOTIFY fpsChanged)
 
   public:
+    /**
+     * @brief Constructs a DsQmlFpsMonitor instance.
+     *
+     * @param parent The parent QQuickItem (optional).
+     */
     explicit DsQmlFpsMonitor(QQuickItem* parent = nullptr);
 
-    // Returns the refresh interval in milliseconds.
+    /**
+     * @brief Returns the refresh interval in milliseconds.
+     *
+     * @return The current interval.
+     */
     int interval() const { return m_updateTimer.interval(); }
-    // Sets the refresh interval in milliseconds.
+
+    /**
+     * @brief Sets the refresh interval in milliseconds.
+     *
+     * @param interval The new interval value.
+     */
     void setInterval(int interval) {
         if (m_updateTimer.interval() == interval) return;
         m_updateTimer.setInterval(interval);
         emit intervalChanged();
     }
 
-    // Returns whether forced updates are enabled.
+    /**
+     * @brief Returns whether forced updates are enabled.
+     *
+     * @return True if forced updates are enabled, false otherwise.
+     */
     bool force() const { return m_force; }
-    // Sets whether forced updates are enabled.
+
+    /**
+     * @brief Sets whether forced updates are enabled.
+     *
+     * @param force True to enable forced updates, false to disable.
+     */
     void setForce(bool force) {
         if (m_force == force) return;
         m_force = force;
         emit forceChanged();
     }
 
-    // Returns the (rolling) average frames per second.
+    /**
+     * @brief Returns the (rolling) average frames per second.
+     *
+     * @return The current FPS value.
+     */
     double fps() const { return m_fps; }
 
   signals:
@@ -51,7 +80,14 @@ class DsQmlFpsMonitor : public QQuickItem {
     void forceChanged();
 
   private slots:
+    /**
+     * @brief Handles the frame swapped signal from the window.
+     */
     void handleFrameSwapped();
+
+    /**
+     * @brief Updates the FPS calculation.
+     */
     void updateFps();
 
   private:
