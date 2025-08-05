@@ -73,17 +73,17 @@ signals:
     void started();
 
   public slots:
-	void processPendingDatagrams();
+    void processPendingDatagrams();
 
   private:
-	Message mMsg;
-	Loop	mLoop;
-	int		mPort;
+    Message mMsg;
+    Loop	mLoop;
+    int		mPort;
 
-	QFuture<void>			mWatcher;
-	QMutex					mMutex;
-	DsQmlApplicationEngine* mEngine;
-	QUdpSocket*				mSocket = nullptr;
+    QFuture<void>			mWatcher;
+    QMutex					mMutex;
+    DsQmlApplicationEngine* mEngine;
+    QUdpSocket*				mSocket = nullptr;
 };
 }
 
