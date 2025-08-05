@@ -194,6 +194,27 @@ class DsQmlEventSchedule : public QObject {
         emit clockChanged();
     }
 
+  public:
+    // Returns whether the specified event is currently scheduled, taking into account specific times or weekdays.
+    static bool isEventNow(const model::ContentModelRef& event, QDateTime localDateTime);
+    // Returns whether the specified event is scheduled for today, taking into account the weekdays.
+    static bool isEventToday(const model::ContentModelRef& event, QDate localDate);
+    // Returns whether the specified event is within the time span.
+    static bool isEventWithinSpan(const model::ContentModelRef& event, QDateTime spanStart, QDateTime spanEnd);
+
+           // Removes all events that are not of the specified type. Returns the number of removed events.
+    static size_t filterEvents(std::vector<model::ContentModelRef>& events, const QString& typeName);
+    // Removes all events that are not scheduled at the specified date and time. Returns the number of removed events.
+    static size_t filterEvents(std::vector<model::ContentModelRef>& events, QDateTime localDateTime);
+    // Removes all events that are not scheduled at the specified date. Returns the number of removed events.
+    static size_t filterEvents(std::vector<model::ContentModelRef>& events, QDate localDate);
+    // Removes all events that are not within the specified time range. Does not check for specific times or weekdays.
+    // Returns the number of removed events.
+    static size_t filterEvents(std::vector<model::ContentModelRef>& events, QDateTime spanStart, QDateTime spanEnd);
+
+           // Sorts events by the default sorting heuristic. Sorted from highest to lowest priority.
+    static void sortEvents(std::vector<model::ContentModelRef>& events, QDateTime localDateTime);
+
   signals:
     void typeChanged();
     void eventsChanged();

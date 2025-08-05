@@ -35,7 +35,7 @@ class DsQmlClock : public QQuickPaintedItem {
     /// \brief Constructs a DsQmlClock instance with an optional parent item.
     explicit DsQmlClock(QQuickItem* parent = nullptr);
 
-           /// \brief Returns the refresh interval in milliseconds.
+    /// \brief Returns the refresh interval in milliseconds.
     int interval() const { return m_timer.interval(); }
     /// \brief Sets the refresh interval in milliseconds.
     void setInterval(int interval) {
@@ -44,7 +44,7 @@ class DsQmlClock : public QQuickPaintedItem {
         emit intervalChanged();
     }
 
-           /// \brief Returns the color used for hour marks.
+    /// \brief Returns the color used for hour marks.
     QColor hourMarkColor() const { return m_hour_mark_color; }
     /// \brief Returns the color used for the hour hand.
     QColor hourHandColor() const { return m_hour_hand_color; }
@@ -53,7 +53,7 @@ class DsQmlClock : public QQuickPaintedItem {
     /// \brief Returns the color used for the second hand.
     QColor secondHandColor() const { return m_second_hand_color; }
 
-           /// \brief Sets the color used for hour marks.
+    /// \brief Sets the color used for hour marks.
     void setHourMarkColor(const QColor& color) {
         if (m_hour_mark_color == color) return;
         m_hour_mark_color = color;
@@ -78,7 +78,7 @@ class DsQmlClock : public QQuickPaintedItem {
         emit colorChanged();
     }
 
-           /// \brief Returns the current local date and time.
+    /// \brief Returns the current local date and time.
     QDateTime now() const { return m_local_date_time; }
     /// \brief Returns the current local date.
     QDate date() const { return m_local_date_time.date(); }

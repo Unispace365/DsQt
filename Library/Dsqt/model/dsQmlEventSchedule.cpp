@@ -82,6 +82,149 @@ QList<DsQmlEvent*> DsQmlEventSchedule::timeline() const {
     return m_timeline;
 }
 
+bool DsQmlEventSchedule::isEventNow(const model::ContentModelRef& event, QDateTime localDateTime) {
+    if (!isEventToday(event, localDateTime.date())) return false;
+
+    const auto startTime = event.getPropertyTime("start_time");
+    const auto endTime   = event.getPropertyTime("end_time");
+    if (!startTime.isValid()) {
+        qCWarning(lgQmlObj) << "Couldn't parse the start time for an event of type "
+                            << event.getPropertyString("type_key");
+        qCWarning(lgQmlObjVerbose) << "Start Time of event: " << event.getPropertyString("start_time");
+        return false;
+    }
+    if (!endTime.isValid()) {
+        qCWarning(lgQmlObj) << "Couldn't parse the end time for an event of type "
+                            << event.getPropertyString("type_key");
+        qCWarning(lgQmlObjVerbose) << "End Time of event: " << event.getPropertyString("end_time");
+        return false;
+    }
+    if (localDateTime.time() < startTime || localDateTime.time() >= endTime) {
+        qCDebug(lgQmlObjVerbose) << "Event happens outside the current time: " << event.getName() << "("
+                                 << event.getId() << ")";
+        return false;
+    }
+
+    return true;
+}
+
+bool DsQmlEventSchedule::isEventToday(const model::ContentModelRef& event, QDate localDate) {
+    const auto startDate = event.getPropertyDate("start_date");
+    const auto endDate   = event.getPropertyDate("end_date");
+    if (!startDate.isValid()) {
+        qCWarning(lgQmlObj) << "Couldn't parse the start date for an event of type "
+                            << event.getPropertyString("type_key");
+        qCWarning(lgQmlObjVerbose) << "Start Date of event: " << event.getPropertyString("start_date");
+        return false;
+    }
+    if (!endDate.isValid()) {
+        qCWarning(lgQmlObj) << "Couldn't parse the end date for an event of type "
+                            << event.getPropertyString("type_key");
+        qCWarning(lgQmlObjVerbose) << "End Date of event:" << event.getPropertyString("end_date");
+        return false;
+    }
+
+    if (localDate < startDate || localDate > endDate) {
+        qCWarning(lgQmlObjVerbose) << "Event happens outside the current date: " << event.getName() << "("
+                                   << event.getId() << ")";
+        return false;
+    }
+
+    const auto dayNumber =
+        localDate.dayOfWeek() % 7; // Returns the weekday (0 to 6, where 0 = Sunday, 1 = Monday, ..., 6 = Saturday).
+    const int dayFlag       = 0x1 << dayNumber;
+    const int effectiveDays = event.getPropertyInt("effective_days"); // Flags for week days.
+    if (effectiveDays & dayFlag) {
+        return true;
+    }
+
+    qCDebug(lgQmlObjVerbose) << "Event not scheduled for the current weekday: " << event.getName() << "("
+                             << event.getId() << ")";
+    return false;
+}
+
+bool DsQmlEventSchedule::isEventWithinSpan(const model::ContentModelRef& event, QDateTime spanStart,
+                                           QDateTime spanEnd) {
+    if (spanStart > spanEnd) return false; // Invalid span.
+    auto eventStart = event.getPropertyDateTime("start_date", "start_time");
+    if (!eventStart.isValid()) return false;
+    auto eventEnd = event.getPropertyDateTime("end_date", "end_time");
+    if (!eventEnd.isValid()) return false;
+    if (eventEnd < eventStart) return false; // Invalid value.
+    return (spanEnd >= eventStart && eventEnd >= spanStart);
+}
+
+size_t DsQmlEventSchedule::filterEvents(std::vector<model::ContentModelRef>& events, const QString& typeName) {
+    size_t count = events.size();
+    if (!typeName.isEmpty()) {
+        events.erase(std::remove_if(events.begin(), events.end(),
+                                    [&](const model::ContentModelRef& item) {
+                                        const auto type = item.getPropertyString("type_name");
+                                        return type != typeName;
+                                    }),
+                     events.end());
+    }
+    return count - events.size();
+}
+
+size_t DsQmlEventSchedule::filterEvents(std::vector<model::ContentModelRef>& events, QDateTime localDateTime) {
+    size_t count = events.size();
+    events.erase(std::remove_if(events.begin(), events.end(),
+                                [&](const model::ContentModelRef& item) { return !isEventNow(item, localDateTime); }),
+                 events.end());
+    return count - events.size();
+}
+
+size_t DsQmlEventSchedule::filterEvents(std::vector<model::ContentModelRef>& events, QDate localDate) {
+    size_t count = events.size();
+    events.erase(std::remove_if(events.begin(), events.end(),
+                                [&](const model::ContentModelRef& item) { return !isEventToday(item, localDate); }),
+                 events.end());
+    return count - events.size();
+}
+
+size_t DsQmlEventSchedule::filterEvents(std::vector<model::ContentModelRef>& events, QDateTime spanStart,
+                                        QDateTime spanEnd) {
+    size_t count = events.size();
+    events.erase(std::remove_if(
+                     events.begin(), events.end(),
+                     [&](const model::ContentModelRef& item) { return !isEventWithinSpan(item, spanStart, spanEnd); }),
+                 events.end());
+    return count - events.size();
+}
+
+void DsQmlEventSchedule::sortEvents(std::vector<model::ContentModelRef>& events, QDateTime localDateTime) {
+    auto heuristic = [&localDateTime](const model::ContentModelRef& a, const model::ContentModelRef& b) -> bool {
+        // Active Event trumps Inactive event
+        const auto isActiveA = isEventNow(a, localDateTime);
+        const auto isActiveB = isEventNow(b, localDateTime);
+        if (isActiveA != isActiveB) return isActiveA;
+
+        // Recently Started trumps Previously started
+        const auto startA      = a.getPropertyTime("start_time");
+        const auto startB      = b.getPropertyTime("start_time");
+        const auto sinceStartA = startA.secsTo(localDateTime.time());
+        const auto sinceStartB = startB.secsTo(localDateTime.time());
+        if (sinceStartA == sinceStartB) { // Starting at the same time.
+            const auto durationA = startA.secsTo(a.getPropertyTime("end_time"));
+            const auto durationB = startB.secsTo(b.getPropertyTime("end_time"));
+            if (durationA == durationB)                                             // Same duration:
+                return std::bitset<8>(a.getPropertyInt("effective_days")).count() < // Fewer days has higher priority.
+                       std::bitset<8>(b.getPropertyInt("effective_days")).count();
+            else                                           // Different duration:
+                return durationA < durationB;              // Shorter duration has higher priority.
+        } else if ((sinceStartA < 0) != (sinceStartB < 0)) // Only one has already started.
+            return sinceStartA >= 0;                       // A has started, priority over B.
+
+        return sinceStartA >= 0
+                   ? sinceStartA < sinceStartB  // Both have started: later start time has higher priority.
+                   : sinceStartA > sinceStartB; // Both have not yet started: earlier start time has higher priority.
+    };
+
+    // Sort from highest priority to lowest priority.
+    std::stable_sort(events.begin(), events.end(), heuristic);
+}
+
 void DsQmlEventSchedule::updateNow() {
     if (m_clock)
         m_local_date_time = m_clock->now();
@@ -140,11 +283,11 @@ void DsQmlEventSchedule::update(const QDateTime& localDateTime) {
         auto events    = allEvents.getChildren();
 
         // Only keep events of a specific type.
-        DsQmlObj::filterEvents(events, m_type_name);
+        DsQmlEventSchedule::filterEvents(events, m_type_name);
         // Only keep today's events.
-        DsQmlObj::filterEvents(events, localDateTime.date());
+        DsQmlEventSchedule::filterEvents(events, localDateTime.date());
         // Sort them by priority.
-        DsQmlObj::sortEvents(events, localDateTime);
+        DsQmlEventSchedule::sortEvents(events, localDateTime);
 
         // Convert events to internal representation.
         QList<DsQmlEvent*> result;
