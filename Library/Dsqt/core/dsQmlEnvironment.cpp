@@ -28,7 +28,7 @@ void DsQmlEnvironment::updateNow() {
     auto platforms = content.getChildByName("platforms");
 
     // TODO select proper platform by UID.
-    auto platform  = platforms.getChild(0);
+    auto platform = platforms.getChild(0);
     setPlatformName(platform.getPropertyString("record_name"));
 }
 
