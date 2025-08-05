@@ -9,6 +9,11 @@ It is a replacement for DS Cinder. It Relies on Qt and QML for most features  (M
 but adds comprensive configuration data modeling and integration with our 
 CMS backend for rapid prototyping and developemnt.
 
+## Documentation
+
+Documentation is compiled by Doxygen and can be found here:
+<https://unispace365.github.io/DsQt/>
+
 ## Getting Started
 
 > This version of DsQt has been built and is targeted at Windows. We hope to have Linux and Apple builds. 
