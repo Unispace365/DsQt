@@ -1,4 +1,4 @@
 var searchData=
 [
-  ['valid_0',['valid',['../structdsqt_1_1DsSettings_1_1SettingFile.html#ad8ecf112727c1fb3eb2225658c925cb6',1,'dsqt::DsSettings::SettingFile']]]
+  ['sdefaultengine_0',['sDefaultEngine',['../classdsqt_1_1DsQmlApplicationEngine.html#a5b0dd6452bc68be8e93347870d265764',1,'dsqt::DsQmlApplicationEngine']]]
 ];

@@ -103,47 +103,56 @@ $(document).ready(function(){initNavTree('dsQmlEnvironment_8h_source.html',''); 
 <div class="line"><a id="l00004" name="l00004"></a><span class="lineno">    4</span><span class="preprocessor">#include &lt;QObject&gt;</span></div>
 <div class="line"><a id="l00005" name="l00005"></a><span class="lineno">    5</span><span class="preprocessor">#include &lt;QQmlEngine&gt;</span></div>
 <div class="line"><a id="l00006" name="l00006"></a><span class="lineno">    6</span> </div>
-<div class="line"><a id="l00007" name="l00007"></a><span class="lineno">    7</span> </div>
-<div class="line"><a id="l00008" name="l00008"></a><span class="lineno">    8</span><span class="keyword">namespace </span><a class="code hl_namespace" href="namespacedsqt.html">dsqt</a> {</div>
-<div class="foldopen" id="foldopen00009" data-start="{" data-end="};">
-<div class="line"><a id="l00009" name="l00009"></a><span class="lineno"><a class="line" href="classdsqt_1_1DsQmlEnvironment.html">    9</a></span><span class="keyword">class </span><a class="code hl_class" href="classdsqt_1_1DsQmlEnvironment.html">DsQmlEnvironment</a> : <span class="keyword">public</span> QObject {</div>
-<div class="line"><a id="l00010" name="l00010"></a><span class="lineno">   10</span>    Q_OBJECT</div>
-<div class="line"><a id="l00011" name="l00011"></a><span class="lineno">   11</span>    QML_NAMED_ELEMENT(<a class="code hl_class" href="classdsqt_1_1DsEnvironment.html">DsEnvironment</a>)</div>
-<div class="line"><a id="l00012" name="l00012"></a><span class="lineno">   12</span>    QML_UNCREATABLE(<span class="stringliteral">&quot;Aint no need for you to be making one.&quot;</span>)</div>
-<div class="line"><a id="l00013" name="l00013"></a><span class="lineno">   13</span> </div>
-<div class="line"><a id="l00014" name="l00014"></a><span class="lineno">   14</span>    Q_PROPERTY(QString platformName READ platformName WRITE setPlatformName NOTIFY platformNameChanged)</div>
-<div class="line"><a id="l00015" name="l00015"></a><span class="lineno">   15</span> </div>
-<div class="line"><a id="l00016" name="l00016"></a><span class="lineno">   16</span>  <span class="keyword">public</span>:</div>
-<div class="line"><a id="l00017" name="l00017"></a><span class="lineno">   17</span>    <span class="keyword">explicit</span> <a class="code hl_class" href="classdsqt_1_1DsQmlEnvironment.html">DsQmlEnvironment</a>(QObject* parent = <span class="keyword">nullptr</span>);</div>
-<div class="line"><a id="l00018" name="l00018"></a><span class="lineno">   18</span> </div>
-<div class="line"><a id="l00019" name="l00019"></a><span class="lineno">   19</span>    Q_INVOKABLE <span class="keyword">const</span> QString expand(<span class="keyword">const</span> QString&amp; <span class="keywordtype">string</span>);</div>
-<div class="line"><a id="l00020" name="l00020"></a><span class="lineno">   20</span>    Q_INVOKABLE <span class="keyword">const</span> QUrl    expandUrl(<span class="keyword">const</span> QString&amp; <span class="keywordtype">string</span>);</div>
-<div class="line"><a id="l00021" name="l00021"></a><span class="lineno">   21</span>    <span class="comment">// Q_INVOKABLE QString getLocalFolder();</span></div>
+<div class="line"><a id="l00007" name="l00007"></a><span class="lineno">    7</span><span class="keyword">namespace </span><a class="code hl_namespace" href="namespacedsqt.html">dsqt</a> {</div>
+<div class="line"><a id="l00008" name="l00008"></a><span class="lineno">    8</span> </div>
+<div class="foldopen" id="foldopen00018" data-start="{" data-end="};">
+<div class="line"><a id="l00018" name="l00018"></a><span class="lineno"><a class="line" href="classdsqt_1_1DsQmlEnvironment.html">   18</a></span><span class="keyword">class </span><a class="code hl_class" href="classdsqt_1_1DsQmlEnvironment.html">DsQmlEnvironment</a> : <span class="keyword">public</span> QObject {</div>
+<div class="line"><a id="l00019" name="l00019"></a><span class="lineno">   19</span>    Q_OBJECT</div>
+<div class="line"><a id="l00020" name="l00020"></a><span class="lineno">   20</span>    QML_NAMED_ELEMENT(<a class="code hl_class" href="classdsqt_1_1DsEnvironment.html">DsEnvironment</a>)</div>
+<div class="line"><a id="l00021" name="l00021"></a><span class="lineno">   21</span>    QML_UNCREATABLE(<span class="stringliteral">&quot;Aint no need for you to be making one.&quot;</span>)</div>
 <div class="line"><a id="l00022" name="l00022"></a><span class="lineno">   22</span> </div>
-<div class="line"><a id="l00023" name="l00023"></a><span class="lineno">   23</span> </div>
-<div class="line"><a id="l00024" name="l00024"></a><span class="lineno">   24</span>    QString platformName()<span class="keyword"> const </span>{ <span class="keywordflow">return</span> m_platformName; }</div>
-<div class="line"><a id="l00025" name="l00025"></a><span class="lineno">   25</span>    <span class="keywordtype">void</span>    setPlatformName(<span class="keyword">const</span> QString&amp; name) {</div>
-<div class="line"><a id="l00026" name="l00026"></a><span class="lineno">   26</span>        <span class="keywordflow">if</span> (name == m_platformName) <span class="keywordflow">return</span>;</div>
-<div class="line"><a id="l00027" name="l00027"></a><span class="lineno">   27</span>        m_platformName = name;</div>
-<div class="line"><a id="l00028" name="l00028"></a><span class="lineno">   28</span>        emit platformNameChanged();</div>
-<div class="line"><a id="l00029" name="l00029"></a><span class="lineno">   29</span>    }</div>
-<div class="line"><a id="l00030" name="l00030"></a><span class="lineno">   30</span> </div>
-<div class="line"><a id="l00031" name="l00031"></a><span class="lineno">   31</span>  signals:</div>
-<div class="line"><a id="l00032" name="l00032"></a><span class="lineno">   32</span>    <span class="keywordtype">void</span> platformNameChanged(); <span class="comment">// Signal emitted when platformName changes.</span></div>
-<div class="line"><a id="l00033" name="l00033"></a><span class="lineno">   33</span> </div>
-<div class="line"><a id="l00034" name="l00034"></a><span class="lineno">   34</span>  <span class="keyword">private</span>:</div>
-<div class="line"><a id="l00035" name="l00035"></a><span class="lineno">   35</span>    <span class="keywordtype">void</span> updateNow();</div>
-<div class="line"><a id="l00036" name="l00036"></a><span class="lineno">   36</span> </div>
-<div class="line"><a id="l00037" name="l00037"></a><span class="lineno">   37</span>  <span class="keyword">private</span>:</div>
-<div class="line"><a id="l00038" name="l00038"></a><span class="lineno">   38</span>    QString m_platformName{<span class="stringliteral">&quot;Unknown Platform&quot;</span>};</div>
-<div class="line"><a id="l00039" name="l00039"></a><span class="lineno">   39</span>};</div>
+<div class="line"><a id="l00023" name="l00023"></a><span class="lineno">   23</span>    </div>
+<div class="line"><a id="l00030" name="l00030"></a><span class="lineno"><a class="line" href="classdsqt_1_1DsQmlEnvironment.html#ad8ef77d1b97bcdf0be015fcdbf3402be">   30</a></span>    Q_PROPERTY(QString <a class="code hl_property" href="classdsqt_1_1DsQmlEnvironment.html#ad8ef77d1b97bcdf0be015fcdbf3402be">platformName</a> READ <a class="code hl_property" href="classdsqt_1_1DsQmlEnvironment.html#ad8ef77d1b97bcdf0be015fcdbf3402be">platformName</a> WRITE <a class="code hl_function" href="classdsqt_1_1DsQmlEnvironment.html#a41fac92998539281b25f3848ec16bf0b">setPlatformName</a> NOTIFY <a class="code hl_signal" href="classdsqt_1_1DsQmlEnvironment.html#a587b10c020f598cb67ee37281987da8c">platformNameChanged</a>)</div>
+<div class="line"><a id="l00031" name="l00031"></a><span class="lineno">   31</span> </div>
+<div class="line"><a id="l00032" name="l00032"></a><span class="lineno">   32</span>  public:</div>
+<div class="line"><a id="l00037" name="l00037"></a><span class="lineno">   37</span>    explicit <a class="code hl_class" href="classdsqt_1_1DsQmlEnvironment.html">DsQmlEnvironment</a>(QObject* parent = <span class="keywordtype">nullptr</span>);</div>
+<div class="line"><a id="l00038" name="l00038"></a><span class="lineno">   38</span> </div>
+<div class="line"><a id="l00044" name="l00044"></a><span class="lineno">   44</span>    Q_INVOKABLE const QString <a class="code hl_function" href="classdsqt_1_1DsQmlEnvironment.html#ad77bbac702b016fa73a6e72a743b43c7">expand</a>(const QString&amp; <span class="keywordtype">string</span>);</div>
+<div class="line"><a id="l00045" name="l00045"></a><span class="lineno">   45</span> </div>
+<div class="line"><a id="l00051" name="l00051"></a><span class="lineno">   51</span>    Q_INVOKABLE const QUrl    <a class="code hl_function" href="classdsqt_1_1DsQmlEnvironment.html#ad1e8fdc75c9a5d1441cb1880f5cfc096">expandUrl</a>(const QString&amp; <span class="keywordtype">string</span>);</div>
+<div class="line"><a id="l00052" name="l00052"></a><span class="lineno">   52</span>    <span class="comment">// Q_INVOKABLE QString getLocalFolder();</span></div>
+<div class="line"><a id="l00053" name="l00053"></a><span class="lineno">   53</span> </div>
+<div class="line"><a id="l00058" name="l00058"></a><span class="lineno"><a class="line" href="classdsqt_1_1DsQmlEnvironment.html#a7d1c9ac373841e1ef4b06bff4846fc21">   58</a></span>    QString <a class="code hl_property" href="classdsqt_1_1DsQmlEnvironment.html#ad8ef77d1b97bcdf0be015fcdbf3402be">platformName</a>()<span class="keyword"> const </span>{ <span class="keywordflow">return</span> m_platformName; }</div>
+<div class="line"><a id="l00059" name="l00059"></a><span class="lineno">   59</span> </div>
+<div class="foldopen" id="foldopen00064" data-start="{" data-end="}">
+<div class="line"><a id="l00064" name="l00064"></a><span class="lineno"><a class="line" href="classdsqt_1_1DsQmlEnvironment.html#a41fac92998539281b25f3848ec16bf0b">   64</a></span>    <span class="keywordtype">void</span>    <a class="code hl_function" href="classdsqt_1_1DsQmlEnvironment.html#a41fac92998539281b25f3848ec16bf0b">setPlatformName</a>(<span class="keyword">const</span> QString&amp; name) {</div>
+<div class="line"><a id="l00065" name="l00065"></a><span class="lineno">   65</span>        <span class="keywordflow">if</span> (name == m_platformName) <span class="keywordflow">return</span>;</div>
+<div class="line"><a id="l00066" name="l00066"></a><span class="lineno">   66</span>        m_platformName = name;</div>
+<div class="line"><a id="l00067" name="l00067"></a><span class="lineno">   67</span>        emit <a class="code hl_signal" href="classdsqt_1_1DsQmlEnvironment.html#a587b10c020f598cb67ee37281987da8c">platformNameChanged</a>();</div>
+<div class="line"><a id="l00068" name="l00068"></a><span class="lineno">   68</span>    }</div>
 </div>
-<div class="line"><a id="l00040" name="l00040"></a><span class="lineno">   40</span> </div>
-<div class="line"><a id="l00041" name="l00041"></a><span class="lineno">   41</span>} <span class="comment">// namespace dsqt</span></div>
-<div class="line"><a id="l00042" name="l00042"></a><span class="lineno">   42</span> </div>
-<div class="line"><a id="l00043" name="l00043"></a><span class="lineno">   43</span><span class="preprocessor">#endif </span><span class="comment">// DSENVIRONMENTQML_H</span></div>
+<div class="line"><a id="l00069" name="l00069"></a><span class="lineno">   69</span> </div>
+<div class="line"><a id="l00070" name="l00070"></a><span class="lineno">   70</span>  signals:</div>
+<div class="line"><a id="l00074" name="l00074"></a><span class="lineno"><a class="line" href="classdsqt_1_1DsQmlEnvironment.html#a587b10c020f598cb67ee37281987da8c">   74</a></span>    <span class="keywordtype">void</span> <a class="code hl_signal" href="classdsqt_1_1DsQmlEnvironment.html#a587b10c020f598cb67ee37281987da8c">platformNameChanged</a>(); <span class="comment">// Signal emitted when platformName changes.</span></div>
+<div class="line"><a id="l00075" name="l00075"></a><span class="lineno">   75</span> </div>
+<div class="line"><a id="l00076" name="l00076"></a><span class="lineno">   76</span>  <span class="keyword">private</span>:</div>
+<div class="line"><a id="l00082" name="l00082"></a><span class="lineno">   82</span>    <span class="keywordtype">void</span> updateNow();</div>
+<div class="line"><a id="l00083" name="l00083"></a><span class="lineno">   83</span> </div>
+<div class="line"><a id="l00084" name="l00084"></a><span class="lineno">   84</span>  <span class="keyword">private</span>:</div>
+<div class="line"><a id="l00085" name="l00085"></a><span class="lineno">   85</span>    QString m_platformName{<span class="stringliteral">&quot;Unknown Platform&quot;</span>};</div>
+<div class="line"><a id="l00086" name="l00086"></a><span class="lineno">   86</span>};</div>
+</div>
+<div class="line"><a id="l00087" name="l00087"></a><span class="lineno">   87</span> </div>
+<div class="line"><a id="l00088" name="l00088"></a><span class="lineno">   88</span>} <span class="comment">// namespace dsqt</span></div>
+<div class="line"><a id="l00089" name="l00089"></a><span class="lineno">   89</span> </div>
+<div class="line"><a id="l00090" name="l00090"></a><span class="lineno">   90</span><span class="preprocessor">#endif </span><span class="comment">// DSQMLENVIRONMENT_H</span></div>
 <div class="ttc" id="aclassdsqt_1_1DsEnvironment_html"><div class="ttname"><a href="classdsqt_1_1DsEnvironment.html">dsqt::DsEnvironment</a></div><div class="ttdoc">The DsEnvironment class provides access to environment data, such as file paths.</div><div class="ttdef"><b>Definition</b> dsEnvironment.h:25</div></div>
-<div class="ttc" id="aclassdsqt_1_1DsQmlEnvironment_html"><div class="ttname"><a href="classdsqt_1_1DsQmlEnvironment.html">dsqt::DsQmlEnvironment</a></div><div class="ttdef"><b>Definition</b> dsQmlEnvironment.h:9</div></div>
+<div class="ttc" id="aclassdsqt_1_1DsQmlEnvironment_html"><div class="ttname"><a href="classdsqt_1_1DsQmlEnvironment.html">dsqt::DsQmlEnvironment</a></div><div class="ttdoc">Provides environment-related functionality for QML integration.</div><div class="ttdef"><b>Definition</b> dsQmlEnvironment.h:18</div></div>
+<div class="ttc" id="aclassdsqt_1_1DsQmlEnvironment_html_a41fac92998539281b25f3848ec16bf0b"><div class="ttname"><a href="classdsqt_1_1DsQmlEnvironment.html#a41fac92998539281b25f3848ec16bf0b">dsqt::DsQmlEnvironment::setPlatformName</a></div><div class="ttdeci">void setPlatformName(const QString &amp;name)</div><div class="ttdoc">Sets the platform name.</div><div class="ttdef"><b>Definition</b> dsQmlEnvironment.h:64</div></div>
+<div class="ttc" id="aclassdsqt_1_1DsQmlEnvironment_html_a587b10c020f598cb67ee37281987da8c"><div class="ttname"><a href="classdsqt_1_1DsQmlEnvironment.html#a587b10c020f598cb67ee37281987da8c">dsqt::DsQmlEnvironment::platformNameChanged</a></div><div class="ttdeci">void platformNameChanged()</div><div class="ttdoc">Signal emitted when the platform name changes.</div></div>
+<div class="ttc" id="aclassdsqt_1_1DsQmlEnvironment_html_ad1e8fdc75c9a5d1441cb1880f5cfc096"><div class="ttname"><a href="classdsqt_1_1DsQmlEnvironment.html#ad1e8fdc75c9a5d1441cb1880f5cfc096">dsqt::DsQmlEnvironment::expandUrl</a></div><div class="ttdeci">Q_INVOKABLE const QUrl expandUrl(const QString &amp;string)</div><div class="ttdoc">Expands a string to a URL using environment variables.</div><div class="ttdef"><b>Definition</b> dsQmlEnvironment.cpp:21</div></div>
+<div class="ttc" id="aclassdsqt_1_1DsQmlEnvironment_html_ad77bbac702b016fa73a6e72a743b43c7"><div class="ttname"><a href="classdsqt_1_1DsQmlEnvironment.html#ad77bbac702b016fa73a6e72a743b43c7">dsqt::DsQmlEnvironment::expand</a></div><div class="ttdeci">Q_INVOKABLE const QString expand(const QString &amp;string)</div><div class="ttdoc">Expands a string using environment variables.</div><div class="ttdef"><b>Definition</b> dsQmlEnvironment.cpp:16</div></div>
+<div class="ttc" id="aclassdsqt_1_1DsQmlEnvironment_html_ad8ef77d1b97bcdf0be015fcdbf3402be"><div class="ttname"><a href="classdsqt_1_1DsQmlEnvironment.html#ad8ef77d1b97bcdf0be015fcdbf3402be">dsqt::DsQmlEnvironment::platformName</a></div><div class="ttdeci">QString platformName</div><div class="ttdoc">The name of the current platform.</div><div class="ttdef"><b>Definition</b> dsQmlEnvironment.h:30</div></div>
 <div class="ttc" id="anamespacedsqt_html"><div class="ttname"><a href="namespacedsqt.html">dsqt</a></div><div class="ttdoc">main dsqt namespace</div><div class="ttdef"><b>Definition</b> dsBridgeQuery.cpp:21</div></div>
 </div><!-- fragment --></div><!-- contents -->
 </div><!-- doc-content -->

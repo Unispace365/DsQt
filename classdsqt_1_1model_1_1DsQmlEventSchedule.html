@@ -92,6 +92,7 @@ $(document).ready(function(){initNavTree('classdsqt_1_1model_1_1DsQmlEventSchedu
   <div class="summary">
 <a href="#signals">Signals</a> &#124;
 <a href="#pub-methods">Public Member Functions</a> &#124;
+<a href="#pub-static-methods">Static Public Member Functions</a> &#124;
 <a href="#properties">Properties</a> &#124;
 <a href="classdsqt_1_1model_1_1DsQmlEventSchedule-members.html">List of all members</a>  </div>
   <div class="headertitle"><div class="title">dsqt::model::DsQmlEventSchedule Class Reference</div></div>
@@ -145,6 +146,33 @@ QList&lt; <a class="el" href="classdsqt_1_1model_1_1DsQmlEvent.html">DsQmlEvent<
 <tr class="memitem:abe07b90167a875ee34aedc6dc664933e" id="r_abe07b90167a875ee34aedc6dc664933e"><td class="memItemLeft" align="right" valign="top"><a id="abe07b90167a875ee34aedc6dc664933e" name="abe07b90167a875ee34aedc6dc664933e"></a>
 void&#160;</td><td class="memItemRight" valign="bottom"><b>setClock</b> (<a class="el" href="classdsqt_1_1ui_1_1DsQmlClock.html">ui::DsQmlClock</a> *clock)</td></tr>
 <tr class="separator:abe07b90167a875ee34aedc6dc664933e"><td class="memSeparator" colspan="2">&#160;</td></tr>
+</table><table class="memberdecls">
+<tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-static-methods" name="pub-static-methods"></a>
+Static Public Member Functions</h2></td></tr>
+<tr class="memitem:ad7b5f5a07053d90f37abec81e61d1119" id="r_ad7b5f5a07053d90f37abec81e61d1119"><td class="memItemLeft" align="right" valign="top"><a id="ad7b5f5a07053d90f37abec81e61d1119" name="ad7b5f5a07053d90f37abec81e61d1119"></a>
+static bool&#160;</td><td class="memItemRight" valign="bottom"><b>isEventNow</b> (const <a class="el" href="classdsqt_1_1model_1_1ContentModelRef.html">model::ContentModelRef</a> &amp;event, QDateTime localDateTime)</td></tr>
+<tr class="separator:ad7b5f5a07053d90f37abec81e61d1119"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a892c14e74a6ed5099aff0fe614f34695" id="r_a892c14e74a6ed5099aff0fe614f34695"><td class="memItemLeft" align="right" valign="top"><a id="a892c14e74a6ed5099aff0fe614f34695" name="a892c14e74a6ed5099aff0fe614f34695"></a>
+static bool&#160;</td><td class="memItemRight" valign="bottom"><b>isEventToday</b> (const <a class="el" href="classdsqt_1_1model_1_1ContentModelRef.html">model::ContentModelRef</a> &amp;event, QDate localDate)</td></tr>
+<tr class="separator:a892c14e74a6ed5099aff0fe614f34695"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a729bd4c7d122e49291dfade15a5e6441" id="r_a729bd4c7d122e49291dfade15a5e6441"><td class="memItemLeft" align="right" valign="top"><a id="a729bd4c7d122e49291dfade15a5e6441" name="a729bd4c7d122e49291dfade15a5e6441"></a>
+static bool&#160;</td><td class="memItemRight" valign="bottom"><b>isEventWithinSpan</b> (const <a class="el" href="classdsqt_1_1model_1_1ContentModelRef.html">model::ContentModelRef</a> &amp;event, QDateTime spanStart, QDateTime spanEnd)</td></tr>
+<tr class="separator:a729bd4c7d122e49291dfade15a5e6441"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ae816f2b704cc3ffa7dc9a1a994cd9354" id="r_ae816f2b704cc3ffa7dc9a1a994cd9354"><td class="memItemLeft" align="right" valign="top"><a id="ae816f2b704cc3ffa7dc9a1a994cd9354" name="ae816f2b704cc3ffa7dc9a1a994cd9354"></a>
+static size_t&#160;</td><td class="memItemRight" valign="bottom"><b>filterEvents</b> (std::vector&lt; <a class="el" href="classdsqt_1_1model_1_1ContentModelRef.html">model::ContentModelRef</a> &gt; &amp;events, const QString &amp;typeName)</td></tr>
+<tr class="separator:ae816f2b704cc3ffa7dc9a1a994cd9354"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aee90d2eea0524cda5989ab000d6fc5a1" id="r_aee90d2eea0524cda5989ab000d6fc5a1"><td class="memItemLeft" align="right" valign="top"><a id="aee90d2eea0524cda5989ab000d6fc5a1" name="aee90d2eea0524cda5989ab000d6fc5a1"></a>
+static size_t&#160;</td><td class="memItemRight" valign="bottom"><b>filterEvents</b> (std::vector&lt; <a class="el" href="classdsqt_1_1model_1_1ContentModelRef.html">model::ContentModelRef</a> &gt; &amp;events, QDateTime localDateTime)</td></tr>
+<tr class="separator:aee90d2eea0524cda5989ab000d6fc5a1"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a62ee6b5e064e63f46960f53d063d0cf4" id="r_a62ee6b5e064e63f46960f53d063d0cf4"><td class="memItemLeft" align="right" valign="top"><a id="a62ee6b5e064e63f46960f53d063d0cf4" name="a62ee6b5e064e63f46960f53d063d0cf4"></a>
+static size_t&#160;</td><td class="memItemRight" valign="bottom"><b>filterEvents</b> (std::vector&lt; <a class="el" href="classdsqt_1_1model_1_1ContentModelRef.html">model::ContentModelRef</a> &gt; &amp;events, QDate localDate)</td></tr>
+<tr class="separator:a62ee6b5e064e63f46960f53d063d0cf4"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a7a46357b9444bc6660477fba2ed2a149" id="r_a7a46357b9444bc6660477fba2ed2a149"><td class="memItemLeft" align="right" valign="top"><a id="a7a46357b9444bc6660477fba2ed2a149" name="a7a46357b9444bc6660477fba2ed2a149"></a>
+static size_t&#160;</td><td class="memItemRight" valign="bottom"><b>filterEvents</b> (std::vector&lt; <a class="el" href="classdsqt_1_1model_1_1ContentModelRef.html">model::ContentModelRef</a> &gt; &amp;events, QDateTime spanStart, QDateTime spanEnd)</td></tr>
+<tr class="separator:a7a46357b9444bc6660477fba2ed2a149"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aae102a35bf5a08daffc6f09be3c33b48" id="r_aae102a35bf5a08daffc6f09be3c33b48"><td class="memItemLeft" align="right" valign="top"><a id="aae102a35bf5a08daffc6f09be3c33b48" name="aae102a35bf5a08daffc6f09be3c33b48"></a>
+static void&#160;</td><td class="memItemRight" valign="bottom"><b>sortEvents</b> (std::vector&lt; <a class="el" href="classdsqt_1_1model_1_1ContentModelRef.html">model::ContentModelRef</a> &gt; &amp;events, QDateTime localDateTime)</td></tr>
+<tr class="separator:aae102a35bf5a08daffc6f09be3c33b48"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="properties" name="properties"></a>
 Properties</h2></td></tr>

@@ -7,7 +7,11 @@ var searchData=
   ['parsevector_4',['parseVector',['../namespacedsqt.html#aedd27afcdc9131359e3dc7b742926438',1,'dsqt']]],
   ['parsevector4_5',['parseVector4',['../namespacedsqt.html#a9aabe6adddb55a11933ae6f29d1929bb',1,'dsqt']]],
   ['path_6',['path',['../structdsqt_1_1model_1_1PropertyMapDiff_1_1Change.html#a0d8acbd2667151443b2d4351cefe2b80',1,'dsqt::model::PropertyMapDiff::Change']]],
-  ['playlistfilter_7',['PlaylistFilter',['../structdsqt_1_1model_1_1IContentHelper_1_1PlaylistFilter.html',1,'dsqt::model::IContentHelper']]],
-  ['printtree_8',['printTree',['../classdsqt_1_1model_1_1ContentModelRef.html#aa6e85b7b29e685c033717cb67135af92',1,'dsqt::model::ContentModelRef']]],
-  ['propertymapdiff_9',['propertymapdiff',['../classdsqt_1_1model_1_1PropertyMapDiff.html',1,'dsqt::model::PropertyMapDiff'],['../classdsqt_1_1model_1_1PropertyMapDiff.html#aebf6b8145383ff6769661b76a37af848',1,'dsqt::model::PropertyMapDiff::PropertyMapDiff()']]]
+  ['platform_7',['platform',['../classdsqt_1_1DsQmlObj.html#a6331f2174ed240584e6c0ec34c807d57',1,'dsqt::DsQmlObj']]],
+  ['platformchanged_8',['platformChanged',['../classdsqt_1_1DsQmlObj.html#a009d7bc01e8b28c0170d27bfcc785ce4',1,'dsqt::DsQmlObj']]],
+  ['platformname_9',['platformname',['../classdsqt_1_1DsQmlEnvironment.html#ad8ef77d1b97bcdf0be015fcdbf3402be',1,'dsqt::DsQmlEnvironment::platformName'],['../classdsqt_1_1DsQmlEnvironment.html#a7d1c9ac373841e1ef4b06bff4846fc21',1,'dsqt::DsQmlEnvironment::platformName() const']]],
+  ['platformnamechanged_10',['platformNameChanged',['../classdsqt_1_1DsQmlEnvironment.html#a587b10c020f598cb67ee37281987da8c',1,'dsqt::DsQmlEnvironment']]],
+  ['playlistfilter_11',['PlaylistFilter',['../structdsqt_1_1model_1_1IContentHelper_1_1PlaylistFilter.html',1,'dsqt::model::IContentHelper']]],
+  ['printtree_12',['printTree',['../classdsqt_1_1model_1_1ContentModelRef.html#aa6e85b7b29e685c033717cb67135af92',1,'dsqt::model::ContentModelRef']]],
+  ['propertymapdiff_13',['propertymapdiff',['../classdsqt_1_1model_1_1PropertyMapDiff.html',1,'dsqt::model::PropertyMapDiff'],['../classdsqt_1_1model_1_1PropertyMapDiff.html#aebf6b8145383ff6769661b76a37af848',1,'dsqt::model::PropertyMapDiff::PropertyMapDiff()']]]
 ];

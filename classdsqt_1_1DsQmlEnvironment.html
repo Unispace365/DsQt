@@ -97,6 +97,11 @@ $(document).ready(function(){initNavTree('classdsqt_1_1DsQmlEnvironment.html',''
   <div class="headertitle"><div class="title">dsqt::DsQmlEnvironment Class Reference</div></div>
 </div><!--header-->
 <div class="contents">
+
+<p>Provides environment-related functionality for QML integration.  
+ <a href="classdsqt_1_1DsQmlEnvironment.html#details">More...</a></p>
+
+<p><code>#include &lt;<a class="el" href="dsQmlEnvironment_8h_source.html">dsQmlEnvironment.h</a>&gt;</code></p>
 <div class="dynheader">
 Inheritance diagram for dsqt::DsQmlEnvironment:</div>
 <div class="dyncontent">
@@ -108,32 +113,214 @@ Inheritance diagram for dsqt::DsQmlEnvironment:</div>
 Signals</h2></td></tr>
 <tr class="memitem:a587b10c020f598cb67ee37281987da8c" id="r_a587b10c020f598cb67ee37281987da8c"><td class="memItemLeft" align="right" valign="top"><a id="a587b10c020f598cb67ee37281987da8c" name="a587b10c020f598cb67ee37281987da8c"></a>
 void&#160;</td><td class="memItemRight" valign="bottom"><b>platformNameChanged</b> ()</td></tr>
+<tr class="memdesc:a587b10c020f598cb67ee37281987da8c"><td class="mdescLeft">&#160;</td><td class="mdescRight">Signal emitted when the platform name changes. <br /></td></tr>
 <tr class="separator:a587b10c020f598cb67ee37281987da8c"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-methods" name="pub-methods"></a>
 Public Member Functions</h2></td></tr>
-<tr class="memitem:a39e5a25cf7691b68412397f2e713b022" id="r_a39e5a25cf7691b68412397f2e713b022"><td class="memItemLeft" align="right" valign="top"><a id="a39e5a25cf7691b68412397f2e713b022" name="a39e5a25cf7691b68412397f2e713b022"></a>
-&#160;</td><td class="memItemRight" valign="bottom"><b>DsQmlEnvironment</b> (QObject *parent=nullptr)</td></tr>
+<tr class="memitem:a39e5a25cf7691b68412397f2e713b022" id="r_a39e5a25cf7691b68412397f2e713b022"><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classdsqt_1_1DsQmlEnvironment.html#a39e5a25cf7691b68412397f2e713b022">DsQmlEnvironment</a> (QObject *parent=nullptr)</td></tr>
+<tr class="memdesc:a39e5a25cf7691b68412397f2e713b022"><td class="mdescLeft">&#160;</td><td class="mdescRight">Constructs a <a class="el" href="classdsqt_1_1DsQmlEnvironment.html" title="Provides environment-related functionality for QML integration.">DsQmlEnvironment</a> object.  <br /></td></tr>
 <tr class="separator:a39e5a25cf7691b68412397f2e713b022"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ad77bbac702b016fa73a6e72a743b43c7" id="r_ad77bbac702b016fa73a6e72a743b43c7"><td class="memItemLeft" align="right" valign="top"><a id="ad77bbac702b016fa73a6e72a743b43c7" name="ad77bbac702b016fa73a6e72a743b43c7"></a>
-Q_INVOKABLE const QString&#160;</td><td class="memItemRight" valign="bottom"><b>expand</b> (const QString &amp;string)</td></tr>
+<tr class="memitem:ad77bbac702b016fa73a6e72a743b43c7" id="r_ad77bbac702b016fa73a6e72a743b43c7"><td class="memItemLeft" align="right" valign="top">Q_INVOKABLE const QString&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classdsqt_1_1DsQmlEnvironment.html#ad77bbac702b016fa73a6e72a743b43c7">expand</a> (const QString &amp;string)</td></tr>
+<tr class="memdesc:ad77bbac702b016fa73a6e72a743b43c7"><td class="mdescLeft">&#160;</td><td class="mdescRight">Expands a string using environment variables.  <br /></td></tr>
 <tr class="separator:ad77bbac702b016fa73a6e72a743b43c7"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ad1e8fdc75c9a5d1441cb1880f5cfc096" id="r_ad1e8fdc75c9a5d1441cb1880f5cfc096"><td class="memItemLeft" align="right" valign="top"><a id="ad1e8fdc75c9a5d1441cb1880f5cfc096" name="ad1e8fdc75c9a5d1441cb1880f5cfc096"></a>
-Q_INVOKABLE const QUrl&#160;</td><td class="memItemRight" valign="bottom"><b>expandUrl</b> (const QString &amp;string)</td></tr>
+<tr class="memitem:ad1e8fdc75c9a5d1441cb1880f5cfc096" id="r_ad1e8fdc75c9a5d1441cb1880f5cfc096"><td class="memItemLeft" align="right" valign="top">Q_INVOKABLE const QUrl&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classdsqt_1_1DsQmlEnvironment.html#ad1e8fdc75c9a5d1441cb1880f5cfc096">expandUrl</a> (const QString &amp;string)</td></tr>
+<tr class="memdesc:ad1e8fdc75c9a5d1441cb1880f5cfc096"><td class="mdescLeft">&#160;</td><td class="mdescRight">Expands a string to a URL using environment variables.  <br /></td></tr>
 <tr class="separator:ad1e8fdc75c9a5d1441cb1880f5cfc096"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a7d1c9ac373841e1ef4b06bff4846fc21" id="r_a7d1c9ac373841e1ef4b06bff4846fc21"><td class="memItemLeft" align="right" valign="top"><a id="a7d1c9ac373841e1ef4b06bff4846fc21" name="a7d1c9ac373841e1ef4b06bff4846fc21"></a>
-QString&#160;</td><td class="memItemRight" valign="bottom"><b>platformName</b> () const</td></tr>
+<tr class="memitem:a7d1c9ac373841e1ef4b06bff4846fc21" id="r_a7d1c9ac373841e1ef4b06bff4846fc21"><td class="memItemLeft" align="right" valign="top">QString&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classdsqt_1_1DsQmlEnvironment.html#a7d1c9ac373841e1ef4b06bff4846fc21">platformName</a> () const</td></tr>
+<tr class="memdesc:a7d1c9ac373841e1ef4b06bff4846fc21"><td class="mdescLeft">&#160;</td><td class="mdescRight">Gets the current platform name.  <br /></td></tr>
 <tr class="separator:a7d1c9ac373841e1ef4b06bff4846fc21"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a41fac92998539281b25f3848ec16bf0b" id="r_a41fac92998539281b25f3848ec16bf0b"><td class="memItemLeft" align="right" valign="top"><a id="a41fac92998539281b25f3848ec16bf0b" name="a41fac92998539281b25f3848ec16bf0b"></a>
-void&#160;</td><td class="memItemRight" valign="bottom"><b>setPlatformName</b> (const QString &amp;name)</td></tr>
+<tr class="memitem:a41fac92998539281b25f3848ec16bf0b" id="r_a41fac92998539281b25f3848ec16bf0b"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classdsqt_1_1DsQmlEnvironment.html#a41fac92998539281b25f3848ec16bf0b">setPlatformName</a> (const QString &amp;name)</td></tr>
+<tr class="memdesc:a41fac92998539281b25f3848ec16bf0b"><td class="mdescLeft">&#160;</td><td class="mdescRight">Sets the platform name.  <br /></td></tr>
 <tr class="separator:a41fac92998539281b25f3848ec16bf0b"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="properties" name="properties"></a>
 Properties</h2></td></tr>
-<tr class="memitem:af46ca01667e037200b55ba5a30feffda" id="r_af46ca01667e037200b55ba5a30feffda"><td class="memItemLeft" align="right" valign="top"><a id="af46ca01667e037200b55ba5a30feffda" name="af46ca01667e037200b55ba5a30feffda"></a>
-QString&#160;</td><td class="memItemRight" valign="bottom"><b>platformName</b></td></tr>
-<tr class="separator:af46ca01667e037200b55ba5a30feffda"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ad8ef77d1b97bcdf0be015fcdbf3402be" id="r_ad8ef77d1b97bcdf0be015fcdbf3402be"><td class="memItemLeft" align="right" valign="top">QString&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classdsqt_1_1DsQmlEnvironment.html#ad8ef77d1b97bcdf0be015fcdbf3402be">platformName</a></td></tr>
+<tr class="memdesc:ad8ef77d1b97bcdf0be015fcdbf3402be"><td class="mdescLeft">&#160;</td><td class="mdescRight">The name of the current platform.  <br /></td></tr>
+<tr class="separator:ad8ef77d1b97bcdf0be015fcdbf3402be"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
+<a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
+<div class="textblock"><p>Provides environment-related functionality for QML integration. </p>
+<p>This class acts as a bridge between the <a class="el" href="classdsqt_1_1DsEnvironment.html" title="The DsEnvironment class provides access to environment data, such as file paths.">DsEnvironment</a> and QML, allowing expansion of strings and URLs, and management of platform names. It is designed to be used within a QML context and cannot be created directly in QML. </p>
+</div><h2 class="groupheader">Constructor &amp; Destructor Documentation</h2>
+<a id="a39e5a25cf7691b68412397f2e713b022" name="a39e5a25cf7691b68412397f2e713b022"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a39e5a25cf7691b68412397f2e713b022">&#9670;&#160;</a></span>DsQmlEnvironment()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">dsqt::DsQmlEnvironment::DsQmlEnvironment </td>
+          <td>(</td>
+          <td class="paramtype">QObject *&#160;</td>
+          <td class="paramname"><em>parent</em> = <code>nullptr</code></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">explicit</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Constructs a <a class="el" href="classdsqt_1_1DsQmlEnvironment.html" title="Provides environment-related functionality for QML integration.">DsQmlEnvironment</a> object. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">parent</td><td>The parent QObject (optional). </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<h2 class="groupheader">Member Function Documentation</h2>
+<a id="ad77bbac702b016fa73a6e72a743b43c7" name="ad77bbac702b016fa73a6e72a743b43c7"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ad77bbac702b016fa73a6e72a743b43c7">&#9670;&#160;</a></span>expand()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">const QString dsqt::DsQmlEnvironment::expand </td>
+          <td>(</td>
+          <td class="paramtype">const QString &amp;&#160;</td>
+          <td class="paramname"><em>string</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Expands a string using environment variables. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">string</td><td>The input string to expand. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>The expanded string. </dd></dl>
+
+</div>
+</div>
+<a id="ad1e8fdc75c9a5d1441cb1880f5cfc096" name="ad1e8fdc75c9a5d1441cb1880f5cfc096"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ad1e8fdc75c9a5d1441cb1880f5cfc096">&#9670;&#160;</a></span>expandUrl()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">const QUrl dsqt::DsQmlEnvironment::expandUrl </td>
+          <td>(</td>
+          <td class="paramtype">const QString &amp;&#160;</td>
+          <td class="paramname"><em>string</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Expands a string to a URL using environment variables. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">string</td><td>The input string to expand. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>The expanded URL. </dd></dl>
+
+</div>
+</div>
+<a id="a7d1c9ac373841e1ef4b06bff4846fc21" name="a7d1c9ac373841e1ef4b06bff4846fc21"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a7d1c9ac373841e1ef4b06bff4846fc21">&#9670;&#160;</a></span>platformName()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">QString dsqt::DsQmlEnvironment::platformName </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Gets the current platform name. </p>
+<dl class="section return"><dt>Returns</dt><dd>The platform name. </dd></dl>
+
+</div>
+</div>
+<a id="a41fac92998539281b25f3848ec16bf0b" name="a41fac92998539281b25f3848ec16bf0b"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a41fac92998539281b25f3848ec16bf0b">&#9670;&#160;</a></span>setPlatformName()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">void dsqt::DsQmlEnvironment::setPlatformName </td>
+          <td>(</td>
+          <td class="paramtype">const QString &amp;&#160;</td>
+          <td class="paramname"><em>name</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Sets the platform name. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">name</td><td>The new platform name. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<h2 class="groupheader">Property Documentation</h2>
+<a id="ad8ef77d1b97bcdf0be015fcdbf3402be" name="ad8ef77d1b97bcdf0be015fcdbf3402be"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ad8ef77d1b97bcdf0be015fcdbf3402be">&#9670;&#160;</a></span>platformName</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">dsqt::DsQmlEnvironment::platformName</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">read</span><span class="mlabel">write</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>The name of the current platform. </p>
+<p>This property holds the name of the platform and emits a signal when it changes. </p>
+
+</div>
+</div>
 <hr/>The documentation for this class was generated from the following files:<ul>
 <li>Library/Dsqt/core/<a class="el" href="dsQmlEnvironment_8h_source.html">dsQmlEnvironment.h</a></li>
 <li>Library/Dsqt/core/<b>dsQmlEnvironment.cpp</b></li>

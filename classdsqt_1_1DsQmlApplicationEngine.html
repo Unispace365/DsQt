@@ -100,6 +100,11 @@ $(document).ready(function(){initNavTree('classdsqt_1_1DsQmlApplicationEngine.ht
   <div class="headertitle"><div class="title">dsqt::DsQmlApplicationEngine Class Reference</div></div>
 </div><!--header-->
 <div class="contents">
+
+<p>Custom QML application engine for the dsqt framework.  
+ <a href="classdsqt_1_1DsQmlApplicationEngine.html#details">More...</a></p>
+
+<p><code>#include &lt;<a class="el" href="dsQmlApplicationEngine_8h_source.html">dsQmlApplicationEngine.h</a>&gt;</code></p>
 <div class="dynheader">
 Inheritance diagram for dsqt::DsQmlApplicationEngine:</div>
 <div class="dyncontent">
@@ -111,135 +116,156 @@ Inheritance diagram for dsqt::DsQmlApplicationEngine:</div>
 Signals</h2></td></tr>
 <tr class="memitem:ac137609e7dbd4b8e318b166ad85a48d6" id="r_ac137609e7dbd4b8e318b166ad85a48d6"><td class="memItemLeft" align="right" valign="top"><a id="ac137609e7dbd4b8e318b166ad85a48d6" name="ac137609e7dbd4b8e318b166ad85a48d6"></a>
 void&#160;</td><td class="memItemRight" valign="bottom"><b>willInitialize</b> ()</td></tr>
+<tr class="memdesc:ac137609e7dbd4b8e318b166ad85a48d6"><td class="mdescLeft">&#160;</td><td class="mdescRight">Emitted before initialization starts. <br /></td></tr>
 <tr class="separator:ac137609e7dbd4b8e318b166ad85a48d6"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aa7a92064a56e6ce18a4c518727eb6099" id="r_aa7a92064a56e6ce18a4c518727eb6099"><td class="memItemLeft" align="right" valign="top"><a id="aa7a92064a56e6ce18a4c518727eb6099" name="aa7a92064a56e6ce18a4c518727eb6099"></a>
 void&#160;</td><td class="memItemRight" valign="bottom"><b>initializing</b> ()</td></tr>
+<tr class="memdesc:aa7a92064a56e6ce18a4c518727eb6099"><td class="mdescLeft">&#160;</td><td class="mdescRight">Emitted during initialization. <br /></td></tr>
 <tr class="separator:aa7a92064a56e6ce18a4c518727eb6099"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a0c80939865b48f76f2346b30c8b6a171" id="r_a0c80939865b48f76f2346b30c8b6a171"><td class="memItemLeft" align="right" valign="top"><a id="a0c80939865b48f76f2346b30c8b6a171" name="a0c80939865b48f76f2346b30c8b6a171"></a>
 void&#160;</td><td class="memItemRight" valign="bottom"><b>hasInitialized</b> ()</td></tr>
+<tr class="memdesc:a0c80939865b48f76f2346b30c8b6a171"><td class="mdescLeft">&#160;</td><td class="mdescRight">Emitted after initialization completes. <br /></td></tr>
 <tr class="separator:a0c80939865b48f76f2346b30c8b6a171"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:addfe9eee588f1a2a1167522526cc47fa" id="r_addfe9eee588f1a2a1167522526cc47fa"><td class="memItemLeft" align="right" valign="top"><a id="addfe9eee588f1a2a1167522526cc47fa" name="addfe9eee588f1a2a1167522526cc47fa"></a>
 void&#160;</td><td class="memItemRight" valign="bottom"><b>willReset</b> ()</td></tr>
+<tr class="memdesc:addfe9eee588f1a2a1167522526cc47fa"><td class="mdescLeft">&#160;</td><td class="mdescRight">Emitted before reset starts. <br /></td></tr>
 <tr class="separator:addfe9eee588f1a2a1167522526cc47fa"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:adac22521f1eba90fcd51391e0fbdb7db" id="r_adac22521f1eba90fcd51391e0fbdb7db"><td class="memItemLeft" align="right" valign="top"><a id="adac22521f1eba90fcd51391e0fbdb7db" name="adac22521f1eba90fcd51391e0fbdb7db"></a>
 void&#160;</td><td class="memItemRight" valign="bottom"><b>resetting</b> ()</td></tr>
+<tr class="memdesc:adac22521f1eba90fcd51391e0fbdb7db"><td class="mdescLeft">&#160;</td><td class="mdescRight">Emitted during reset. <br /></td></tr>
 <tr class="separator:adac22521f1eba90fcd51391e0fbdb7db"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a527dc11d4f44437e35f6211ca1dac333" id="r_a527dc11d4f44437e35f6211ca1dac333"><td class="memItemLeft" align="right" valign="top"><a id="a527dc11d4f44437e35f6211ca1dac333" name="a527dc11d4f44437e35f6211ca1dac333"></a>
 void&#160;</td><td class="memItemRight" valign="bottom"><b>hasReset</b> ()</td></tr>
+<tr class="memdesc:a527dc11d4f44437e35f6211ca1dac333"><td class="mdescLeft">&#160;</td><td class="mdescRight">Emitted after reset completes. <br /></td></tr>
 <tr class="separator:a527dc11d4f44437e35f6211ca1dac333"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ac4a098c6b1cb6ab4cd2c6a48ac5b0638" id="r_ac4a098c6b1cb6ab4cd2c6a48ac5b0638"><td class="memItemLeft" align="right" valign="top"><a id="ac4a098c6b1cb6ab4cd2c6a48ac5b0638" name="ac4a098c6b1cb6ab4cd2c6a48ac5b0638"></a>
-void&#160;</td><td class="memItemRight" valign="bottom"><b>fileChanged</b> (const QString &amp;path)</td></tr>
+<tr class="memitem:ac4a098c6b1cb6ab4cd2c6a48ac5b0638" id="r_ac4a098c6b1cb6ab4cd2c6a48ac5b0638"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classdsqt_1_1DsQmlApplicationEngine.html#ac4a098c6b1cb6ab4cd2c6a48ac5b0638">fileChanged</a> (const QString &amp;path)</td></tr>
+<tr class="memdesc:ac4a098c6b1cb6ab4cd2c6a48ac5b0638"><td class="mdescLeft">&#160;</td><td class="mdescRight">Emitted when a watched file changes.  <br /></td></tr>
 <tr class="separator:ac4a098c6b1cb6ab4cd2c6a48ac5b0638"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aa1c9a4cc162ac25932de77534a5904d9" id="r_aa1c9a4cc162ac25932de77534a5904d9"><td class="memItemLeft" align="right" valign="top"><a id="aa1c9a4cc162ac25932de77534a5904d9" name="aa1c9a4cc162ac25932de77534a5904d9"></a>
 void&#160;</td><td class="memItemRight" valign="bottom"><b>rootUpdated</b> ()</td></tr>
+<tr class="memdesc:aa1c9a4cc162ac25932de77534a5904d9"><td class="mdescLeft">&#160;</td><td class="mdescRight">Emitted when the root content is updated. <br /></td></tr>
 <tr class="separator:aa1c9a4cc162ac25932de77534a5904d9"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a634dcbce8aa4a829f0a7c96798e2e8f8" id="r_a634dcbce8aa4a829f0a7c96798e2e8f8"><td class="memItemLeft" align="right" valign="top"><a id="a634dcbce8aa4a829f0a7c96798e2e8f8" name="a634dcbce8aa4a829f0a7c96798e2e8f8"></a>
 void&#160;</td><td class="memItemRight" valign="bottom"><b>idleChanged</b> ()</td></tr>
+<tr class="memdesc:a634dcbce8aa4a829f0a7c96798e2e8f8"><td class="mdescLeft">&#160;</td><td class="mdescRight">Emitted when the idle manager changes. <br /></td></tr>
 <tr class="separator:a634dcbce8aa4a829f0a7c96798e2e8f8"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-methods" name="pub-methods"></a>
 Public Member Functions</h2></td></tr>
-<tr class="memitem:a8ee42438cb3b35b1b19dc0301e235ce9" id="r_a8ee42438cb3b35b1b19dc0301e235ce9"><td class="memItemLeft" align="right" valign="top"><a id="a8ee42438cb3b35b1b19dc0301e235ce9" name="a8ee42438cb3b35b1b19dc0301e235ce9"></a>
-&#160;</td><td class="memItemRight" valign="bottom"><b>DsQmlApplicationEngine</b> (QObject *parent=nullptr)</td></tr>
+<tr class="memitem:a8ee42438cb3b35b1b19dc0301e235ce9" id="r_a8ee42438cb3b35b1b19dc0301e235ce9"><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classdsqt_1_1DsQmlApplicationEngine.html#a8ee42438cb3b35b1b19dc0301e235ce9">DsQmlApplicationEngine</a> (QObject *parent=nullptr)</td></tr>
+<tr class="memdesc:a8ee42438cb3b35b1b19dc0301e235ce9"><td class="mdescLeft">&#160;</td><td class="mdescRight">Constructs a <a class="el" href="classdsqt_1_1DsQmlApplicationEngine.html" title="Custom QML application engine for the dsqt framework.">DsQmlApplicationEngine</a> instance.  <br /></td></tr>
 <tr class="separator:a8ee42438cb3b35b1b19dc0301e235ce9"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a928ebfa567070db2f701b1786b28ba86" id="r_a928ebfa567070db2f701b1786b28ba86"><td class="memItemLeft" align="right" valign="top"><a id="a928ebfa567070db2f701b1786b28ba86" name="a928ebfa567070db2f701b1786b28ba86"></a>
-void&#160;</td><td class="memItemRight" valign="bottom"><b>initialize</b> ()</td></tr>
+<tr class="memitem:a928ebfa567070db2f701b1786b28ba86" id="r_a928ebfa567070db2f701b1786b28ba86"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classdsqt_1_1DsQmlApplicationEngine.html#a928ebfa567070db2f701b1786b28ba86">initialize</a> ()</td></tr>
+<tr class="memdesc:a928ebfa567070db2f701b1786b28ba86"><td class="mdescLeft">&#160;</td><td class="mdescRight">Initializes the engine.  <br /></td></tr>
 <tr class="separator:a928ebfa567070db2f701b1786b28ba86"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a65498bed42716c63dd578f2ce0538e1b" id="r_a65498bed42716c63dd578f2ce0538e1b"><td class="memItemLeft" align="right" valign="top"><a id="a65498bed42716c63dd578f2ce0538e1b" name="a65498bed42716c63dd578f2ce0538e1b"></a>
-void&#160;</td><td class="memItemRight" valign="bottom"><b>doReset</b> ()</td></tr>
+<tr class="memitem:a65498bed42716c63dd578f2ce0538e1b" id="r_a65498bed42716c63dd578f2ce0538e1b"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classdsqt_1_1DsQmlApplicationEngine.html#a65498bed42716c63dd578f2ce0538e1b">doReset</a> ()</td></tr>
+<tr class="memdesc:a65498bed42716c63dd578f2ce0538e1b"><td class="mdescLeft">&#160;</td><td class="mdescRight">Resets the engine.  <br /></td></tr>
 <tr class="separator:a65498bed42716c63dd578f2ce0538e1b"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a0c3f2d7153469db2da800b7fa03e20dc" id="r_a0c3f2d7153469db2da800b7fa03e20dc"><td class="memItemLeft" align="right" valign="top"><a id="a0c3f2d7153469db2da800b7fa03e20dc" name="a0c3f2d7153469db2da800b7fa03e20dc"></a>
-DsSettingsRef&#160;</td><td class="memItemRight" valign="bottom"><b>getAppSettings</b> ()</td></tr>
+<tr class="memitem:a0c3f2d7153469db2da800b7fa03e20dc" id="r_a0c3f2d7153469db2da800b7fa03e20dc"><td class="memItemLeft" align="right" valign="top">DsSettingsRef&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classdsqt_1_1DsQmlApplicationEngine.html#a0c3f2d7153469db2da800b7fa03e20dc">getAppSettings</a> ()</td></tr>
+<tr class="memdesc:a0c3f2d7153469db2da800b7fa03e20dc"><td class="mdescLeft">&#160;</td><td class="mdescRight">Retrieves the application settings reference.  <br /></td></tr>
 <tr class="separator:a0c3f2d7153469db2da800b7fa03e20dc"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a9880a199936cfcd6423f286f1bf47dd2" id="r_a9880a199936cfcd6423f286f1bf47dd2"><td class="memItemLeft" align="right" valign="top"><a id="a9880a199936cfcd6423f286f1bf47dd2" name="a9880a199936cfcd6423f286f1bf47dd2"></a>
-<a class="el" href="classdsqt_1_1model_1_1ContentModelRef.html">model::ContentModelRef</a>&#160;</td><td class="memItemRight" valign="bottom"><b>getContentRoot</b> ()</td></tr>
+<tr class="memitem:a9880a199936cfcd6423f286f1bf47dd2" id="r_a9880a199936cfcd6423f286f1bf47dd2"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classdsqt_1_1model_1_1ContentModelRef.html">model::ContentModelRef</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classdsqt_1_1DsQmlApplicationEngine.html#a9880a199936cfcd6423f286f1bf47dd2">getContentRoot</a> ()</td></tr>
+<tr class="memdesc:a9880a199936cfcd6423f286f1bf47dd2"><td class="mdescLeft">&#160;</td><td class="mdescRight">Retrieves the root content model.  <br /></td></tr>
 <tr class="separator:a9880a199936cfcd6423f286f1bf47dd2"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ad9c1742dcb971d18f663bff8704ab868" id="r_ad9c1742dcb971d18f663bff8704ab868"><td class="memItemLeft" align="right" valign="top"><a id="ad9c1742dcb971d18f663bff8704ab868" name="ad9c1742dcb971d18f663bff8704ab868"></a>
-void&#160;</td><td class="memItemRight" valign="bottom"><b>setDefaultEngine</b> (<a class="el" href="classdsqt_1_1DsQmlApplicationEngine.html">DsQmlApplicationEngine</a> *engine)</td></tr>
+<tr class="memitem:ad9c1742dcb971d18f663bff8704ab868" id="r_ad9c1742dcb971d18f663bff8704ab868"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classdsqt_1_1DsQmlApplicationEngine.html#ad9c1742dcb971d18f663bff8704ab868">setDefaultEngine</a> (<a class="el" href="classdsqt_1_1DsQmlApplicationEngine.html">DsQmlApplicationEngine</a> *engine)</td></tr>
+<tr class="memdesc:ad9c1742dcb971d18f663bff8704ab868"><td class="mdescLeft">&#160;</td><td class="mdescRight">Sets this engine as the default engine.  <br /></td></tr>
 <tr class="separator:ad9c1742dcb971d18f663bff8704ab868"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:af796ffff0318fe7d2f97d8df693c1571" id="r_af796ffff0318fe7d2f97d8df693c1571"><td class="memItemLeft" align="right" valign="top"><a id="af796ffff0318fe7d2f97d8df693c1571" name="af796ffff0318fe7d2f97d8df693c1571"></a>
-void&#160;</td><td class="memItemRight" valign="bottom"><b>updateContentRoot</b> (QSharedPointer&lt; <a class="el" href="classdsqt_1_1model_1_1PropertyMapDiff.html">model::PropertyMapDiff</a> &gt; diff)</td></tr>
+<tr class="memitem:af796ffff0318fe7d2f97d8df693c1571" id="r_af796ffff0318fe7d2f97d8df693c1571"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classdsqt_1_1DsQmlApplicationEngine.html#af796ffff0318fe7d2f97d8df693c1571">updateContentRoot</a> (QSharedPointer&lt; <a class="el" href="classdsqt_1_1model_1_1PropertyMapDiff.html">model::PropertyMapDiff</a> &gt; diff)</td></tr>
+<tr class="memdesc:af796ffff0318fe7d2f97d8df693c1571"><td class="mdescLeft">&#160;</td><td class="mdescRight">Updates the content root with a property map diff.  <br /></td></tr>
 <tr class="separator:af796ffff0318fe7d2f97d8df693c1571"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:aeafb219e9655adcf9c2a771357d11876" id="r_aeafb219e9655adcf9c2a771357d11876"><td class="memItemLeft" align="right" valign="top"><a id="aeafb219e9655adcf9c2a771357d11876" name="aeafb219e9655adcf9c2a771357d11876"></a>
-<a class="el" href="classDsQmlImguiItem.html">DsQmlImguiItem</a> *&#160;</td><td class="memItemRight" valign="bottom"><b>imgui</b> ()</td></tr>
+<tr class="memitem:aeafb219e9655adcf9c2a771357d11876" id="r_aeafb219e9655adcf9c2a771357d11876"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classDsQmlImguiItem.html">DsQmlImguiItem</a> *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classdsqt_1_1DsQmlApplicationEngine.html#aeafb219e9655adcf9c2a771357d11876">imgui</a> ()</td></tr>
+<tr class="memdesc:aeafb219e9655adcf9c2a771357d11876"><td class="mdescLeft">&#160;</td><td class="mdescRight">Gets the ImGui item for QML integration.  <br /></td></tr>
 <tr class="separator:aeafb219e9655adcf9c2a771357d11876"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:af1aaa2d6cc5fa13d5397d26c7eea7feb" id="r_af1aaa2d6cc5fa13d5397d26c7eea7feb"><td class="memItemLeft" align="right" valign="top"><a id="af1aaa2d6cc5fa13d5397d26c7eea7feb" name="af1aaa2d6cc5fa13d5397d26c7eea7feb"></a>
-Q_INVOKABLE void&#160;</td><td class="memItemRight" valign="bottom"><b>clearQmlCache</b> ()</td></tr>
+<tr class="memitem:af1aaa2d6cc5fa13d5397d26c7eea7feb" id="r_af1aaa2d6cc5fa13d5397d26c7eea7feb"><td class="memItemLeft" align="right" valign="top">Q_INVOKABLE void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classdsqt_1_1DsQmlApplicationEngine.html#af1aaa2d6cc5fa13d5397d26c7eea7feb">clearQmlCache</a> ()</td></tr>
+<tr class="memdesc:af1aaa2d6cc5fa13d5397d26c7eea7feb"><td class="mdescLeft">&#160;</td><td class="mdescRight">Clears the QML component cache.  <br /></td></tr>
 <tr class="separator:af1aaa2d6cc5fa13d5397d26c7eea7feb"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a4ae1f5afe44c6a275698b43ecac74b03" id="r_a4ae1f5afe44c6a275698b43ecac74b03"><td class="memItemLeft" align="right" valign="top"><a id="a4ae1f5afe44c6a275698b43ecac74b03" name="a4ae1f5afe44c6a275698b43ecac74b03"></a>
-<a class="el" href="classdsqt_1_1DsQmlEnvironment.html">DsQmlEnvironment</a> *&#160;</td><td class="memItemRight" valign="bottom"><b>getEnvQml</b> () const</td></tr>
+<tr class="memitem:a4ae1f5afe44c6a275698b43ecac74b03" id="r_a4ae1f5afe44c6a275698b43ecac74b03"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classdsqt_1_1DsQmlEnvironment.html">DsQmlEnvironment</a> *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classdsqt_1_1DsQmlApplicationEngine.html#a4ae1f5afe44c6a275698b43ecac74b03">getEnvQml</a> () const</td></tr>
+<tr class="memdesc:a4ae1f5afe44c6a275698b43ecac74b03"><td class="mdescLeft">&#160;</td><td class="mdescRight">Gets the QML environment.  <br /></td></tr>
 <tr class="separator:a4ae1f5afe44c6a275698b43ecac74b03"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:afb91d3caadd25097615b1ead251031be" id="r_afb91d3caadd25097615b1ead251031be"><td class="memItemLeft" align="right" valign="top"><a id="afb91d3caadd25097615b1ead251031be" name="afb91d3caadd25097615b1ead251031be"></a>
-<a class="el" href="classdsqt_1_1DsQmlSettingsProxy.html">DsQmlSettingsProxy</a> *&#160;</td><td class="memItemRight" valign="bottom"><b>getAppSettingsProxy</b> () const</td></tr>
+<tr class="memitem:afb91d3caadd25097615b1ead251031be" id="r_afb91d3caadd25097615b1ead251031be"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classdsqt_1_1DsQmlSettingsProxy.html">DsQmlSettingsProxy</a> *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classdsqt_1_1DsQmlApplicationEngine.html#afb91d3caadd25097615b1ead251031be">getAppSettingsProxy</a> () const</td></tr>
+<tr class="memdesc:afb91d3caadd25097615b1ead251031be"><td class="mdescLeft">&#160;</td><td class="mdescRight">Gets the application settings proxy.  <br /></td></tr>
 <tr class="separator:afb91d3caadd25097615b1ead251031be"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ac2fbe004fa26cc2cf1f344f4b029b703" id="r_ac2fbe004fa26cc2cf1f344f4b029b703"><td class="memItemLeft" align="right" valign="top"><a id="ac2fbe004fa26cc2cf1f344f4b029b703" name="ac2fbe004fa26cc2cf1f344f4b029b703"></a>
-<a class="el" href="classdsqt_1_1model_1_1IContentHelper.html">model::IContentHelper</a> *&#160;</td><td class="memItemRight" valign="bottom"><b>getContentHelper</b> ()</td></tr>
+<tr class="memitem:ac2fbe004fa26cc2cf1f344f4b029b703" id="r_ac2fbe004fa26cc2cf1f344f4b029b703"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classdsqt_1_1model_1_1IContentHelper.html">model::IContentHelper</a> *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classdsqt_1_1DsQmlApplicationEngine.html#ac2fbe004fa26cc2cf1f344f4b029b703">getContentHelper</a> ()</td></tr>
+<tr class="memdesc:ac2fbe004fa26cc2cf1f344f4b029b703"><td class="mdescLeft">&#160;</td><td class="mdescRight">Gets the content helper.  <br /></td></tr>
 <tr class="separator:ac2fbe004fa26cc2cf1f344f4b029b703"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a2d7823c4b563b385789f91b07c5f2dae" id="r_a2d7823c4b563b385789f91b07c5f2dae"><td class="memItemLeft" align="right" valign="top"><a id="a2d7823c4b563b385789f91b07c5f2dae" name="a2d7823c4b563b385789f91b07c5f2dae"></a>
-void&#160;</td><td class="memItemRight" valign="bottom"><b>setContentHelper</b> (<a class="el" href="classdsqt_1_1model_1_1IContentHelper.html">model::IContentHelper</a> *helper)</td></tr>
+<tr class="memitem:a2d7823c4b563b385789f91b07c5f2dae" id="r_a2d7823c4b563b385789f91b07c5f2dae"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classdsqt_1_1DsQmlApplicationEngine.html#a2d7823c4b563b385789f91b07c5f2dae">setContentHelper</a> (<a class="el" href="classdsqt_1_1model_1_1IContentHelper.html">model::IContentHelper</a> *helper)</td></tr>
+<tr class="memdesc:a2d7823c4b563b385789f91b07c5f2dae"><td class="mdescLeft">&#160;</td><td class="mdescRight">Sets the content helper.  <br /></td></tr>
 <tr class="separator:a2d7823c4b563b385789f91b07c5f2dae"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a7e217f62d541d3271d611748a8bb4b10" id="r_a7e217f62d541d3271d611748a8bb4b10"><td class="memItemLeft" align="right" valign="top"><a id="a7e217f62d541d3271d611748a8bb4b10" name="a7e217f62d541d3271d611748a8bb4b10"></a>
-<a class="el" href="classdsqt_1_1network_1_1DsNodeWatcher.html">network::DsNodeWatcher</a> *&#160;</td><td class="memItemRight" valign="bottom"><b>getNodeWatcher</b> () const</td></tr>
+<tr class="memitem:a7e217f62d541d3271d611748a8bb4b10" id="r_a7e217f62d541d3271d611748a8bb4b10"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classdsqt_1_1network_1_1DsNodeWatcher.html">network::DsNodeWatcher</a> *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classdsqt_1_1DsQmlApplicationEngine.html#a7e217f62d541d3271d611748a8bb4b10">getNodeWatcher</a> () const</td></tr>
+<tr class="memdesc:a7e217f62d541d3271d611748a8bb4b10"><td class="mdescLeft">&#160;</td><td class="mdescRight">Gets the node watcher.  <br /></td></tr>
 <tr class="separator:a7e217f62d541d3271d611748a8bb4b10"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ad438bfd76dd23c2833ec938a50d07389" id="r_ad438bfd76dd23c2833ec938a50d07389"><td class="memItemLeft" align="right" valign="top"><a id="ad438bfd76dd23c2833ec938a50d07389" name="ad438bfd76dd23c2833ec938a50d07389"></a>
-const <a class="el" href="classdsqt_1_1model_1_1ReferenceMap.html">model::ReferenceMap</a> *&#160;</td><td class="memItemRight" valign="bottom"><b>getReferenceMap</b> () const</td></tr>
+<tr class="memitem:ad438bfd76dd23c2833ec938a50d07389" id="r_ad438bfd76dd23c2833ec938a50d07389"><td class="memItemLeft" align="right" valign="top">const <a class="el" href="classdsqt_1_1model_1_1ReferenceMap.html">model::ReferenceMap</a> *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classdsqt_1_1DsQmlApplicationEngine.html#ad438bfd76dd23c2833ec938a50d07389">getReferenceMap</a> () const</td></tr>
+<tr class="memdesc:ad438bfd76dd23c2833ec938a50d07389"><td class="mdescLeft">&#160;</td><td class="mdescRight">Gets the reference map.  <br /></td></tr>
 <tr class="separator:ad438bfd76dd23c2833ec938a50d07389"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:af62be3cb2810bd46ee80cc5847652399" id="r_af62be3cb2810bd46ee80cc5847652399"><td class="memItemLeft" align="right" valign="top"><a id="af62be3cb2810bd46ee80cc5847652399" name="af62be3cb2810bd46ee80cc5847652399"></a>
-void&#160;</td><td class="memItemRight" valign="bottom"><b>readSettings</b> (bool reset=false)</td></tr>
+<tr class="memitem:af62be3cb2810bd46ee80cc5847652399" id="r_af62be3cb2810bd46ee80cc5847652399"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classdsqt_1_1DsQmlApplicationEngine.html#af62be3cb2810bd46ee80cc5847652399">readSettings</a> (bool reset=false)</td></tr>
+<tr class="memdesc:af62be3cb2810bd46ee80cc5847652399"><td class="mdescLeft">&#160;</td><td class="mdescRight">Reads the settings.  <br /></td></tr>
 <tr class="separator:af62be3cb2810bd46ee80cc5847652399"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:acf5d838682f98fe71ef631ba2a9c1db3" id="r_acf5d838682f98fe71ef631ba2a9c1db3"><td class="memItemLeft" align="right" valign="top"><a id="acf5d838682f98fe71ef631ba2a9c1db3" name="acf5d838682f98fe71ef631ba2a9c1db3"></a>
-<a class="el" href="classdsqt_1_1DsQmlIdle.html">DsQmlIdle</a> *&#160;</td><td class="memItemRight" valign="bottom"><b>idle</b> () const</td></tr>
+<tr class="memitem:acf5d838682f98fe71ef631ba2a9c1db3" id="r_acf5d838682f98fe71ef631ba2a9c1db3"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classdsqt_1_1DsQmlIdle.html">DsQmlIdle</a> *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classdsqt_1_1DsQmlApplicationEngine.html#acf5d838682f98fe71ef631ba2a9c1db3">idle</a> () const</td></tr>
+<tr class="memdesc:acf5d838682f98fe71ef631ba2a9c1db3"><td class="mdescLeft">&#160;</td><td class="mdescRight">Gets the idle manager.  <br /></td></tr>
 <tr class="separator:acf5d838682f98fe71ef631ba2a9c1db3"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-static-methods" name="pub-static-methods"></a>
 Static Public Member Functions</h2></td></tr>
-<tr class="memitem:af7a246705edb7b3b6b16c5a293fc3136" id="r_af7a246705edb7b3b6b16c5a293fc3136"><td class="memItemLeft" align="right" valign="top"><a id="af7a246705edb7b3b6b16c5a293fc3136" name="af7a246705edb7b3b6b16c5a293fc3136"></a>
-static <a class="el" href="classdsqt_1_1DsQmlApplicationEngine.html">DsQmlApplicationEngine</a> *&#160;</td><td class="memItemRight" valign="bottom"><b>DefEngine</b> ()</td></tr>
+<tr class="memitem:af7a246705edb7b3b6b16c5a293fc3136" id="r_af7a246705edb7b3b6b16c5a293fc3136"><td class="memItemLeft" align="right" valign="top">static <a class="el" href="classdsqt_1_1DsQmlApplicationEngine.html">DsQmlApplicationEngine</a> *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classdsqt_1_1DsQmlApplicationEngine.html#af7a246705edb7b3b6b16c5a293fc3136">DefEngine</a> ()</td></tr>
+<tr class="memdesc:af7a246705edb7b3b6b16c5a293fc3136"><td class="mdescLeft">&#160;</td><td class="mdescRight">Gets the default engine instance.  <br /></td></tr>
 <tr class="separator:af7a246705edb7b3b6b16c5a293fc3136"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pro-attribs" name="pro-attribs"></a>
 Protected Attributes</h2></td></tr>
 <tr class="memitem:a9ab5d986f336d7d3578803d9ed1cf8d6" id="r_a9ab5d986f336d7d3578803d9ed1cf8d6"><td class="memItemLeft" align="right" valign="top"><a id="a9ab5d986f336d7d3578803d9ed1cf8d6" name="a9ab5d986f336d7d3578803d9ed1cf8d6"></a>
 <a class="el" href="classdsqt_1_1model_1_1ContentModelRef.html">model::ContentModelRef</a>&#160;</td><td class="memItemRight" valign="bottom"><b>mContentRoot</b></td></tr>
+<tr class="memdesc:a9ab5d986f336d7d3578803d9ed1cf8d6"><td class="mdescLeft">&#160;</td><td class="mdescRight">Root content model reference. <br /></td></tr>
 <tr class="separator:a9ab5d986f336d7d3578803d9ed1cf8d6"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a85d8b4ae8977019641349a4a5883626b" id="r_a85d8b4ae8977019641349a4a5883626b"><td class="memItemLeft" align="right" valign="top"><a id="a85d8b4ae8977019641349a4a5883626b" name="a85d8b4ae8977019641349a4a5883626b"></a>
 <a class="el" href="classdsqt_1_1model_1_1ReferenceMap.html">model::ReferenceMap</a>&#160;</td><td class="memItemRight" valign="bottom"><b>mQmlRefMap</b></td></tr>
+<tr class="memdesc:a85d8b4ae8977019641349a4a5883626b"><td class="mdescLeft">&#160;</td><td class="mdescRight">QML reference map. <br /></td></tr>
 <tr class="separator:a85d8b4ae8977019641349a4a5883626b"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ab5484c68bc70a47751fbd5e813d3c89c" id="r_ab5484c68bc70a47751fbd5e813d3c89c"><td class="memItemLeft" align="right" valign="top"><a id="ab5484c68bc70a47751fbd5e813d3c89c" name="ab5484c68bc70a47751fbd5e813d3c89c"></a>
 <a class="el" href="classdsqt_1_1model_1_1DsQmlContentModel.html">model::DsQmlContentModel</a> *&#160;</td><td class="memItemRight" valign="bottom"><b>mRootMap</b> = nullptr</td></tr>
+<tr class="memdesc:ab5484c68bc70a47751fbd5e813d3c89c"><td class="mdescLeft">&#160;</td><td class="mdescRight">Pointer to the QML content model for the root. <br /></td></tr>
 <tr class="separator:ab5484c68bc70a47751fbd5e813d3c89c"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:acf9e8b541c6cc57acb90967985dd7afb" id="r_acf9e8b541c6cc57acb90967985dd7afb"><td class="memItemLeft" align="right" valign="top"><a id="acf9e8b541c6cc57acb90967985dd7afb" name="acf9e8b541c6cc57acb90967985dd7afb"></a>
 <a class="el" href="classDsQmlImguiItem.html">DsQmlImguiItem</a> *&#160;</td><td class="memItemRight" valign="bottom"><b>mImgui</b></td></tr>
+<tr class="memdesc:acf9e8b541c6cc57acb90967985dd7afb"><td class="mdescLeft">&#160;</td><td class="mdescRight">Pointer to the ImGui item. <br /></td></tr>
 <tr class="separator:acf9e8b541c6cc57acb90967985dd7afb"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:af63964125205ccc608e32dd5ac0cc490" id="r_af63964125205ccc608e32dd5ac0cc490"><td class="memItemLeft" align="right" valign="top"><a id="af63964125205ccc608e32dd5ac0cc490" name="af63964125205ccc608e32dd5ac0cc490"></a>
 QFileSystemWatcher *&#160;</td><td class="memItemRight" valign="bottom"><b>mWatcher</b> = nullptr</td></tr>
+<tr class="memdesc:af63964125205ccc608e32dd5ac0cc490"><td class="mdescLeft">&#160;</td><td class="mdescRight">File system watcher for hot reloading. <br /></td></tr>
 <tr class="separator:af63964125205ccc608e32dd5ac0cc490"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a60d40e6be5aa366520b13614905ebb7c" id="r_a60d40e6be5aa366520b13614905ebb7c"><td class="memItemLeft" align="right" valign="top"><a id="a60d40e6be5aa366520b13614905ebb7c" name="a60d40e6be5aa366520b13614905ebb7c"></a>
 QElapsedTimer&#160;</td><td class="memItemRight" valign="bottom"><b>mLastUpdate</b></td></tr>
+<tr class="memdesc:a60d40e6be5aa366520b13614905ebb7c"><td class="mdescLeft">&#160;</td><td class="mdescRight">Elapsed timer for last update. <br /></td></tr>
 <tr class="separator:a60d40e6be5aa366520b13614905ebb7c"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ac17375019c9837bff68c77f5871a4a07" id="r_ac17375019c9837bff68c77f5871a4a07"><td class="memItemLeft" align="right" valign="top"><a id="ac17375019c9837bff68c77f5871a4a07" name="ac17375019c9837bff68c77f5871a4a07"></a>
 QTimer&#160;</td><td class="memItemRight" valign="bottom"><b>mTrigger</b></td></tr>
+<tr class="memdesc:ac17375019c9837bff68c77f5871a4a07"><td class="mdescLeft">&#160;</td><td class="mdescRight">Timer for triggering resets. <br /></td></tr>
 <tr class="separator:ac17375019c9837bff68c77f5871a4a07"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a1b19bc37e30eacf53acc3304e4e3b49d" id="r_a1b19bc37e30eacf53acc3304e4e3b49d"><td class="memItemLeft" align="right" valign="top"><a id="a1b19bc37e30eacf53acc3304e4e3b49d" name="a1b19bc37e30eacf53acc3304e4e3b49d"></a>
 <a class="el" href="classdsqt_1_1DsQmlSettingsProxy.html">DsQmlSettingsProxy</a> *&#160;</td><td class="memItemRight" valign="bottom"><b>mAppProxy</b> = nullptr</td></tr>
+<tr class="memdesc:a1b19bc37e30eacf53acc3304e4e3b49d"><td class="mdescLeft">&#160;</td><td class="mdescRight">Pointer to the application settings proxy. <br /></td></tr>
 <tr class="separator:a1b19bc37e30eacf53acc3304e4e3b49d"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aeb13c3382f2b5d0910390fcd8c117e74" id="r_aeb13c3382f2b5d0910390fcd8c117e74"><td class="memItemLeft" align="right" valign="top"><a id="aeb13c3382f2b5d0910390fcd8c117e74" name="aeb13c3382f2b5d0910390fcd8c117e74"></a>
 <a class="el" href="classdsqt_1_1DsQmlEnvironment.html">DsQmlEnvironment</a> *&#160;</td><td class="memItemRight" valign="bottom"><b>mQmlEnv</b> = nullptr</td></tr>
+<tr class="memdesc:aeb13c3382f2b5d0910390fcd8c117e74"><td class="mdescLeft">&#160;</td><td class="mdescRight">Pointer to the QML environment. <br /></td></tr>
 <tr class="separator:aeb13c3382f2b5d0910390fcd8c117e74"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a21865e1f2d307166f09745d4ab7ca823" id="r_a21865e1f2d307166f09745d4ab7ca823"><td class="memItemLeft" align="right" valign="top"><a id="a21865e1f2d307166f09745d4ab7ca823" name="a21865e1f2d307166f09745d4ab7ca823"></a>
 <a class="el" href="classdsqt_1_1model_1_1IContentHelper.html">model::IContentHelper</a> *&#160;</td><td class="memItemRight" valign="bottom"><b>mContentHelper</b> = nullptr</td></tr>
+<tr class="memdesc:a21865e1f2d307166f09745d4ab7ca823"><td class="mdescLeft">&#160;</td><td class="mdescRight">Pointer to the content helper. <br /></td></tr>
 <tr class="separator:a21865e1f2d307166f09745d4ab7ca823"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ac4223c4ace59e70bc15891c6bd6038c5" id="r_ac4223c4ace59e70bc15891c6bd6038c5"><td class="memItemLeft" align="right" valign="top"><a id="ac4223c4ace59e70bc15891c6bd6038c5" name="ac4223c4ace59e70bc15891c6bd6038c5"></a>
 <a class="el" href="classdsqt_1_1network_1_1DsNodeWatcher.html">network::DsNodeWatcher</a> *&#160;</td><td class="memItemRight" valign="bottom"><b>mNodeWatcher</b> = nullptr</td></tr>
+<tr class="memdesc:ac4223c4ace59e70bc15891c6bd6038c5"><td class="mdescLeft">&#160;</td><td class="mdescRight">Pointer to the node watcher. <br /></td></tr>
 <tr class="separator:ac4223c4ace59e70bc15891c6bd6038c5"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a10595637ba0591146dc99f48f7a5993f" id="r_a10595637ba0591146dc99f48f7a5993f"><td class="memItemLeft" align="right" valign="top"><a id="a10595637ba0591146dc99f48f7a5993f" name="a10595637ba0591146dc99f48f7a5993f"></a>
 <a class="el" href="classdsqt_1_1DsQmlIdle.html">DsQmlIdle</a> *&#160;</td><td class="memItemRight" valign="bottom"><b>mIdle</b> = nullptr</td></tr>
+<tr class="memdesc:a10595637ba0591146dc99f48f7a5993f"><td class="mdescLeft">&#160;</td><td class="mdescRight">Pointer to the idle manager. <br /></td></tr>
 <tr class="separator:a10595637ba0591146dc99f48f7a5993f"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pro-static-attribs" name="pro-static-attribs"></a>
 Static Protected Attributes</h2></td></tr>
 <tr class="memitem:a5b0dd6452bc68be8e93347870d265764" id="r_a5b0dd6452bc68be8e93347870d265764"><td class="memItemLeft" align="right" valign="top"><a id="a5b0dd6452bc68be8e93347870d265764" name="a5b0dd6452bc68be8e93347870d265764"></a>
 static <a class="el" href="classdsqt_1_1DsQmlApplicationEngine.html">DsQmlApplicationEngine</a> *&#160;</td><td class="memItemRight" valign="bottom"><b>sDefaultEngine</b> = nullptr</td></tr>
+<tr class="memdesc:a5b0dd6452bc68be8e93347870d265764"><td class="mdescLeft">&#160;</td><td class="mdescRight">Static pointer to the default engine instance. <br /></td></tr>
 <tr class="separator:a5b0dd6452bc68be8e93347870d265764"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="properties" name="properties"></a>
@@ -248,6 +274,453 @@ Properties</h2></td></tr>
 QML_ELEMENTDsQmlIdle *&#160;</td><td class="memItemRight" valign="bottom"><b>idle</b></td></tr>
 <tr class="separator:acf5c1a82728f72e99c80790e56ffa587"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
+<a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
+<div class="textblock"><p>Custom QML application engine for the dsqt framework. </p>
+<p>This class extends QQmlApplicationEngine to provide additional functionality such as content model management, settings handling, file system watching for hot reloading, and integration with ImGui and node watching. It serves as the core engine for QML-based applications in the dsqt ecosystem.</p>
+<p>The engine can be initialized, reset, and provides access to application settings, content roots, and other utilities. It also supports QML properties and signals for integration with QML code.</p>
+<dl class="section note"><dt>Note</dt><dd>This class is not creatable from QML; use Ds.engine to access the instance. </dd></dl>
+</div><h2 class="groupheader">Constructor &amp; Destructor Documentation</h2>
+<a id="a8ee42438cb3b35b1b19dc0301e235ce9" name="a8ee42438cb3b35b1b19dc0301e235ce9"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a8ee42438cb3b35b1b19dc0301e235ce9">&#9670;&#160;</a></span>DsQmlApplicationEngine()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">dsqt::DsQmlApplicationEngine::DsQmlApplicationEngine </td>
+          <td>(</td>
+          <td class="paramtype">QObject *&#160;</td>
+          <td class="paramname"><em>parent</em> = <code>nullptr</code></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">explicit</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Constructs a <a class="el" href="classdsqt_1_1DsQmlApplicationEngine.html" title="Custom QML application engine for the dsqt framework.">DsQmlApplicationEngine</a> instance. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">parent</td><td>Optional parent QObject. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<h2 class="groupheader">Member Function Documentation</h2>
+<a id="af1aaa2d6cc5fa13d5397d26c7eea7feb" name="af1aaa2d6cc5fa13d5397d26c7eea7feb"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#af1aaa2d6cc5fa13d5397d26c7eea7feb">&#9670;&#160;</a></span>clearQmlCache()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">void dsqt::DsQmlApplicationEngine::clearQmlCache </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Clears the QML component cache. </p>
+<p>Invokable from QML. </p>
+
+</div>
+</div>
+<a id="af7a246705edb7b3b6b16c5a293fc3136" name="af7a246705edb7b3b6b16c5a293fc3136"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#af7a246705edb7b3b6b16c5a293fc3136">&#9670;&#160;</a></span>DefEngine()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="classdsqt_1_1DsQmlApplicationEngine.html">DsQmlApplicationEngine</a> * dsqt::DsQmlApplicationEngine::DefEngine </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">static</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Gets the default engine instance. </p>
+<dl class="section return"><dt>Returns</dt><dd>Pointer to the default <a class="el" href="classdsqt_1_1DsQmlApplicationEngine.html" title="Custom QML application engine for the dsqt framework.">DsQmlApplicationEngine</a>. </dd></dl>
+
+</div>
+</div>
+<a id="a65498bed42716c63dd578f2ce0538e1b" name="a65498bed42716c63dd578f2ce0538e1b"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a65498bed42716c63dd578f2ce0538e1b">&#9670;&#160;</a></span>doReset()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">void dsqt::DsQmlApplicationEngine::doReset </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Resets the engine. </p>
+<p>Performs pre-reset, reloads settings, resets systems, and emits signals. </p>
+
+</div>
+</div>
+<a id="ac4a098c6b1cb6ab4cd2c6a48ac5b0638" name="ac4a098c6b1cb6ab4cd2c6a48ac5b0638"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ac4a098c6b1cb6ab4cd2c6a48ac5b0638">&#9670;&#160;</a></span>fileChanged</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">void dsqt::DsQmlApplicationEngine::fileChanged </td>
+          <td>(</td>
+          <td class="paramtype">const QString &amp;&#160;</td>
+          <td class="paramname"><em>path</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">signal</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Emitted when a watched file changes. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">path</td><td>The path of the changed file. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<a id="a0c3f2d7153469db2da800b7fa03e20dc" name="a0c3f2d7153469db2da800b7fa03e20dc"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a0c3f2d7153469db2da800b7fa03e20dc">&#9670;&#160;</a></span>getAppSettings()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">DsSettingsRef dsqt::DsQmlApplicationEngine::getAppSettings </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Retrieves the application settings reference. </p>
+<dl class="section return"><dt>Returns</dt><dd>DsSettingsRef containing the app settings. </dd></dl>
+
+</div>
+</div>
+<a id="afb91d3caadd25097615b1ead251031be" name="afb91d3caadd25097615b1ead251031be"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#afb91d3caadd25097615b1ead251031be">&#9670;&#160;</a></span>getAppSettingsProxy()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="classdsqt_1_1DsQmlSettingsProxy.html">DsQmlSettingsProxy</a> * dsqt::DsQmlApplicationEngine::getAppSettingsProxy </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Gets the application settings proxy. </p>
+<dl class="section return"><dt>Returns</dt><dd>Pointer to <a class="el" href="classdsqt_1_1DsQmlSettingsProxy.html" title="The DSSettingsProxy class.">DsQmlSettingsProxy</a>. </dd></dl>
+
+</div>
+</div>
+<a id="ac2fbe004fa26cc2cf1f344f4b029b703" name="ac2fbe004fa26cc2cf1f344f4b029b703"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ac2fbe004fa26cc2cf1f344f4b029b703">&#9670;&#160;</a></span>getContentHelper()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="classdsqt_1_1model_1_1IContentHelper.html">model::IContentHelper</a> * dsqt::DsQmlApplicationEngine::getContentHelper </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Gets the content helper. </p>
+<dl class="section return"><dt>Returns</dt><dd>Pointer to <a class="el" href="classdsqt_1_1model_1_1IContentHelper.html" title="The IContentHelper class. This class is an interface(abstract class) that is intended as a base class...">model::IContentHelper</a>. </dd></dl>
+
+</div>
+</div>
+<a id="a9880a199936cfcd6423f286f1bf47dd2" name="a9880a199936cfcd6423f286f1bf47dd2"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a9880a199936cfcd6423f286f1bf47dd2">&#9670;&#160;</a></span>getContentRoot()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="classdsqt_1_1model_1_1ContentModelRef.html">model::ContentModelRef</a> dsqt::DsQmlApplicationEngine::getContentRoot </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Retrieves the root content model. </p>
+<dl class="section return"><dt>Returns</dt><dd><a class="el" href="classdsqt_1_1model_1_1ContentModelRef.html" title="A nodal hierarchy-based generic content model Each ContentModelRef points to an underlying Data objec...">model::ContentModelRef</a> for the content root. </dd></dl>
+
+</div>
+</div>
+<a id="a4ae1f5afe44c6a275698b43ecac74b03" name="a4ae1f5afe44c6a275698b43ecac74b03"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a4ae1f5afe44c6a275698b43ecac74b03">&#9670;&#160;</a></span>getEnvQml()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="classdsqt_1_1DsQmlEnvironment.html">DsQmlEnvironment</a> * dsqt::DsQmlApplicationEngine::getEnvQml </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Gets the QML environment. </p>
+<dl class="section return"><dt>Returns</dt><dd>Pointer to <a class="el" href="classdsqt_1_1DsQmlEnvironment.html" title="Provides environment-related functionality for QML integration.">DsQmlEnvironment</a>. </dd></dl>
+
+</div>
+</div>
+<a id="a7e217f62d541d3271d611748a8bb4b10" name="a7e217f62d541d3271d611748a8bb4b10"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a7e217f62d541d3271d611748a8bb4b10">&#9670;&#160;</a></span>getNodeWatcher()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="classdsqt_1_1network_1_1DsNodeWatcher.html">network::DsNodeWatcher</a> * dsqt::DsQmlApplicationEngine::getNodeWatcher </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Gets the node watcher. </p>
+<dl class="section return"><dt>Returns</dt><dd>Pointer to <a class="el" href="classdsqt_1_1network_1_1DsNodeWatcher.html">network::DsNodeWatcher</a>. </dd></dl>
+
+</div>
+</div>
+<a id="ad438bfd76dd23c2833ec938a50d07389" name="ad438bfd76dd23c2833ec938a50d07389"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ad438bfd76dd23c2833ec938a50d07389">&#9670;&#160;</a></span>getReferenceMap()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">const <a class="el" href="classdsqt_1_1model_1_1ReferenceMap.html">model::ReferenceMap</a> * dsqt::DsQmlApplicationEngine::getReferenceMap </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Gets the reference map. </p>
+<dl class="section return"><dt>Returns</dt><dd>Const pointer to <a class="el" href="classdsqt_1_1model_1_1ReferenceMap.html">model::ReferenceMap</a>. </dd></dl>
+
+</div>
+</div>
+<a id="acf5d838682f98fe71ef631ba2a9c1db3" name="acf5d838682f98fe71ef631ba2a9c1db3"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#acf5d838682f98fe71ef631ba2a9c1db3">&#9670;&#160;</a></span>idle()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="classdsqt_1_1DsQmlIdle.html">DsQmlIdle</a> * dsqt::DsQmlApplicationEngine::idle </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Gets the idle manager. </p>
+<dl class="section return"><dt>Returns</dt><dd>Pointer to <a class="el" href="classdsqt_1_1DsQmlIdle.html">DsQmlIdle</a>. </dd></dl>
+
+</div>
+</div>
+<a id="aeafb219e9655adcf9c2a771357d11876" name="aeafb219e9655adcf9c2a771357d11876"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#aeafb219e9655adcf9c2a771357d11876">&#9670;&#160;</a></span>imgui()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="classDsQmlImguiItem.html">DsQmlImguiItem</a> * dsqt::DsQmlApplicationEngine::imgui </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Gets the ImGui item for QML integration. </p>
+<dl class="section return"><dt>Returns</dt><dd>Pointer to <a class="el" href="classDsQmlImguiItem.html">DsQmlImguiItem</a>. </dd></dl>
+
+</div>
+</div>
+<a id="a928ebfa567070db2f701b1786b28ba86" name="a928ebfa567070db2f701b1786b28ba86"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a928ebfa567070db2f701b1786b28ba86">&#9670;&#160;</a></span>initialize()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">void dsqt::DsQmlApplicationEngine::initialize </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Initializes the engine. </p>
+<p>Performs pre-initialization, emits signals, and calls init and postInit. </p>
+
+</div>
+</div>
+<a id="af62be3cb2810bd46ee80cc5847652399" name="af62be3cb2810bd46ee80cc5847652399"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#af62be3cb2810bd46ee80cc5847652399">&#9670;&#160;</a></span>readSettings()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">void dsqt::DsQmlApplicationEngine::readSettings </td>
+          <td>(</td>
+          <td class="paramtype">bool&#160;</td>
+          <td class="paramname"><em>reset</em> = <code>false</code></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Reads the settings. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">reset</td><td>If true, resets the settings before reading. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<a id="a2d7823c4b563b385789f91b07c5f2dae" name="a2d7823c4b563b385789f91b07c5f2dae"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a2d7823c4b563b385789f91b07c5f2dae">&#9670;&#160;</a></span>setContentHelper()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">void dsqt::DsQmlApplicationEngine::setContentHelper </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="classdsqt_1_1model_1_1IContentHelper.html">model::IContentHelper</a> *&#160;</td>
+          <td class="paramname"><em>helper</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Sets the content helper. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">helper</td><td>Pointer to the IContentHelper to set. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<a id="ad9c1742dcb971d18f663bff8704ab868" name="ad9c1742dcb971d18f663bff8704ab868"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ad9c1742dcb971d18f663bff8704ab868">&#9670;&#160;</a></span>setDefaultEngine()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">void dsqt::DsQmlApplicationEngine::setDefaultEngine </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="classdsqt_1_1DsQmlApplicationEngine.html">DsQmlApplicationEngine</a> *&#160;</td>
+          <td class="paramname"><em>engine</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Sets this engine as the default engine. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">engine</td><td>Pointer to the <a class="el" href="classdsqt_1_1DsQmlApplicationEngine.html" title="Custom QML application engine for the dsqt framework.">DsQmlApplicationEngine</a> to set as default. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<a id="af796ffff0318fe7d2f97d8df693c1571" name="af796ffff0318fe7d2f97d8df693c1571"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#af796ffff0318fe7d2f97d8df693c1571">&#9670;&#160;</a></span>updateContentRoot()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">void dsqt::DsQmlApplicationEngine::updateContentRoot </td>
+          <td>(</td>
+          <td class="paramtype">QSharedPointer&lt; <a class="el" href="classdsqt_1_1model_1_1PropertyMapDiff.html">model::PropertyMapDiff</a> &gt;&#160;</td>
+          <td class="paramname"><em>diff</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Updates the content root with a property map diff. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">diff</td><td>Shared pointer to the PropertyMapDiff to apply. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
 <hr/>The documentation for this class was generated from the following files:<ul>
 <li>Library/Dsqt/core/<a class="el" href="dsQmlApplicationEngine_8h_source.html">dsQmlApplicationEngine.h</a></li>
 <li>Library/Dsqt/core/<b>dsQmlApplicationEngine.cpp</b></li>

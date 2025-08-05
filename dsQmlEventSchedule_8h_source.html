@@ -296,33 +296,54 @@ $(document).ready(function(){initNavTree('dsQmlEventSchedule_8h_source.html','')
 <div class="line"><a id="l00194" name="l00194"></a><span class="lineno">  194</span>        emit clockChanged();</div>
 <div class="line"><a id="l00195" name="l00195"></a><span class="lineno">  195</span>    }</div>
 <div class="line"><a id="l00196" name="l00196"></a><span class="lineno">  196</span> </div>
-<div class="line"><a id="l00197" name="l00197"></a><span class="lineno">  197</span>  signals:</div>
-<div class="line"><a id="l00198" name="l00198"></a><span class="lineno">  198</span>    <span class="keywordtype">void</span> typeChanged();</div>
-<div class="line"><a id="l00199" name="l00199"></a><span class="lineno">  199</span>    <span class="keywordtype">void</span> eventsChanged();</div>
-<div class="line"><a id="l00200" name="l00200"></a><span class="lineno">  200</span>    <span class="keywordtype">void</span> clockChanged();</div>
-<div class="line"><a id="l00201" name="l00201"></a><span class="lineno">  201</span> </div>
-<div class="line"><a id="l00202" name="l00202"></a><span class="lineno">  202</span>  <span class="keyword">private</span>:</div>
-<div class="line"><a id="l00203" name="l00203"></a><span class="lineno">  203</span>    <span class="keywordtype">void</span> updateNow();</div>
-<div class="line"><a id="l00204" name="l00204"></a><span class="lineno">  204</span>    <span class="keywordtype">void</span> update(<span class="keyword">const</span> QDateTime&amp; localDateTime);</div>
-<div class="line"><a id="l00205" name="l00205"></a><span class="lineno">  205</span> </div>
-<div class="line"><a id="l00206" name="l00206"></a><span class="lineno">  206</span>    <span class="keyword">static</span> <span class="keywordtype">void</span> sortEvents(QList&lt;DsQmlEvent*&gt;&amp; events, <span class="keyword">const</span> QDateTime&amp; localDateTime);</div>
-<div class="line"><a id="l00207" name="l00207"></a><span class="lineno">  207</span> </div>
-<div class="line"><a id="l00208" name="l00208"></a><span class="lineno">  208</span>  <span class="keyword">private</span> slots:</div>
-<div class="line"><a id="l00209" name="l00209"></a><span class="lineno">  209</span>    <span class="keywordtype">void</span> onUpdated();</div>
-<div class="line"><a id="l00210" name="l00210"></a><span class="lineno">  210</span> </div>
-<div class="line"><a id="l00211" name="l00211"></a><span class="lineno">  211</span>  <span class="keyword">private</span>:</div>
-<div class="line"><a id="l00212" name="l00212"></a><span class="lineno">  212</span>    QString                    m_type_name;       <span class="comment">// Event record type. If empty, all events are included.</span></div>
-<div class="line"><a id="l00213" name="l00213"></a><span class="lineno">  213</span>    QDateTime                  m_local_date_time; <span class="comment">// Local date and time.</span></div>
-<div class="line"><a id="l00214" name="l00214"></a><span class="lineno">  214</span>    QList&lt;DsQmlEvent*&gt;         m_events;          <span class="comment">// All events.</span></div>
-<div class="line"><a id="l00215" name="l00215"></a><span class="lineno">  215</span>    <span class="keyword">mutable</span> QList&lt;DsQmlEvent*&gt; m_timeline; <span class="comment">// List of events where overlapping events are resolved to a single event.</span></div>
-<div class="line"><a id="l00216" name="l00216"></a><span class="lineno">  216</span>    QFutureWatcher&lt;QList&lt;DsQmlEvent*&gt;&gt; m_watcher;         <span class="comment">// Tracks the async task.</span></div>
-<div class="line"><a id="l00217" name="l00217"></a><span class="lineno">  217</span>    <a class="code hl_class" href="classdsqt_1_1ui_1_1DsQmlClock.html">dsqt::ui::DsQmlClock</a>*              m_clock = <span class="keyword">nullptr</span>; <span class="comment">//</span></div>
-<div class="line"><a id="l00218" name="l00218"></a><span class="lineno">  218</span>};</div>
+<div class="line"><a id="l00197" name="l00197"></a><span class="lineno">  197</span>  <span class="keyword">public</span>:</div>
+<div class="line"><a id="l00198" name="l00198"></a><span class="lineno">  198</span>    <span class="comment">// Returns whether the specified event is currently scheduled, taking into account specific times or weekdays.</span></div>
+<div class="line"><a id="l00199" name="l00199"></a><span class="lineno">  199</span>    <span class="keyword">static</span> <span class="keywordtype">bool</span> isEventNow(<span class="keyword">const</span> <a class="code hl_class" href="classdsqt_1_1model_1_1ContentModelRef.html">model::ContentModelRef</a>&amp; event, QDateTime localDateTime);</div>
+<div class="line"><a id="l00200" name="l00200"></a><span class="lineno">  200</span>    <span class="comment">// Returns whether the specified event is scheduled for today, taking into account the weekdays.</span></div>
+<div class="line"><a id="l00201" name="l00201"></a><span class="lineno">  201</span>    <span class="keyword">static</span> <span class="keywordtype">bool</span> isEventToday(<span class="keyword">const</span> <a class="code hl_class" href="classdsqt_1_1model_1_1ContentModelRef.html">model::ContentModelRef</a>&amp; event, QDate localDate);</div>
+<div class="line"><a id="l00202" name="l00202"></a><span class="lineno">  202</span>    <span class="comment">// Returns whether the specified event is within the time span.</span></div>
+<div class="line"><a id="l00203" name="l00203"></a><span class="lineno">  203</span>    <span class="keyword">static</span> <span class="keywordtype">bool</span> isEventWithinSpan(<span class="keyword">const</span> <a class="code hl_class" href="classdsqt_1_1model_1_1ContentModelRef.html">model::ContentModelRef</a>&amp; event, QDateTime spanStart, QDateTime spanEnd);</div>
+<div class="line"><a id="l00204" name="l00204"></a><span class="lineno">  204</span> </div>
+<div class="line"><a id="l00205" name="l00205"></a><span class="lineno">  205</span>           <span class="comment">// Removes all events that are not of the specified type. Returns the number of removed events.</span></div>
+<div class="line"><a id="l00206" name="l00206"></a><span class="lineno">  206</span>    <span class="keyword">static</span> <span class="keywordtype">size_t</span> filterEvents(std::vector&lt;model::ContentModelRef&gt;&amp; events, <span class="keyword">const</span> QString&amp; typeName);</div>
+<div class="line"><a id="l00207" name="l00207"></a><span class="lineno">  207</span>    <span class="comment">// Removes all events that are not scheduled at the specified date and time. Returns the number of removed events.</span></div>
+<div class="line"><a id="l00208" name="l00208"></a><span class="lineno">  208</span>    <span class="keyword">static</span> <span class="keywordtype">size_t</span> filterEvents(std::vector&lt;model::ContentModelRef&gt;&amp; events, QDateTime localDateTime);</div>
+<div class="line"><a id="l00209" name="l00209"></a><span class="lineno">  209</span>    <span class="comment">// Removes all events that are not scheduled at the specified date. Returns the number of removed events.</span></div>
+<div class="line"><a id="l00210" name="l00210"></a><span class="lineno">  210</span>    <span class="keyword">static</span> <span class="keywordtype">size_t</span> filterEvents(std::vector&lt;model::ContentModelRef&gt;&amp; events, QDate localDate);</div>
+<div class="line"><a id="l00211" name="l00211"></a><span class="lineno">  211</span>    <span class="comment">// Removes all events that are not within the specified time range. Does not check for specific times or weekdays.</span></div>
+<div class="line"><a id="l00212" name="l00212"></a><span class="lineno">  212</span>    <span class="comment">// Returns the number of removed events.</span></div>
+<div class="line"><a id="l00213" name="l00213"></a><span class="lineno">  213</span>    <span class="keyword">static</span> <span class="keywordtype">size_t</span> filterEvents(std::vector&lt;model::ContentModelRef&gt;&amp; events, QDateTime spanStart, QDateTime spanEnd);</div>
+<div class="line"><a id="l00214" name="l00214"></a><span class="lineno">  214</span> </div>
+<div class="line"><a id="l00215" name="l00215"></a><span class="lineno">  215</span>           <span class="comment">// Sorts events by the default sorting heuristic. Sorted from highest to lowest priority.</span></div>
+<div class="line"><a id="l00216" name="l00216"></a><span class="lineno">  216</span>    <span class="keyword">static</span> <span class="keywordtype">void</span> sortEvents(std::vector&lt;model::ContentModelRef&gt;&amp; events, QDateTime localDateTime);</div>
+<div class="line"><a id="l00217" name="l00217"></a><span class="lineno">  217</span> </div>
+<div class="line"><a id="l00218" name="l00218"></a><span class="lineno">  218</span>  signals:</div>
+<div class="line"><a id="l00219" name="l00219"></a><span class="lineno">  219</span>    <span class="keywordtype">void</span> typeChanged();</div>
+<div class="line"><a id="l00220" name="l00220"></a><span class="lineno">  220</span>    <span class="keywordtype">void</span> eventsChanged();</div>
+<div class="line"><a id="l00221" name="l00221"></a><span class="lineno">  221</span>    <span class="keywordtype">void</span> clockChanged();</div>
+<div class="line"><a id="l00222" name="l00222"></a><span class="lineno">  222</span> </div>
+<div class="line"><a id="l00223" name="l00223"></a><span class="lineno">  223</span>  <span class="keyword">private</span>:</div>
+<div class="line"><a id="l00224" name="l00224"></a><span class="lineno">  224</span>    <span class="keywordtype">void</span> updateNow();</div>
+<div class="line"><a id="l00225" name="l00225"></a><span class="lineno">  225</span>    <span class="keywordtype">void</span> update(<span class="keyword">const</span> QDateTime&amp; localDateTime);</div>
+<div class="line"><a id="l00226" name="l00226"></a><span class="lineno">  226</span> </div>
+<div class="line"><a id="l00227" name="l00227"></a><span class="lineno">  227</span>    <span class="keyword">static</span> <span class="keywordtype">void</span> sortEvents(QList&lt;DsQmlEvent*&gt;&amp; events, <span class="keyword">const</span> QDateTime&amp; localDateTime);</div>
+<div class="line"><a id="l00228" name="l00228"></a><span class="lineno">  228</span> </div>
+<div class="line"><a id="l00229" name="l00229"></a><span class="lineno">  229</span>  <span class="keyword">private</span> slots:</div>
+<div class="line"><a id="l00230" name="l00230"></a><span class="lineno">  230</span>    <span class="keywordtype">void</span> onUpdated();</div>
+<div class="line"><a id="l00231" name="l00231"></a><span class="lineno">  231</span> </div>
+<div class="line"><a id="l00232" name="l00232"></a><span class="lineno">  232</span>  <span class="keyword">private</span>:</div>
+<div class="line"><a id="l00233" name="l00233"></a><span class="lineno">  233</span>    QString                    m_type_name;       <span class="comment">// Event record type. If empty, all events are included.</span></div>
+<div class="line"><a id="l00234" name="l00234"></a><span class="lineno">  234</span>    QDateTime                  m_local_date_time; <span class="comment">// Local date and time.</span></div>
+<div class="line"><a id="l00235" name="l00235"></a><span class="lineno">  235</span>    QList&lt;DsQmlEvent*&gt;         m_events;          <span class="comment">// All events.</span></div>
+<div class="line"><a id="l00236" name="l00236"></a><span class="lineno">  236</span>    <span class="keyword">mutable</span> QList&lt;DsQmlEvent*&gt; m_timeline; <span class="comment">// List of events where overlapping events are resolved to a single event.</span></div>
+<div class="line"><a id="l00237" name="l00237"></a><span class="lineno">  237</span>    QFutureWatcher&lt;QList&lt;DsQmlEvent*&gt;&gt; m_watcher;         <span class="comment">// Tracks the async task.</span></div>
+<div class="line"><a id="l00238" name="l00238"></a><span class="lineno">  238</span>    <a class="code hl_class" href="classdsqt_1_1ui_1_1DsQmlClock.html">dsqt::ui::DsQmlClock</a>*              m_clock = <span class="keyword">nullptr</span>; <span class="comment">//</span></div>
+<div class="line"><a id="l00239" name="l00239"></a><span class="lineno">  239</span>};</div>
 </div>
-<div class="line"><a id="l00219" name="l00219"></a><span class="lineno">  219</span> </div>
-<div class="line"><a id="l00220" name="l00220"></a><span class="lineno">  220</span>} <span class="comment">// namespace dsqt::model</span></div>
-<div class="line"><a id="l00221" name="l00221"></a><span class="lineno">  221</span> </div>
-<div class="line"><a id="l00222" name="l00222"></a><span class="lineno">  222</span><span class="preprocessor">#endif </span><span class="comment">// SCHEDULE_HELPER_H</span></div>
+<div class="line"><a id="l00240" name="l00240"></a><span class="lineno">  240</span> </div>
+<div class="line"><a id="l00241" name="l00241"></a><span class="lineno">  241</span>} <span class="comment">// namespace dsqt::model</span></div>
+<div class="line"><a id="l00242" name="l00242"></a><span class="lineno">  242</span> </div>
+<div class="line"><a id="l00243" name="l00243"></a><span class="lineno">  243</span><span class="preprocessor">#endif </span><span class="comment">// SCHEDULE_HELPER_H</span></div>
 <div class="ttc" id="aclassdsqt_1_1model_1_1ContentModelRef_html"><div class="ttname"><a href="classdsqt_1_1model_1_1ContentModelRef.html">dsqt::model::ContentModelRef</a></div><div class="ttdoc">A nodal hierarchy-based generic content model Each ContentModelRef points to an underlying Data objec...</div><div class="ttdef"><b>Definition</b> dsContentModel.h:145</div></div>
 <div class="ttc" id="aclassdsqt_1_1model_1_1ContentModelRef_html_ad8a553e068184687e5c3c97f0adff45a"><div class="ttname"><a href="classdsqt_1_1model_1_1ContentModelRef.html#ad8a553e068184687e5c3c97f0adff45a">dsqt::model::ContentModelRef::getPropertyDateTime</a></div><div class="ttdeci">QDateTime getPropertyDateTime(const QString &amp;propertyNameDate, const QString &amp;propertyNameTime) const</div><div class="ttdoc">Special date and time values.</div><div class="ttdef"><b>Definition</b> dsContentModel.cpp:524</div></div>
 <div class="ttc" id="aclassdsqt_1_1model_1_1DsQmlEventSchedule_html"><div class="ttname"><a href="classdsqt_1_1model_1_1DsQmlEventSchedule.html">dsqt::model::DsQmlEventSchedule</a></div><div class="ttdef"><b>Definition</b> dsQmlEventSchedule.h:143</div></div>
