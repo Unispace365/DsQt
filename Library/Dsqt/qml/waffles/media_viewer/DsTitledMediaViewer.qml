@@ -2,10 +2,10 @@ import QtQuick 2.15
 import QtMultimedia
 import Dsqt
 
-Viewer {
+DsViewer {
     id: root
     viewerType: Viewer.ViewerType.TitledMediaViewer
-    property list<ControlSet> controls
+    property list<DsControlSet> controls
     property url source
 
     width: mediaView.width;

@@ -14,6 +14,8 @@
 #include <QQmlContext>
 #include <QStringLiteral>
 
+#include <toml++/toml.h>
+
 Q_LOGGING_CATEGORY(lgAppEngine, "engine")
 Q_LOGGING_CATEGORY(lgAppEngineVerbose, "engine.verbose")
 namespace dsqt {
@@ -85,7 +87,7 @@ void DsQmlApplicationEngine::doReset() {
     emit hasReset();
 }
 
-DSSettingsRef DsQmlApplicationEngine::getAppSettings() {
+DsSettingsRef DsQmlApplicationEngine::getAppSettings() {
     return mSettings;
 }
 
@@ -118,6 +120,7 @@ const model::ReferenceMap* DsQmlApplicationEngine::getReferenceMap() const {
 }
 
 void DsQmlApplicationEngine::preInit() {
+    dsqt::DsEnvironment::loadEngineSettings();
 }
 
 void dsqt::DsQmlApplicationEngine::readSettings(bool reset) {
@@ -134,7 +137,7 @@ void dsqt::DsQmlApplicationEngine::readSettings(bool reset) {
         for (auto&& path_node : extra_paths) {
             auto path = path_node.as_string()->value_or<std::string>("");
             qCInfo(lgAppEngine) << "Loading engine file " << path;
-            dsqt::DsEnvironment::loadSettings("engine", path);
+            dsqt::DsEnvironment::loadSettings("engine", QString::fromStdString(path));
         }
     }
 
@@ -149,18 +152,18 @@ void dsqt::DsQmlApplicationEngine::readSettings(bool reset) {
         for (auto&& path_node : extra_paths) {
             auto path = path_node.as_string()->value_or<std::string>("");
             qCInfo(lgAppEngine) << "Loading app_settings file " << path;
-            dsqt::DsEnvironment::loadSettings("app_settings", path);
+            dsqt::DsEnvironment::loadSettings("app_settings", QString::fromStdString(path));
         }
     }
     qCInfo(lgAppEngine) << ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n";
 }
 
 void DsQmlApplicationEngine::init() {
-    //
+    // setup nodeWatcher
     readSettings();
     if (!mAppProxy) mAppProxy = new DsQmlSettingsProxy(this);
-
-    // get watcher elements
+    // auto starts, but could also be this:
+    // mNodeWatcher = new network::DsNodeWatcher(this,"localhost",7788,/*autostart*/false)
     // mNodeWatcher->start();
 
     readSettings();
@@ -186,7 +189,7 @@ void DsQmlApplicationEngine::init() {
             }
         }
     }
-
+    // get idle timeout
     auto timeoutInSeconds = DsEnvironment::engineSettings()->getOr<int>("engine.idle_timeout", 300);
     mIdle->setIdleTimeout(timeoutInSeconds * 1000);
     mIdle->startIdling(true);
@@ -200,14 +203,6 @@ void DsQmlApplicationEngine::init() {
 }
 
 void DsQmlApplicationEngine::postInit() {
-    // setup QML environment
-    if (!mQmlEnv) mQmlEnv = new DsQmlEnvironment(this);
-
-    // setup nodeWatcher
-    // if (!mNodeWatcher) mNodeWatcher = new network::DsNodeWatcher(this);
-    // auto starts, but could also be this:
-    // mNodeWatcher = new network::DsNodeWatcher(this,"localhost",7788,/*autostart*/false)
-    // mNodeWatcher->start();
 }
 
 void DsQmlApplicationEngine::resetIdle() {

@@ -616,8 +616,8 @@ Item {
         x: root.cOuterRadius;
         y: root.cOuterRadius;
         transform: Translate {
-            x: -closeBtn.width*0.5;
-            y: -closeBtn.height*0.5;
+            x: -closeUp.width*0.5;
+            y: -closeUp.height*0.5;
         }
 
         Image {
@@ -804,7 +804,7 @@ Item {
                 }
                 PropertyAction { target: root; property: "visible"; value:false }
                 ScriptAction {
-                    script: root.ClusterView.animateOffFinished()
+                    script: root.DsClusterView.animateOffFinished()
                 }
             }
         }

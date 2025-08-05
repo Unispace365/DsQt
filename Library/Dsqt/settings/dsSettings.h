@@ -34,7 +34,7 @@ const GeomElements getGeomElementsFromTable(toml::node_view<toml::node> node);
 
 
 class DsSettings;
-using DSSettingsRef	   = std::shared_ptr<DsSettings>;
+using DsSettingsRef	   = std::shared_ptr<DsSettings>;
 using parse_resultWRef = std::weak_ptr<toml::parse_result>;
 using NodeWMeta		   = std::tuple<toml::node_view<toml::node>, toml::table*, std::string>;
 template <typename T>
@@ -117,14 +117,14 @@ class DsSettings : public QObject {
     /// \param name name of the settings object to search for or create.
     /// \param parent a QObject derived parent.
 	/// \returns a tuple of [bool \b exists,DSSettingsRef \b settings]
-	static std::tuple<bool, DSSettingsRef> getSettingsOrCreate(const std::string& name, QObject* parent = nullptr);
+    static std::tuple<bool, DsSettingsRef> getSettingsOrCreate(const std::string& name, QObject* parent = nullptr);
 
 	/// Get a setting collection by name.
 	/// Get the DSSettingsRef (a std::shared_ptr<DsSettings> typedef)to a setting collection associated with \b name.
 	/// If the setting collection does not exist it will return an empty DSSettingsRef.
     /// \param name the name of the settings object to search for.
     /// \returns DSSettingsRef \b settings.
-	static DSSettingsRef getSettings(const std::string& name);
+    static DsSettingsRef getSettings(const std::string& name);
 
     /// remove a setting file from the list of known setting files.
     /// \param name the name of the settings object to forget.
@@ -380,7 +380,7 @@ class DsSettings : public QObject {
 	QString												  mCustomDateFormat = "";
 	static std::string									  mConfigurationDirectory;
 	static bool											  mLoadedConfiguration;
-	static std::unordered_map<std::string, DSSettingsRef> sSettings;
+    static std::unordered_map<std::string, DsSettingsRef> sSettings;
 	std::string											  mName = "";
 	std::vector<SettingFile>							  mResultStack;
 	SettingFile											  mRuntimeResult;

@@ -1,7 +1,10 @@
-#include "dsQmlClusterManager.h"
-#include "glm/gtx/rotate_vector.hpp"
-#include "glm/gtx/scalar_multiplication.hpp"
+#include "ui/dsQmlClusterManager.h"
+
 #include <QPointerEvent>
+
+#include <glm/gtx/rotate_vector.hpp>
+#include <glm/gtx/scalar_multiplication.hpp>
+
 namespace dsqt::ui {
 DsQmlClusterManager::DsQmlClusterManager(QQuickItem* parent):QQuickItem(parent) {
     this->setAcceptTouchEvents(true);
@@ -365,4 +368,4 @@ void DsQmlClusterManager::setTriggerTime(float newTriggerTime)
     emit triggerTimeChanged();
 }
 
-} //namespace dsqt::ui
+} // namespace dsqt::ui

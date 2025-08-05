@@ -1,4 +1,4 @@
-#include "dsQmlObj.h"
+#include "core/dsQmlObj.h"
 
 #include <bitset>
 

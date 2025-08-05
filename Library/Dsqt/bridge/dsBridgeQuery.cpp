@@ -1,8 +1,4 @@
-﻿#include "dsBridgeQuery.h"
-
-#include <QSharedPointer>
-#include <QString>
-
+﻿#include "bridge/dsBridgeQuery.h"
 #include "core/dsEnvironment.h"
 #include "model/dsContentModel.h"
 #include "model/dsPropertyMapDiff.h"
@@ -11,6 +7,9 @@
 #include "qqmlcontext.h"
 #include "settings/dsQmlSettingsProxy.h"
 #include "settings/dsSettings.h"
+
+#include <QSharedPointer>
+#include <QString>
 
 Q_LOGGING_CATEGORY(lgBridgeSyncApp, "bridgeSync.app")
 Q_LOGGING_CATEGORY(lgBridgeSyncQuery, "bridgeSync.query")

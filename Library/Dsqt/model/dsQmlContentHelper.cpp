@@ -7,6 +7,7 @@
 Q_LOGGING_CATEGORY(lgContentHelper, "model.contenthelper")
 Q_LOGGING_CATEGORY(lgContentHelperVerbose, "model.contenthelper.verbose")
 namespace dsqt::model {
+
 using namespace Qt::Literals::StringLiterals;
 DsQmlContentHelper::DsQmlContentHelper(QObject* parent)
     : IContentHelper(parent) {

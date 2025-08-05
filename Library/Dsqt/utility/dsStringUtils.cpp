@@ -1,5 +1,3 @@
-
-
 #include "utility/dsStringUtils.h"
 
 #include <codecvt>

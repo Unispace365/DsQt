@@ -5,11 +5,11 @@
 #include <QDir>
 #include <QFileInfo>
 #include <QImageReader>
+
 #include <iostream>
 
 
 // if we don't support 128bits we make a unsigned 32bit hash because value is a signed 64bit int
-// and we don't want negative values for the value; if we do support 128bits we use the 64bit hash
 #ifdef QT_SUPPORTS_INT128
 inline quint64 qHashHalf(const QString& in) {
     return qHash(in);
@@ -275,7 +275,7 @@ void DsResource::Id::setupPaths(const std::string& resource, const std::string& 
 
     // If the project path exists, then setup our app-local resources path.
     if (!projectPath.empty()) {
-        fs::path p((DsEnvironment::getDownstreamDocumentsFolder()));
+        fs::path p((DsEnvironment::getDownstreamDocumentsFolder().toStdString()));
         p.append("resources");
         p.append(projectPath);
         p.append("app");

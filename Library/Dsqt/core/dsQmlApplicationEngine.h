@@ -34,7 +34,7 @@ class DsQmlApplicationEngine : public QQmlApplicationEngine {
 
     void                           initialize();
     void                           doReset();
-    DSSettingsRef                  getAppSettings();
+    DsSettingsRef                  getAppSettings();
     model::ContentModelRef         getContentRoot();
     void                           setDefaultEngine(DsQmlApplicationEngine* engine);
     static DsQmlApplicationEngine* DefEngine();
@@ -65,7 +65,7 @@ class DsQmlApplicationEngine : public QQmlApplicationEngine {
 
 
     void          addRecursive(const QString& path, bool recurse = true);
-    DSSettingsRef mSettings;
+    DsSettingsRef mSettings;
 
 
   signals:

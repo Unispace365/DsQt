@@ -1,4 +1,4 @@
-#include "dsUrlImageLoader.h"
+#include "utility/dsUrlImageLoader.h"
 
 namespace dsqt {
 

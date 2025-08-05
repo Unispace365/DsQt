@@ -1,8 +1,10 @@
-#include "dsQmlIdle.h"
-#include "dsQmlIdlePreventer.h"
-#include <qguiapplication.h>
+#include "core/dsQmlIdle.h"
+#include "core/dsQmlIdlePreventer.h"
+
 #include <QPointerEvent>
 #include <QQmlListProperty>
+#include <qguiapplication.h>
+
 Q_LOGGING_CATEGORY(lgIdle, "idle")
 Q_LOGGING_CATEGORY(lgIdleVerbose, "idle.verbose")
 namespace dsqt {

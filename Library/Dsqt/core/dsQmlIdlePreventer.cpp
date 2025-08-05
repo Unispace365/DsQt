@@ -1,5 +1,6 @@
-#include "dsQmlIdlePreventer.h"
-#include "dsQmlIdle.h"
+#include "core/dsQmlIdlePreventer.h"
+#include "core/dsQmlIdle.h"
+
 namespace dsqt {
 DsQmlIdlePreventer::DsQmlIdlePreventer(QObject* parent):QObject(parent),mPreventionTimer(new QTimer(this)) {
     connect(mPreventionTimer,&QTimer::timeout,this,[this](){

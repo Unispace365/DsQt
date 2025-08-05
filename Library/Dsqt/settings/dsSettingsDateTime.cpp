@@ -1,8 +1,10 @@
 #include "settings/dsSettings.h"
 
 #include <QDate>
-#include <QTime>
 #include <QDateTime>
+#include <QTime>
+
+#include <string>
 
 #include <string>
 
