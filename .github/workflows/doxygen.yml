@@ -17,11 +17,6 @@ jobs:
       run: doxygen Doxyfile 2>&1 | tee doxygen.log
     - name: List Generated Files
       run: ls -R Docs || echo "No Docs folder found"
-    - name: Upload Doxygen Log
-      uses: actions/upload-artifact@v3
-      with:
-        name: doxygen-log
-        path: doxygen.log
     - name: Create .nojekyll
       run: touch Docs/html/.nojekyll
     - name: Deploy to GitHub Pages
