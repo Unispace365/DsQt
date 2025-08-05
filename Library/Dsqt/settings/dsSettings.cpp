@@ -14,7 +14,7 @@ struct GeomElements;
 
 std::string									   DsSettings::mConfigurationDirectory = "";
 bool										   DsSettings::mLoadedConfiguration	   = false;
-std::unordered_map<std::string, DSSettingsRef> DsSettings::sSettings;
+std::unordered_map<std::string, DsSettingsRef> DsSettings::sSettings;
 
 DsSettings::DsSettings(std::string name, QObject* parent) : QObject(parent) {
 	mName = name;
@@ -58,22 +58,22 @@ bool DsSettings::loadSettingFile(const std::string& file) {
 }
 
 
-std::tuple<bool, DSSettingsRef> DsSettings::getSettingsOrCreate(const std::string& name, QObject* parent) {
+std::tuple<bool, DsSettingsRef> DsSettings::getSettingsOrCreate(const std::string& name, QObject* parent) {
 
 	if (sSettings.find(name) != sSettings.end()) {
 		qCDebug(lgSPVerbose) << "getSettingsOrCreate: Found Setting " << QString::fromStdString(name);
 		return {true, sSettings[name]};
 	}
 
-    DSSettingsRef retVal = DSSettingsRef(new DsSettings(name, parent));
+    DsSettingsRef retVal = DsSettingsRef(new DsSettings(name, parent));
 	sSettings[name]		 = retVal;
 	return {false, retVal};
 }
 
-DSSettingsRef DsSettings::getSettings(const std::string& name) {
+DsSettingsRef DsSettings::getSettings(const std::string& name) {
 
 	if (sSettings.find(name) == sSettings.end()) {
-		return DSSettingsRef(nullptr);
+        return {};
 	}
 
 	return sSettings[name];
