@@ -576,15 +576,13 @@ Item {
                             root.itemHighlighted(button.index,false);
                         }
                     }
-                    onTapped: {
+                    onTapped: (eventPoint,eventButton)=> {
                         root.state = "Off"
                         root.selection = 0
+
                         root.itemSelected(
                             button.index,
-                            {
-                                x: (root.x + button.x) - (root.width * 0.5),
-                                y: (root.y + button.y) - (root.height * 0.5),
-                            }
+                            eventPoint.scenePosition
                         );
                     }
                 }
@@ -694,19 +692,6 @@ Item {
         }
     }
 
-
-
-    /*Rectangle {
-            id:tester_d
-            color: "blue"
-            opacity: 1.0
-            x: root.clusterPoint.x
-            y: root.clusterPoint.y
-            width: 20
-            height: 20
-        }
-    */
-
     Timer {
         id: closeTimer
         interval: root.closeTimer
@@ -734,7 +719,7 @@ Item {
                 console.log("Selected segment "+seg);
                 root.state = "Off"
                 root.selection = 0
-                root.itemSelected(seg, buttons.points[seg]);
+                root.itemSelected(seg, root.mapToGlobal(root.clusterPoint));
                 break;
             }
         }
