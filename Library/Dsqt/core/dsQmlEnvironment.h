@@ -32,6 +32,9 @@ class DsQmlEnvironment : public QObject {
     void platformNameChanged(); // Signal emitted when platformName changes.
 
   private:
+    void updateNow();
+
+  private:
     QString m_platformName{"Unknown Platform"};
 };
 

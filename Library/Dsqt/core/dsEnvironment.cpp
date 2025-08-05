@@ -160,7 +160,7 @@ bool DsEnvironment::initialize(){
         sDocumentsDownstream = p.string();
 
 		//programData/Downstream ifAvailable
-		QStringList dataPaths = QStandardPaths::standardLocations(QStandardPaths::GenericDataLocation);
+        const QStringList dataPaths = QStandardPaths::standardLocations(QStandardPaths::GenericDataLocation);
 		{
 			bool found = false;
 			QString sharedPath;

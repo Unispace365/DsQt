@@ -30,19 +30,19 @@ class DsQmlApplicationEngine : public QQmlApplicationEngine {
     QML_UNCREATABLE("Ya don't need to make an engine. get it from Ds.engine")
     Q_PROPERTY(DsQmlIdle* idle READ idle NOTIFY idleChanged FINAL)
   public:
-    explicit DsQmlApplicationEngine(QObject *parent = nullptr);
+    explicit DsQmlApplicationEngine(QObject* parent = nullptr);
 
     void                           initialize();
-    void doReset();
+    void                           doReset();
     DSSettingsRef                  getAppSettings();
     model::ContentModelRef         getContentRoot();
-    void						   setDefaultEngine(DsQmlApplicationEngine* engine);
+    void                           setDefaultEngine(DsQmlApplicationEngine* engine);
     static DsQmlApplicationEngine* DefEngine();
     void                           updateContentRoot(QSharedPointer<model::PropertyMapDiff> diff);
-    DsQmlImguiItem *imgui();
+    DsQmlImguiItem*                imgui();
     Q_INVOKABLE void               clearQmlCache();
     DsQmlEnvironment*              getEnvQml() const;
-    DsQmlSettingsProxy*               getAppSettingsProxy() const;
+    DsQmlSettingsProxy*            getAppSettingsProxy() const;
     model::IContentHelper*         getContentHelper();
     void                           setContentHelper(model::IContentHelper* helper);
     network::DsNodeWatcher*        getNodeWatcher() const;
@@ -50,15 +50,15 @@ class DsQmlApplicationEngine : public QQmlApplicationEngine {
 
     void readSettings(bool reset = false);
 
-    DsQmlIdle *idle() const;
+    DsQmlIdle* idle() const;
 
 
   private:
-    virtual void  preInit();
-    virtual void  init();
-    virtual void  postInit();
+    virtual void preInit();
+    virtual void init();
+    virtual void postInit();
 
-    void resetIdle();
+    void         resetIdle();
     virtual void preReset();
     virtual void resetSystem();
     virtual void postReset();
@@ -86,17 +86,17 @@ class DsQmlApplicationEngine : public QQmlApplicationEngine {
   protected:
     model::ContentModelRef         mContentRoot;
     model::ReferenceMap            mQmlRefMap;
-    model::DsQmlContentModel*        mRootMap = nullptr;
+    model::DsQmlContentModel*      mRootMap = nullptr;
     static DsQmlApplicationEngine* sDefaultEngine;
-	DsQmlImguiItem*				   mImgui;
+    DsQmlImguiItem*                mImgui;
     QFileSystemWatcher*            mWatcher = nullptr;
     QElapsedTimer                  mLastUpdate;
     QTimer                         mTrigger;
-    DsQmlSettingsProxy*               mAppProxy=nullptr;
-    DsQmlEnvironment*              mQmlEnv = nullptr;
+    DsQmlSettingsProxy*            mAppProxy      = nullptr;
+    DsQmlEnvironment*              mQmlEnv        = nullptr;
     model::IContentHelper*         mContentHelper = nullptr;
     network::DsNodeWatcher*        mNodeWatcher   = nullptr;
-    DsQmlIdle*                          mIdle = nullptr;
+    DsQmlIdle*                     mIdle          = nullptr;
 };
 
 

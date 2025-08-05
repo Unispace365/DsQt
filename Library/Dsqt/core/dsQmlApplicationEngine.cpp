@@ -204,7 +204,7 @@ void DsQmlApplicationEngine::postInit() {
     if (!mQmlEnv) mQmlEnv = new DsQmlEnvironment(this);
 
     // setup nodeWatcher
-    if (!mNodeWatcher) mNodeWatcher = new network::DsNodeWatcher(this);
+    // if (!mNodeWatcher) mNodeWatcher = new network::DsNodeWatcher(this);
     // auto starts, but could also be this:
     // mNodeWatcher = new network::DsNodeWatcher(this,"localhost",7788,/*autostart*/false)
     // mNodeWatcher->start();
@@ -256,11 +256,9 @@ void DsQmlApplicationEngine::updateContentRoot(QSharedPointer<model::PropertyMap
 
     if (mRootMap == nullptr) {
         mRootMap = mContentRoot.getQml(&mQmlRefMap, this);
-    } else {
-        if (diff) {
-            diff->dumpChanges();
-            diff->apply(*mRootMap, &mQmlRefMap);
-        }
+    } else if (diff) {
+        diff->dumpChanges();
+        diff->apply(*mRootMap, &mQmlRefMap);
     }
 
     // mRootModel		  = mContentRoot.getModel(this);
