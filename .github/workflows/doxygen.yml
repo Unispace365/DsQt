@@ -5,12 +5,25 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pages: write
+      id-token: write
     steps:
     - uses: actions/checkout@v3
     - name: Install Doxygen
       run: sudo apt-get install -y doxygen
     - name: Generate Documentation
-      run: doxygen Doxyfile
+      run: doxygen Doxyfile 2>&1 | tee doxygen.log
+    - name: List Generated Files
+      run: ls -R Docs || echo "No Docs folder found"
+    - name: Upload Doxygen Log
+      uses: actions/upload-artifact@v3
+      with:
+        name: doxygen-log
+        path: doxygen.log
+    - name: Create .nojekyll
+      run: touch Docs/html/.nojekyll
     - name: Deploy to GitHub Pages
       uses: peaceiris/actions-gh-pages@v3
       with:
