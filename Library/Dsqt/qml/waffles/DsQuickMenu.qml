@@ -734,7 +734,7 @@ Item {
                 console.log("Selected segment "+seg);
                 root.state = "Off"
                 root.selection = 0
-                root.itemSelected(seg, Qt.point(0, 0)); // TODO: how to get button position from here?
+                root.itemSelected(seg, buttons.points[seg]);
                 break;
             }
         }
