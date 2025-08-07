@@ -12,7 +12,7 @@ var searchData=
   ['colorchanged_9',['colorChanged',['../classdsqt_1_1ui_1_1DsQmlClock.html#a882f6f2c17e60c595ee359fb02d8829b',1,'dsqt::ui::DsQmlClock']]],
   ['contentmodelref_10',['contentmodelref',['../classdsqt_1_1model_1_1ContentModelRef.html',1,'dsqt::model::ContentModelRef'],['../classdsqt_1_1model_1_1ContentModelRef.html#aad6141e0f09f4a2e89cd69cb83ac9f09',1,'dsqt::model::ContentModelRef::ContentModelRef()']]],
   ['contentproperty_11',['ContentProperty',['../classdsqt_1_1model_1_1ContentProperty.html',1,'dsqt::model']]],
-  ['contentupdated_12',['contentUpdated',['../classdsqt_1_1bridge_1_1DsQmlBridgeLog.html#a216bc54f438d937f33aad974f233b3f7',1,'dsqt::bridge::DsQmlBridgeLog']]],
+  ['contentupdated_12',['contentUpdated',['../classdsqt_1_1model_1_1DsQmlTextFileModel.html#a77b9c0ac7d01bf5b2258c137d0af48cc',1,'dsqt::model::DsQmlTextFileModel']]],
   ['contract_13',['contract',['../classdsqt_1_1DsEnvironment.html#af97be0b8557bcd19a0824ba237d3b8e1',1,'dsqt::DsEnvironment::contract(const std::string &amp;path)'],['../classdsqt_1_1DsEnvironment.html#a1feac80cd4c27c0937960fa42451075a',1,'dsqt::DsEnvironment::contract(QString path)']]],
   ['create_14',['create',['../classdsqt_1_1DsQmlObj.html#a6ba1bb68b90855609342d49674bb3c06',1,'dsqt::DsQmlObj']]],
   ['custom_5ftype_15',['CUSTOM_TYPE',['../structdsqt_1_1DsResource_1_1Id.html#acc25bacc5441bd6950a93a791003b591',1,'dsqt::DsResource::Id']]]

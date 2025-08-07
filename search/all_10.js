@@ -7,5 +7,5 @@ var searchData=
   ['resource_4',['Resource',['../classResource.html',1,'']]],
   ['resourcelist_5',['ResourceList',['../classdsqt_1_1DsResource.html#a1602154f2ddaeaa59b49e7951aee79c2',1,'dsqt::DsResource']]],
   ['rootupdated_6',['rootUpdated',['../classdsqt_1_1DsQmlApplicationEngine.html#aa1c9a4cc162ac25932de77534a5904d9',1,'dsqt::DsQmlApplicationEngine']]],
-  ['rowcount_7',['rowCount',['../classdsqt_1_1bridge_1_1DsQmlBridgeLog.html#a042803c529329de78178068172805bf7',1,'dsqt::bridge::DsQmlBridgeLog']]]
+  ['rowcount_7',['rowCount',['../classdsqt_1_1model_1_1DsQmlTextFileModel.html#aa3c0b0787983cdc9b0c64ba66b0b30cd',1,'dsqt::model::DsQmlTextFileModel']]]
 ];

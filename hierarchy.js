@@ -23,7 +23,7 @@ var hierarchy =
       [ "QJsonModel", "classQJsonModel.html", null ]
     ] ],
     [ "QAbstractListModel", null, [
-      [ "dsqt::bridge::DsQmlBridgeLog", "classdsqt_1_1bridge_1_1DsQmlBridgeLog.html", null ],
+      [ "dsqt::model::DsQmlTextFileModel", "classdsqt_1_1model_1_1DsQmlTextFileModel.html", null ],
       [ "dsqt::ui::DsQmlTouchClusterList", "classdsqt_1_1ui_1_1DsQmlTouchClusterList.html", null ]
     ] ],
     [ "QGuiApplication", null, [

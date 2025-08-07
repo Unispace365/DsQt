@@ -14,7 +14,7 @@ var searchData=
   ['setcustomdateformat_11',['setCustomDateFormat',['../classdsqt_1_1DsSettings.html#ae6af9758bc69385cfa1e3954dc549c31',1,'dsqt::DsSettings']]],
   ['setdateformat_12',['setDateFormat',['../classdsqt_1_1DsSettings.html#a18f8af5dc6e7413b65b9527df18fbb24',1,'dsqt::DsSettings']]],
   ['setdefaultengine_13',['setDefaultEngine',['../classdsqt_1_1DsQmlApplicationEngine.html#ad9c1742dcb971d18f663bff8704ab868',1,'dsqt::DsQmlApplicationEngine']]],
-  ['setfile_14',['setFile',['../classdsqt_1_1bridge_1_1DsQmlBridgeLog.html#a9c525dac8d07abdf24338b301c664a83',1,'dsqt::bridge::DsQmlBridgeLog']]],
+  ['setfile_14',['setFile',['../classdsqt_1_1model_1_1DsQmlTextFileModel.html#a994fe30990959136e20b4b370cf9d6eb',1,'dsqt::model::DsQmlTextFileModel']]],
   ['setforce_15',['setForce',['../classdsqt_1_1ui_1_1DsQmlFpsMonitor.html#a86225ed011fdc63eaafbd9e0c8c5b37d',1,'dsqt::ui::DsQmlFpsMonitor']]],
   ['sethourhandcolor_16',['setHourHandColor',['../classdsqt_1_1ui_1_1DsQmlClock.html#a82467c087576ab693d5f8ee57a8694b9',1,'dsqt::ui::DsQmlClock']]],
   ['sethourmarkcolor_17',['setHourMarkColor',['../classdsqt_1_1ui_1_1DsQmlClock.html#a84f7b7e7815c49f9c3d424e6eac2a29f',1,'dsqt::ui::DsQmlClock']]],

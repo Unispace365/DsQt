@@ -6,8 +6,7 @@ var annotated_dup =
         [ "DatabaseGuard", "classdsqt_1_1bridge_1_1DatabaseGuard.html", "classdsqt_1_1bridge_1_1DatabaseGuard" ],
         [ "DsBridgeSqlQuery", "classdsqt_1_1bridge_1_1DsBridgeSqlQuery.html", "classdsqt_1_1bridge_1_1DsBridgeSqlQuery" ],
         [ "DsBridgeSyncSettings", "structdsqt_1_1bridge_1_1DsBridgeSyncSettings.html", null ],
-        [ "DsBridgeWatcher", "classdsqt_1_1bridge_1_1DsBridgeWatcher.html", "classdsqt_1_1bridge_1_1DsBridgeWatcher" ],
-        [ "DsQmlBridgeLog", "classdsqt_1_1bridge_1_1DsQmlBridgeLog.html", "classdsqt_1_1bridge_1_1DsQmlBridgeLog" ]
+        [ "DsBridgeWatcher", "classdsqt_1_1bridge_1_1DsBridgeWatcher.html", "classdsqt_1_1bridge_1_1DsBridgeWatcher" ]
       ] ],
       [ "model", null, [
         [ "ContentModelRef", "classdsqt_1_1model_1_1ContentModelRef.html", "classdsqt_1_1model_1_1ContentModelRef" ],
@@ -17,6 +16,7 @@ var annotated_dup =
         [ "DsQmlContentModel", "classdsqt_1_1model_1_1DsQmlContentModel.html", null ],
         [ "DsQmlEvent", "classdsqt_1_1model_1_1DsQmlEvent.html", null ],
         [ "DsQmlEventSchedule", "classdsqt_1_1model_1_1DsQmlEventSchedule.html", null ],
+        [ "DsQmlTextFileModel", "classdsqt_1_1model_1_1DsQmlTextFileModel.html", "classdsqt_1_1model_1_1DsQmlTextFileModel" ],
         [ "IContentHelper", "classdsqt_1_1model_1_1IContentHelper.html", "classdsqt_1_1model_1_1IContentHelper" ],
         [ "PropertyMapDiff", "classdsqt_1_1model_1_1PropertyMapDiff.html", "classdsqt_1_1model_1_1PropertyMapDiff" ],
         [ "ReferenceMap", "classdsqt_1_1model_1_1ReferenceMap.html", null ]
