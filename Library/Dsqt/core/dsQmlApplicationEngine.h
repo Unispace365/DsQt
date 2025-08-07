@@ -221,32 +221,22 @@ class DsQmlApplicationEngine : public QQmlApplicationEngine {
     /**
      * @brief Emitted before initialization starts.
      */
-    void willInitialize();
-
-    /**
-     * @brief Emitted during initialization.
-     */
-    void initializing();
+    void beginInitialize();
 
     /**
      * @brief Emitted after initialization completes.
      */
-    void hasInitialized();
+    void endInitialize();
 
     /**
      * @brief Emitted before reset starts.
      */
-    void willReset();
-
-    /**
-     * @brief Emitted during reset.
-     */
-    void resetting();
+    void beginReset();
 
     /**
      * @brief Emitted after reset completes.
      */
-    void hasReset();
+    void endReset();
 
     /**
      * @brief Emitted when a watched file changes.
