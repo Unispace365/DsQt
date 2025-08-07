@@ -71,6 +71,7 @@ qt_add_qml_module(Dsqt
         ui/dsQmlClusterManager.h ui/dsQmlClusterManager.cpp
         ui/dsQmlClusterView.h ui/dsQmlClusterView.cpp
         ui/dsQmlFpsMonitor.h ui/dsQmlFpsMonitor.cpp
+        ui/dsQmlPlaylistView.h ui/dsQmlPlaylistView.cpp
         ui/dsQmlTouchCluster.h ui/dsQmlTouchCluster.cpp
         utility/dsFileMetaData.cpp utility/dsFileMetaData.h
         utility/dsStringUtils.cpp utility/dsStringUtils.h
