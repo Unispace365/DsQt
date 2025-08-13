@@ -6,7 +6,7 @@ set(QML_IMPORT_PATH
      CACHE PATH "QT creator qml import path" FORCE
  )
 
-find_package(Qt6 REQUIRED COMPONENTS Core Multimedia Quick)
+find_package(Qt6 REQUIRED COMPONENTS Core Multimedia Quick Widgets)
 
 qt_add_qml_module(Dsqt
     URI Dsqt
@@ -32,31 +32,22 @@ qt_add_qml_module(Dsqt
         core/dsGuiApplication.cpp core/dsGuiApplication.h
         core/dsQmlApplicationEngine.cpp core/dsQmlApplicationEngine.h
         core/dsQmlEnvironment.h core/dsQmlEnvironment.cpp
-        core/dsQmlEnvironment.h core/dsQmlEnvironment.cpp
+        core/dsQmlIdle.h core/dsQmlIdle.cpp
+        core/dsQmlIdlePreventer.h core/dsQmlIdlePreventer.cpp
         core/dsQmlImguiItem.h
         core/dsQmlObj.h core/dsQmlObj.cpp
-        core/dsQmlObj.h core/dsQmlObj.cpp
-        core/dsReloadUrlInterceptor.h core/dsReloadUrlInterceptor.cpp
         core/dsReloadUrlInterceptor.h core/dsReloadUrlInterceptor.cpp
         model/dsContentModel.cpp model/dsContentModel.h
-        model/dsContentModel.cpp model/dsContentModel.h
-        model/dsIContentHelper.cpp model/dsIContentHelper.h
         model/dsIContentHelper.cpp model/dsIContentHelper.h
         model/dsPropertyMapDiff.cpp model/dsPropertyMapDiff.h
-        model/dsPropertyMapDiff.cpp model/dsPropertyMapDiff.h
         model/dsQmlContentHelper.cpp model/dsQmlContentHelper.h
-        model/dsQmlContentHelper.cpp model/dsQmlContentHelper.h
-        model/dsQmlContentModel.cpp model/dsQmlContentModel.h
         model/dsQmlContentModel.cpp model/dsQmlContentModel.h
         model/dsQmlEventSchedule.cpp model/dsQmlEventSchedule.h
         model/dsQmlTextFileModel.cpp model/dsQmlTextFileModel.h
         model/dsReferenceMap.h model/dsResource.cpp model/dsResource.h
-        model/dsReferenceMap.h model/dsResource.cpp model/dsResource.h
-        model/qjsonmodel.cpp model/qjsonmodel.h
         model/qJsonModel.cpp model/qJsonModel.h
         network/dsNodeWatcher.cpp network/dsNodeWatcher.h
         settings/dsOverloaded.h
-        settings/dsQmlSettingsProxy.cpp settings/dsQmlSettingsProxy.h
         settings/dsQmlSettingsProxy.cpp settings/dsQmlSettingsProxy.h
         settings/dsSettings.cpp settings/dsSettings.h
         settings/dsSettingsBase.cpp
@@ -79,11 +70,9 @@ qt_add_qml_module(Dsqt
     DEPENDENCIES
          QtQuick
          Dsqtplugin
-         SOURCES core/dsQmlIdle.h core/dsQmlIdle.cpp
-         SOURCES core/dsQmlIdlePreventer.h core/dsQmlIdlePreventer.cpp
 
 )
 
-target_link_libraries(Dsqtplugin PRIVATE Qt6::Core Qt6::Multimedia Qt6::Quick)
+target_link_libraries(Dsqtplugin PRIVATE Qt6::Core Qt6::Multimedia Qt6::Quick Qt6::Widgets)
 
 target_include_directories(Dsqt PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} bridge core model network qml resources settings ui utility)
