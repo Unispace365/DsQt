@@ -1,156 +1,143 @@
 import QtQuick
-import QtQuick.VirtualKeyboard
+import QtQuick.Controls
 import Dsqt
 
 /// \brief main window for DsQt QML applications.
-/// Takes a url to a qml file to use as the world root.
-/// \ingroup QML
-Window {
+ApplicationWindow {
     id: window
-    x: windowProxy.getBool("center")?(Screen.width- width)/2:windowProxy.getRect("destination").x;
-    y: windowProxy.getBool("center")?(Screen.height - height)/2:windowProxy.getRect("destination").y;
-    width: windowProxy.getRect("destination").width;
-    height:  windowProxy.getRect("destination").height;
     visible: true
+    flags: Qt.Window
     title: `${Application.name} (${Application.version})`
-    flags: Qt.FramelessWindowHint | Qt.Window
-    property string mode:"normal"
-    ///The path to the QML object to load as the root
-    property url rootSrc:"";
 
-
-    Item {
-        id: root
-        width: window.width;
-        height: window.height;
-
+    /// Allow the application to quit by pressing ESCAPE. CTRL+Q is handled by the menu bar. ALT+F4 is supported by default.
     Shortcut {
-        sequences: ["ESCAPE","CTRL+Q"]
-        autoRepeat: false;
-        onActivated: Qt.quit();
+        sequence: "ESCAPE"
+        autoRepeat: false
         context: Qt.ApplicationShortcut
+        onActivated: Qt.quit()
     }
 
-    Component.onCompleted: {
-    }
-    
-
-
+    /// Provides access to the window settings.
     DsSettingsProxy {
-        id:appProxy
-        target:"app_settings"
-    }
-
-    DsSettingsProxy {
-        id:windowProxy
-        target:"engine"
+        id: windowProxy
+        target: "engine"
         prefix: "engine.window"
     }
 
+    /// Setup the window after construction.
+    Component.onCompleted: {
+        // Setup the window based on the settings.
+        var mode = windowProxy.getString("mode", "window")         // "window", "display", "desktop"
+        var displayName = windowProxy.getString("displayName", "") // If specified, will lookup the display index by name...
+        var displayIndex = windowProxy.getInt("displayIndex", 1)   // ...otherwise, will use this index.
+        var margin = windowProxy.getString("margin", 100)          // Allows a bit of space around the window.
 
-    DsScaleLoader {
-       width: windowProxy.getRect("source").width
-       height: windowProxy.getRect("source").height
-       id: loadera
-       rootSource: window.rootSrc;
-    }
+        // Get the list of available screens.
+        var screens = Qt.application.screens
 
-    Shortcut {
-        sequence: "S"
-        autoRepeat: false
-        onActivated: {window.mode = window.mode != "scale" ? "scale" : "normal"}
-        context: Qt.ApplicationShortcut
-    }
-
-    Shortcut {
-        sequence: "T"
-        autoRepeat: false
-        onActivated: {window.mode = window.mode != "translate" ? "translate" : "normal" }
-        context: Qt.ApplicationShortcut
-    }
-
-    Shortcut {
-        sequence: "0"
-        autoRepeat: false
-        onActivated: {
-            window.mode = "normal"
-            loadera.viewScale = 1.0;
-            loadera.viewPos = Qt.point(0,0);
-            loadera.scaleView()
-        }
-        context: Qt.ApplicationShortcut
-    }
-
-    MouseArea {
-        enabled: {window.mode != "normal"}
-        width: window.width;
-        height: window.height;
-        property real startX
-        property real startY
-        onPressed: {
-            startX = mouseX;
-            startY = mouseY;
-        }
-        onMouseXChanged: {
-            if(window.mode == "scale"){
-                if(window.width>0){
-                    let dist = (mouseX - startX)/window.width*2
-                    loadera.viewScale += dist;
-                    if(loadera.viewScale<0.25){
-                        loadera.viewScale = 0.25
-                    }
-
-                    loadera.scaleView();
-                    startX = mouseX;
+        // Find display index if name is specified.
+        if(displayName !== ""){
+            for(var i=0; i<screens.length; ++i) {
+                if(screens[i].name === displayName) {
+                    displayIndex = i;
+                    break;
                 }
-            } else if(window.mode == "translate"){
-                if(window.width>0){
-                    let distx = (startX - mouseX)/loadera.viewScale
-                    let disty = (startY - mouseY)/loadera.viewScale
-                    loadera.viewPos.x += distx;
-                    loadera.viewPos.y += disty;
+            }
+        }
 
+        // Default to main screen if index is invalid.
+        if(displayIndex >= screens.length)
+            displayIndex = 0
 
-                    loadera.scaleView();
-                    startX = mouseX;
-                    startY = mouseY;
+        // Adjust position and size based on specified mode.
+        var preferredWidth = windowProxy.getInt("width", screens[displayIndex].width - 2 * margin)     //
+        var preferredHeight = windowProxy.getInt("height", screens[displayIndex].height - 2 * margin)  //
+
+        if(mode === "desktop") {
+            // Create a borderless window.
+            flags |= Qt.FramelessWindowHint
+
+            // Find the origin.
+            for(let i=0; i<screens.length; ++i) {
+                x = Math.min(x, screens[i].virtualX)
+                y = Math.min(y, screens[i].virtualY)
+            }
+
+            // Span the full desktop.
+            for(i=0; i<screens.length; ++i) {
+                width = Math.max(width, screens[i].width + (screens[i].virtualX - x))
+                height = Math.max(height, screens[i].height + (screens[i].virtualY - y))
+            }
+        }
+        else if(mode === "display" || (preferredWidth === screens[displayIndex].width && preferredHeight === screens[displayIndex].height)) {
+            // Create a borderless window.
+            flags |= Qt.FramelessWindowHint
+
+            // Assign the window to its screen.
+            screen = screens[displayIndex]
+
+            // Move and resize the window.
+            x = screen.virtualX
+            y = screen.virtualY
+            width = screen.width
+            height = screen.height
+        }
+        else {
+            // Assign the window to its screen.
+            screen = screens[displayIndex]
+
+            // Adjust the preferred dimensions if they don't fit on the selected screen.
+            var availableWidth = screen.width - 2 * margin
+            var availableHeight = screen.height - 2 * margin
+            if(preferredWidth > availableWidth || preferredHeight > availableHeight ) {
+                var preferredAspect = preferredWidth / preferredHeight
+                var availableAspect = availableWidth / availableHeight
+                if( availableAspect > preferredAspect) {
+                    preferredHeight = Math.min(preferredHeight, availableHeight)
+                    preferredWidth = preferredHeight * preferredAspect;
+                } else {
+                    preferredWidth = Math.min(preferredWidth, availableWidth)
+                    preferredHeight = preferredWidth / preferredAspect;
                 }
             }
 
+            // Move and resize the window.
+            x = screen.virtualX + 0.5 * (screen.width - preferredWidth)
+            y = screen.virtualY + 0.5 * (screen.height - preferredHeight)
+            width = preferredWidth
+            height = preferredHeight
         }
     }
 
-    Text {
-        anchors.horizontalCenter: root.horizontalCenter
-        anchors.verticalCenter: root.verticalCenter
-        visible: window.mode != "normal"
-        font.pixelSize: 56
-        opacity: 0.25
-        color: "white"
-        font.capitalization: Font.Capitalize
-        text: window.mode
-    }
-
-
-    Connections {
-        target: Ds.engine
-        function onResetting(path) {
-            console.log("file changed qml");
-            loadera.reload();
+    /// Allow showing and hiding the menu bar by pressing E.
+    Shortcut {
+        sequence: "E"
+        autoRepeat: false
+        context: Qt.ApplicationShortcut
+        onActivated: {
+            windowMenuBar.visible = !windowMenuBar.visible
         }
     }
 
+    /// The default menu bar.
+    menuBar: DsAppMenuBar {
+        id: windowMenuBar
+        visible: false
 
-    /*Imgui {
-        id: imgui
-        objectName: "imgui"
-        anchors.fill: parent
-        SequentialAnimation on opacity {
-            id: opacityAnim
-            running: false
-            NumberAnimation { from: 1; to: 0; duration: 3000 }
-            NumberAnimation { from: 0; to: 1; duration: 3000 }
-        }
-    }*/
+        onLogsBridgeSyncTriggered: (isChecked) => { bridgeSyncLog.visible = isChecked }
     }
+
+    /// TODO Application log viewer.
+
+    /// BridgeSync log viewer.
+    DsTextFileViewer {
+        id: bridgeSyncLog
+        title: "BridgeSync Log"
+        file: Ds.env.expand("%LOCAL%/ds_waffles/logs/bridgesync.log")
+        //screen: Window.screen
+
+        onVisibleChanged: (isVisible) => { windowMenuBar.logsBridgeSyncChecked = isVisible }
+    }
+
+    /// TODO AppHost log viewer.
 }
