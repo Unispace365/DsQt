@@ -9,10 +9,18 @@ Item {
 
     // Current user-controlled scale (1.0 = 100%)
     property real userScale: 1.0
-    property real originalScale: 1.0
 
     // Mode toggled by holding SHIFT
     property bool mouseEnabled: false
+
+    // Whether view fitting is enabled
+    property bool fitEnabled: true
+
+    // Whether original size is enabled
+    property bool fitOriginal: false
+
+    // Whether centering is enabled
+    property bool fitCentered: true
 
     // Allow children to be declared inside this component and forward them to the content wrapper
     default property alias contentData: contentWrapper.data
@@ -23,13 +31,8 @@ Item {
     // Handle key presses
     Keys.onPressed: (event) => {
                         if (event.key === Qt.Key_Shift) {
-                            mouseEnabled = true
-                            event.accepted = true
-                        } else if (event.key === Qt.Key_0) {
-                            userScale = 1.0
-                            contentWrapper.x = (Window.width - preferredWidth) / 2
-                            contentWrapper.y = (Window.height - preferredHeight) / 2
-                            event.accepted = true
+                            mouseEnabled = fitEnabled
+                            event.accepted = fitEnabled
                         }
                     }
 
@@ -51,6 +54,7 @@ Item {
 
     // Mouse area for handling wheel, hover, and drag
     MouseArea {
+        id: mouse
         anchors.fill: parent
         acceptedButtons: Qt.LeftButton | Qt.RightButton
         hoverEnabled: true
@@ -95,30 +99,56 @@ Item {
 
     // Function to zoom around a specific point (mouse position)
     function zoomAt(mx, my, factor) {
-        var oldScale = userScale
-        var newScale = oldScale * factor
+        if(fitEnabled) {
+            var oldScale = userScale
+            var newScale = oldScale * factor
 
-        // Calculate local position in content coordinates
-        var localX = (mx - contentWrapper.x) / oldScale
-        var localY = (my - contentWrapper.y) / oldScale
+            // Calculate local position in content coordinates
+            var localX = (mx - contentWrapper.x) / oldScale
+            var localY = (my - contentWrapper.y) / oldScale
 
-        // Update scale and adjust position to keep the point fixed
-        userScale = newScale
-        contentWrapper.x = mx - localX * newScale
-        contentWrapper.y = my - localY * newScale
+            // Update scale and adjust position to keep the point fixed
+            userScale = newScale
+            contentWrapper.x = mx - localX * newScale
+            contentWrapper.y = my - localY * newScale
+        }
     }
 
     // Function to fit content to the view (letterboxed)
     function fitToScreen() {
-        var fitScale = Math.min(width / preferredWidth, height / preferredHeight)
-        userScale = fitScale
+        if(fitEnabled) {
+            if(fitOriginal) {
+                userScale = 1.0
+                contentWrapper.x = fitCentered ? (width - preferredWidth) / 2 : 0
+                contentWrapper.y = fitCentered ? (height - preferredHeight) / 2 : 0
+                contentWrapper.width = preferredWidth
+                contentWrapper.height = preferredHeight
+            }
+            else {
+                var fitScale = Math.min(width / preferredWidth, height / preferredHeight)
+                userScale = fitScale
 
-        // Center the content
-        var displayedWidth = preferredWidth * fitScale
-        var displayedHeight = preferredHeight * fitScale
-        contentWrapper.x = (width - displayedWidth) / 2
-        contentWrapper.y = (height - displayedHeight) / 2
+                // Center the content
+                var displayedWidth = preferredWidth * fitScale
+                var displayedHeight = preferredHeight * fitScale
+                contentWrapper.x = fitCentered ? (width - displayedWidth) / 2 : 0
+                contentWrapper.y = fitCentered ? (height - displayedHeight) / 2 : 0
+                contentWrapper.width = preferredWidth
+                contentWrapper.height = preferredHeight
+            }
+        } else {
+            contentWrapper.x = x
+            contentWrapper.y = y
+            contentWrapper.width = width
+            contentWrapper.height = height
+            userScale = 1.0
+        }
     }
+
+    // Refit when properties change.
+    onFitEnabledChanged: fitToScreen()
+    onFitOriginalChanged: fitToScreen()
+    onFitCenteredChanged: fitToScreen()
 
     // Refit when size changes.
     onWidthChanged: fitToScreen()
