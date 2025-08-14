@@ -31,8 +31,8 @@ Item {
     // Handle key presses
     Keys.onPressed: (event) => {
                         if (event.key === Qt.Key_Shift) {
-                            mouseEnabled = fitEnabled
-                            event.accepted = fitEnabled
+                            mouseEnabled = true
+                            event.accepted = true
                         }
                     }
 
@@ -99,19 +99,17 @@ Item {
 
     // Function to zoom around a specific point (mouse position)
     function zoomAt(mx, my, factor) {
-        if(fitEnabled) {
-            var oldScale = userScale
-            var newScale = oldScale * factor
+        var oldScale = userScale
+        var newScale = oldScale * factor
 
-            // Calculate local position in content coordinates
-            var localX = (mx - contentWrapper.x) / oldScale
-            var localY = (my - contentWrapper.y) / oldScale
+        // Calculate local position in content coordinates
+        var localX = (mx - contentWrapper.x) / oldScale
+        var localY = (my - contentWrapper.y) / oldScale
 
-            // Update scale and adjust position to keep the point fixed
-            userScale = newScale
-            contentWrapper.x = mx - localX * newScale
-            contentWrapper.y = my - localY * newScale
-        }
+        // Update scale and adjust position to keep the point fixed
+        userScale = newScale
+        contentWrapper.x = mx - localX * newScale
+        contentWrapper.y = my - localY * newScale
     }
 
     // Function to fit content to the view (letterboxed)
