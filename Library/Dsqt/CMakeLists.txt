@@ -6,41 +6,28 @@ set(QML_IMPORT_PATH
      CACHE PATH "QT creator qml import path" FORCE
  )
 
-find_package(Qt6 REQUIRED COMPONENTS Core Multimedia Quick Widgets)
-
-set(QML_FILES
-    qml/bridge/DsBridgeQueryControls.qml
-    qml/DsAppBase.qml
-    qml/DsAppMenuBar.qml
-    qml/DsAppMenuItem.qml
-    qml/DsScaleLoader.qml
-    qml/DsTextFileViewer.qml
-    qml/waffles/DsQuickMenu.qml
-    qml/waffles/DsViewer.qml
-    qml/waffles/DsWaffleStage.qml
-    qml/waffles/media_viewer/DsControlSet.qml
-    qml/waffles/media_viewer/DsTitledMediaViewer.qml
-    qml/waffles/menu_launcher/DsContentLauncher.qml
-    qml/waffles/menu_launcher/DsSection.qml
-    qml/waffles/menu_launcher/DsTestLauncher.qml
-)
-
-set(QML_SINGLETONS
-
-)
-
-set_source_files_properties(${QML_SINGLETONS}
-    PROPERTIES QT_QML_SINGLETON_TYPE TRUE
-)
+find_package(Qt6 REQUIRED COMPONENTS Core Multimedia Quick)
 
 qt_add_qml_module(Dsqt
     URI Dsqt
     STATIC
     VERSION 1.0
-    PLUGIN_TARGET Dsqtplugin
     QML_FILES 
-        ${QML_FILES} 
-        ${QML_SINGLETONS}
+        qml/bridge/DsBridgeQueryControls.qml
+        qml/DsAppBase.qml
+        qml/DsAppMenuBar.qml
+        qml/DsAppMenuItem.qml
+        qml/DsFitView.qml
+        qml/DsScaleLoader.qml
+        qml/DsTextFileViewer.qml
+        qml/waffles/DsQuickMenu.qml
+        qml/waffles/DsViewer.qml
+        qml/waffles/DsWaffleStage.qml
+        qml/waffles/media_viewer/DsControlSet.qml
+        qml/waffles/media_viewer/DsTitledMediaViewer.qml
+        qml/waffles/menu_launcher/DsContentLauncher.qml
+        qml/waffles/menu_launcher/DsSection.qml
+        qml/waffles/menu_launcher/DsTestLauncher.qml
 
     SOURCES
         bridge/dsBridgeQuery.cpp bridge/dsBridgeQuery.h
@@ -86,9 +73,10 @@ qt_add_qml_module(Dsqt
 
     DEPENDENCIES
          QtQuick
+         Dsqtplugin
 
 )
 
-target_link_libraries(Dsqtplugin PRIVATE Qt6::Core Qt6::Multimedia Qt6::Quick Qt6::Widgets)
+target_link_libraries(Dsqtplugin PRIVATE Qt6::Core Qt6::Multimedia Qt6::Quick)
 
 target_include_directories(Dsqt PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} bridge core model network qml resources settings ui utility)
