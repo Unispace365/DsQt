@@ -16,7 +16,8 @@ qt_add_qml_module(Dsqt
         qml/bridge/DsBridgeQueryControls.qml
         qml/DsAppBase.qml
         qml/DsScaleLoader.qml
-        qml/waffles/DsQuickMenu.qml
+        qml/ui/DsPlaylistView.qml
+        qml/ui/DsQuickMenu.qml
         qml/waffles/DsViewer.qml
         qml/waffles/DsWaffleStage.qml
         qml/waffles/media_viewer/DsControlSet.qml
@@ -24,6 +25,7 @@ qt_add_qml_module(Dsqt
         qml/waffles/menu_launcher/DsContentLauncher.qml
         qml/waffles/menu_launcher/DsSection.qml
         qml/waffles/menu_launcher/DsTestLauncher.qml
+        
 
     SOURCES
         bridge/dsBridgeQuery.cpp bridge/dsBridgeQuery.h
@@ -34,6 +36,8 @@ qt_add_qml_module(Dsqt
         core/dsQmlApplicationEngine.cpp core/dsQmlApplicationEngine.h
         core/dsQmlEnvironment.h core/dsQmlEnvironment.cpp
         core/dsQmlEnvironment.h core/dsQmlEnvironment.cpp
+        core/dsQmlIdle.h core/dsQmlIdle.cpp
+        core/dsQmlIdlePreventer.h core/dsQmlIdlePreventer.cpp
         core/dsQmlImguiItem.h
         core/dsQmlObj.h core/dsQmlObj.cpp
         core/dsQmlObj.h core/dsQmlObj.cpp
@@ -71,7 +75,7 @@ qt_add_qml_module(Dsqt
         ui/dsQmlClusterManager.h ui/dsQmlClusterManager.cpp
         ui/dsQmlClusterView.h ui/dsQmlClusterView.cpp
         ui/dsQmlFpsMonitor.h ui/dsQmlFpsMonitor.cpp
-        ui/dsQmlPlaylistView.h ui/dsQmlPlaylistView.cpp
+        ui/dsQmlPlaylistControl.h ui/dsQmlPlaylistControl.cpp
         ui/dsQmlTouchCluster.h ui/dsQmlTouchCluster.cpp
         utility/dsFileMetaData.cpp utility/dsFileMetaData.h
         utility/dsStringUtils.cpp utility/dsStringUtils.h
@@ -81,8 +85,6 @@ qt_add_qml_module(Dsqt
     DEPENDENCIES
          QtQuick
          Dsqtplugin
-         SOURCES core/dsQmlIdle.h core/dsQmlIdle.cpp
-         SOURCES core/dsQmlIdlePreventer.h core/dsQmlIdlePreventer.cpp
 
 )
 

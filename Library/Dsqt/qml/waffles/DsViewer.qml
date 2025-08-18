@@ -8,5 +8,5 @@ Item {
         FullscreenController,
         Unknown
     }
-    property int viewerType: Viewer.ViewerType.Unknown
+    property int viewerType: DsViewer.ViewerType.Unknown
 }

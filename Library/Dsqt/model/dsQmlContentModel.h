@@ -22,8 +22,15 @@ class DsQmlContentModel : public QQmlPropertyMap {
 
     void                      updateQmlModel(ContentModelRef model);
     ContentModelRef           origin() const { return mOrigin; }
+    QVariantMap               toVariantMap();
     static DsQmlContentModel* getQmlContentModel(ContentModelRef model, ReferenceMap* referenceMap,
                                                  QObject* parent = nullptr);
+    static DsQmlContentModel* getQmlContentModel(ContentModelRef model);
+
+
+
+  protected:
+    virtual QVariant updateValue(const QString &key,const QVariant &input) override;
 
   private:
     ContentModelRef mOrigin;

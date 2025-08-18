@@ -16,9 +16,12 @@ PropertyMapDiff::PropertyMapDiff() {
 }
 
 void PropertyMapDiff::diffMaps(const DsQmlContentModel& from, const DsQmlContentModel& to, const QStringList& path) {
-    auto id = from.value("uid").toString();
+    auto id = to.value("uid").toString();
     if (id.isEmpty()) {
-        id = from.value("name").toString();
+        id = to.value("name").toString();
+    }
+    if(id.isEmpty()){
+
     }
     if (m_visited.contains(id)) {
         return;
@@ -61,7 +64,7 @@ void PropertyMapDiff::diffMaps(const DsQmlContentModel& from, const DsQmlContent
 
     // ModifiedProperty
     auto mods = fromKeys & toKeys;
-    for (const QString& k : fromKeys& toKeys) {
+    for (const QString& k : mods) {
         QVariant v1 = from.value(k), v2 = to.value(k);
         if (v1 != v2) {
             Change c;

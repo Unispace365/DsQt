@@ -1059,15 +1059,20 @@ DsQmlContentModel* ContentModelRef::getQml(ReferenceMap* refMap, QObject* parent
     if (!mData || mData->mNotToQml) {
         return mEmptyQmlContentModel;
     }
-    // do we already have a DsQmlContentModel for this model?
-    DsQmlContentModel* map = DsQmlContentModel::getQmlContentModel(*this, refMap, parent);
+    DsQmlContentModel* map = nullptr;
+    if(refMap != nullptr){
+        // do we already have a DsQmlContentModel for this model?
+        map = DsQmlContentModel::getQmlContentModel(*this, refMap, parent);
 
-    if (!refMap->isTemp) {
-        auto sid = getId();
-        if (sid.isEmpty()) {
-            sid = getName();
+        if (!refMap->isTemp) {
+            auto sid = getId();
+            if (sid.isEmpty()) {
+                sid = getName();
+            }
+            qCDebug(lgContentModelVerbose).noquote() << deep + "Updating QmlContentModel for " << sid;
         }
-        qCDebug(lgContentModelVerbose).noquote() << deep + "Updating QmlContentModel for " << sid;
+    } else {
+        map  = new DsQmlContentModel(*this,parent);
     }
     // localUpdate is to encapsulate debugging or additional functionality
     // associated with changing/inserting a key value;

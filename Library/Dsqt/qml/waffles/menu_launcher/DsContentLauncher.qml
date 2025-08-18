@@ -4,9 +4,9 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import Dsqt
 
-Viewer {
+DsViewer {
     id: root
-    viewerType: Viewer.ViewerType.Launcher
+    viewerType: DsViewer.ViewerType.Launcher
     required property var stage
     property alias model: rep.model
     width: childrenRect.width

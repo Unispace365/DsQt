@@ -3,8 +3,19 @@ import Dsqt
 
 Item {
 
+    enum Edge {
+        TopInner,
+        TopOuter,
+        LeftInner,
+        LeftOuter,
+        BottomInner,
+        BottomOuter,
+        RightInner,
+        RightOuter,
+        Center
+    }
 
-    required property int edge
+    required property Edge edge
     property real offset
 
     signal closedViewer(viewer: var)
