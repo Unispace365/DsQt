@@ -580,7 +580,7 @@ bool DsBridgeSqlQuery::queryTables() {
             //++it;
         }
 
-        for (const auto& record : rankOrderedRecords) {
+        for (auto& record : rankOrderedRecords) {
             records.addChild(record);
             auto type = record.getPropertyString("variant");
             if (type == "ROOT_CONTENT") {

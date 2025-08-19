@@ -85,6 +85,7 @@ qt_add_qml_module(Dsqt
     DEPENDENCIES
          QtQuick
          Dsqtplugin
+         SOURCES model/dsContenModelItemModel.h model/dsContenModelItemModel.cpp
 
 )
 

@@ -36,9 +36,9 @@ Item {
 
         onNextItemChanged: {
             if(nextItem){
-                console.log("NextItem changed")
+                //console.log("NextItem changed")
             } else {
-                console.log("nextItem is null")
+                //console.log("nextItem is null")
             }
         }
     }
@@ -94,7 +94,7 @@ Item {
             StateChangeScript {
                 name:"load"
                 script: {
-                    console.log("next")
+                    //console.log("next")
                     internal.next.z=1
                     internal.next.opacity=0;
                     internal.current.z=0
@@ -107,7 +107,7 @@ Item {
                         };
                     } else {
                         internal.next.chilli = incubator.object
-                        print("Object", incubator.object, "is ready immediately!");
+                        //print("Object", incubator.object, "is ready immediately!");
                     }
                 }
             }

@@ -70,7 +70,8 @@ public:
 
     dsqt::ui::DsQmlPlaylistControl::UpdateMode updateMode() const;
     void setUpdateMode(const dsqt::ui::DsQmlPlaylistControl::UpdateMode &newUpdateMode);
-    Q_INVOKABLE void updateModel();
+    Q_INVOKABLE void updateModel(bool force=false);
+
 
     dsqt::model::DsQmlContentModel *nextModel() const;
 

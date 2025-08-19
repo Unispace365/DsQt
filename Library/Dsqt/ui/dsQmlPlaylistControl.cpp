@@ -276,9 +276,16 @@ void DsQmlPlaylistControl::setUpdateMode(const dsqt::ui::DsQmlPlaylistControl::U
     emit updateModeChanged();
 }
 
-void DsQmlPlaylistControl::updateModel()
+
+
+void DsQmlPlaylistControl::updateModel(bool force)
 {
-    if(mNextModel != nullptr && mModel != mNextModel){
+    if(!force && m_updateMode != UpdateMode::Immediate){
+        qWarning()<<"Update model called but not in immediate mode, ignoring";
+        return;
+    }
+
+    if(mNextModel != nullptr && mModel != mNextModel ){
         mModel = mNextModel;
         mNextModel = nullptr;
         emit modelChanged();
