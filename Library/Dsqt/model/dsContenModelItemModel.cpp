@@ -105,7 +105,7 @@ std::unique_ptr<ContentModelItem> DsContenModelItemModel::updateModelData(const 
     item->model = model;
     item->m_itemData.insert("name", model.getName());
     item->m_itemData.insert("id", model.getId());
-    item->m_itemData.insert("model",DsQmlContentModel::getQmlContentModel(model)->toVariantMap());
+    item->m_itemData.insert("model",model.getQml()->toVariantMap());
     for(auto& child: model.getChildren()){
         auto childItem = updateModelData(child);
         childItem->m_parentItem = item;

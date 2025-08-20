@@ -6,6 +6,7 @@
 #include <QJsonObject>
 #include <QJsonValue>
 #include <utility/dsStringUtils.h>
+#include <core/dsQmlApplicationEngine.h>
 
 Q_LOGGING_CATEGORY(lgContentModel, "model.contentmodel")
 Q_LOGGING_CATEGORY(lgContentModelVerbose, "model.contentmodel.verbose")
@@ -1054,6 +1055,12 @@ void ContentModelRef::updateQml(DsQmlContentModel* mapIn) {
 }
 
 
+DsQmlContentModel* ContentModelRef::getQml() const {
+    auto engine = DsQmlApplicationEngine::DefEngine();
+    auto refMap = DsQmlApplicationEngine::DefEngine()->getReferenceMap();
+    return getQml(refMap,qobject_cast<QObject*>(engine), QString());
+}
+
 DsQmlContentModel* ContentModelRef::getQml(ReferenceMap* refMap, QObject* parent, QString deep) const {
     // skip this if we aren't sending this model to qml.
     if (!mData || mData->mNotToQml) {
@@ -1087,7 +1094,26 @@ DsQmlContentModel* ContentModelRef::getQml(ReferenceMap* refMap, QObject* parent
         localUpdate("name", QVariant::fromValue(mData->mName));
         localUpdate("label", QVariant::fromValue(mData->mLabel));
         for (const auto& prop : mData->mProperties) {
-            localUpdate(prop.first, QVariant::fromValue(prop.second.getValue()));
+
+            if(prop.second.getResource()!=EMPTY_RESOURCE){
+                auto resource = prop.second.getResource();
+                QVariantMap valueOut;
+                //convert all of resources properties to QVariantMap
+
+                valueOut.insert("filepath", QVariant::fromValue(resource.getAbsoluteFilePath()));
+                valueOut.insert("thumbnailId", QVariant::fromValue(resource.getThumbnailId()));
+                valueOut.insert("thumbnailFilepath", QVariant::fromValue(resource.getThumbnailFilePath()));
+                valueOut.insert("duration", QVariant::fromValue(resource.getDuration()));
+                valueOut.insert("type", QVariant::fromValue(resource.getTypeName()));
+                valueOut.insert("width", QVariant::fromValue(resource.getWidth()));
+                valueOut.insert("height", QVariant::fromValue(resource.getHeight()));
+                QRectF cropValue = resource.getCrop();
+                valueOut.insert("crop", QVariantList::fromVector({cropValue.x(), cropValue.y(), cropValue.width(), cropValue.height()}));
+
+                localUpdate(prop.first, valueOut);
+            } else {
+                localUpdate(prop.first, QVariant::fromValue(prop.second.getValue()));
+            }
         }
         for (const auto& propList : mData->mPropertyLists) {
             QVariantList list;

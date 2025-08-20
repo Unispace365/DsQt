@@ -55,6 +55,7 @@ QVariantMap DsQmlContentModel::toVariantMap()
     return result;
 }
 
+//returns a QmlContentModel for the given ContentModelRef. or a new empty one if one didn't exist.
 DsQmlContentModel* DsQmlContentModel::getQmlContentModel(ContentModelRef model, ReferenceMap* referenceMap,
                                                          QObject* parent) {
     auto gmap = referenceMap;

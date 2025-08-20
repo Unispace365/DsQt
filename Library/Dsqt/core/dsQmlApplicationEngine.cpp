@@ -35,6 +35,7 @@ DsQmlApplicationEngine::DsQmlApplicationEngine(QObject* parent)
     mIdle = new DsQmlIdle(this);
     mIdle->setAreaItemTarget(qGuiApp);
 
+    mQmlRefMap = new model::ReferenceMap();
 
     qCInfo(lgAppEngine) << "connecting file watcher";
     connect(
@@ -115,8 +116,8 @@ network::DsNodeWatcher* DsQmlApplicationEngine::getNodeWatcher() const {
     return mNodeWatcher;
 }
 
-const model::ReferenceMap* DsQmlApplicationEngine::getReferenceMap() const {
-    return &mQmlRefMap;
+model::ReferenceMap* DsQmlApplicationEngine::getReferenceMap() const {
+    return mQmlRefMap;
 }
 
 void DsQmlApplicationEngine::preInit() {
@@ -140,6 +141,33 @@ void dsqt::DsQmlApplicationEngine::readSettings(bool reset) {
             dsqt::DsEnvironment::loadSettings("engine", QString::fromStdString(path));
         }
     }
+
+    auto engSettings = dsqt::DsEnvironment::engineSettings();
+    std::function<QString(QString)> normPath = [this](QString path) {
+        auto ret = path;
+        path.replace( '\\', '/');
+
+        ret = QDir::fromNativeSeparators(ret);
+
+        return ret;
+    };
+    QString resourceLocation = engSettings->getOr<QString>("engine.resource.location","");
+    if (resourceLocation.isEmpty()) {
+    } else {
+        if (resourceLocation.contains("%USERPROFILE%")) {
+#ifndef _WIN32
+            resourceLocation.replace("%USERPROFILE%", QDir::homePath());
+            qCInfo(lgAppEngine)<<"Non-windows workaround: Converting \"%USERPROFILE%\" to \"~\" in resources_location...";
+#endif
+        }
+        resourceLocation = DsEnvironment::expandq(resourceLocation); // allow use of %APP%, etc
+        resourceLocation = QUrl::fromLocalFile(resourceLocation).toString();
+
+        DsResource::Id::setupPaths(resourceLocation,
+                                   normPath(engSettings->getOr<QString>("engine.resource.resource_db","")),
+                                   normPath(engSettings->getOr<QString>("engine.project_path","")));
+    }
+
 
     qCInfo(lgAppEngine) << "loading main app_settings.toml";
     if (reset) {
@@ -200,6 +228,8 @@ void DsQmlApplicationEngine::init() {
     // rootContext()->setContextProperty("app_settings",mAppProxy);
     // rootContext()->setContextProperty("$QmlEngine", this);
     // rootContext()->setContextProperty("$Env",mQmlEnv);
+
+
 }
 
 void DsQmlApplicationEngine::postInit() {
@@ -250,10 +280,10 @@ void DsQmlApplicationEngine::updateContentRoot(QSharedPointer<model::PropertyMap
     }
 
     if (mRootMap == nullptr) {
-        mRootMap = mContentRoot.getQml(&mQmlRefMap, this);
+        mRootMap = mContentRoot.getQml(mQmlRefMap, this);
     } else if (diff) {
         diff->dumpChanges();
-        diff->apply(*mRootMap, &mQmlRefMap);
+        diff->apply(*mRootMap, mQmlRefMap);
     }
 
     // mRootModel		  = mContentRoot.getModel(this);
