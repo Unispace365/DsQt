@@ -231,6 +231,7 @@ bool DsQmlPlaylistControl::loadTemplate(int index){
 
 
         }
+        m_currentModelItem = modelItemQml;
         auto comp = mTemplateComponents[typeId];
         m_currentTemplateComp = comp;
         return true;

@@ -16,6 +16,7 @@ qt_add_qml_module(Dsqt
         qml/bridge/DsBridgeQueryControls.qml
         qml/DsAppBase.qml
         qml/DsScaleLoader.qml
+        qml/ui/DsAnimateOnOffItem.qml
         qml/ui/DsPlaylistView.qml
         qml/ui/DsQuickMenu.qml
         qml/waffles/DsViewer.qml
@@ -25,7 +26,6 @@ qt_add_qml_module(Dsqt
         qml/waffles/menu_launcher/DsContentLauncher.qml
         qml/waffles/menu_launcher/DsSection.qml
         qml/waffles/menu_launcher/DsTestLauncher.qml
-        
 
     SOURCES
         bridge/dsBridgeQuery.cpp bridge/dsBridgeQuery.h

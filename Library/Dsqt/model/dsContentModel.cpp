@@ -1104,7 +1104,8 @@ DsQmlContentModel* ContentModelRef::getQml(ReferenceMap* refMap, QObject* parent
                 valueOut.insert("thumbnailId", QVariant::fromValue(resource.getThumbnailId()));
                 valueOut.insert("thumbnailFilepath", QVariant::fromValue(resource.getThumbnailFilePath()));
                 valueOut.insert("duration", QVariant::fromValue(resource.getDuration()));
-                valueOut.insert("type", QVariant::fromValue(resource.getTypeName()));
+                auto type = resource.getTypeName();
+                valueOut.insert("type", QVariant::fromValue(resource.getQMLTypeName()));
                 valueOut.insert("width", QVariant::fromValue(resource.getWidth()));
                 valueOut.insert("height", QVariant::fromValue(resource.getHeight()));
                 QRectF cropValue = resource.getCrop();
