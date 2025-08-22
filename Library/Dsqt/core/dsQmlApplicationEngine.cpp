@@ -70,22 +70,20 @@ DsQmlApplicationEngine::DsQmlApplicationEngine(QObject* parent)
 
 void DsQmlApplicationEngine::initialize() {
     preInit();
-    emit willInitialize();
+    emit beginInitialize();
     init();
-    emit initializing();
+    emit endInitialize();
     postInit();
-    emit hasInitialized();
 }
 
 void DsQmlApplicationEngine::doReset() {
     preReset();
-    emit willReset();
+    emit beginReset();
     readSettings(true);
     resetIdle();
     resetSystem();
-    emit resetting();
+    emit endReset();
     postReset();
-    emit hasReset();
 }
 
 DsSettingsRef DsQmlApplicationEngine::getAppSettings() {

@@ -1,8 +1,8 @@
-#include "bridge/dsQmlBridgeLog.h"
+#include "model/dsQmlTextFileModel.h"
 
-namespace dsqt::bridge {
+namespace dsqt::model {
 
-DsQmlBridgeLog::DsQmlBridgeLog(QObject* parent)
+DsQmlTextFileModel::DsQmlTextFileModel(QObject* parent)
     : QAbstractListModel(parent) {
     // Create file system watcher.
     // m_watcher = new QFileSystemWatcher(this);
@@ -16,7 +16,7 @@ DsQmlBridgeLog::DsQmlBridgeLog(QObject* parent)
     connect(m_timer, &QTimer::timeout, this, [this]() { updateLog(m_path); });
 }
 
-void DsQmlBridgeLog::setFile(const QString& path) {
+void DsQmlTextFileModel::setFile(const QString& path) {
     if (path == m_path) return;
     m_path = path;
 
@@ -38,7 +38,7 @@ void DsQmlBridgeLog::setFile(const QString& path) {
     emit fileChanged();
 }
 
-void DsQmlBridgeLog::updateLog(const QString& path) {
+void DsQmlTextFileModel::updateLog(const QString& path) {
     if (path != m_path) return;
 
     // Try to open the log file.
@@ -92,7 +92,7 @@ void DsQmlBridgeLog::updateLog(const QString& path) {
     }
 }
 
-void DsQmlBridgeLog::loadInitialLog() {
+void DsQmlTextFileModel::loadInitialLog() {
     QFile file(m_path);
     if (!file.open(QIODevice::ReadOnly)) {
         beginResetModel();
@@ -128,7 +128,7 @@ void DsQmlBridgeLog::loadInitialLog() {
     emit contentUpdated();
 }
 
-qint64 DsQmlBridgeLog::findStartPosition(QFile& file) {
+qint64 DsQmlTextFileModel::findStartPosition(QFile& file) {
     // Obtain file size.
     m_lastPosition = file.size();
     if (m_lastPosition == 0) return 0;
@@ -139,7 +139,7 @@ qint64 DsQmlBridgeLog::findStartPosition(QFile& file) {
     // Find the position of the line to start with, based on the maximum number of lines allowed.
     qsizetype linesFound = 0;
     qint64    pos        = m_lastPosition;
-    while (pos > 0 && linesFound < MAX_LINES) {
+    while (pos > 0 && linesFound < m_max_line_count) {
         qint64 readPos = qMax(qint64(0), pos - chunkSize);
         qint64 bytes   = pos - readPos;
         file.seek(readPos);
@@ -150,7 +150,7 @@ qint64 DsQmlBridgeLog::findStartPosition(QFile& file) {
         for (int i = chunk.size() - 1; i >= 0; --i) {
             if (chunk.at(i) == '\n') {
                 ++linesFound;
-                if (linesFound == MAX_LINES) {
+                if (linesFound == m_max_line_count) {
                     return readPos + i + 1;
                 }
             }
@@ -160,10 +160,10 @@ qint64 DsQmlBridgeLog::findStartPosition(QFile& file) {
     return 0;
 }
 
-void DsQmlBridgeLog::trimLines() {
-    if (m_lines.size() <= MAX_LINES) return;
+void DsQmlTextFileModel::trimLines() {
+    if (m_lines.size() <= m_max_line_count) return;
 
-    qsizetype excess = m_lines.size() - MAX_LINES;
+    qsizetype excess = m_lines.size() - m_max_line_count;
     beginRemoveRows(QModelIndex(), 0, excess - 1);
     m_lines.remove(0, excess);
     endRemoveRows();

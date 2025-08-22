@@ -66,26 +66,33 @@ Loader {
     //onLoaded: loadera.visible = true;
 
     function scaleView(scale: real, pos: point){
-        //resize the loader to fit in the destination
-        var src = windowProxy.getRect("source");
-        var dst = windowProxy.getRect("destination");
-        var x_scale = dst.width/src.width*(loadera.viewScale ?? 1.0)
-        var y_scale = dst.height/src.height*(loadera.viewScale ?? 1.0)
-        var offset = Qt.point(src.x+0.5*src.width,src.y+0.5*src.height);
+        var x_scale = loadera.viewScale ?? 1.0
+        var y_scale = loadera.viewScale ?? 1.0
+
+        // Resize the loader to fit in the destination.
+        var preferredWidth = windowProxy.getInt("width", 0);
+        var preferredHeight = windowProxy.getInt("height", 0);
+        var availableWidth = Window.width;
+        var availableHeight = Window.height;
+
+        if(preferredWidth > 0) x_scale *= availableWidth / preferredWidth;
+        if(preferredHeight > 0)  y_scale *= availableHeight / preferredHeight;
+
+        var offset = Qt.point(0.5 * preferredWidth, 0.5 * preferredHeight);
         offset.x += loadera.viewPos?.x ?? 0;
         offset.y += loadera.viewPos?.y ?? 0;
 
-        //console.log("scale: "+x_scale+","+y_scale);
-        //console.log("offset "+offset.x+","+offset.y);
+        loadera.x = -offset.x + 0.5 * availableHeight;
+        loadera.y = -offset.y + 0.5 * availableHeight;
 
-        loadera.x = -offset.x + 0.5*dst.width;
-        loadera.y = -offset.y + 0.5*dst.height;
         loadera.scale_origin.x = offset.x;
         loadera.scale_origin.y = offset.y;
+
         loadera.xScale = x_scale;
         loadera.yScale = y_scale;
-        //loader.xTrans = -offset.x + 0.5*dst.width;
-        //loader.yTrans = -offset.y + 0.5*dst.height;
+
+        //loader.xTrans = -offset.x + 0.5*availableHeight;
+        //loader.yTrans = -offset.y + 0.5*availableHeight;
     }
 
     Component.onCompleted: {

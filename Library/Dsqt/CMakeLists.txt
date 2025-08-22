@@ -15,7 +15,11 @@ qt_add_qml_module(Dsqt
     QML_FILES 
         qml/bridge/DsBridgeQueryControls.qml
         qml/DsAppBase.qml
+        qml/DsAppMenuBar.qml
+        qml/DsAppMenuItem.qml
+        qml/DsFitView.qml
         qml/DsScaleLoader.qml
+        qml/DsTextFileViewer.qml
         qml/ui/DsAnimateOnOffItem.qml
         qml/ui/DsPlaylistView.qml
         qml/ui/DsQuickMenu.qml
@@ -30,38 +34,26 @@ qt_add_qml_module(Dsqt
     SOURCES
         bridge/dsBridgeQuery.cpp bridge/dsBridgeQuery.h
         bridge/dsBridgeWatcher.cpp bridge/dsBridgeWatcher.h
-        bridge/dsQmlBridgeLog.cpp bridge/dsQmlBridgeLog.h
         core/dsEnvironment.cpp core/dsEnvironment.h
         core/dsGuiApplication.cpp core/dsGuiApplication.h
         core/dsQmlApplicationEngine.cpp core/dsQmlApplicationEngine.h
-        core/dsQmlEnvironment.h core/dsQmlEnvironment.cpp
         core/dsQmlEnvironment.h core/dsQmlEnvironment.cpp
         core/dsQmlIdle.h core/dsQmlIdle.cpp
         core/dsQmlIdlePreventer.h core/dsQmlIdlePreventer.cpp
         core/dsQmlImguiItem.h
         core/dsQmlObj.h core/dsQmlObj.cpp
-        core/dsQmlObj.h core/dsQmlObj.cpp
-        core/dsReloadUrlInterceptor.h core/dsReloadUrlInterceptor.cpp
         core/dsReloadUrlInterceptor.h core/dsReloadUrlInterceptor.cpp
         model/dsContentModel.cpp model/dsContentModel.h
-        model/dsContentModel.cpp model/dsContentModel.h
-        model/dsIContentHelper.cpp model/dsIContentHelper.h
         model/dsIContentHelper.cpp model/dsIContentHelper.h
         model/dsPropertyMapDiff.cpp model/dsPropertyMapDiff.h
-        model/dsPropertyMapDiff.cpp model/dsPropertyMapDiff.h
         model/dsQmlContentHelper.cpp model/dsQmlContentHelper.h
-        model/dsQmlContentHelper.cpp model/dsQmlContentHelper.h
-        model/dsQmlContentModel.cpp model/dsQmlContentModel.h
         model/dsQmlContentModel.cpp model/dsQmlContentModel.h
         model/dsQmlEventSchedule.cpp model/dsQmlEventSchedule.h
+        model/dsQmlTextFileModel.cpp model/dsQmlTextFileModel.h
         model/dsReferenceMap.h model/dsResource.cpp model/dsResource.h
-        model/dsReferenceMap.h model/dsResource.cpp model/dsResource.h
-        model/qjsonmodel.cpp model/qjsonmodel.h
         model/qJsonModel.cpp model/qJsonModel.h
         network/dsNodeWatcher.cpp network/dsNodeWatcher.h
         settings/dsOverloaded.h
-        settings/DsOverloaded.h
-        settings/dsQmlSettingsProxy.cpp settings/dsQmlSettingsProxy.h
         settings/dsQmlSettingsProxy.cpp settings/dsQmlSettingsProxy.h
         settings/dsSettings.cpp settings/dsSettings.h
         settings/dsSettingsBase.cpp
