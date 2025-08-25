@@ -25,7 +25,7 @@ DsBridgeSqlQuery::DsBridgeSqlQuery(DsQmlApplicationEngine* parent)
     using namespace Qt::StringLiterals;
 
     connect(
-        parent, &DsQmlApplicationEngine::initializing, this,
+        parent, &DsQmlApplicationEngine::endInitialize, this,
         [this]() {
             // If bridge sync is not running, try to launch it.
             if (!isBridgeSyncRunning()) {

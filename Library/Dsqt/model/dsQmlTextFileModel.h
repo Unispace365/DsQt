@@ -1,5 +1,5 @@
-#ifndef DSQMLBRIDGELOG_H
-#define DSQMLBRIDGELOG_H
+#ifndef DSQMLTEXTFILEMODEL_H
+#define DSQMLTEXTFILEMODEL_H
 
 #include <QAbstractListModel>
 #include <QByteArray>
@@ -11,26 +11,28 @@
 #include <QStringList>
 #include <QTimer>
 
-namespace dsqt::bridge {
+namespace dsqt::model {
 
 /**
- * @class DsQmlBridgeLog
- * @brief A QML bridge for monitoring and displaying log file contents as a list model.
+ * @class DsQmlTextFileModel
+ * @brief A QML element for monitoring and displaying text file contents as a list model.
  *
- * This class provides a model for displaying the last MAX_LINES lines of a log file in QML.
+ * This class provides a model for displaying the last lines of a text file in QML.
  * It monitors the file for changes using a timer and updates the model accordingly.
  */
-class DsQmlBridgeLog : public QAbstractListModel {
+class DsQmlTextFileModel : public QAbstractListModel {
     Q_OBJECT
-    QML_NAMED_ELEMENT(DsBridgeLog)
+    QML_NAMED_ELEMENT(DsTextFileModel)
     Q_PROPERTY(QString file READ file WRITE setFile NOTIFY fileChanged)
+    Q_PROPERTY(
+        qsizetype maximumLineCount READ maximumLineCount WRITE setMaximumLineCount NOTIFY maximumLineCountChanged)
 
   public:
     /**
-     * @brief Constructs a DsQmlBridgeLog instance.
+     * @brief Constructs a DsQmlTextFileModel instance.
      * @param parent The parent QObject (optional).
      */
-    DsQmlBridgeLog(QObject* parent = nullptr);
+    DsQmlTextFileModel(QObject* parent = nullptr);
 
     /**
      * @brief Returns the path to the log file being monitored.
@@ -47,6 +49,15 @@ class DsQmlBridgeLog : public QAbstractListModel {
      * @param path The new log file path.
      */
     void setFile(const QString& path);
+
+    qsizetype maximumLineCount() const { return m_max_line_count; }
+
+    void setMaximumLineCount(qsizetype count) {
+        if (m_max_line_count == count) return;
+        m_max_line_count = count;
+        loadInitialLog();
+        emit maximumLineCountChanged();
+    }
 
     /**
      * @brief Returns the number of rows (log lines) in the model.
@@ -77,6 +88,11 @@ class DsQmlBridgeLog : public QAbstractListModel {
     void fileChanged();
 
     /**
+     * @brief Emitted when the maximum line count changes.
+     */
+    void maximumLineCountChanged();
+
+    /**
      * @brief Emitted when the log content is updated.
      */
     void contentUpdated();
@@ -92,29 +108,29 @@ class DsQmlBridgeLog : public QAbstractListModel {
     /**
      * @brief Loads the initial log content into the model.
      *
-     * Resets the model and loads the last MAX_LINES lines from the file.
+     * Resets the model and loads the last lines from the file.
      */
     void loadInitialLog();
 
     /**
-     * @brief Finds the starting position in the file for loading the last MAX_LINES lines.
+     * @brief Finds the starting position in the file for loading the last lines.
      * @param file The open QFile to read from.
      * @return The byte position to start reading from.
      */
     qint64 findStartPosition(QFile& file);
 
     /**
-     * @brief Trims excess lines from the model if exceeding MAX_LINES.
+     * @brief Trims excess lines from the model if exceeding the maximum line count.
      */
     void trimLines();
 
   private:
+    // QFileSystemWatcher* m_watcher      = nullptr;
     QString     m_path;
     QStringList m_lines;
-    // QFileSystemWatcher* m_watcher      = nullptr;
-    QTimer*         m_timer        = nullptr;
-    qint64          m_lastPosition = 0;
-    const qsizetype MAX_LINES      = 500;
+    QTimer*     m_timer          = nullptr;
+    qint64      m_lastPosition   = 0;
+    qsizetype   m_max_line_count = 500;
 };
 
 } // namespace dsqt::bridge

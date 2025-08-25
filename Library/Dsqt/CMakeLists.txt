@@ -28,7 +28,6 @@ qt_add_qml_module(Dsqt
     SOURCES
         bridge/dsBridgeQuery.cpp bridge/dsBridgeQuery.h
         bridge/dsBridgeWatcher.cpp bridge/dsBridgeWatcher.h
-        bridge/dsQmlBridgeLog.cpp bridge/dsQmlBridgeLog.h
         core/dsEnvironment.cpp core/dsEnvironment.h
         core/dsGuiApplication.cpp core/dsGuiApplication.h
         core/dsQmlApplicationEngine.cpp core/dsQmlApplicationEngine.h
@@ -50,13 +49,13 @@ qt_add_qml_module(Dsqt
         model/dsQmlContentModel.cpp model/dsQmlContentModel.h
         model/dsQmlContentModel.cpp model/dsQmlContentModel.h
         model/dsQmlEventSchedule.cpp model/dsQmlEventSchedule.h
+        model/dsQmlTextFileModel.cpp model/dsQmlTextFileModel.h
         model/dsReferenceMap.h model/dsResource.cpp model/dsResource.h
         model/dsReferenceMap.h model/dsResource.cpp model/dsResource.h
         model/qjsonmodel.cpp model/qjsonmodel.h
         model/qJsonModel.cpp model/qJsonModel.h
         network/dsNodeWatcher.cpp network/dsNodeWatcher.h
         settings/dsOverloaded.h
-        settings/DsOverloaded.h
         settings/dsQmlSettingsProxy.cpp settings/dsQmlSettingsProxy.h
         settings/dsQmlSettingsProxy.cpp settings/dsQmlSettingsProxy.h
         settings/dsSettings.cpp settings/dsSettings.h
