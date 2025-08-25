@@ -19,6 +19,7 @@ qt_add_qml_module(Dsqt
         qml/DsAppMenuItem.qml
         qml/DsContentBrowser.qml
         qml/DsFitView.qml
+        qml/DsMediaViewer.qml
         qml/DsScaleLoader.qml
         qml/DsTextFileViewer.qml
         qml/ui/DsAnimateOnOffItem.qml
