@@ -4,5 +4,6 @@ var dir_cac777e84c555120bd23112bc732c575 =
     [ "dsQmlClusterManager.h", "dsQmlClusterManager_8h_source.html", null ],
     [ "dsQmlClusterView.h", "dsQmlClusterView_8h_source.html", null ],
     [ "dsQmlFpsMonitor.h", "dsQmlFpsMonitor_8h_source.html", null ],
+    [ "dsQmlPlaylistView.h", "dsQmlPlaylistView_8h_source.html", null ],
     [ "dsQmlTouchCluster.h", "dsQmlTouchCluster_8h_source.html", null ]
 ];

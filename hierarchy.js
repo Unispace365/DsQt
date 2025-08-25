@@ -65,6 +65,7 @@ var hierarchy =
       [ "dsqt::ui::DsQmlClusterManager", "classdsqt_1_1ui_1_1DsQmlClusterManager.html", null ],
       [ "dsqt::ui::DsQmlClusterView", "classdsqt_1_1ui_1_1DsQmlClusterView.html", null ],
       [ "dsqt::ui::DsQmlFpsMonitor", "classdsqt_1_1ui_1_1DsQmlFpsMonitor.html", null ],
+      [ "dsqt::ui::DsQmlPlaylistView", "classdsqt_1_1ui_1_1DsQmlPlaylistView.html", null ],
       [ "dsqt::ui::DsQmlTouchCluster", "classdsqt_1_1ui_1_1DsQmlTouchCluster.html", null ]
     ] ],
     [ "QQuickPaintedItem", null, [

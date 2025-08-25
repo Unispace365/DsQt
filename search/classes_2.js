@@ -26,12 +26,13 @@ var searchData=
   ['dsqmlidlepreventer_23',['DsQmlIdlePreventer',['../classdsqt_1_1DsQmlIdlePreventer.html',1,'dsqt']]],
   ['dsqmlimguiitem_24',['DsQmlImguiItem',['../classDsQmlImguiItem.html',1,'']]],
   ['dsqmlobj_25',['DsQmlObj',['../classdsqt_1_1DsQmlObj.html',1,'dsqt']]],
-  ['dsqmlsettingsproxy_26',['DsQmlSettingsProxy',['../classdsqt_1_1DsQmlSettingsProxy.html',1,'dsqt']]],
-  ['dsqmltextfilemodel_27',['DsQmlTextFileModel',['../classdsqt_1_1model_1_1DsQmlTextFileModel.html',1,'dsqt::model']]],
-  ['dsqmltouchcluster_28',['DsQmlTouchCluster',['../classdsqt_1_1ui_1_1DsQmlTouchCluster.html',1,'dsqt::ui']]],
-  ['dsqmltouchclusterlist_29',['DsQmlTouchClusterList',['../classdsqt_1_1ui_1_1DsQmlTouchClusterList.html',1,'dsqt::ui']]],
-  ['dsreloadurlinterceptor_30',['DsReloadUrlInterceptor',['../classdsqt_1_1DsReloadUrlInterceptor.html',1,'dsqt']]],
-  ['dsresource_31',['DsResource',['../classdsqt_1_1DsResource.html',1,'dsqt']]],
-  ['dssettings_32',['DsSettings',['../classdsqt_1_1DsSettings.html',1,'dsqt']]],
-  ['dsurlimageloader_33',['DsUrlImageLoader',['../classdsqt_1_1DsUrlImageLoader.html',1,'dsqt']]]
+  ['dsqmlplaylistview_26',['DsQmlPlaylistView',['../classdsqt_1_1ui_1_1DsQmlPlaylistView.html',1,'dsqt::ui']]],
+  ['dsqmlsettingsproxy_27',['DsQmlSettingsProxy',['../classdsqt_1_1DsQmlSettingsProxy.html',1,'dsqt']]],
+  ['dsqmltextfilemodel_28',['DsQmlTextFileModel',['../classdsqt_1_1model_1_1DsQmlTextFileModel.html',1,'dsqt::model']]],
+  ['dsqmltouchcluster_29',['DsQmlTouchCluster',['../classdsqt_1_1ui_1_1DsQmlTouchCluster.html',1,'dsqt::ui']]],
+  ['dsqmltouchclusterlist_30',['DsQmlTouchClusterList',['../classdsqt_1_1ui_1_1DsQmlTouchClusterList.html',1,'dsqt::ui']]],
+  ['dsreloadurlinterceptor_31',['DsReloadUrlInterceptor',['../classdsqt_1_1DsReloadUrlInterceptor.html',1,'dsqt']]],
+  ['dsresource_32',['DsResource',['../classdsqt_1_1DsResource.html',1,'dsqt']]],
+  ['dssettings_33',['DsSettings',['../classdsqt_1_1DsSettings.html',1,'dsqt']]],
+  ['dsurlimageloader_34',['DsUrlImageLoader',['../classdsqt_1_1DsUrlImageLoader.html',1,'dsqt']]]
 ];

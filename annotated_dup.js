@@ -32,6 +32,7 @@ var annotated_dup =
         [ "DsQmlClusterManager", "classdsqt_1_1ui_1_1DsQmlClusterManager.html", null ],
         [ "DsQmlClusterView", "classdsqt_1_1ui_1_1DsQmlClusterView.html", "classdsqt_1_1ui_1_1DsQmlClusterView" ],
         [ "DsQmlFpsMonitor", "classdsqt_1_1ui_1_1DsQmlFpsMonitor.html", "classdsqt_1_1ui_1_1DsQmlFpsMonitor" ],
+        [ "DsQmlPlaylistView", "classdsqt_1_1ui_1_1DsQmlPlaylistView.html", null ],
         [ "DsQmlTouchCluster", "classdsqt_1_1ui_1_1DsQmlTouchCluster.html", null ],
         [ "DsQmlTouchClusterList", "classdsqt_1_1ui_1_1DsQmlTouchClusterList.html", null ],
         [ "TouchInfo", "structdsqt_1_1ui_1_1TouchInfo.html", null ]
