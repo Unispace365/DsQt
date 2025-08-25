@@ -17,6 +17,7 @@ qt_add_qml_module(Dsqt
         qml/DsAppBase.qml
         qml/DsAppMenuBar.qml
         qml/DsAppMenuItem.qml
+        qml/DsContentBrowser.qml
         qml/DsFitView.qml
         qml/DsScaleLoader.qml
         qml/DsTextFileViewer.qml
@@ -44,6 +45,7 @@ qt_add_qml_module(Dsqt
         core/dsQmlObj.h core/dsQmlObj.cpp
         core/dsReloadUrlInterceptor.h core/dsReloadUrlInterceptor.cpp
         model/dsContentModel.cpp model/dsContentModel.h
+        model/dsContenModelItemModel.h model/dsContenModelItemModel.cpp
         model/dsIContentHelper.cpp model/dsIContentHelper.h
         model/dsPropertyMapDiff.cpp model/dsPropertyMapDiff.h
         model/dsQmlContentHelper.cpp model/dsQmlContentHelper.h
@@ -77,8 +79,6 @@ qt_add_qml_module(Dsqt
     DEPENDENCIES
          QtQuick
          Dsqtplugin
-         SOURCES model/dsContenModelItemModel.h model/dsContenModelItemModel.cpp
-
 )
 
 target_link_libraries(Dsqtplugin PRIVATE Qt6::Core Qt6::Multimedia Qt6::Quick)
