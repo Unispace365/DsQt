@@ -15,8 +15,15 @@ qt_add_qml_module(Dsqt
     QML_FILES 
         qml/bridge/DsBridgeQueryControls.qml
         qml/DsAppBase.qml
+        qml/DsAppMenuBar.qml
+        qml/DsAppMenuItem.qml
+        qml/DsContentBrowser.qml
+        qml/DsFitView.qml
         qml/DsScaleLoader.qml
-        qml/waffles/DsQuickMenu.qml
+        qml/DsTextFileViewer.qml
+        qml/ui/DsAnimateOnOffItem.qml
+        qml/ui/DsPlaylistView.qml
+        qml/ui/DsQuickMenu.qml
         qml/waffles/DsViewer.qml
         qml/waffles/DsWaffleStage.qml
         qml/waffles/media_viewer/DsControlSet.qml
@@ -32,31 +39,23 @@ qt_add_qml_module(Dsqt
         core/dsGuiApplication.cpp core/dsGuiApplication.h
         core/dsQmlApplicationEngine.cpp core/dsQmlApplicationEngine.h
         core/dsQmlEnvironment.h core/dsQmlEnvironment.cpp
-        core/dsQmlEnvironment.h core/dsQmlEnvironment.cpp
+        core/dsQmlIdle.h core/dsQmlIdle.cpp
+        core/dsQmlIdlePreventer.h core/dsQmlIdlePreventer.cpp
         core/dsQmlImguiItem.h
         core/dsQmlObj.h core/dsQmlObj.cpp
-        core/dsQmlObj.h core/dsQmlObj.cpp
-        core/dsReloadUrlInterceptor.h core/dsReloadUrlInterceptor.cpp
         core/dsReloadUrlInterceptor.h core/dsReloadUrlInterceptor.cpp
         model/dsContentModel.cpp model/dsContentModel.h
-        model/dsContentModel.cpp model/dsContentModel.h
-        model/dsIContentHelper.cpp model/dsIContentHelper.h
+        model/dsContenModelItemModel.h model/dsContenModelItemModel.cpp
         model/dsIContentHelper.cpp model/dsIContentHelper.h
         model/dsPropertyMapDiff.cpp model/dsPropertyMapDiff.h
-        model/dsPropertyMapDiff.cpp model/dsPropertyMapDiff.h
         model/dsQmlContentHelper.cpp model/dsQmlContentHelper.h
-        model/dsQmlContentHelper.cpp model/dsQmlContentHelper.h
-        model/dsQmlContentModel.cpp model/dsQmlContentModel.h
         model/dsQmlContentModel.cpp model/dsQmlContentModel.h
         model/dsQmlEventSchedule.cpp model/dsQmlEventSchedule.h
         model/dsQmlTextFileModel.cpp model/dsQmlTextFileModel.h
         model/dsReferenceMap.h model/dsResource.cpp model/dsResource.h
-        model/dsReferenceMap.h model/dsResource.cpp model/dsResource.h
-        model/qjsonmodel.cpp model/qjsonmodel.h
         model/qJsonModel.cpp model/qJsonModel.h
         network/dsNodeWatcher.cpp network/dsNodeWatcher.h
         settings/dsOverloaded.h
-        settings/dsQmlSettingsProxy.cpp settings/dsQmlSettingsProxy.h
         settings/dsQmlSettingsProxy.cpp settings/dsQmlSettingsProxy.h
         settings/dsSettings.cpp settings/dsSettings.h
         settings/dsSettingsBase.cpp
@@ -70,7 +69,7 @@ qt_add_qml_module(Dsqt
         ui/dsQmlClusterManager.h ui/dsQmlClusterManager.cpp
         ui/dsQmlClusterView.h ui/dsQmlClusterView.cpp
         ui/dsQmlFpsMonitor.h ui/dsQmlFpsMonitor.cpp
-        ui/dsQmlPlaylistView.h ui/dsQmlPlaylistView.cpp
+        ui/dsQmlPlaylistControl.h ui/dsQmlPlaylistControl.cpp
         ui/dsQmlTouchCluster.h ui/dsQmlTouchCluster.cpp
         utility/dsFileMetaData.cpp utility/dsFileMetaData.h
         utility/dsStringUtils.cpp utility/dsStringUtils.h
@@ -80,9 +79,6 @@ qt_add_qml_module(Dsqt
     DEPENDENCIES
          QtQuick
          Dsqtplugin
-         SOURCES core/dsQmlIdle.h core/dsQmlIdle.cpp
-         SOURCES core/dsQmlIdlePreventer.h core/dsQmlIdlePreventer.cpp
-
 )
 
 target_link_libraries(Dsqtplugin PRIVATE Qt6::Core Qt6::Multimedia Qt6::Quick)

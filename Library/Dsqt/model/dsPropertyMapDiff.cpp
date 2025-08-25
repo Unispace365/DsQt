@@ -16,14 +16,36 @@ PropertyMapDiff::PropertyMapDiff() {
 }
 
 void PropertyMapDiff::diffMaps(const DsQmlContentModel& from, const DsQmlContentModel& to, const QStringList& path) {
-    auto id = from.value("uid").toString();
-    if (id.isEmpty()) {
-        id = from.value("name").toString();
+    auto idTo = to.value("uid").toString();
+    if (idTo.isEmpty()) {
+        idTo = to.value("name").toString();
     }
-    if (m_visited.contains(id)) {
+    auto idFrom = from.value("uid").toString();
+    if (idFrom.isEmpty()) {
+        idFrom = to.value("name").toString();
+    }
+    if(idTo.isEmpty() && idFrom.isEmpty()) {
+        // If both ids are empty, we cannot diff this map
+        qDebug() << "Both ids are empty, cannot diff this map";
         return;
     }
-    m_visited.insert(id);
+    if(idTo.isEmpty()){
+        qDebug() << "idTo is empty, using idFrom:" << idFrom;
+    } else if(idFrom.isEmpty()) {
+        qDebug() << "idFrom is empty, using idTo:" << idTo;
+    } else {
+        qDebug() << "Diffing maps with ids:" << idFrom << "and" << idTo;
+    }
+
+    if (m_visited.contains(idTo) || m_visited.contains(idFrom)) {
+        return;
+    }
+    if(!idTo.isEmpty()) {
+        m_visited.insert(idTo);
+    }
+    if(!idFrom.isEmpty()) {
+        m_visited.insert(idFrom);
+    }
     // qDebug().noquote().nospace()<<path.count()<<"-"<<"From
     // "<<from.value("name").toString()<<"("<<from.value("uid").toString()
     //                             <<") and "<<to.value("name").toString()<<"("<<to.value("id").toString()<<")";
@@ -61,7 +83,7 @@ void PropertyMapDiff::diffMaps(const DsQmlContentModel& from, const DsQmlContent
 
     // ModifiedProperty
     auto mods = fromKeys & toKeys;
-    for (const QString& k : fromKeys& toKeys) {
+    for (const QString& k : mods) {
         QVariant v1 = from.value(k), v2 = to.value(k);
         if (v1 != v2) {
             Change c;

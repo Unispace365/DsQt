@@ -580,7 +580,7 @@ bool DsBridgeSqlQuery::queryTables() {
             //++it;
         }
 
-        for (const auto& record : rankOrderedRecords) {
+        for (auto& record : rankOrderedRecords) {
             records.addChild(record);
             auto type = record.getPropertyString("variant");
             if (type == "ROOT_CONTENT") {
@@ -694,12 +694,21 @@ bool DsBridgeSqlQuery::queryTables() {
             } else if (type == "RICH_TEXT") {
                 record.setProperty(field_uid, result.value(9).toString());
             } else if (type == "FILE_IMAGE" || type == "FILE_VIDEO" || type == "FILE_PDF") {
+                //" res.hash,"                // 28
+                //" res.type,"                // 29
+                //" res.uri,"                 // 30
+                //" res.width,"               // 31
+                //" res.height,"              // 32
+                //" res.duration,"            // 33
+                //" res.pages,"               // 34
+                //" res.file_size,"           // 35
+
                 if (!resourceId.isEmpty()) {
                     // TODO: finish converting this section.
                     auto res = dsqt::DsResource(
                         resourceId, dsqt::DsResource::Id::CMS_TYPE, double(result.value(33).toDouble()),
                         float(result.value(31).toInt()), float(result.value(32).toInt()), result.value(51).toString(),
-                        result.value(30).toString(), -1, cms.getResourcePath() + result.value(30).toString());
+                        result.value(30).toString(), -1, cms.getResourcePath()+ "/"+ result.value(30).toString());
                     if (type == "FILE_IMAGE")
                         res.setType(dsqt::DsResource::IMAGE_TYPE);
                     else if (type == "FILE_VIDEO")
@@ -727,7 +736,7 @@ bool DsBridgeSqlQuery::queryTables() {
                     auto res = dsqt::DsResource(
                         previewId, dsqt::DsResource::Id::CMS_TYPE, double(result.value(44).toFloat()),
                         float(result.value(42).toInt()), float(result.value(43).toInt()), result.value(41).toString(),
-                        result.value(41).toString(), -1, cms.getResourcePath() + result.value(41).toString());
+                        result.value(41).toString(), -1, cms.getResourcePath() +"/"+ result.value(41).toString());
                     res.setType(previewType == "FILE_IMAGE" ? dsqt::DsResource::IMAGE_TYPE
                                                             : dsqt::DsResource::VIDEO_TYPE);
 

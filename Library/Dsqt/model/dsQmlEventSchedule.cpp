@@ -156,7 +156,8 @@ bool DsQmlEventSchedule::isEventWithinSpan(const model::ContentModelRef& event, 
 
 size_t DsQmlEventSchedule::filterEvents(std::vector<model::ContentModelRef>& events, const QString& typeName) {
     size_t count = events.size();
-    if (!typeName.isEmpty()) {
+    auto empty = typeName.isEmpty();
+    if (!empty) {
         events.erase(std::remove_if(events.begin(), events.end(),
                                     [&](const model::ContentModelRef& item) {
                                         const auto type = item.getPropertyString("type_name");
@@ -242,6 +243,7 @@ void DsQmlEventSchedule::onUpdated() {
     if (areEqual) {
         for (int i = 0; i < result.size(); ++i) {
             if (*result[i] != *m_events[i]) {
+
                 areEqual = false;
                 break;
             }
@@ -259,9 +261,10 @@ void DsQmlEventSchedule::onUpdated() {
         for (auto event : std::as_const(m_events)) {
             event->deleteLater();
         }
+
         // Store result.
         m_events = std::move(result);
-        //
+
         emit eventsChanged();
     }
 }

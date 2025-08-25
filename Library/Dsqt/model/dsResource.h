@@ -151,8 +151,9 @@ class DsResource {
 	const DsResource::Id& getDbId() const { return mDbId; }
 	void				setDbId(const DsResource::Id& dbId) { mDbId = dbId; }
 
-	const std::wstring& getTypeName() const;
+    const QString&      getTypeName() const;
 	const QString&		getTypeChar() const;
+    const QString&      getQMLTypeName() const;
 	int					getType() const { return mType; }
 	void				setType(const int newType) { mType = newType; }
 

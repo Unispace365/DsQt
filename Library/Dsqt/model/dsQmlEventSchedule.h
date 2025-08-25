@@ -171,7 +171,9 @@ class DsQmlEventSchedule : public QObject {
     QList<DsQmlEvent*> timeline() const;
     // Returns the currently active event, or nullptr if no event is active.
     DsQmlEvent* current() const {
-        if (m_events.isEmpty()) return nullptr;
+        if (m_events.isEmpty()) {
+            return nullptr;
+        }
         return m_events.front();
     }
     //
@@ -230,7 +232,7 @@ class DsQmlEventSchedule : public QObject {
     void onUpdated();
 
   private:
-    QString                    m_type_name;       // Event record type. If empty, all events are included.
+    QString                    m_type_name="";       // Event record type. If empty, all events are included.
     QDateTime                  m_local_date_time; // Local date and time.
     QList<DsQmlEvent*>         m_events;          // All events.
     mutable QList<DsQmlEvent*> m_timeline; // List of events where overlapping events are resolved to a single event.

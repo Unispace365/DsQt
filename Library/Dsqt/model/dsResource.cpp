@@ -49,16 +49,27 @@ const QString AUDIO_TYPE_SZ("a");
 
 const QString EMPTY_SZ("");
 
-const std::wstring FONT_NAME_SZ(L"font");
-const std::wstring IMAGE_NAME_SZ(L"image");
-const std::wstring IMAGE_SEQUENCE_NAME_SZ(L"image sequence");
-const std::wstring PDF_NAME_SZ(L"pdf");
-const std::wstring VIDEO_NAME_SZ(L"video");
-const std::wstring VIDEO_STREAM_NAME_SZ(L"video stream");
-const std::wstring WEB_NAME_SZ(L"web");
-const std::wstring YOUTUBE_NAME_SZ(L"youtube");
-const std::wstring ZIP_NAME_SZ(L"zip");
-const std::wstring ERROR_NAME_SZ(L"error");
+const QString FONT_NAME_SZ("font");
+const QString IMAGE_NAME_SZ("image");
+const QString IMAGE_SEQUENCE_NAME_SZ("image sequence");
+const QString PDF_NAME_SZ("pdf");
+const QString VIDEO_NAME_SZ("video");
+const QString VIDEO_STREAM_NAME_SZ("video stream");
+const QString WEB_NAME_SZ("web");
+const QString YOUTUBE_NAME_SZ("youtube");
+const QString ZIP_NAME_SZ("zip");
+const QString ERROR_NAME_SZ("error");
+
+const QString FONT_TYPE_QML_SZ("FONT_TYPE");
+const QString IMAGE_TYPE_QML_SZ("IMAGE_TYPE");
+const QString IMAGE_SEQUENCE_NAME_QML_SZ("IMAGE_SEQUENCE_TYPE");
+const QString PDF_TYPE_QML_SZ("PDF_TYPE");
+const QString VIDEO_TYPE_QML_SZ("VIDEO_TYPE");
+const QString VIDEO_STREAM_TYPE_QML_SZ("VIDEO_STREAM_TYPE");
+const QString WEB_TYPE_QML_SZ("WEB_TYPE");
+const QString YOUTUBE_TYPE_QML_SZ("YOUTUBE_TYPE");
+const QString ZIP_TYPE_QML_SZ("ZIP_TYPE");
+const QString ERROR_TYPE_QML_SZ("ERROR_TYPE");
 } // namespace
 
 namespace dsqt {
@@ -403,7 +414,7 @@ bool DsResource::operator!=(const DsResource& o) const {
     return (!(*this == o));
 }
 
-const std::wstring& DsResource::getTypeName() const {
+const QString& DsResource::getTypeName() const {
     if (mType == FONT_TYPE)
         return FONT_NAME_SZ;
     else if (mType == IMAGE_TYPE)
@@ -445,6 +456,29 @@ const QString& DsResource::getTypeChar() const {
     else if (mType == YOUTUBE_TYPE)
         return YOUTUBE_TYPE_SZ;
     return ERROR_TYPE_SZ;
+}
+
+const QString &DsResource::getQMLTypeName() const
+{
+    if (mType == FONT_TYPE)
+        return FONT_TYPE_QML_SZ;
+    else if (mType == IMAGE_TYPE)
+        return IMAGE_TYPE_QML_SZ;
+    else if (mType == IMAGE_SEQUENCE_TYPE)
+        return IMAGE_SEQUENCE_NAME_QML_SZ;
+    else if (mType == PDF_TYPE)
+        return PDF_TYPE_QML_SZ;
+    else if (mType == VIDEO_TYPE)
+        return VIDEO_TYPE_QML_SZ;
+    else if (mType == ZIP_TYPE)
+        return ZIP_TYPE_QML_SZ;
+    else if (mType == VIDEO_STREAM_TYPE)
+        return VIDEO_STREAM_TYPE_QML_SZ;
+    else if (mType == WEB_TYPE)
+        return WEB_TYPE_QML_SZ;
+    else if (mType == YOUTUBE_TYPE)
+        return YOUTUBE_TYPE_QML_SZ;
+    return ERROR_TYPE_QML_SZ;
 }
 
 void DsResource::setLocalFilePath(const QString& localPath, const bool normalizeThePath /*= true*/) {

@@ -1,6 +1,6 @@
 #include "model/dsQmlContentModel.h"
 #include "model/dsContentModel.h"
-
+#include "core/dsQmlApplicationEngine.h"
 #include <QVector>
 
 namespace dsqt::model {
@@ -22,6 +22,40 @@ void DsQmlContentModel::updateQmlModel(ContentModelRef model) {
     model.updateQml();
 }
 
+QVariantMap DsQmlContentModel::toVariantMap()
+{
+    QVariantMap result;
+
+    // Get all keys from the property map
+    QStringList keys = this->keys();
+
+    for (const QString& key : keys) {
+        QVariant value = this->value(key);
+
+        // Handle special case for "children" property
+        if (key == "children" && value.canConvert<QVariantList>()) {
+            QVariantList childrenList = value.toList();
+            QStringList uidList;
+
+            for (const QVariant& child : childrenList) {
+                if (child.canConvert<QVariantMap>()) {
+                    QVariantMap childMap = child.toMap();
+                    if (childMap.contains("uid")) {
+                        uidList.append(childMap.value("uid").toString());
+                    }
+                }
+            }
+
+            result.insert(key, QVariant(uidList));
+        } else {
+            result.insert(key, value);
+        }
+    }
+
+    return result;
+}
+
+//returns a QmlContentModel for the given ContentModelRef. or a new empty one if one didn't exist.
 DsQmlContentModel* DsQmlContentModel::getQmlContentModel(ContentModelRef model, ReferenceMap* referenceMap,
                                                          QObject* parent) {
     auto gmap = referenceMap;
@@ -43,6 +77,32 @@ DsQmlContentModel* DsQmlContentModel::getQmlContentModel(ContentModelRef model, 
         result = map;
     }
     return result;
+}
+
+DsQmlContentModel *DsQmlContentModel::getQmlContentModel(ContentModelRef model)
+{
+    auto engine = DsQmlApplicationEngine::DefEngine();
+    auto gmap = engine->getReferenceMap();
+    auto id   = model.getId();
+    if (id.isEmpty()) {
+        id = model.getName();
+    }
+    if (id.isEmpty()) {
+        Q_ASSERT(false);
+    }
+    DsQmlContentModel* result = gmap->value(id, nullptr);
+    if (!result) {
+        qCDebug(lgContentModelVerbose) << "Did not find " << id;
+        auto map = new DsQmlContentModel(model, engine);
+        result = map;
+    }
+    return result;
+}
+
+QVariant DsQmlContentModel::updateValue(const QString &key, const QVariant &input)
+{
+    qCDebug(lgContentModel)<< "cannot update ContentModel from qml";
+    return input;
 }
 
 } // namespace dsqt::model

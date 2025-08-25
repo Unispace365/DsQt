@@ -10,18 +10,6 @@ Item {
     property Component presentationController: Qt.createComponent("PresentationController.qml")
     property bool menuShown: false
 
-    enum Edge {
-        TopInner,
-        TopOuter,
-        LeftInner,
-        LeftOuter,
-        BottomInner,
-        BottomOuter,
-        RightInner,
-        RightOuter,
-        Center
-    }
-
     Component.onCompleted: {
         createMenu()
     }
