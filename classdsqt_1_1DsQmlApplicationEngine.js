@@ -14,7 +14,7 @@ var classdsqt_1_1DsQmlApplicationEngine =
     [ "getContentRoot", "classdsqt_1_1DsQmlApplicationEngine.html#a9880a199936cfcd6423f286f1bf47dd2", null ],
     [ "getEnvQml", "classdsqt_1_1DsQmlApplicationEngine.html#a4ae1f5afe44c6a275698b43ecac74b03", null ],
     [ "getNodeWatcher", "classdsqt_1_1DsQmlApplicationEngine.html#a7e217f62d541d3271d611748a8bb4b10", null ],
-    [ "getReferenceMap", "classdsqt_1_1DsQmlApplicationEngine.html#ad438bfd76dd23c2833ec938a50d07389", null ],
+    [ "getReferenceMap", "classdsqt_1_1DsQmlApplicationEngine.html#aba3d896b318cb644b2dd6d702ba1c9e8", null ],
     [ "idle", "classdsqt_1_1DsQmlApplicationEngine.html#acf5d838682f98fe71ef631ba2a9c1db3", null ],
     [ "idleChanged", "classdsqt_1_1DsQmlApplicationEngine.html#a634dcbce8aa4a829f0a7c96798e2e8f8", null ],
     [ "imgui", "classdsqt_1_1DsQmlApplicationEngine.html#aeafb219e9655adcf9c2a771357d11876", null ],
@@ -32,7 +32,7 @@ var classdsqt_1_1DsQmlApplicationEngine =
     [ "mLastUpdate", "classdsqt_1_1DsQmlApplicationEngine.html#a60d40e6be5aa366520b13614905ebb7c", null ],
     [ "mNodeWatcher", "classdsqt_1_1DsQmlApplicationEngine.html#ac4223c4ace59e70bc15891c6bd6038c5", null ],
     [ "mQmlEnv", "classdsqt_1_1DsQmlApplicationEngine.html#aeb13c3382f2b5d0910390fcd8c117e74", null ],
-    [ "mQmlRefMap", "classdsqt_1_1DsQmlApplicationEngine.html#a85d8b4ae8977019641349a4a5883626b", null ],
+    [ "mQmlRefMap", "classdsqt_1_1DsQmlApplicationEngine.html#a09abc9c651098db659c96e7fccab2f74", null ],
     [ "mRootMap", "classdsqt_1_1DsQmlApplicationEngine.html#ab5484c68bc70a47751fbd5e813d3c89c", null ],
     [ "mTrigger", "classdsqt_1_1DsQmlApplicationEngine.html#ac17375019c9837bff68c77f5871a4a07", null ],
     [ "mWatcher", "classdsqt_1_1DsQmlApplicationEngine.html#af63964125205ccc608e32dd5ac0cc490", null ]

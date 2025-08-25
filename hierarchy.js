@@ -4,6 +4,7 @@ var hierarchy =
     [ "dsqt::BaseConversion< std::string, S >", "structdsqt_1_1BaseConversion_3_01std_1_1string_00_01S_01_4.html", null ],
     [ "dsqt::bridge::BridgeSyncProcessGuard", "classdsqt_1_1bridge_1_1BridgeSyncProcessGuard.html", null ],
     [ "dsqt::model::PropertyMapDiff::Change", "structdsqt_1_1model_1_1PropertyMapDiff_1_1Change.html", null ],
+    [ "dsqt::model::ContentModelItem", "classdsqt_1_1model_1_1ContentModelItem.html", null ],
     [ "dsqt::model::ContentModelRef", "classdsqt_1_1model_1_1ContentModelRef.html", null ],
     [ "dsqt::model::ContentProperty", "classdsqt_1_1model_1_1ContentProperty.html", null ],
     [ "dsqt::bridge::DatabaseGuard", "classdsqt_1_1bridge_1_1DatabaseGuard.html", null ],
@@ -20,7 +21,8 @@ var hierarchy =
     [ "dsqt::model::IContentHelper::PlaylistFilter", "structdsqt_1_1model_1_1IContentHelper_1_1PlaylistFilter.html", null ],
     [ "dsqt::model::PropertyMapDiff", "classdsqt_1_1model_1_1PropertyMapDiff.html", null ],
     [ "QAbstractItemModel", null, [
-      [ "QJsonModel", "classQJsonModel.html", null ]
+      [ "QJsonModel", "classQJsonModel.html", null ],
+      [ "dsqt::model::DsContenModelItemModel", "classdsqt_1_1model_1_1DsContenModelItemModel.html", null ]
     ] ],
     [ "QAbstractListModel", null, [
       [ "dsqt::model::DsQmlTextFileModel", "classdsqt_1_1model_1_1DsQmlTextFileModel.html", null ],
@@ -65,7 +67,7 @@ var hierarchy =
       [ "dsqt::ui::DsQmlClusterManager", "classdsqt_1_1ui_1_1DsQmlClusterManager.html", null ],
       [ "dsqt::ui::DsQmlClusterView", "classdsqt_1_1ui_1_1DsQmlClusterView.html", null ],
       [ "dsqt::ui::DsQmlFpsMonitor", "classdsqt_1_1ui_1_1DsQmlFpsMonitor.html", null ],
-      [ "dsqt::ui::DsQmlPlaylistView", "classdsqt_1_1ui_1_1DsQmlPlaylistView.html", null ],
+      [ "dsqt::ui::DsQmlPlaylistControl", "classdsqt_1_1ui_1_1DsQmlPlaylistControl.html", null ],
       [ "dsqt::ui::DsQmlTouchCluster", "classdsqt_1_1ui_1_1DsQmlTouchCluster.html", null ]
     ] ],
     [ "QQuickPaintedItem", null, [

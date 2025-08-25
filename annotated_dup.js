@@ -9,9 +9,11 @@ var annotated_dup =
         [ "DsBridgeWatcher", "classdsqt_1_1bridge_1_1DsBridgeWatcher.html", "classdsqt_1_1bridge_1_1DsBridgeWatcher" ]
       ] ],
       [ "model", null, [
+        [ "ContentModelItem", "classdsqt_1_1model_1_1ContentModelItem.html", null ],
         [ "ContentModelRef", "classdsqt_1_1model_1_1ContentModelRef.html", "classdsqt_1_1model_1_1ContentModelRef" ],
         [ "ContentProperty", "classdsqt_1_1model_1_1ContentProperty.html", "classdsqt_1_1model_1_1ContentProperty" ],
         [ "Data", "classdsqt_1_1model_1_1Data.html", null ],
+        [ "DsContenModelItemModel", "classdsqt_1_1model_1_1DsContenModelItemModel.html", null ],
         [ "DsQmlContentHelper", "classdsqt_1_1model_1_1DsQmlContentHelper.html", null ],
         [ "DsQmlContentModel", "classdsqt_1_1model_1_1DsQmlContentModel.html", null ],
         [ "DsQmlEvent", "classdsqt_1_1model_1_1DsQmlEvent.html", null ],
@@ -32,7 +34,7 @@ var annotated_dup =
         [ "DsQmlClusterManager", "classdsqt_1_1ui_1_1DsQmlClusterManager.html", null ],
         [ "DsQmlClusterView", "classdsqt_1_1ui_1_1DsQmlClusterView.html", "classdsqt_1_1ui_1_1DsQmlClusterView" ],
         [ "DsQmlFpsMonitor", "classdsqt_1_1ui_1_1DsQmlFpsMonitor.html", "classdsqt_1_1ui_1_1DsQmlFpsMonitor" ],
-        [ "DsQmlPlaylistView", "classdsqt_1_1ui_1_1DsQmlPlaylistView.html", null ],
+        [ "DsQmlPlaylistControl", "classdsqt_1_1ui_1_1DsQmlPlaylistControl.html", null ],
         [ "DsQmlTouchCluster", "classdsqt_1_1ui_1_1DsQmlTouchCluster.html", null ],
         [ "DsQmlTouchClusterList", "classdsqt_1_1ui_1_1DsQmlTouchClusterList.html", null ],
         [ "TouchInfo", "structdsqt_1_1ui_1_1TouchInfo.html", null ]

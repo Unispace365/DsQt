@@ -62,7 +62,7 @@ var NAVTREE =
 var NAVTREEINDEX =
 [
 "annotated.html",
-"classdsqt_1_1model_1_1DsQmlEvent.html"
+"classdsqt_1_1model_1_1DsQmlContentHelper.html"
 ];
 
 var SYNCONMSG = 'click to disable panel synchronisation';

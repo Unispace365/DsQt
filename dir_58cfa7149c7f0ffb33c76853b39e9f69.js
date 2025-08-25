@@ -1,5 +1,6 @@
 var dir_58cfa7149c7f0ffb33c76853b39e9f69 =
 [
+    [ "dsContenModelItemModel.h", "dsContenModelItemModel_8h_source.html", null ],
     [ "dsContentModel.h", "dsContentModel_8h_source.html", null ],
     [ "dsIContentHelper.h", "dsIContentHelper_8h_source.html", null ],
     [ "dsPropertyMapDiff.h", "dsPropertyMapDiff_8h_source.html", null ],
