@@ -10,6 +10,7 @@ namespace {
 
 DsQmlObj::DsQmlObj(QQmlEngine* qmlEngine, QJSEngine* jsEngine, QObject* parent)
     : QObject{parent} {
+    mPath   = new DsQmlPathHelper(this);
     mEngine = dynamic_cast<DsQmlApplicationEngine*>(qmlEngine);
     if (mEngine == nullptr) {
         qWarning() << "Engine is not a DsQmlApplicationEngine or a subclass. $DS functionality will not be available";
@@ -40,6 +41,10 @@ DsQmlApplicationEngine* DsQmlObj::engine() const {
 
 model::DsQmlContentModel* DsQmlObj::platform() {
     return mPlatformQml;
+}
+
+DsQmlPathHelper* DsQmlObj::path() const {
+    return mPath;
 }
 
 void DsQmlObj::updatePlatform() {

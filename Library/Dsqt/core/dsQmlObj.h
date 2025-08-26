@@ -3,6 +3,7 @@
 
 #include "core/dsQmlApplicationEngine.h"
 #include "core/dsQmlEnvironment.h"
+#include "core/dsQmlPathHelper.h"
 #include "model/dsQmlContentModel.h"
 #include "model/dsReferenceMap.h"
 #include "settings/dsQmlSettingsProxy.h"
@@ -18,7 +19,8 @@ namespace dsqt {
 
 /**
  * \class DsQmlObj
- * \brief Singleton QObject providing QML access to key application components like environment, settings, engine, and platform content.
+ * \brief Singleton QObject providing QML access to key application components like environment, settings, engine, and
+ * platform content.
  *
  * This class acts as a bridge between QML and the underlying C++ application logic. It is registered as a QML singleton
  * named "Ds" and exposes properties and methods for interacting with the application's engine, settings, environment,
@@ -34,6 +36,7 @@ class DsQmlObj : public QObject {
     Q_PROPERTY(dsqt::DsQmlSettingsProxy* appSettings READ appSettings NOTIFY appSettingsChanged)
     Q_PROPERTY(dsqt::DsQmlApplicationEngine* engine READ engine NOTIFY engineChanged)
     Q_PROPERTY(dsqt::model::DsQmlContentModel* platform READ platform NOTIFY platformChanged)
+    Q_PROPERTY(dsqt::DsQmlPathHelper* path READ path CONSTANT)
 
   public:
     /**
@@ -76,6 +79,9 @@ class DsQmlObj : public QObject {
      */
     model::DsQmlContentModel* platform();
 
+
+    DsQmlPathHelper* path() const;
+
     /**
      * \brief Retrieves a content model record by its ID.
      * \param id The ID of the record to retrieve.
@@ -105,6 +111,7 @@ class DsQmlObj : public QObject {
     void platformChanged();
 
   private:
+    DsQmlPathHelper*          mPath        = nullptr;
     DsQmlApplicationEngine*   mEngine      = nullptr;
     model::DsQmlContentModel* mPlatformQml = nullptr;
     model::ContentModelRef    mPlatform;
