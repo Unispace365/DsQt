@@ -36,11 +36,13 @@ qt_add_qml_module(Dsqt
         core/dsEnvironment.cpp core/dsEnvironment.h
         core/dsGuiApplication.cpp core/dsGuiApplication.h
         core/dsQmlApplicationEngine.cpp core/dsQmlApplicationEngine.h
+        core/dsQmlEditableSource.h
         core/dsQmlEnvironment.h core/dsQmlEnvironment.cpp
         core/dsQmlIdle.h core/dsQmlIdle.cpp
         core/dsQmlIdlePreventer.h core/dsQmlIdlePreventer.cpp
         core/dsQmlImguiItem.h
         core/dsQmlObj.h core/dsQmlObj.cpp
+        core/dsQmlPathHelper.cpp core/dsQmlPathHelper.h
         core/dsReloadUrlInterceptor.h core/dsReloadUrlInterceptor.cpp
         model/dsContentModel.cpp model/dsContentModel.h
         model/dsIContentHelper.cpp model/dsIContentHelper.h
