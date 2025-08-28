@@ -145,7 +145,7 @@ class DsQmlApplicationEngine : public QQmlApplicationEngine {
      * @brief Gets the reference map.
      * @return Const pointer to model::ReferenceMap.
      */
-    const model::ReferenceMap* getReferenceMap() const;
+    model::ReferenceMap* getReferenceMap() const;
 
     /**
      * @brief Reads the settings.
@@ -259,7 +259,7 @@ class DsQmlApplicationEngine : public QQmlApplicationEngine {
     model::ContentModelRef mContentRoot;
 
     /// QML reference map.
-    model::ReferenceMap mQmlRefMap;
+    model::ReferenceMap* mQmlRefMap;
 
     /// Pointer to the QML content model for the root.
     model::DsQmlContentModel* mRootMap = nullptr;

@@ -6,13 +6,13 @@
 
 // add necessary includes here
 
-class DSSettingsTest : public QObject
+class DsSettingsTest : public QObject
 {
 	Q_OBJECT
 
   public:
-	DSSettingsTest();
-	~DSSettingsTest();
+    DsSettingsTest();
+    ~DsSettingsTest();
 
   private slots:
 	void initTestCase();
@@ -81,33 +81,33 @@ class DSSettingsTest : public QObject
 	void read_notable();
 
   private:
-	dsqt::DSSettingsRef test_settings;
+    dsqt::DsSettingsRef test_settings;
 };
 
-DSSettingsTest::DSSettingsTest()
+DsSettingsTest::DsSettingsTest()
 {
 
 }
 
-DSSettingsTest::~DSSettingsTest()
+DsSettingsTest::~DsSettingsTest()
 {
 
 }
 
-void DSSettingsTest::initTestCase()
+void DsSettingsTest::initTestCase()
 {
-	DSEnv::loadEngineSettings();
+    DsEnv::loadEngineSettings();
 
 
 
 }
 
-void DSSettingsTest::cleanupTestCase()
+void DsSettingsTest::cleanupTestCase()
 {
 
 }
 
-void DSSettingsTest::init()
+void DsSettingsTest::init()
 {
     QLoggingCategory::setFilterRules("settings.parser*=false\n");
 
@@ -116,46 +116,46 @@ void DSSettingsTest::init()
 	if(!existed){
 		//qWarning()<<"test_settings did not already exist";
 	}
-	DSEnv::loadSettings("test_settings","test_settings.toml");
+    DsEnv::loadSettings("test_settings","test_settings.toml");
     //qWarning()<<"running_init";
 }
 
-void DSSettingsTest::cleanup()
+void DsSettingsTest::cleanup()
 {
 	dsqt::DsSettings::forgetSettings("test_settings");
 }
 
 //settings creation
-void DSSettingsTest::getOrCreateSettings_shouldReturnExisitngSettingsAndTrueWhenSettingsExist()
+void DsSettingsTest::getOrCreateSettings_shouldReturnExisitngSettingsAndTrueWhenSettingsExist()
 {
 	auto [existed,test] = dsqt::DsSettings::getSettingsOrCreate("test_settings");
 	QVERIFY(existed);
 	QVERIFY(test);
 }
 
-void DSSettingsTest::getOrCreateSettings_shouldReturnNewSettingsAndFalseWhenSettingsDoNotExist()
+void DsSettingsTest::getOrCreateSettings_shouldReturnNewSettingsAndFalseWhenSettingsDoNotExist()
 {
 	auto [existed,test] = dsqt::DsSettings::getSettingsOrCreate("new_settings");
 	QVERIFY(!existed);
 	QVERIFY(test);
 }
 
-void DSSettingsTest::getSettings_shouldReturnExistingSettingsWhenSettingsExist(){
+void DsSettingsTest::getSettings_shouldReturnExistingSettingsWhenSettingsExist(){
 	auto std_string = test_settings->get<std::string>("no_table");
 	QVERIFY2(std_string == "test value","std::string fail");
 
 }
 
-void DSSettingsTest::getSettings_shouldReturnEmptingRefWhenSettingsDoNotExist(){
+void DsSettingsTest::getSettings_shouldReturnEmptingRefWhenSettingsDoNotExist(){
 	auto std_string = test_settings->get<std::string>("not_exist");
 	QVERIFY(std_string.has_value() == false);
 }
-void DSSettingsTest::getOr_shouldReturnTheSettingValueWhentheSettingExist(){
+void DsSettingsTest::getOr_shouldReturnTheSettingValueWhentheSettingExist(){
 	auto std_string = test_settings->getOr<std::string>("no_table","fake");
 	QVERIFY2(std_string != "fake","Or value was returned and it should not have been");
 	QVERIFY2(std_string == "test value","Incorrect value was returned");
 }
-void DSSettingsTest::getOr_shoudReturnTheOrValueWhenTheSettingDoesNotExist(){
+void DsSettingsTest::getOr_shoudReturnTheOrValueWhenTheSettingDoesNotExist(){
 	auto std_string = test_settings->getOr<std::string>("not_exist","fake");
 	QVERIFY2(std_string == "fake","Incorrect value was returned");
 }
@@ -163,7 +163,7 @@ void DSSettingsTest::getOr_shoudReturnTheOrValueWhenTheSettingDoesNotExist(){
 //Base Types
 //*****************
 //int
-void DSSettingsTest::get_integral_shouldReturnExpectedIntegral_data(){
+void DsSettingsTest::get_integral_shouldReturnExpectedIntegral_data(){
 	QTest::addColumn<QString>("key");
 	QTest::addColumn<int64_t>("result");
 
@@ -173,7 +173,7 @@ void DSSettingsTest::get_integral_shouldReturnExpectedIntegral_data(){
 	QTest::newRow("int from float")<<"int_from_float"<<1024ll;
 
 };
-void DSSettingsTest::get_integral_shouldReturnExpectedIntegral(){
+void DsSettingsTest::get_integral_shouldReturnExpectedIntegral(){
 	QFETCH(QString, key);
 	QFETCH(int64_t, result);
 
@@ -189,7 +189,7 @@ void DSSettingsTest::get_integral_shouldReturnExpectedIntegral(){
 };
 
 //float
-void DSSettingsTest::get_floatingPoint_shouldReturnExpectedFloatingPoint_data(){
+void DsSettingsTest::get_floatingPoint_shouldReturnExpectedFloatingPoint_data(){
 	QTest::addColumn<QString>("key");
 	QTest::addColumn<double>("result");
 
@@ -201,7 +201,7 @@ void DSSettingsTest::get_floatingPoint_shouldReturnExpectedFloatingPoint_data(){
 	QTest::newRow("float from int")<<"float_from_int"<<1024.0;
 };
 
-void DSSettingsTest::get_floatingPoint_shouldReturnExpectedFloatingPoint(){
+void DsSettingsTest::get_floatingPoint_shouldReturnExpectedFloatingPoint(){
 	QFETCH(QString, key);
 	QFETCH(double, result);
 
@@ -217,7 +217,7 @@ void DSSettingsTest::get_floatingPoint_shouldReturnExpectedFloatingPoint(){
 };
 
 //string
-void DSSettingsTest::get_string_shouldReturnExpectedString_data(){
+void DsSettingsTest::get_string_shouldReturnExpectedString_data(){
 	QTest::addColumn<QString>("key");
 	QTest::addColumn<QString>("result");
 
@@ -230,7 +230,7 @@ void DSSettingsTest::get_string_shouldReturnExpectedString_data(){
 	QTest::newRow("string from array")<<"string_from_array"<<R"([ 'this', 'is', 'an', 'array' ])";
 	QTest::newRow("string from table")<<"string_from_table"<<R"({ one = '1', three = '3', two = '2' })";
 };
-void DSSettingsTest::get_string_shouldReturnExpectedString(){
+void DsSettingsTest::get_string_shouldReturnExpectedString(){
 	QFETCH(QString, key);
 	QFETCH(QString, result);
 
@@ -244,7 +244,7 @@ void DSSettingsTest::get_string_shouldReturnExpectedString(){
 	QCOMPARE(string_value.value(),result.toStdString());
 };
 //bool
-void DSSettingsTest::get_bool_shouldReturnExpectedBoolean_data(){
+void DsSettingsTest::get_bool_shouldReturnExpectedBoolean_data(){
 	QTest::addColumn<QString>("key");
 	QTest::addColumn<bool>("result");
 
@@ -254,7 +254,7 @@ void DSSettingsTest::get_bool_shouldReturnExpectedBoolean_data(){
 	QTest::newRow("string empty is false")<<"bool_str_empty"<<false;
 	QTest::newRow("string foobar is true")<<"bool_str_foobar"<<true;
 };
-void DSSettingsTest::get_bool_shouldReturnExpectedBoolean(){
+void DsSettingsTest::get_bool_shouldReturnExpectedBoolean(){
 	QFETCH(QString, key);
 	QFETCH(bool, result);
 
@@ -267,14 +267,14 @@ void DSSettingsTest::get_bool_shouldReturnExpectedBoolean(){
 //*****************
 //QColor
 //*****************
-void DSSettingsTest::get_QColor_from_validString_shouldReturnAValidQColorOptional_data(){
+void DsSettingsTest::get_QColor_from_validString_shouldReturnAValidQColorOptional_data(){
 	QTest::addColumn<QString>("key");
 	QTest::addColumn<QColor>("result");
 
 	QTest::newRow("hex with alpha")<<"hex"<<QColor(255,238,170,128);
 	QTest::newRow("named color")<<"name"<<QColor::fromString("blue");
 };
-void DSSettingsTest::get_QColor_from_validString_shouldReturnAValidQColorOptional(){
+void DsSettingsTest::get_QColor_from_validString_shouldReturnAValidQColorOptional(){
 	QFETCH(QString, key);
 	QFETCH(QColor, result);
 
@@ -282,7 +282,7 @@ void DSSettingsTest::get_QColor_from_validString_shouldReturnAValidQColorOptiona
 	QCOMPARE(test_value.has_value(),true);
 	QCOMPARE(test_value.value(),result);
 };
-void DSSettingsTest::get_QColor_from_Arrays_shouldReturnAValidQColorOptional_data(){
+void DsSettingsTest::get_QColor_from_Arrays_shouldReturnAValidQColorOptional_data(){
 	QTest::addColumn<QString>("key");
 	QTest::addColumn<QColor>("result");
 
@@ -310,7 +310,7 @@ void DSSettingsTest::get_QColor_from_Arrays_shouldReturnAValidQColorOptional_dat
 	QTest::newRow("int hsva")<<"int_hsva"<<QColor::fromHsv(44,252,252,255);
 	QTest::newRow("int hsla")<<"int_hsla"<<QColor::fromHsl(44,250,128,255);
 };
-void DSSettingsTest::get_QColor_from_Arrays_shouldReturnAValidQColorOptional(){
+void DsSettingsTest::get_QColor_from_Arrays_shouldReturnAValidQColorOptional(){
 	QFETCH(QString, key);
 	QFETCH(QColor, result);
 
@@ -318,7 +318,7 @@ void DSSettingsTest::get_QColor_from_Arrays_shouldReturnAValidQColorOptional(){
 	QCOMPARE(test_value.has_value(),true);
 	QCOMPARE(test_value.value(),result);
 };
-void DSSettingsTest::get_QColor_from_Tables_shouldReturnAValidQColorOptional_data(){
+void DsSettingsTest::get_QColor_from_Tables_shouldReturnAValidQColorOptional_data(){
 	QTest::addColumn<QString>("key");
 	QTest::addColumn<QColor>("result");
 
@@ -342,7 +342,7 @@ void DSSettingsTest::get_QColor_from_Tables_shouldReturnAValidQColorOptional_dat
 	QTest::newRow("int hsva")<<"int_hsva"<<QColor::fromHsv(44,252,252,255);
 	QTest::newRow("int hsla")<<"int_hsla"<<QColor::fromHsl(44,250,128,255);
 };
-void DSSettingsTest::get_QColor_from_Tables_shouldReturnAValidQColorOptional(){
+void DsSettingsTest::get_QColor_from_Tables_shouldReturnAValidQColorOptional(){
 	QFETCH(QString, key);
 	QFETCH(QColor, result);
 
@@ -354,7 +354,7 @@ void DSSettingsTest::get_QColor_from_Tables_shouldReturnAValidQColorOptional(){
 //*****************
 //QDate, QTime, QDateTime
 //*****************
-void DSSettingsTest::get_QTime_from_validString_shouldReturnAValidQTimeOptional_data(){
+void DsSettingsTest::get_QTime_from_validString_shouldReturnAValidQTimeOptional_data(){
 	QTest::addColumn<QString>("key");
 	QTest::addColumn<QTime>("result");
 	QTest::addColumn<Qt::DateFormat>("format");
@@ -365,7 +365,7 @@ void DSSettingsTest::get_QTime_from_validString_shouldReturnAValidQTimeOptional_
 	QTest::newRow("TextDate")<<"ISO8601_default"<<QTime(17,30,30)<<Qt::DateFormat::TextDate<<"";
 	QTest::newRow("Custom")<<"custom_time"<<QTime(17,30)<<Qt::DateFormat::ISODateWithMs<<"h:map";
 }
-void DSSettingsTest::get_QTime_from_validString_shouldReturnAValidQTimeOptional(){
+void DsSettingsTest::get_QTime_from_validString_shouldReturnAValidQTimeOptional(){
 	QFETCH(QString, key);
 	QFETCH(QTime, result);
 	QFETCH(Qt::DateFormat,format);
@@ -378,7 +378,7 @@ void DSSettingsTest::get_QTime_from_validString_shouldReturnAValidQTimeOptional(
 	QCOMPARE(test_value.value(),result);
 }
 
-void DSSettingsTest::get_QDate_from_validString_shouldReturnAValidQDateOptional_data(){
+void DsSettingsTest::get_QDate_from_validString_shouldReturnAValidQDateOptional_data(){
 	QTest::addColumn<QString>("key");
 	QTest::addColumn<QDate>("result");
 	QTest::addColumn<Qt::DateFormat>("format");
@@ -390,7 +390,7 @@ void DSSettingsTest::get_QDate_from_validString_shouldReturnAValidQDateOptional_
 	QTest::newRow("RFC2822")<<"rfc2822"<<QDate(2023,1,30)<<Qt::DateFormat::RFC2822Date<<"";
 	QTest::newRow("Custom")<<"custom_date"<<QDate(2023,8,27)<<Qt::DateFormat::ISODateWithMs<<"M/d/yyyy";
 }
-void DSSettingsTest::get_QDate_from_validString_shouldReturnAValidQDateOptional(){
+void DsSettingsTest::get_QDate_from_validString_shouldReturnAValidQDateOptional(){
 	QFETCH(QString, key);
 	QFETCH(QDate, result);
 	QFETCH(Qt::DateFormat,format);
@@ -403,7 +403,7 @@ void DSSettingsTest::get_QDate_from_validString_shouldReturnAValidQDateOptional(
 	QCOMPARE(test_value.value(),result);
 }
 
-void DSSettingsTest::get_QDateTime_from_validString_shouldReturnAValidQDateTimeOptional_data(){
+void DsSettingsTest::get_QDateTime_from_validString_shouldReturnAValidQDateTimeOptional_data(){
 	QTest::addColumn<QString>("key");
 	QTest::addColumn<QDateTime>("result");
 	QTest::addColumn<Qt::DateFormat>("format");
@@ -413,7 +413,7 @@ void DSSettingsTest::get_QDateTime_from_validString_shouldReturnAValidQDateTimeO
 	QTest::newRow("Iso8601")<<"ISO8601_default"<<QDateTime(QDate(2023,1,30),QTime(17,30,30))<<Qt::DateFormat::ISODateWithMs<<"";
 	QTest::newRow("Custom")<<"custom_date_time"<<QDateTime(QDate(2023,8,27),QTime(7,30))<<Qt::DateFormat::ISODateWithMs<<"h:map on M/d/yyyy";
 }
-void DSSettingsTest::get_QDateTime_from_validString_shouldReturnAValidQDateTimeOptional(){
+void DsSettingsTest::get_QDateTime_from_validString_shouldReturnAValidQDateTimeOptional(){
 	QFETCH(QString, key);
 	QFETCH(QDateTime, result);
 	QFETCH(Qt::DateFormat,format);
@@ -426,7 +426,7 @@ void DSSettingsTest::get_QDateTime_from_validString_shouldReturnAValidQDateTimeO
 	QCOMPARE(test_value.value(),result);
 }
 
-void DSSettingsTest::get_QTime_from_tomlDateTime_shouldReturnAValidQTimeOptional_data(){
+void DsSettingsTest::get_QTime_from_tomlDateTime_shouldReturnAValidQTimeOptional_data(){
 	QTest::addColumn<QString>("key");
 	QTest::addColumn<QTime>("result");
 
@@ -440,7 +440,7 @@ void DSSettingsTest::get_QTime_from_tomlDateTime_shouldReturnAValidQTimeOptional
 	QTest::newRow("local time fract seconds")<<"lt2"<<QTime(0,32,00,999);
 }
 
-void DSSettingsTest::get_QTime_from_tomlDateTime_shouldReturnAValidQTimeOptional(){
+void DsSettingsTest::get_QTime_from_tomlDateTime_shouldReturnAValidQTimeOptional(){
 	QFETCH(QString, key);
 	QFETCH(QTime, result);
 
@@ -451,7 +451,7 @@ void DSSettingsTest::get_QTime_from_tomlDateTime_shouldReturnAValidQTimeOptional
 
 }
 
-void DSSettingsTest::get_QDate_from_tomlDateTime_shouldReturnAValidQDateOptional_data(){
+void DsSettingsTest::get_QDate_from_tomlDateTime_shouldReturnAValidQDateOptional_data(){
 	QTest::addColumn<QString>("key");
 	QTest::addColumn<QDate>("result");
 
@@ -465,7 +465,7 @@ void DSSettingsTest::get_QDate_from_tomlDateTime_shouldReturnAValidQDateOptional
 	QTest::newRow("local time fract seconds")<<"lt2"<<QDate(); //invalid date
 }
 
-void DSSettingsTest::get_QDate_from_tomlDateTime_shouldReturnAValidQDateOptional(){
+void DsSettingsTest::get_QDate_from_tomlDateTime_shouldReturnAValidQDateOptional(){
 	QFETCH(QString, key);
 	QFETCH(QDate, result);
 
@@ -475,7 +475,7 @@ void DSSettingsTest::get_QDate_from_tomlDateTime_shouldReturnAValidQDateOptional
 	QCOMPARE(test_value.value(),result);
 }
 
-void DSSettingsTest::get_QDateTime_from_tomlDateTime_shouldReturnAValidQDateTimeOptional_data(){
+void DsSettingsTest::get_QDateTime_from_tomlDateTime_shouldReturnAValidQDateTimeOptional_data(){
 	QTest::addColumn<QString>("key");
 	QTest::addColumn<QDateTime>("result");
 
@@ -489,7 +489,7 @@ void DSSettingsTest::get_QDateTime_from_tomlDateTime_shouldReturnAValidQDateTime
 	QTest::newRow("local time fract seconds")<<"lt2"<<QDateTime(QDate(),QTime(0,32,00,999));
 }
 
-void DSSettingsTest::get_QDateTime_from_tomlDateTime_shouldReturnAValidQDateTimeOptional(){
+void DsSettingsTest::get_QDateTime_from_tomlDateTime_shouldReturnAValidQDateTimeOptional(){
 	QFETCH(QString, key);
 	QFETCH(QDateTime, result);
 
@@ -502,7 +502,7 @@ void DSSettingsTest::get_QDateTime_from_tomlDateTime_shouldReturnAValidQDateTime
 //*****************
 //Geometry
 //*****************
-void DSSettingsTest::get_glmVectors_from_arrays_shouldReturnAValidGlmVectorOptional(){
+void DsSettingsTest::get_glmVectors_from_arrays_shouldReturnAValidGlmVectorOptional(){
 	auto vec2 = test_settings->get<glm::vec2>("test.geom.vectors.vec2");
 	auto vec3 = test_settings->get<glm::vec3>("test.geom.vectors.vec3");
 	auto vec4 = test_settings->get<glm::vec4>("test.geom.vectors.vec4");
@@ -515,7 +515,7 @@ void DSSettingsTest::get_glmVectors_from_arrays_shouldReturnAValidGlmVectorOptio
 	QCOMPARE(vec4.value() , glm::vec4(20,30,40,50));
 }
 
-void DSSettingsTest::get_QVectors_from_arrays_shouldReturnAValidGlmVectorOptional(){
+void DsSettingsTest::get_QVectors_from_arrays_shouldReturnAValidGlmVectorOptional(){
 	auto vec2 = test_settings->get<QVector2D>("test.geom.vectors.vec2");
 	auto vec3 = test_settings->get<QVector3D>("test.geom.vectors.vec3");
 	auto vec4 = test_settings->get<QVector4D>("test.geom.vectors.vec4");
@@ -528,7 +528,7 @@ void DSSettingsTest::get_QVectors_from_arrays_shouldReturnAValidGlmVectorOptiona
 	QCOMPARE(vec4.value() , QVector4D(20,30,40,50));
 }
 
-void DSSettingsTest::get_QPoint_from_arraysandtables_shouldReturnAValidGlmVectorOptional_data(){
+void DsSettingsTest::get_QPoint_from_arraysandtables_shouldReturnAValidGlmVectorOptional_data(){
 	QTest::addColumn<QString>("key");
 	QTest::addColumn<QPointF>("result");
 
@@ -536,7 +536,7 @@ void DSSettingsTest::get_QPoint_from_arraysandtables_shouldReturnAValidGlmVector
 	QTest::newRow("table (x,y)")<<"elements.x_and_y"<<QPointF(10,20);
 	QTest::newRow("table (x1,y1)")<<"elements.x1_and_y1"<<QPointF(10,20);
 }
-void DSSettingsTest::get_QPoint_from_arraysandtables_shouldReturnAValidGlmVectorOptional(){
+void DsSettingsTest::get_QPoint_from_arraysandtables_shouldReturnAValidGlmVectorOptional(){
 	QFETCH(QString, key);
 	QFETCH(QPointF, result);
 
@@ -545,14 +545,14 @@ void DSSettingsTest::get_QPoint_from_arraysandtables_shouldReturnAValidGlmVector
 	QCOMPARE(test_value.value(),result);
 }
 
-void DSSettingsTest::get_QSize_from_arraysandtables_shouldReturnAValidGlmVectorOptional_data(){
+void DsSettingsTest::get_QSize_from_arraysandtables_shouldReturnAValidGlmVectorOptional_data(){
 	QTest::addColumn<QString>("key");
 	QTest::addColumn<QSizeF>("result");
 
 	QTest::newRow("array")<<"vectors.vec2"<<QSizeF(20,30);
 	QTest::newRow("table (w,h)")<<"elements.w_and_h"<<QSizeF(40,50);
 }
-void DSSettingsTest::get_QSize_from_arraysandtables_shouldReturnAValidGlmVectorOptional(){
+void DsSettingsTest::get_QSize_from_arraysandtables_shouldReturnAValidGlmVectorOptional(){
 	QFETCH(QString, key);
 	QFETCH(QSizeF, result);
 
@@ -561,7 +561,7 @@ void DSSettingsTest::get_QSize_from_arraysandtables_shouldReturnAValidGlmVectorO
 	QCOMPARE(test_value.value(),result);
 }
 
-void DSSettingsTest::get_QRect_from_arraysandtables_shouldReturnAValidGlmVectorOptional_data(){
+void DsSettingsTest::get_QRect_from_arraysandtables_shouldReturnAValidGlmVectorOptional_data(){
 	QTest::addColumn<QString>("key");
 	QTest::addColumn<QRectF>("result");
 
@@ -571,7 +571,7 @@ void DSSettingsTest::get_QRect_from_arraysandtables_shouldReturnAValidGlmVectorO
 	QTest::newRow("table (x,y,w,h)")<<"elements.rect_xywh"<<QRectF(10,20,40,50);
 	QTest::newRow("table (x1,y1,x2,y2)")<<"elements.rect_x1y1x2y2"<<QRectF(10,20,40,50);
 }
-void DSSettingsTest::get_QRect_from_arraysandtables_shouldReturnAValidGlmVectorOptional(){
+void DsSettingsTest::get_QRect_from_arraysandtables_shouldReturnAValidGlmVectorOptional(){
 	QFETCH(QString, key);
 	QFETCH(QRectF, result);
 
@@ -580,7 +580,7 @@ void DSSettingsTest::get_QRect_from_arraysandtables_shouldReturnAValidGlmVectorO
 	QCOMPARE(test_value.value(),result);
 }
 
-void DSSettingsTest::get_QVariantList_shouldReturnAValidQVariantList_data()
+void DsSettingsTest::get_QVariantList_shouldReturnAValidQVariantList_data()
 {
     QTest::addColumn<QString>("key");
     QTest::addColumn<QVariantList>("result");
@@ -595,7 +595,7 @@ void DSSettingsTest::get_QVariantList_shouldReturnAValidQVariantList_data()
 
 }
 
-void DSSettingsTest::get_QVariantList_shouldReturnAValidQVariantList()
+void DsSettingsTest::get_QVariantList_shouldReturnAValidQVariantList()
 {
     QFETCH(QString, key);
     QFETCH(QVariantList, result);
@@ -605,7 +605,7 @@ void DSSettingsTest::get_QVariantList_shouldReturnAValidQVariantList()
     QCOMPARE(test_value.value(),result);
 }
 
-void DSSettingsTest::get_QVariantMap_shouldReturnAValidQVariantMap_data()
+void DsSettingsTest::get_QVariantMap_shouldReturnAValidQVariantMap_data()
 {
     QTest::addColumn<QString>("key");
     QTest::addColumn<QVariantMap>("result");
@@ -624,7 +624,7 @@ void DSSettingsTest::get_QVariantMap_shouldReturnAValidQVariantMap_data()
 
 }
 
-void DSSettingsTest::get_QVariantMap_shouldReturnAValidQVariantMap()
+void DsSettingsTest::get_QVariantMap_shouldReturnAValidQVariantMap()
 {
     QFETCH(QString, key);
     QFETCH(QVariantMap, result);
@@ -634,16 +634,16 @@ void DSSettingsTest::get_QVariantMap_shouldReturnAValidQVariantMap()
     QCOMPARE(test_value.value(),result);
 }
 
-void DSSettingsTest::get_shouldReturnAnEmptyOptionalWhenTheSettingDoesNotExist(){qWarning() << "Not Implemented";}
-void DSSettingsTest::getWithMeta_shouldReturnAValidTupleWhenTheSettingExists(){qWarning() << "Not Implemented";}
+void DsSettingsTest::get_shouldReturnAnEmptyOptionalWhenTheSettingDoesNotExist(){qWarning() << "Not Implemented";}
+void DsSettingsTest::getWithMeta_shouldReturnAValidTupleWhenTheSettingExists(){qWarning() << "Not Implemented";}
 
-void DSSettingsTest::read_notable()
+void DsSettingsTest::read_notable()
 {
 	auto val = test_settings->get<std::string>("no_table");
 	QVERIFY(val);
 	QVERIFY(val.value() == "test value");
 }
 
-QTEST_MAIN(DSSettingsTest)
+QTEST_MAIN(DsSettingsTest)
 //QTEST_MAIN(DSSettingsTest)
 #include "tst_dssettingstest.moc"

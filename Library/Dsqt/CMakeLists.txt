@@ -17,12 +17,15 @@ qt_add_qml_module(Dsqt
         qml/DsAppBase.qml
         qml/DsAppMenuBar.qml
         qml/DsAppMenuItem.qml
+        qml/DsContentBrowser.qml
         qml/DsFitView.qml
         qml/DsLoader.qml
         qml/DsMediaViewer.qml
         qml/DsScaleLoader.qml
         qml/DsTextFileViewer.qml
-        qml/waffles/DsQuickMenu.qml
+        qml/ui/DsAnimateOnOffItem.qml
+        qml/ui/DsPlaylistView.qml
+        qml/ui/DsQuickMenu.qml
         qml/waffles/DsViewer.qml
         qml/waffles/DsWaffleStage.qml
         qml/waffles/media_viewer/DsControlSet.qml
@@ -47,6 +50,7 @@ qt_add_qml_module(Dsqt
         core/dsQmlTextMeasurer.h
         core/dsReloadUrlInterceptor.h core/dsReloadUrlInterceptor.cpp
         model/dsContentModel.cpp model/dsContentModel.h
+        model/dsContenModelItemModel.h model/dsContenModelItemModel.cpp
         model/dsIContentHelper.cpp model/dsIContentHelper.h
         model/dsPropertyMapDiff.cpp model/dsPropertyMapDiff.h
         model/dsQmlContentHelper.cpp model/dsQmlContentHelper.h
@@ -70,6 +74,7 @@ qt_add_qml_module(Dsqt
         ui/dsQmlClusterManager.h ui/dsQmlClusterManager.cpp
         ui/dsQmlClusterView.h ui/dsQmlClusterView.cpp
         ui/dsQmlFpsMonitor.h ui/dsQmlFpsMonitor.cpp
+        ui/dsQmlPlaylistControl.h ui/dsQmlPlaylistControl.cpp
         ui/dsQmlTouchCluster.h ui/dsQmlTouchCluster.cpp
         utility/dsFileMetaData.cpp utility/dsFileMetaData.h
         utility/dsStringUtils.cpp utility/dsStringUtils.h
@@ -79,7 +84,6 @@ qt_add_qml_module(Dsqt
     DEPENDENCIES
          QtQuick
          Dsqtplugin
-
 )
 
 target_link_libraries(Dsqtplugin PRIVATE Qt6::Core Qt6::Multimedia Qt6::Quick)

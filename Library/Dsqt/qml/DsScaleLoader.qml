@@ -20,7 +20,7 @@ Loader {
     DsSettingsProxy {
         id:windowProxy
         target:"engine"
-        prefix: "engine.window"
+        prefix: "engine.scaleLoader"
     }
 
     width: windowProxy.getSize("world_dimensions").width;

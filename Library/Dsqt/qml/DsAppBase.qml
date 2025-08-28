@@ -161,12 +161,29 @@ ApplicationWindow {
         }
     }
 
+    Component {
+        id: contentViewer
+        DsContentBrowser {
+        }
+    }
+
     /// The default menu bar.
     menuBar: DsAppMenuBar {
         id: windowMenuBar
         visible: false
 
+        property DsContentBrowser contentBrowser: null
         onLogsBridgeSyncTriggered: (isChecked) => { bridgeSyncLog.visible = isChecked }
+        onContentBrowseToggled: (isChecked) => {
+            if(isChecked) {
+                if(contentBrowser === null) {
+                    contentBrowser = contentViewer.createObject(window)
+                    contentBrowser.closing.connect( () => { windowMenuBar.contentBrowseChecked = false } )                }
+                contentBrowser.visible = true
+            } else if(contentBrowser !== null) {
+                contentBrowser.visible = false
+            }
+        }
     }
 
     /// TODO Application log viewer.

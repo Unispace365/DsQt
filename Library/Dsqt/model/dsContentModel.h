@@ -354,6 +354,7 @@ class ContentModelRef {
     /// break this content model from other copies. (copy on write behavior)
     // void detach();
     /// get a property map for this content model
+    DsQmlContentModel *getQml() const;
     DsQmlContentModel* getQml(ReferenceMap* refMap, QObject* parent = nullptr, QString deep = "") const;
     void             setNotToQml(bool toQml) {
         createData();
@@ -362,6 +363,7 @@ class ContentModelRef {
     void     detach();
     void     updateQml(DsQmlContentModel* map = nullptr);
     QObject* getRefQObject();
+
 
   private:
     void                                            createData();
