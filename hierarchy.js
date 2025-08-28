@@ -36,10 +36,13 @@ var hierarchy =
       [ "dsqt::model::ReferenceMap", "classdsqt_1_1model_1_1ReferenceMap.html", null ]
     ] ],
     [ "QObject", null, [
+      [ "DsQmlTextMeasurer", "classDsQmlTextMeasurer.html", null ],
+      [ "dsqt::DsQmlEditableSource", "classdsqt_1_1DsQmlEditableSource.html", null ],
       [ "dsqt::DsQmlEnvironment", "classdsqt_1_1DsQmlEnvironment.html", null ],
       [ "dsqt::DsQmlIdle", "classdsqt_1_1DsQmlIdle.html", null ],
       [ "dsqt::DsQmlIdlePreventer", "classdsqt_1_1DsQmlIdlePreventer.html", null ],
       [ "dsqt::DsQmlObj", "classdsqt_1_1DsQmlObj.html", null ],
+      [ "dsqt::DsQmlPathHelper", "classdsqt_1_1DsQmlPathHelper.html", null ],
       [ "dsqt::DsQmlSettingsProxy", "classdsqt_1_1DsQmlSettingsProxy.html", null ],
       [ "dsqt::DsSettings", "classdsqt_1_1DsSettings.html", null ],
       [ "dsqt::DsUrlImageLoader", "classdsqt_1_1DsUrlImageLoader.html", null ],

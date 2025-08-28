@@ -47,7 +47,7 @@ var NAVTREE =
       [ "Class Hierarchy", "hierarchy.html", "hierarchy" ],
       [ "Class Members", "functions.html", [
         [ "All", "functions.html", "functions_dup" ],
-        [ "Functions", "functions_func.html", null ],
+        [ "Functions", "functions_func.html", "functions_func" ],
         [ "Variables", "functions_vars.html", null ],
         [ "Properties", "functions_prop.html", null ],
         [ "Related Symbols", "functions_rela.html", null ]
@@ -61,8 +61,8 @@ var NAVTREE =
 
 var NAVTREEINDEX =
 [
-"annotated.html",
-"classdsqt_1_1model_1_1DsQmlContentHelper.html"
+"DsQmlEditableSource_8h_source.html",
+"classdsqt_1_1model_1_1ContentModelRef.html#ac3738d404e3b987cb0af5d9273a70948"
 ];
 
 var SYNCONMSG = 'click to disable panel synchronisation';

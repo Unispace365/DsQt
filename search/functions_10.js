@@ -29,5 +29,6 @@ var searchData=
   ['setuppaths_26',['setupPaths',['../structdsqt_1_1DsResource_1_1Id.html#a62a0b4073e841e5805fc1c5a141f264b',1,'dsqt::DsResource::Id']]],
   ['speed_27',['speed',['../classdsqt_1_1ui_1_1DsQmlClock.html#add655ae4d609622232e716cf5b53ad57',1,'dsqt::ui::DsQmlClock']]],
   ['speedchanged_28',['speedChanged',['../classdsqt_1_1ui_1_1DsQmlClock.html#a546ee63645f1b7f8a74173f7262769f4',1,'dsqt::ui::DsQmlClock']]],
-  ['synccompleted_29',['syncCompleted',['../classdsqt_1_1bridge_1_1DsBridgeSqlQuery.html#ad153628258828a36da99b9de018748e1',1,'dsqt::bridge::DsBridgeSqlQuery']]]
+  ['star_29',['star',['../classdsqt_1_1DsQmlPathHelper.html#a801cc7a355fb2cba9ecdd5f571fd46a6',1,'dsqt::DsQmlPathHelper']]],
+  ['synccompleted_30',['syncCompleted',['../classdsqt_1_1bridge_1_1DsBridgeSqlQuery.html#ad153628258828a36da99b9de018748e1',1,'dsqt::bridge::DsBridgeSqlQuery']]]
 ];
