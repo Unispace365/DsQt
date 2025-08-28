@@ -4,7 +4,7 @@ import Dsqt
 
 DsViewer {
     id: root
-    viewerType: Viewer.ViewerType.TitledMediaViewer
+    viewerType: DsViewer.ViewerType.TitledMediaViewer
     property list<DsControlSet> controls
     property url source
 
@@ -19,49 +19,49 @@ DsViewer {
             let ctrl = controls[i];
             let edge = ctrl.edge;
             switch(edge) {
-            case WaffleStage.Edge.TopOuter:
+            case DsWaffleStage.Edge.TopOuter:
                 ctrl.parent = Qt.binding(()=>{return topOuter;})
                 ctrl.width = Qt.binding(()=>{return topOuter.width;})
                 topOuter.offset = Qt.binding(()=>{return ctrl.offset;})
                 topOuter.enabled = true;
                 break;
-            case WaffleStage.Edge.TopInner:
+            case DsWaffleStage.Edge.TopInner:
                 ctrl.parent = Qt.binding(()=>{return topInner;})
                 ctrl.width = Qt.binding(()=>{return topInner.width;})
                 topInner.offset = Qt.binding(()=>{return ctrl.offset;})
                 topInner.enabled = true;
                 break;
-            case WaffleStage.Edge.BottomOuter:
+            case DsWaffleStage.Edge.BottomOuter:
                 ctrl.parent = Qt.binding(()=>{return bottomOuter;})
                 ctrl.width = Qt.binding(()=>{return bottomOuter.width;})
                 bottomOuter.offset = Qt.binding(()=>{return ctrl.offset;})
                 bottomOuter.enabled = true;
                 break;
-            case WaffleStage.Edge.BottomInner:
+            case DsWaffleStage.Edge.BottomInner:
                 ctrl.parent = Qt.binding(()=>{return bottomInner;})
                 ctrl.width = Qt.binding(()=>{return bottomInner.width;})
                 bottomInner.offset = Qt.binding(()=>{return ctrl.offset;})
                 bottomInner.enabled = true;
                 break;
-            case WaffleStage.Edge.LeftOuter:
+            case DsWaffleStage.Edge.LeftOuter:
                 ctrl.parent = Qt.binding(()=>{return leftOuter;})
                 ctrl.height = Qt.binding(()=>{return leftOuter.height;})
                 leftOuter.offset = Qt.binding(()=>{return ctrl.offset;})
                 leftOuter.enabled = true;
                 break;
-            case WaffleStage.Edge.LeftInner:
+            case DsWaffleStage.Edge.LeftInner:
                 ctrl.parent = Qt.binding(()=>{return leftInner;})
                 ctrl.height = Qt.binding(()=>{return leftInner.height;})
                 leftInner.offset = Qt.binding(()=>{return ctrl.offset;})
                 leftInner.enabled = true;
                 break;
-            case WaffleStage.Edge.RightOuter:
+            case DsWaffleStage.Edge.RightOuter:
                 ctrl.parent = Qt.binding(()=>{return rightOuter;})
                 ctrl.height = Qt.binding(()=>{return rightOuter.height;})
                 rightOuter.offset = Qt.binding(()=>{return ctrl.offset;})
                 rightOuter.enabled = true;
                 break;
-            case WaffleStage.Edge.RightInner:
+            case DsWaffleStage.Edge.RightInner:
                 ctrl.parent = Qt.binding(()=>{return rightInner;})
                 ctrl.height = Qt.binding(()=>{return rightInner.height;})
                 rightInner.offset = Qt.binding(()=>{return ctrl.offset;})

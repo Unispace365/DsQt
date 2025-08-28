@@ -4,7 +4,7 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import Dsqt
 
-Viewer {
+DsViewer {
     id: root
     viewerType: Viewer.ViewerType.Launcher
     required property var stage
