@@ -18,6 +18,7 @@ qt_add_qml_module(Dsqt
         qml/DsAppMenuBar.qml
         qml/DsAppMenuItem.qml
         qml/DsFitView.qml
+        qml/DsLoader.qml
         qml/DsMediaViewer.qml
         qml/DsScaleLoader.qml
         qml/DsTextFileViewer.qml
@@ -43,6 +44,7 @@ qt_add_qml_module(Dsqt
         core/dsQmlImguiItem.h
         core/dsQmlObj.h core/dsQmlObj.cpp
         core/dsQmlPathHelper.cpp core/dsQmlPathHelper.h
+        core/dsQmlTextMeasurer.h
         core/dsReloadUrlInterceptor.h core/dsReloadUrlInterceptor.cpp
         model/dsContentModel.cpp model/dsContentModel.h
         model/dsIContentHelper.cpp model/dsIContentHelper.h
