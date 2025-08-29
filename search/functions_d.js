@@ -10,6 +10,9 @@ var searchData=
   ['platformchanged_7',['platformChanged',['../classdsqt_1_1DsQmlObj.html#a009d7bc01e8b28c0170d27bfcc785ce4',1,'dsqt::DsQmlObj']]],
   ['platformname_8',['platformName',['../classdsqt_1_1DsQmlEnvironment.html#a7d1c9ac373841e1ef4b06bff4846fc21',1,'dsqt::DsQmlEnvironment']]],
   ['platformnamechanged_9',['platformNameChanged',['../classdsqt_1_1DsQmlEnvironment.html#a587b10c020f598cb67ee37281987da8c',1,'dsqt::DsQmlEnvironment']]],
-  ['printtree_10',['printTree',['../classdsqt_1_1model_1_1ContentModelRef.html#aa6e85b7b29e685c033717cb67135af92',1,'dsqt::model::ContentModelRef']]],
-  ['propertymapdiff_11',['PropertyMapDiff',['../classdsqt_1_1model_1_1PropertyMapDiff.html#aebf6b8145383ff6769661b76a37af848',1,'dsqt::model::PropertyMapDiff']]]
+  ['playlistindex_10',['playlistIndex',['../classdsqt_1_1ui_1_1DsQmlPlaylistControl.html#a17c8355891c114d8c89c6d985e435f71',1,'dsqt::ui::DsQmlPlaylistControl']]],
+  ['playlistindexchanged_11',['playlistIndexChanged',['../classdsqt_1_1ui_1_1DsQmlPlaylistControl.html#a6a84176d404d05add16cfbe0cce846aa',1,'dsqt::ui::DsQmlPlaylistControl']]],
+  ['prev_12',['prev',['../classdsqt_1_1ui_1_1DsQmlPlaylistControl.html#a4309b3c5cec6d36f0623ff0b359a6049',1,'dsqt::ui::DsQmlPlaylistControl']]],
+  ['printtree_13',['printTree',['../classdsqt_1_1model_1_1ContentModelRef.html#aa6e85b7b29e685c033717cb67135af92',1,'dsqt::model::ContentModelRef']]],
+  ['propertymapdiff_14',['PropertyMapDiff',['../classdsqt_1_1model_1_1PropertyMapDiff.html#aebf6b8145383ff6769661b76a37af848',1,'dsqt::model::PropertyMapDiff']]]
 ];

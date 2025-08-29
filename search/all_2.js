@@ -16,5 +16,8 @@ var searchData=
   ['contentupdated_13',['contentUpdated',['../classdsqt_1_1model_1_1DsQmlTextFileModel.html#a77b9c0ac7d01bf5b2258c137d0af48cc',1,'dsqt::model::DsQmlTextFileModel']]],
   ['contract_14',['contract',['../classdsqt_1_1DsEnvironment.html#af97be0b8557bcd19a0824ba237d3b8e1',1,'dsqt::DsEnvironment::contract(const std::string &amp;path)'],['../classdsqt_1_1DsEnvironment.html#a1feac80cd4c27c0937960fa42451075a',1,'dsqt::DsEnvironment::contract(QString path)']]],
   ['create_15',['create',['../classdsqt_1_1DsQmlObj.html#a6ba1bb68b90855609342d49674bb3c06',1,'dsqt::DsQmlObj']]],
-  ['custom_5ftype_16',['CUSTOM_TYPE',['../structdsqt_1_1DsResource_1_1Id.html#acc25bacc5441bd6950a93a791003b591',1,'dsqt::DsResource::Id']]]
+  ['currentitemchanged_16',['currentItemChanged',['../classdsqt_1_1ui_1_1DsQmlPlaylistControl.html#a1eb9ba0bf800738ec7056eff08b4b44c',1,'dsqt::ui::DsQmlPlaylistControl']]],
+  ['currentmodelitem_17',['currentmodelitem',['../classdsqt_1_1ui_1_1DsQmlPlaylistControl.html#aacb7dae4da42cce1e8ca28d60102ff1e',1,'dsqt::ui::DsQmlPlaylistControl::currentModelItem'],['../classdsqt_1_1ui_1_1DsQmlPlaylistControl.html#aebdcb2704870edccc1ecbfbed14e37c3',1,'dsqt::ui::DsQmlPlaylistControl::currentModelItem() const']]],
+  ['currenttemplatecomp_18',['currenttemplatecomp',['../classdsqt_1_1ui_1_1DsQmlPlaylistControl.html#af3e286c5fdc0055a4ebc1febe6ccc2fe',1,'dsqt::ui::DsQmlPlaylistControl::currentTemplateComp'],['../classdsqt_1_1ui_1_1DsQmlPlaylistControl.html#a4a1e5f9396465998f6a245aef651f4cf',1,'dsqt::ui::DsQmlPlaylistControl::currentTemplateComp() const']]],
+  ['custom_5ftype_19',['CUSTOM_TYPE',['../structdsqt_1_1DsResource_1_1Id.html#acc25bacc5441bd6950a93a791003b591',1,'dsqt::DsResource::Id']]]
 ];

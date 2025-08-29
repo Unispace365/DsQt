@@ -11,5 +11,8 @@ var searchData=
   ['contentmodelref_8',['ContentModelRef',['../classdsqt_1_1model_1_1ContentModelRef.html#aad6141e0f09f4a2e89cd69cb83ac9f09',1,'dsqt::model::ContentModelRef']]],
   ['contentupdated_9',['contentUpdated',['../classdsqt_1_1model_1_1DsQmlTextFileModel.html#a77b9c0ac7d01bf5b2258c137d0af48cc',1,'dsqt::model::DsQmlTextFileModel']]],
   ['contract_10',['contract',['../classdsqt_1_1DsEnvironment.html#af97be0b8557bcd19a0824ba237d3b8e1',1,'dsqt::DsEnvironment::contract(const std::string &amp;path)'],['../classdsqt_1_1DsEnvironment.html#a1feac80cd4c27c0937960fa42451075a',1,'dsqt::DsEnvironment::contract(QString path)']]],
-  ['create_11',['create',['../classdsqt_1_1DsQmlObj.html#a6ba1bb68b90855609342d49674bb3c06',1,'dsqt::DsQmlObj']]]
+  ['create_11',['create',['../classdsqt_1_1DsQmlObj.html#a6ba1bb68b90855609342d49674bb3c06',1,'dsqt::DsQmlObj']]],
+  ['currentitemchanged_12',['currentItemChanged',['../classdsqt_1_1ui_1_1DsQmlPlaylistControl.html#a1eb9ba0bf800738ec7056eff08b4b44c',1,'dsqt::ui::DsQmlPlaylistControl']]],
+  ['currentmodelitem_13',['currentModelItem',['../classdsqt_1_1ui_1_1DsQmlPlaylistControl.html#aebdcb2704870edccc1ecbfbed14e37c3',1,'dsqt::ui::DsQmlPlaylistControl']]],
+  ['currenttemplatecomp_14',['currentTemplateComp',['../classdsqt_1_1ui_1_1DsQmlPlaylistControl.html#a4a1e5f9396465998f6a245aef651f4cf',1,'dsqt::ui::DsQmlPlaylistControl']]]
 ];

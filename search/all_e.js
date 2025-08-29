@@ -12,6 +12,9 @@ var searchData=
   ['platformname_9',['platformname',['../classdsqt_1_1DsQmlEnvironment.html#ad8ef77d1b97bcdf0be015fcdbf3402be',1,'dsqt::DsQmlEnvironment::platformName'],['../classdsqt_1_1DsQmlEnvironment.html#a7d1c9ac373841e1ef4b06bff4846fc21',1,'dsqt::DsQmlEnvironment::platformName() const']]],
   ['platformnamechanged_10',['platformNameChanged',['../classdsqt_1_1DsQmlEnvironment.html#a587b10c020f598cb67ee37281987da8c',1,'dsqt::DsQmlEnvironment']]],
   ['playlistfilter_11',['PlaylistFilter',['../structdsqt_1_1model_1_1IContentHelper_1_1PlaylistFilter.html',1,'dsqt::model::IContentHelper']]],
-  ['printtree_12',['printTree',['../classdsqt_1_1model_1_1ContentModelRef.html#aa6e85b7b29e685c033717cb67135af92',1,'dsqt::model::ContentModelRef']]],
-  ['propertymapdiff_13',['propertymapdiff',['../classdsqt_1_1model_1_1PropertyMapDiff.html',1,'dsqt::model::PropertyMapDiff'],['../classdsqt_1_1model_1_1PropertyMapDiff.html#aebf6b8145383ff6769661b76a37af848',1,'dsqt::model::PropertyMapDiff::PropertyMapDiff()']]]
+  ['playlistindex_12',['playlistindex',['../classdsqt_1_1ui_1_1DsQmlPlaylistControl.html#a797e4bafed23682ddad963d37622c3ec',1,'dsqt::ui::DsQmlPlaylistControl::playlistIndex'],['../classdsqt_1_1ui_1_1DsQmlPlaylistControl.html#a17c8355891c114d8c89c6d985e435f71',1,'dsqt::ui::DsQmlPlaylistControl::playlistIndex() const']]],
+  ['playlistindexchanged_13',['playlistIndexChanged',['../classdsqt_1_1ui_1_1DsQmlPlaylistControl.html#a6a84176d404d05add16cfbe0cce846aa',1,'dsqt::ui::DsQmlPlaylistControl']]],
+  ['prev_14',['prev',['../classdsqt_1_1ui_1_1DsQmlPlaylistControl.html#a4309b3c5cec6d36f0623ff0b359a6049',1,'dsqt::ui::DsQmlPlaylistControl']]],
+  ['printtree_15',['printTree',['../classdsqt_1_1model_1_1ContentModelRef.html#aa6e85b7b29e685c033717cb67135af92',1,'dsqt::model::ContentModelRef']]],
+  ['propertymapdiff_16',['propertymapdiff',['../classdsqt_1_1model_1_1PropertyMapDiff.html#aebf6b8145383ff6769661b76a37af848',1,'dsqt::model::PropertyMapDiff::PropertyMapDiff()'],['../classdsqt_1_1model_1_1PropertyMapDiff.html',1,'dsqt::model::PropertyMapDiff']]]
 ];

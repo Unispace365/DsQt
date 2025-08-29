@@ -49,6 +49,7 @@ var NAVTREE =
         [ "All", "functions.html", "functions_dup" ],
         [ "Functions", "functions_func.html", "functions_func" ],
         [ "Variables", "functions_vars.html", null ],
+        [ "Enumerations", "functions_enum.html", null ],
         [ "Properties", "functions_prop.html", null ],
         [ "Related Symbols", "functions_rela.html", null ]
       ] ]
@@ -62,7 +63,8 @@ var NAVTREE =
 var NAVTREEINDEX =
 [
 "DsQmlEditableSource_8h_source.html",
-"classdsqt_1_1model_1_1ContentModelRef.html#ac3738d404e3b987cb0af5d9273a70948"
+"classdsqt_1_1model_1_1ContentModelRef.html#ac3738d404e3b987cb0af5d9273a70948",
+"namespacedsqt.html#a824bc92aff2ebc88fd220a45d131ace4"
 ];
 
 var SYNCONMSG = 'click to disable panel synchronisation';

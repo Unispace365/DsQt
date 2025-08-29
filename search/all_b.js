@@ -14,10 +14,13 @@ var searchData=
   ['minuteschanged_11',['minutesChanged',['../classdsqt_1_1ui_1_1DsQmlClock.html#aa6bc5d7dd3cef7724f46f7e6be4759db',1,'dsqt::ui::DsQmlClock']]],
   ['mlastupdate_12',['mLastUpdate',['../classdsqt_1_1DsQmlApplicationEngine.html#a60d40e6be5aa366520b13614905ebb7c',1,'dsqt::DsQmlApplicationEngine']]],
   ['mnodewatcher_13',['mNodeWatcher',['../classdsqt_1_1DsQmlApplicationEngine.html#ac4223c4ace59e70bc15891c6bd6038c5',1,'dsqt::DsQmlApplicationEngine']]],
-  ['mqmlenv_14',['mQmlEnv',['../classdsqt_1_1DsQmlApplicationEngine.html#aeb13c3382f2b5d0910390fcd8c117e74',1,'dsqt::DsQmlApplicationEngine']]],
-  ['mqmlrefmap_15',['mQmlRefMap',['../classdsqt_1_1DsQmlApplicationEngine.html#a09abc9c651098db659c96e7fccab2f74',1,'dsqt::DsQmlApplicationEngine']]],
-  ['mrootmap_16',['mRootMap',['../classdsqt_1_1DsQmlApplicationEngine.html#ab5484c68bc70a47751fbd5e813d3c89c',1,'dsqt::DsQmlApplicationEngine']]],
-  ['mtrigger_17',['mTrigger',['../classdsqt_1_1DsQmlApplicationEngine.html#ac17375019c9837bff68c77f5871a4a07',1,'dsqt::DsQmlApplicationEngine']]],
-  ['mtype_18',['mType',['../structdsqt_1_1DsResource_1_1Id.html#aeec80b88282d72ab624781a910b47cc2',1,'dsqt::DsResource::Id']]],
-  ['mwatcher_19',['mWatcher',['../classdsqt_1_1DsQmlApplicationEngine.html#af63964125205ccc608e32dd5ac0cc490',1,'dsqt::DsQmlApplicationEngine']]]
+  ['model_14',['model',['../classdsqt_1_1ui_1_1DsQmlPlaylistControl.html#ae8d50756c0b7a6aa0a917367ed8a59fe',1,'dsqt::ui::DsQmlPlaylistControl::model'],['../classdsqt_1_1ui_1_1DsQmlPlaylistControl.html#a0a0fb055cec8a1f5fae3825fe62e4552',1,'dsqt::ui::DsQmlPlaylistControl::model() const']]],
+  ['modelchanged_15',['modelChanged',['../classdsqt_1_1ui_1_1DsQmlPlaylistControl.html#a67a14333fdfd9bef52cc798761243773',1,'dsqt::ui::DsQmlPlaylistControl']]],
+  ['modelitemset_16',['modelItemSet',['../classdsqt_1_1ui_1_1DsQmlPlaylistControl.html#acabea43ca0c7867aeb7f8ffa683293c8',1,'dsqt::ui::DsQmlPlaylistControl']]],
+  ['mqmlenv_17',['mQmlEnv',['../classdsqt_1_1DsQmlApplicationEngine.html#aeb13c3382f2b5d0910390fcd8c117e74',1,'dsqt::DsQmlApplicationEngine']]],
+  ['mqmlrefmap_18',['mQmlRefMap',['../classdsqt_1_1DsQmlApplicationEngine.html#a09abc9c651098db659c96e7fccab2f74',1,'dsqt::DsQmlApplicationEngine']]],
+  ['mrootmap_19',['mRootMap',['../classdsqt_1_1DsQmlApplicationEngine.html#ab5484c68bc70a47751fbd5e813d3c89c',1,'dsqt::DsQmlApplicationEngine']]],
+  ['mtrigger_20',['mTrigger',['../classdsqt_1_1DsQmlApplicationEngine.html#ac17375019c9837bff68c77f5871a4a07',1,'dsqt::DsQmlApplicationEngine']]],
+  ['mtype_21',['mType',['../structdsqt_1_1DsResource_1_1Id.html#aeec80b88282d72ab624781a910b47cc2',1,'dsqt::DsResource::Id']]],
+  ['mwatcher_22',['mWatcher',['../classdsqt_1_1DsQmlApplicationEngine.html#af63964125205ccc608e32dd5ac0cc490',1,'dsqt::DsQmlApplicationEngine']]]
 ];
