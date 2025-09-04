@@ -8,7 +8,8 @@ Window {
     width: 600
     height: 400
     title: "Text Viewer"
-    color: "#e6f9f6"
+    color: system.base
+
     //visible: true
     //flags: Qt.WindowTitleHint | Qt.WindowCloseButtonHint | Qt.Tool
 
@@ -16,6 +17,11 @@ Window {
     //     x = screen.virtualX + 0.5 * (screen.width - width)
     //     y = screen.virtualY + 0.5 * (screen.height - height)
     // }
+
+    // Allows access to the system color palette.
+    SystemPalette {
+        id: system
+    }
 
     DsTextFileModel {
         id: log
@@ -34,12 +40,18 @@ Window {
                 id: wordWrapCheckBox
                 checked: false
                 text: "Word Wrap"
+                palette.accent: system.accent
+                palette.light: system.light
+                palette.base: system.base
             }
 
             CheckBox {
                 id: autoScrollCheckBox
                 checked: true
                 text: "Auto Scroll"
+                palette.accent: system.accent
+                palette.light: system.light
+                palette.base: system.base
             }
         }
 
@@ -47,7 +59,7 @@ Window {
         Rectangle {
             width: parent.width
             height: parent.height - wordWrapCheckBox.height - parent.spacing
-            color: "#e0f2ef"
+            color: system.dark
             radius: 5
             clip: true
 
@@ -62,10 +74,11 @@ Window {
                     width: logView.width
                     text: model.display
                     wrapMode: wordWrapCheckBox.checked ? Text.Wrap : Text.NoWrap
-                    font.bold: true
-                    font.family: "Courier New"
+                    //font.bold: true
+                    font.family: "Lucida Sans"
                     font.pointSize: 10
-                    color: "#000000"
+                    lineHeight: 1.2
+                    color: system.text
                 }
 
                 ScrollBar.vertical: ScrollBar {
