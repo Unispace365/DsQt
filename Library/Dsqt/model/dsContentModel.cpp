@@ -5,8 +5,8 @@
 #include <QJsonArray>
 #include <QJsonObject>
 #include <QJsonValue>
-#include <utility/dsStringUtils.h>
 #include <core/dsQmlApplicationEngine.h>
+#include <utility/dsStringUtils.h>
 
 Q_LOGGING_CATEGORY(lgContentModel, "model.contentmodel")
 Q_LOGGING_CATEGORY(lgContentModelVerbose, "model.contentmodel.verbose")
@@ -119,6 +119,12 @@ void ContentProperty::setValue(const QTime& value) {
     mDoubleValue = 0.0;
 }
 
+void ContentProperty::setValue(const QDateTime& value) {
+    mValue = value.toString("yyyy-MM-ddTHH:mm:ss");
+    mIntValue    = 0;
+    mDoubleValue = 0.0;
+}
+
 // Start here with creating utility.h/.cpp file for conversions.
 void ContentProperty::setValue(const glm::vec2& value) {
     mValue       = QString::fromStdString(dsqt::unparseVector(value));
@@ -202,6 +208,9 @@ QTime ContentProperty::getTime() const {
     return QTime::fromString(mValue, "HH:mm:ss");
 }
 
+QDateTime ContentProperty::getDateTime() const {
+    return QDateTime::fromString(mValue, "yyyy-MM-ddTHH:mm:ss");
+}
 
 const QString& ContentProperty::getString() const {
     return getValue();
@@ -1058,7 +1067,7 @@ void ContentModelRef::updateQml(DsQmlContentModel* mapIn) {
 DsQmlContentModel* ContentModelRef::getQml() const {
     auto engine = DsQmlApplicationEngine::DefEngine();
     auto refMap = DsQmlApplicationEngine::DefEngine()->getReferenceMap();
-    return getQml(refMap,qobject_cast<QObject*>(engine), QString());
+    return getQml(refMap, qobject_cast<QObject*>(engine), QString());
 }
 
 DsQmlContentModel* ContentModelRef::getQml(ReferenceMap* refMap, QObject* parent, QString deep) const {
@@ -1066,8 +1075,9 @@ DsQmlContentModel* ContentModelRef::getQml(ReferenceMap* refMap, QObject* parent
     if (!mData || mData->mNotToQml) {
         return mEmptyQmlContentModel;
     }
+
     DsQmlContentModel* map = nullptr;
-    if(refMap != nullptr){
+    if (refMap != nullptr) {
         // do we already have a DsQmlContentModel for this model?
         map = DsQmlContentModel::getQmlContentModel(*this, refMap, parent);
 
@@ -1079,27 +1089,22 @@ DsQmlContentModel* ContentModelRef::getQml(ReferenceMap* refMap, QObject* parent
             qCDebug(lgContentModelVerbose).noquote() << deep + "Updating QmlContentModel for " << sid;
         }
     } else {
-        map  = new DsQmlContentModel(*this,parent);
+        map = new DsQmlContentModel(*this, parent);
     }
+
     // localUpdate is to encapsulate debugging or additional functionality
     // associated with changing/inserting a key value;
     auto localUpdate = [map](QString key, QVariant value) mutable {
         map->insert(key, value);
     };
 
-    auto id = QVariant::fromValue(mData->mId);
     if (mData) {
-        localUpdate("uid", id);
-        localUpdate("id", id);
-        localUpdate("name", QVariant::fromValue(mData->mName));
-        localUpdate("label", QVariant::fromValue(mData->mLabel));
         for (const auto& prop : mData->mProperties) {
-
-            if(prop.second.getResource()!=EMPTY_RESOURCE){
+            if (prop.second.getResource() != EMPTY_RESOURCE) {
+                // convert all of resources properties to QVariantMap
                 auto resource = prop.second.getResource();
-                QVariantMap valueOut;
-                //convert all of resources properties to QVariantMap
 
+                QVariantMap valueOut;
                 valueOut.insert("filepath", QVariant::fromValue(resource.getAbsoluteFilePath()));
                 valueOut.insert("thumbnailId", QVariant::fromValue(resource.getThumbnailId()));
                 valueOut.insert("thumbnailFilepath", QVariant::fromValue(resource.getThumbnailFilePath()));
@@ -1109,13 +1114,15 @@ DsQmlContentModel* ContentModelRef::getQml(ReferenceMap* refMap, QObject* parent
                 valueOut.insert("width", QVariant::fromValue(resource.getWidth()));
                 valueOut.insert("height", QVariant::fromValue(resource.getHeight()));
                 QRectF cropValue = resource.getCrop();
-                valueOut.insert("crop", QVariantList::fromVector({cropValue.x(), cropValue.y(), cropValue.width(), cropValue.height()}));
+                valueOut.insert("crop", QVariantList::fromVector(
+                                            {cropValue.x(), cropValue.y(), cropValue.width(), cropValue.height()}));
 
                 localUpdate(prop.first, valueOut);
             } else {
                 localUpdate(prop.first, QVariant::fromValue(prop.second.getValue()));
             }
         }
+
         for (const auto& propList : mData->mPropertyLists) {
             QVariantList list;
             for (const auto& prop : propList.second) {
@@ -1123,12 +1130,14 @@ DsQmlContentModel* ContentModelRef::getQml(ReferenceMap* refMap, QObject* parent
             }
             localUpdate(propList.first, list);
         }
+
         QVariantList children;
         for (const auto& child : mData->mChildren) {
             children.append(QVariant::fromValue(child.getQml(refMap, map, deep + "--")));
         }
         localUpdate("children", children);
     }
+
     return map;
 }
 

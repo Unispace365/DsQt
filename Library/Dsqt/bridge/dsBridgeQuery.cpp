@@ -426,11 +426,15 @@ bool DsBridgeSqlQuery::queryTables() {
         qDebug(lgBridgeSyncAppVerbose) << "defaultsQuery took" << timer.elapsed() << "milliseconds";
 
         // Determine the datetime field expression.
-        QString datetimeSelect;
+        QDateTime now = QDateTime::currentDateTime();
+        QString   datetimeSelect;
         if (hasDatetime) {
             datetimeSelect = "v.datetime";
         } else if (hasDate && hasTime) {
-            datetimeSelect = "v.date || ' ' || v.time";
+            // Handles cases where date or time is NULL
+            datetimeSelect = QString("COALESCE(v.date,'%1') || 'T' || COALESCE(v.time,'%2')")
+                                 .arg(now.toString("yyyy-MM-dd"))
+                                 .arg(now.toString("hh:mm:ss"));
         } else if (hasDate) {
             datetimeSelect = "v.date";
         } else {
@@ -477,14 +481,14 @@ bool DsBridgeSqlQuery::queryTables() {
                         " l.name AS field_name,"    // 36
                         " l.app_key AS field_key,"  // 37
                         " v.preview_resource_hash," // 38
-                        " preview_res.hash,"        // 39
-                        " preview_res.type,"        // 40
-                        " preview_res.uri,"         // 41
-                        " preview_res.width,"       // 42
-                        " preview_res.height,"      // 43
-                        " preview_res.duration,"    // 44
-                        " preview_res.pages,"       // 45
-                        " preview_res.file_size,"   // 46
+                        " preview_res.hash,"        // 39 ! overrides res.hash
+                        " preview_res.type,"        // 40 ! overrides res.type
+                        " preview_res.uri,"         // 41 ! overrides res.uri
+                        " preview_res.width,"       // 42 ! overrides res.width
+                        " preview_res.height,"      // 43 ! overrides res.height
+                        " preview_res.duration,"    // 44 ! overrides res.duration
+                        " preview_res.pages,"       // 45 ! overrides res.pages
+                        " preview_res.file_size,"   // 46 ! overrides res.file_size
                         " v.hotspot_x,"             // 47
                         " v.hotspot_y,"             // 48
                         " v.hotspot_w,"             // 49
@@ -796,8 +800,13 @@ bool DsBridgeSqlQuery::queryTables() {
                 record.setProperty(field_uid + "_value_uid", key);
             } else if (type == "CHECKBOX") {
                 record.setProperty(field_uid, bool(result.value(6).toInt()));
+            } else if (type == "DATE_TIME") {
+                auto datetime = result.value(13).toDateTime();
+                ContentProperty prop;
+                prop.setValue(datetime);
+                record.setProperty(field_uid, prop);
             } else {
-                qCWarning(lgBridgeSyncApp) << "UNHANDLED( values): " << type;
+                qWarning(lgBridgeSyncApp) << "UNHANDLED( values): " << type;
             }
             record.setProperty(field_uid + "_field_uid", result.value(1).toString());
         }
@@ -812,7 +821,7 @@ bool DsBridgeSqlQuery::queryTables() {
     root.replaceChild(platforms);
     root.replaceChild(platform);
     root.replaceChild(records);
-    root.setReferences("ally_records", recordMap);
+    root.setReferences("all_records", recordMap);
 
     /*
     auto isMainThread = QThread::currentThread() == QCoreApplication::instance()->thread();

@@ -61,6 +61,7 @@ class ContentProperty {
     void           setValue(const QColor& value);
     void           setValue(const QDate& value);
     void           setValue(const QTime& value);
+    void           setValue(const QDateTime& value);
     void           setValue(const glm::vec2& value);
     void           setValue(const glm::vec3& value);
     void           setValue(const glm::vec4& value);
@@ -91,8 +92,9 @@ class ContentProperty {
     QColor getColor() const;
 
     /// Special date and time values.
-    QDate getDate() const;
-    QTime getTime() const;
+    QDate     getDate() const;
+    QTime     getTime() const;
+    QDateTime getDateTime() const;
 
     const QString& getString() const; // same as getValue(), but supplied here for convenience
     const QString& getQString() const;
