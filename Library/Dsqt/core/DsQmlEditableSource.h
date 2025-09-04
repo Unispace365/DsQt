@@ -35,7 +35,7 @@ class DsQmlEditableSource : public QObject {
     }
 
     void setSource(QString source) {
-        QUrl url = QUrl::fromLocalFile(DsEnvironment::expandq(source));
+        QUrl url = QUrl::fromUserInput(DsEnvironment::expandq(source));
 
         QFileInfo fi(url.toLocalFile());
         source = fi.absoluteFilePath();

@@ -7,6 +7,19 @@
 
 namespace dsqt::model {
 
+DsQmlEvent::DsQmlEvent(ContentModelRef model, qsizetype order, QObject* parent)
+    : QObject(parent)
+    , m_model(model)
+    , m_order(order) {
+    m_title = m_model.getPropertyString("record_name");
+    m_start = m_model.getPropertyDateTime(DsQmlEventSchedule::StartDate, DsQmlEventSchedule::StartTime);
+    m_end   = m_model.getPropertyDateTime(DsQmlEventSchedule::EndDate, DsQmlEventSchedule::EndTime);
+}
+
+int DsQmlEvent::days() const {
+    return m_model.getPropertyInt(DsQmlEventSchedule::EffectiveDays);
+}
+
 DsQmlEventSchedule::DsQmlEventSchedule(QObject* parent)
     : DsQmlEventSchedule("", parent) {
 }
@@ -85,18 +98,18 @@ QList<DsQmlEvent*> DsQmlEventSchedule::timeline() const {
 bool DsQmlEventSchedule::isEventNow(const model::ContentModelRef& event, QDateTime localDateTime) {
     if (!isEventToday(event, localDateTime.date())) return false;
 
-    const auto startTime = event.getPropertyTime("start_time");
-    const auto endTime   = event.getPropertyTime("end_time");
+    const auto startTime = event.getPropertyTime(StartTime);
+    const auto endTime   = event.getPropertyTime(EndTime);
     if (!startTime.isValid()) {
         qCWarning(lgQmlObj) << "Couldn't parse the start time for an event of type "
                             << event.getPropertyString("type_key");
-        qCWarning(lgQmlObjVerbose) << "Start Time of event: " << event.getPropertyString("start_time");
+        qCWarning(lgQmlObjVerbose) << "Start Time of event: " << event.getPropertyString(StartTime);
         return false;
     }
     if (!endTime.isValid()) {
         qCWarning(lgQmlObj) << "Couldn't parse the end time for an event of type "
                             << event.getPropertyString("type_key");
-        qCWarning(lgQmlObjVerbose) << "End Time of event: " << event.getPropertyString("end_time");
+        qCWarning(lgQmlObjVerbose) << "End Time of event: " << event.getPropertyString(EndTime);
         return false;
     }
     if (localDateTime.time() < startTime || localDateTime.time() >= endTime) {
@@ -109,18 +122,18 @@ bool DsQmlEventSchedule::isEventNow(const model::ContentModelRef& event, QDateTi
 }
 
 bool DsQmlEventSchedule::isEventToday(const model::ContentModelRef& event, QDate localDate) {
-    const auto startDate = event.getPropertyDate("start_date");
-    const auto endDate   = event.getPropertyDate("end_date");
+    const auto startDate = event.getPropertyDate(StartDate);
+    const auto endDate   = event.getPropertyDate(EndDate);
     if (!startDate.isValid()) {
         qCWarning(lgQmlObj) << "Couldn't parse the start date for an event of type "
                             << event.getPropertyString("type_key");
-        qCWarning(lgQmlObjVerbose) << "Start Date of event: " << event.getPropertyString("start_date");
+        qCWarning(lgQmlObjVerbose) << "Start Date of event: " << event.getPropertyString(StartDate);
         return false;
     }
     if (!endDate.isValid()) {
         qCWarning(lgQmlObj) << "Couldn't parse the end date for an event of type "
                             << event.getPropertyString("type_key");
-        qCWarning(lgQmlObjVerbose) << "End Date of event:" << event.getPropertyString("end_date");
+        qCWarning(lgQmlObjVerbose) << "End Date of event:" << event.getPropertyString(EndDate);
         return false;
     }
 
@@ -133,7 +146,7 @@ bool DsQmlEventSchedule::isEventToday(const model::ContentModelRef& event, QDate
     const auto dayNumber =
         localDate.dayOfWeek() % 7; // Returns the weekday (0 to 6, where 0 = Sunday, 1 = Monday, ..., 6 = Saturday).
     const int dayFlag       = 0x1 << dayNumber;
-    const int effectiveDays = event.getPropertyInt("effective_days"); // Flags for week days.
+    const int effectiveDays = event.getPropertyInt(EffectiveDays); // Flags for week days.
     if (effectiveDays & dayFlag) {
         return true;
     }
@@ -146,9 +159,9 @@ bool DsQmlEventSchedule::isEventToday(const model::ContentModelRef& event, QDate
 bool DsQmlEventSchedule::isEventWithinSpan(const model::ContentModelRef& event, QDateTime spanStart,
                                            QDateTime spanEnd) {
     if (spanStart > spanEnd) return false; // Invalid span.
-    auto eventStart = event.getPropertyDateTime("start_date", "start_time");
+    auto eventStart = event.getPropertyDateTime(StartDate, StartTime);
     if (!eventStart.isValid()) return false;
-    auto eventEnd = event.getPropertyDateTime("end_date", "end_time");
+    auto eventEnd = event.getPropertyDateTime(EndDate, EndTime);
     if (!eventEnd.isValid()) return false;
     if (eventEnd < eventStart) return false; // Invalid value.
     return (spanEnd >= eventStart && eventEnd >= spanStart);
@@ -156,7 +169,7 @@ bool DsQmlEventSchedule::isEventWithinSpan(const model::ContentModelRef& event, 
 
 size_t DsQmlEventSchedule::filterEvents(std::vector<model::ContentModelRef>& events, const QString& typeName) {
     size_t count = events.size();
-    auto empty = typeName.isEmpty();
+    auto   empty = typeName.isEmpty();
     if (!empty) {
         events.erase(std::remove_if(events.begin(), events.end(),
                                     [&](const model::ContentModelRef& item) {
@@ -202,16 +215,16 @@ void DsQmlEventSchedule::sortEvents(std::vector<model::ContentModelRef>& events,
         if (isActiveA != isActiveB) return isActiveA;
 
         // Recently Started trumps Previously started
-        const auto startA      = a.getPropertyTime("start_time");
-        const auto startB      = b.getPropertyTime("start_time");
+        const auto startA      = a.getPropertyTime(StartTime);
+        const auto startB      = b.getPropertyTime(StartTime);
         const auto sinceStartA = startA.secsTo(localDateTime.time());
         const auto sinceStartB = startB.secsTo(localDateTime.time());
         if (sinceStartA == sinceStartB) { // Starting at the same time.
-            const auto durationA = startA.secsTo(a.getPropertyTime("end_time"));
-            const auto durationB = startB.secsTo(b.getPropertyTime("end_time"));
-            if (durationA == durationB)                                             // Same duration:
-                return std::bitset<8>(a.getPropertyInt("effective_days")).count() < // Fewer days has higher priority.
-                       std::bitset<8>(b.getPropertyInt("effective_days")).count();
+            const auto durationA = startA.secsTo(a.getPropertyTime(EndTime));
+            const auto durationB = startB.secsTo(b.getPropertyTime(EndTime));
+            if (durationA == durationB)                                          // Same duration:
+                return std::bitset<8>(a.getPropertyInt(EffectiveDays)).count() < // Fewer days has higher priority.
+                       std::bitset<8>(b.getPropertyInt(EffectiveDays)).count();
             else                                           // Different duration:
                 return durationA < durationB;              // Shorter duration has higher priority.
         } else if ((sinceStartA < 0) != (sinceStartB < 0)) // Only one has already started.

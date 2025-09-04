@@ -10,6 +10,7 @@
 #include <QObject>
 #include <QQmlEngine>
 #include <QQmlListProperty>
+#include <QQmlPropertyMap>
 #include <QtConcurrentRun>
 
 Q_DECLARE_LOGGING_CATEGORY(lgEventSchedule)
@@ -34,14 +35,7 @@ class DsQmlEvent : public QObject {
     explicit DsQmlEvent(QObject* parent = nullptr)
         : QObject(parent) {}
 
-    DsQmlEvent(ContentModelRef model, qsizetype order, QObject* parent = nullptr)
-        : QObject(parent)
-        , m_model(model)
-        , m_order(order) {
-        m_title = m_model.getPropertyString("record_name");
-        m_start = m_model.getPropertyDateTime("start_date", "start_time");
-        m_end   = m_model.getPropertyDateTime("end_date", "end_time");
-    }
+    DsQmlEvent(ContentModelRef model, qsizetype order, QObject* parent = nullptr);
 
     DsQmlEvent* duplicate() const { return new DsQmlEvent(m_model, m_order, parent()); }
 
@@ -70,7 +64,7 @@ class DsQmlEvent : public QObject {
         emit endChanged();
     }
 
-    int days() const { return m_model.getPropertyInt("effective_days"); }
+    int days() const;
 
     qsizetype order() const { return m_order; }
     void      setOrder(qsizetype order) {
@@ -89,6 +83,8 @@ class DsQmlEvent : public QObject {
 
     double secondsSinceMidnight() const { return QTime(0, 0).secsTo(m_start.time()); }
     double durationInSeconds() const { return m_start.time().secsTo(m_end.time()); }
+
+    const ContentModelRef& model() const { return m_model; }
 
     // Returns whether the event is scheduled for the specified date and time, taking into account specific times or
     // weekdays.
@@ -150,6 +146,12 @@ class DsQmlEventSchedule : public QObject {
     Q_PROPERTY(ui::DsQmlClock* clock READ clock WRITE setClock NOTIFY clockChanged)
 
   public:
+    inline static const char* StartDate     = "start_date";
+    inline static const char* EndDate       = "end_date";
+    inline static const char* StartTime     = "start_time";
+    inline static const char* EndTime       = "end_time";
+    inline static const char* EffectiveDays = "effective_days";
+
     explicit DsQmlEventSchedule(QObject* parent = nullptr);
     DsQmlEventSchedule(const QString& type_name, QObject* parent = nullptr);
 
@@ -204,7 +206,7 @@ class DsQmlEventSchedule : public QObject {
     // Returns whether the specified event is within the time span.
     static bool isEventWithinSpan(const model::ContentModelRef& event, QDateTime spanStart, QDateTime spanEnd);
 
-           // Removes all events that are not of the specified type. Returns the number of removed events.
+    // Removes all events that are not of the specified type. Returns the number of removed events.
     static size_t filterEvents(std::vector<model::ContentModelRef>& events, const QString& typeName);
     // Removes all events that are not scheduled at the specified date and time. Returns the number of removed events.
     static size_t filterEvents(std::vector<model::ContentModelRef>& events, QDateTime localDateTime);
@@ -214,7 +216,7 @@ class DsQmlEventSchedule : public QObject {
     // Returns the number of removed events.
     static size_t filterEvents(std::vector<model::ContentModelRef>& events, QDateTime spanStart, QDateTime spanEnd);
 
-           // Sorts events by the default sorting heuristic. Sorted from highest to lowest priority.
+    // Sorts events by the default sorting heuristic. Sorted from highest to lowest priority.
     static void sortEvents(std::vector<model::ContentModelRef>& events, QDateTime localDateTime);
 
   signals:
@@ -232,7 +234,7 @@ class DsQmlEventSchedule : public QObject {
     void onUpdated();
 
   private:
-    QString                    m_type_name="";       // Event record type. If empty, all events are included.
+    QString                    m_type_name = "";  // Event record type. If empty, all events are included.
     QDateTime                  m_local_date_time; // Local date and time.
     QList<DsQmlEvent*>         m_events;          // All events.
     mutable QList<DsQmlEvent*> m_timeline; // List of events where overlapping events are resolved to a single event.

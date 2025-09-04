@@ -43,6 +43,7 @@ MenuBar {
             id: logsApplicationAction
             text: "Application"
             shortcut: "CTRL+L,CTRL+A"
+            checkable: true
             onTriggered: logsApplicationTriggered(checked)
         }
         Action {
@@ -56,6 +57,7 @@ MenuBar {
             id: logsAppHostAction
             text: "AppHost"
             shortcut: "CTRL+L,CTRL+H"
+            checkable: true
             onTriggered: logsAppHostTriggered(checked)
         }
 
