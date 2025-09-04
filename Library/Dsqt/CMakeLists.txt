@@ -18,6 +18,7 @@ qt_add_qml_module(Dsqt
         qml/DsAppMenuBar.qml
         qml/DsAppMenuItem.qml
         qml/DsContentBrowser.qml
+        qml/DsCrossFadingLoader.qml
         qml/DsFitView.qml
         qml/DsLoader.qml
         qml/DsMediaViewer.qml
