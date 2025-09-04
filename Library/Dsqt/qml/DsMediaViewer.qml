@@ -44,6 +44,7 @@ Item {
         id: contentLoader
         anchors.fill: parent
         sourceComponent: getComponentForExtension()
+        asynchronous: true
     }
 
     // Component for Video
