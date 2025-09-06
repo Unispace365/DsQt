@@ -25,6 +25,9 @@ Item {
     // Allow children to be declared inside this component and forward them to the content wrapper
     default property alias contentData: contentWrapper.data
 
+    //
+    property alias cursorShape: mouse.cursorShape
+
     // Enable keyboard focus
     focus: true
 

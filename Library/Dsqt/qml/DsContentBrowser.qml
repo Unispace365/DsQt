@@ -1,7 +1,9 @@
 pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Effects
 import QtQuick.Layouts
+import QtMultimedia
 import Dsqt
 
 Window {
@@ -9,141 +11,147 @@ Window {
     height: 500
     title: "Content Model Viewer"
     visible: true
+    color: system.base
 
-    //parent: root
+    // Allows access to the system color palette.
+    SystemPalette {
+        id: system
+    }
+
+    // Provides access to the content model.
     DsContentModelItemModel {
         id: myModel
     }
 
     ColumnLayout {
         anchors.fill: parent
+
         SplitView {
             id: sview
             Layout.fillHeight: true
             Layout.fillWidth: true
             orientation: Qt.Horizontal
+            clip: true
 
+            // Tree column.
             TreeView {
                 id: data
                 model: myModel
                 SplitView.maximumHeight: sview.height
-                SplitView.minimumWidth: sview.width / 3
-                SplitView.maximumWidth: sview.width / 3 * 2
+                SplitView.minimumWidth: contentWidth
+                SplitView.maximumWidth: sview.width / 5 * 2
+                alternatingRows: false
+                selectionBehavior: TreeView.SingleSelection
+                selectionModel: ItemSelectionModel {}
 
                 delegate: TreeViewDelegate {
-                    font.pixelSize: 25
+                    font.family: "Lucida Sans"
+                    font.pointSize: 11
                     text: model.display
                     onClicked: {
                         console.log("Clicked:", model.display)
                         let array = []
                         Object.keys(model.contentModel)?.forEach(
-                                    function (key) {
-                                        let obj = {
-                                            "key": key,
-                                            "value": model.contentModel[key]
-                                        }
-                                        array.push(obj)
-                                    })
+                            function (key) {
+                                let obj = {
+                                    "key": key,
+                                    "value": model.contentModel[key]
+                                }
+                                array.push(obj)
+                            })
                         listView.model = array
                         //console.log(JSON.stringify(model.contentModel, null, 2))
                     }
                 }
             }
 
+            // Key-Value column.
             Item {
                 id: container
+
                 SplitView.maximumHeight: sview.height
-                SplitView.minimumWidth: sview.width / 3
-                SplitView.maximumWidth: sview.width / 3 * 2
+                SplitView.minimumWidth: sview.width / 5
+                SplitView.maximumWidth: sview.width / 5 * 4
                 SplitView.fillWidth: true
-                Rectangle {
-                    anchors.fill: parent
-                    color: "#ffffff"
-                }
 
                 ListView {
                     id: listView
                     anchors.fill: parent
+                    // selectionBehavior: TableView.SingleSelection
+                    // selectionModel: ItemSelectionModel {}
+
+                    highlightMoveDuration: 0
+                    highlightResizeDuration: 0
+
+                    highlight: Rectangle {
+                        anchors.fill: parent.currentItem
+                        color: system.highlight
+                    }
 
                     delegate: Item {
                         id: itemDelegate
                         height: childrenRect.height
                         width: listView.width
+
+                        required property int index
                         required property var modelData
                         property bool isObj: modelData.value.filepath !== undefined
-                        property bool showMediaProps: false
 
                         RowLayout {
                             id: rlayout
                             height: childrenRect.height
                             width: listView.width
+                            spacing: 5 // Add small spacing for clarity
 
+                            // Key.
                             Text {
-                                font.pixelSize: 25
-                                //color: "#c2f4c6"
+                                font.family: "Lucida Sans"
+                                font.pointSize: 11
+                                lineHeight: 1.2
+                                color: system.text
                                 text: itemDelegate.modelData.key + ":"
-                                Layout.alignment: Qt.AlignLeft | Qt.AlignTop
+                                elide: Text.ElideRight
+                                Layout.alignment: Qt.AlignLeft | Qt.AlignVCenter
+                                Layout.preferredWidth: container.width / 4 // Fixed width for the key column
                             }
-                            Item {
-                                implicitHeight: childrenRect.height
+
+                            // Value.
+                            Text {
+                                id: model_value
+                                font.family: "Lucida Sans"
+                                font.pointSize: 11
+                                lineHeight: 1.2
+                                color: system.text
+                                text: itemDelegate.isObj ? itemDelegate.modelData.value.filepath : itemDelegate.modelData.value
                                 Layout.fillWidth: true
-                                Button {
-                                    id: buton
-                                    height: model_value.height
-                                    text: itemDelegate.showMediaProps ? "less" : "more"
-                                    font.pixelSize: 18
-                                    visible: itemDelegate.isObj
-                                    onClicked: {
-                                        itemDelegate.showMediaProps = !itemDelegate.showMediaProps
-                                        //console.log("Show media props:", itemDelegate.showMediaProps);
-                                    }
-                                }
-                                Text {
-                                    id: model_value
-                                    anchors.left: buton.right
-                                    Layout.alignment: Qt.AlignLeft | Qt.AlignTop
-
-                                    font.pixelSize: 25
-                                    text: itemDelegate.isObj ? itemDelegate.modelData.value.filepath : itemDelegate.modelData.value
-                                }
+                                Layout.alignment: Qt.AlignLeft | Qt.AlignVCenter
+                                elide: Text.ElideRight
                             }
-                        }
-                        Item {
-                            anchors.top: rlayout.bottom
-                            width: itemDelegate.showMediaProps ? childrenRect.width : 0
-                            height: itemDelegate.showMediaProps ? childrenRect.height : 0
-                            visible: itemDelegate.showMediaProps
-                            SplitView {
-                                width: container.width
-                                height: extraInfo.height
-                                orientation: Qt.Horizontal
-                                Flickable {
-                                    height: extraInfo.height
-                                    SplitView.minimumWidth: container.width * .25
-                                    SplitView.maximumWidth: container.width
-                                    SplitView.fillWidth: true
-                                    contentWidth: extraInfo.width
-                                    contentHeight: extraInfo.height
-                                    clip: true
-                                    Text {
 
-                                        id: extraInfo
-                                        color: "#808080"
-                                        text: JSON.stringify(itemDelegate.modelData.value,
-                                                             null, 2)
-                                    }
-                                }
-                                Image {
-                                    id: image
-                                    SplitView.maximumHeight: extraInfo.height
-                                    SplitView.minimumWidth: container.width * 0.25
-                                    SplitView.maximumWidth: container.width
-                                    SplitView.fillWidth: true
-                                    visible: itemDelegate.isObj
-                                             && itemDelegate.modelData.value.filepath !== undefined
-                                    source: itemDelegate.modelData.value.filepath
-                                    fillMode: Image.PreserveAspectFit
-                                }
+                            // // Button.
+                            // Button {
+                            //     id: button
+                            //     text: "Preview"
+                            //     //palette.base: media.source === itemDelegate.modelData.value.filepath ? system.highlight : system.base
+                            //     font.family: "Lucida Sans"
+                            //     font.pixelSize: 11
+                            //     visible: itemDelegate.isObj
+                            //     Layout.alignment: Qt.AlignRight | Qt.AlignVCenter
+                            //     onClicked: {
+                            //         media.source = itemDelegate.isObj ? itemDelegate.modelData.value.filepath : itemDelegate.modelData.value
+                            //         info.text = JSON.stringify(itemDelegate.modelData.value, null, 2)
+                            //     }
+                            // }
+                        }
+
+                        // MouseArea to handle clicks
+                        MouseArea {
+                            anchors.fill: parent
+                            onClicked: {
+                                listView.currentIndex = index // Set the clicked item as selected
+
+                                //media.source = itemDelegate.isObj ? itemDelegate.modelData.value.filepath : itemDelegate.modelData.value
+                                //info.text = JSON.stringify(itemDelegate.modelData.value, null, 2)
                             }
                         }
                     }
@@ -152,14 +160,71 @@ Window {
                 }
             }
 
+            // Media column.
+            ColumnLayout {
+                SplitView.maximumHeight: sview.height
+                SplitView.minimumWidth: sview.width / 5
+                SplitView.maximumWidth: sview.width / 5 * 4
+                visible: listView.currentItem && listView.currentItem.isObj
+
+                // Media.
+                DsMediaViewer {
+                    id: media
+                    //Layout.alignment: Qt.AlignTop
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true // Takes remaining space
+                    fillMode: Image.PreserveAspectFit
+                    loops: MediaPlayer.Infinite
+                    // visible: listView.currentItem && listView.currentItem.isObj
+                    cropOverlay: true
+                    media: listView.currentItem.modelData.value
+                }
+
+                // // Info.
+                // Text {
+                //     Layout.fillWidth: true
+                //     height: 300
+                //     id: info
+                //     font.family: "Lucida Sans"
+                //     font.pointSize: 11
+                //     lineHeight: 1.2
+                //     color: system.text
+                //     //wrapMode: Text.Wrap // Ensure text wraps to avoid horizontal scrolling
+                // }
+            }
+
+            // Dragable handles.
             handle: Rectangle {
-                id: handleDelegate
                 implicitWidth: 16
                 implicitHeight: 16
-                color: SplitHandle.pressed ? "#81e889" : (SplitHandle.hovered ? Qt.lighter("#c2f4c6", 1.1) : "#c2f4c6")
+                color: "transparent"
+
+                Rectangle {
+                    color: system.button
+                    width: 2
+                    height: parent.height
+                    anchors.left: parent.left
+                }
+
+                Rectangle {
+                    color: system.button
+                    width: 2
+                    height: parent.height
+                    anchors.centerIn: parent
+                }
+
+                Rectangle {
+                    color: system.button
+                    width: 2
+                    height: parent.height
+                    anchors.right: parent.right
+                }
             }
         }
+
         Button {
+            font.family: "Lucida Sans"
+            font.pointSize: 11
             text: "Reload" + (myModel?.isDirty ? " (dirty)" : "")
             Layout.fillWidth: true
             onClicked: {

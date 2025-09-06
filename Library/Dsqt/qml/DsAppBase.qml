@@ -10,6 +10,20 @@ ApplicationWindow {
     visible: false // Will become visible once setup.
     color: "black"
 
+    // Keep track of screen changes.
+    onScreenChanged: {
+        var screens = Qt.application.screens
+        for(var i=0; i<screens.length; ++i) {
+            if(window.screen.virtualX === screens[i].virtualX &&
+                    window.screen.virtualY === screens[i].virtualY) {
+                _.displayIndex = i
+                if(_.displayName !== "")
+                    _.displayName = screens[i].name
+                return
+            }
+        }
+    }
+
     // Encapsulte properties to make them private.
     Item {
         id: _
@@ -161,41 +175,47 @@ ApplicationWindow {
         }
     }
 
-    Component {
-        id: contentViewer
-        DsContentBrowser {
-        }
-    }
-
     /// The default menu bar.
     menuBar: DsAppMenuBar {
         id: windowMenuBar
+        palette: window.palette
         visible: false
 
+        property DsTextFileViewer bridgeSyncLogWindow: null
         property DsContentBrowser contentBrowser: null
-        onLogsBridgeSyncTriggered: (isChecked) => { bridgeSyncLog.visible = isChecked }
+        onLogsBridgeSyncTriggered: (isChecked) => {
+                                       if(bridgeSyncLogWindow === null) {
+                                           bridgeSyncLogWindow = bridgeSyncLog.createObject(window)
+                                           bridgeSyncLogWindow.closing.connect( () => { windowMenuBar.logsBridgeSyncChecked = false } )
+                                       }
+                                       bridgeSyncLogWindow.visible = isChecked
+                                   }
         onContentBrowseToggled: (isChecked) => {
-            if(isChecked) {
-                if(contentBrowser === null) {
-                    contentBrowser = contentViewer.createObject(window)
-                    contentBrowser.closing.connect( () => { windowMenuBar.contentBrowseChecked = false } )                }
-                contentBrowser.visible = true
-            } else if(contentBrowser !== null) {
-                contentBrowser.visible = false
-            }
-        }
+                                    if(contentBrowser === null) {
+                                        contentBrowser = contentViewer.createObject(window)
+                                        contentBrowser.closing.connect( () => { windowMenuBar.contentBrowseChecked = false } )
+                                    }
+                                    contentBrowser.visible = isChecked
+                                }
     }
 
     /// TODO Application log viewer.
 
     /// BridgeSync log viewer.
-    DsTextFileViewer {
+    Component {
         id: bridgeSyncLog
-        title: "BridgeSync Log"
-        file: Ds.env.expand("%LOCAL%/ds_waffles/logs/bridgesync.log")
-        //screen: Window.screen
+        DsTextFileViewer {
+            title: "BridgeSync Log"
+            file: Ds.env.expand("%LOCAL%/ds_waffles/logs/bridgesync.log")
+            onVisibleChanged: (isVisible) => { windowMenuBar.logsBridgeSyncChecked = isVisible }
+        }
+    }
 
-        onVisibleChanged: (isVisible) => { windowMenuBar.logsBridgeSyncChecked = isVisible }
+    /// Content browser.
+    Component {
+        id: contentViewer
+        DsContentBrowser {
+        }
     }
 
     /// TODO AppHost log viewer.

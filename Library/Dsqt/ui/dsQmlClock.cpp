@@ -69,14 +69,16 @@ void DsQmlClock::paint(QPainter* painter) {
         painter->restore();
 
         // Second hand
-        painter->save();
-        QPainterPath secondHandPath;
-        secondHandPath.moveTo(0, 10);
-        secondHandPath.lineTo(0, -95);
-        painter->setPen(QPen(m_second_hand_color, 1.5, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
-        painter->rotate(360.0 * time / 60.0);
-        painter->drawPath(secondHandPath);
-        painter->restore();
+        if (qAbs(m_speed) < 10) {
+            painter->save();
+            QPainterPath secondHandPath;
+            secondHandPath.moveTo(0, 10);
+            secondHandPath.lineTo(0, -95);
+            painter->setPen(QPen(m_second_hand_color, 1.5, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
+            painter->rotate(360.0 * time / 60.0);
+            painter->drawPath(secondHandPath);
+            painter->restore();
+        }
     }
     painter->restore();
 }
