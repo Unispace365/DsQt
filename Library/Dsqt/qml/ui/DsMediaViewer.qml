@@ -259,12 +259,15 @@ Item {
             PdfDocument {
                 id: pdfDoc
                 source: root.source
+
             }
             PdfMultiPageView {
                 id: pdfView
                 anchors.fill: parent
                 document: pdfDoc
-                currentPage: root.page - 1 // PdfMultiPageView uses 0-based indexing
+                Component.onCompleted: {
+                    pdfView.goToPage(root.page-1);
+                }
             }
         }
     }
