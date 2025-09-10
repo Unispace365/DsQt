@@ -14,5 +14,19 @@
         <file>QtQuick/VirtualKeyboard/Styles/waffles/images/shift-fff.svg</file>
         <file>QtQuick/VirtualKeyboard/Styles/waffles/images/textmode-fff.svg</file>
         <file>QtQuick/VirtualKeyboard/Styles/waffles/style.qml</file>
+        <file>QtQuick/VirtualKeyboard/Styles/example_default/images/backspace-fff.svg</file>
+        <file>QtQuick/VirtualKeyboard/Styles/example_default/images/check-fff.svg</file>
+        <file>QtQuick/VirtualKeyboard/Styles/example_default/images/enter-fff.svg</file>
+        <file>QtQuick/VirtualKeyboard/Styles/example_default/images/globe-fff.svg</file>
+        <file>QtQuick/VirtualKeyboard/Styles/example_default/images/handwriting-fff.svg</file>
+        <file>QtQuick/VirtualKeyboard/Styles/example_default/images/hidekeyboard-fff.svg</file>
+        <file>QtQuick/VirtualKeyboard/Styles/example_default/images/search-fff.svg</file>
+        <file>QtQuick/VirtualKeyboard/Styles/example_default/images/selectionhandle-bottom.svg</file>
+        <file>QtQuick/VirtualKeyboard/Styles/example_default/images/settings-fff.svg</file>
+        <file>QtQuick/VirtualKeyboard/Styles/example_default/images/shift-80c342.svg</file>
+        <file>QtQuick/VirtualKeyboard/Styles/example_default/images/shift-c5d6b6.svg</file>
+        <file>QtQuick/VirtualKeyboard/Styles/example_default/images/shift-fff.svg</file>
+        <file>QtQuick/VirtualKeyboard/Styles/example_default/images/textmode-fff.svg</file>
+        <file>QtQuick/VirtualKeyboard/Styles/example_default/style.qml</file>
     </qresource>
 </RCC>

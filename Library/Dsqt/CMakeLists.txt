@@ -87,7 +87,8 @@ qt_add_qml_module(Dsqt
     DEPENDENCIES
          QtQuick
          Dsqtplugin
-         RESOURCES res/keyboard.qrc
+    RESOURCES
+        res/keyboard.qrc
 )
 
 target_link_libraries(Dsqtplugin PRIVATE Qt6::Core Qt6::Multimedia Qt6::Quick Qt6::Pdf PUBLIC Qt6::WebEngineQuick)
