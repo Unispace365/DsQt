@@ -1,0 +1,18 @@
+<RCC>
+    <qresource prefix="/keyboard">
+        <file>QtQuick/VirtualKeyboard/Styles/waffles/images/backspace-fff.svg</file>
+        <file>QtQuick/VirtualKeyboard/Styles/waffles/images/check-fff.svg</file>
+        <file>QtQuick/VirtualKeyboard/Styles/waffles/images/enter-fff.svg</file>
+        <file>QtQuick/VirtualKeyboard/Styles/waffles/images/globe-fff.svg</file>
+        <file>QtQuick/VirtualKeyboard/Styles/waffles/images/handwriting-fff.svg</file>
+        <file>QtQuick/VirtualKeyboard/Styles/waffles/images/hidekeyboard-fff.svg</file>
+        <file>QtQuick/VirtualKeyboard/Styles/waffles/images/search-fff.svg</file>
+        <file>QtQuick/VirtualKeyboard/Styles/waffles/images/selectionhandle-bottom.svg</file>
+        <file>QtQuick/VirtualKeyboard/Styles/waffles/images/settings-fff.svg</file>
+        <file>QtQuick/VirtualKeyboard/Styles/waffles/images/shift-80c342.svg</file>
+        <file>QtQuick/VirtualKeyboard/Styles/waffles/images/shift-c5d6b6.svg</file>
+        <file>QtQuick/VirtualKeyboard/Styles/waffles/images/shift-fff.svg</file>
+        <file>QtQuick/VirtualKeyboard/Styles/waffles/images/textmode-fff.svg</file>
+        <file>QtQuick/VirtualKeyboard/Styles/waffles/style.qml</file>
+    </qresource>
+</RCC>

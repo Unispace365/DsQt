@@ -82,10 +82,12 @@ qt_add_qml_module(Dsqt
         utility/dsStringUtils.cpp utility/dsStringUtils.h
         utility/dsUrlImageLoader.cpp utility/dsUrlImageLoader.h
         waffles.qrc
+        res/keyboard.qrc
 
     DEPENDENCIES
          QtQuick
          Dsqtplugin
+         RESOURCES res/keyboard.qrc
 )
 
 target_link_libraries(Dsqtplugin PRIVATE Qt6::Core Qt6::Multimedia Qt6::Quick Qt6::Pdf PUBLIC Qt6::WebEngineQuick)

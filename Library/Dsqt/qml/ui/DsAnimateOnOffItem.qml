@@ -1,5 +1,8 @@
 import QtQuick
 
+//@brief An item that provides animateOn and animateOff signals and runs the associated animations.
+//the provided animateOnAnimation runs on Component.onCompleted.
+// It is up to the user to call runAnimateOff() when desired.
 Item {
     required property Animation animateOnAnimation
     required property Animation animateOffAnimation

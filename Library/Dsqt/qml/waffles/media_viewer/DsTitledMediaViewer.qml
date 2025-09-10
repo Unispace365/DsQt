@@ -6,7 +6,30 @@ DsViewer {
     id: root
     viewerType: DsViewer.ViewerType.TitledMediaViewer
     property list<DsControlSet> controls
-    property url source
+
+    property var model: null
+
+    //@brief this defines this objects default config.
+    //the keys of theconfig map to the property of the TitledMediaViewers config object which is passed to controlSets.
+    //that config object is filled with the values from your model. If you are using custom contolSets that
+    //know about your model, then you can ignore this and just get data directly from the model.
+    //if you setup your model's keys to match these values you won't need to set modelConfig.
+    //if your model's data for the given property is different than the default you can override
+    //this by copying the object and changing the values to match your model's keys.
+    property var modelConfig: {
+        "media": "media",
+        "title": "title",
+        "subtitle" : "subtitle"
+    }
+    property alias mediaViewer: mediaView.viewer
+
+
+    QtObject {
+        id: config
+        property var media: model[root.modelConfig.media]
+        property var title: model[root.modelConfig.title]
+        property var subtitle: model[root.modelConfig.subtitle]
+    }
 
     width: mediaView.width;
     height: mediaView.height;
@@ -14,10 +37,13 @@ DsViewer {
     Component.onCompleted: setControls()
     onControlsChanged: setControls()
 
+
     //this function positions the control in their respective edges
     function setControls() {
         for(var i=0; i < controls.length; i++){
             let ctrl = controls[i];
+            ctrl.config = config
+            ctrl.model = model
             let edge = ctrl.edge;
             switch(edge) {
             case DsControlSet.Edge.TopOuter:
@@ -73,8 +99,23 @@ DsViewer {
                 ctrl.width = Qt.binding(()=>{return mediaView.width;})
                 ctrl.height = Qt.binding(()=>{return mediaView.height;})
                 break;
+
+            case DsControlSet.Edge.CenterBack:
+                ctrl.parent = Qt.binding(()=>{return background;})
+                background.horizontalOffset = Qt.binding(()=>{return ctrl.horizontalOffset;})
+                background.verticalOffset = Qt.binding(()=>{return ctrl.verticalOffset;})
+                break;
             }
         }
+    }
+    Item {
+        id: background
+        property real horizontalOffset:0
+        property real verticalOffset:0
+        anchors.horizontalCenter: mediaView.horizontalCenter
+        anchors.verticalCenter: mediaView.verticalCenter
+        anchors.horizontalCenterOffset: horizontalOffset
+        anchors.verticalCenterOffset: verticalOffset
     }
 
     //this is the media view. It has several children that are designed to only show one based on the media
@@ -83,31 +124,12 @@ DsViewer {
         id: mediaView
         width: childrenRect.width;
         height: childrenRect.height;
-        Image {
-            width: 400
-            id: imageItem
-            source: new URL(root.source)
-            fillMode: Image.PreserveAspectFit
-            visible: imageItem.status == Image.Ready
-        }
-
-        VideoOutput {
-            id: videoView
-            height: childrenRect.height
-            width: 400
-            fillMode: VideoOutput.PreserveAspectFit
-            visible: mediaItem.hasVideo
-        }
-
-        AudioOutput {
-            id: audioView
-        }
-
-        MediaPlayer {
-            id: mediaItem
-            videoOutput: videoView
-            audioOutput: audioView
-            source: new URL(root.source)
+        property alias viewer: viewer
+        DsMediaViewer {
+            id: viewer
+            anchors.fill: parent
+            media: root.source
+            autoPlay: true
         }
     }
 

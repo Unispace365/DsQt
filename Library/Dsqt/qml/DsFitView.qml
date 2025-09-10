@@ -56,11 +56,14 @@ Item {
     }
 
     // Mouse area for handling wheel, hover, and drag
+
     MouseArea {
         id: mouse
         anchors.fill: parent
         acceptedButtons: Qt.LeftButton | Qt.RightButton
         hoverEnabled: true
+        enabled:false
+
 
         // Change cursor based on mode
         cursorShape: mouseEnabled ? (pressed ? Qt.ClosedHandCursor : Qt.OpenHandCursor) : Qt.ArrowCursor

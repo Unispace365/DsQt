@@ -12,16 +12,23 @@ Item {
         BottomOuter,
         RightInner,
         RightOuter,
-        Center
+        Center,
+        CenterBack
     }
 
-    required property Edge edge
+    required property int edge
+    property var config;
+    property var model;
     property real offset
+    property real horizontalOffset
+    property real verticalOffset
 
     signal closedViewer(viewer: var)
     signal pinContent()
     signal unpinContent()
     signal startDrawing()
     signal endDrawing()
+
+
 
 }
