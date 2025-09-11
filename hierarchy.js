@@ -50,6 +50,7 @@ var hierarchy =
       [ "dsqt::bridge::DsBridgeWatcher", "classdsqt_1_1bridge_1_1DsBridgeWatcher.html", null ],
       [ "dsqt::model::DsQmlEvent", "classdsqt_1_1model_1_1DsQmlEvent.html", null ],
       [ "dsqt::model::DsQmlEventSchedule", "classdsqt_1_1model_1_1DsQmlEventSchedule.html", null ],
+      [ "dsqt::model::DsQmlPlaylist", "classdsqt_1_1model_1_1DsQmlPlaylist.html", null ],
       [ "dsqt::model::IContentHelper", "classdsqt_1_1model_1_1IContentHelper.html", [
         [ "dsqt::model::DsQmlContentHelper", "classdsqt_1_1model_1_1DsQmlContentHelper.html", null ]
       ] ],

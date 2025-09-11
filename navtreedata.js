@@ -64,7 +64,7 @@ var NAVTREEINDEX =
 [
 "DsQmlEditableSource_8h_source.html",
 "classdsqt_1_1model_1_1ContentModelRef.html#ac3738d404e3b987cb0af5d9273a70948",
-"namespacedsqt.html#a824bc92aff2ebc88fd220a45d131ace4"
+"namespacedsqt.html#a3f01c575590936f6239d0e2ed136218f"
 ];
 
 var SYNCONMSG = 'click to disable panel synchronisation';

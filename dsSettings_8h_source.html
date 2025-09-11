@@ -282,7 +282,7 @@ $(document).ready(function(){initNavTree('dsSettings_8h_source.html',''); initRe
 <div class="line"><a id="l00227" name="l00227"></a><span class="lineno"><a class="line" href="classdsqt_1_1DsSettings.html#a4556fbf71333f2cd2be74b5944e19781">  227</a></span>    std::optional&lt;ValueWMeta&lt;T&gt;&gt; <a class="code hl_function" href="classdsqt_1_1DsSettings.html#a4556fbf71333f2cd2be74b5944e19781">getWithMeta</a>(<span class="keyword">const</span> std::string&amp; key) {</div>
 <div class="line"><a id="l00228" name="l00228"></a><span class="lineno">  228</span>        <span class="keyword">auto</span> val = <a class="code hl_function" href="classdsqt_1_1DsSettings.html#abb00659fc2ca4c291f6ac450c00acb80">getNodeViewWithMeta</a>(key);</div>
 <div class="line"><a id="l00229" name="l00229"></a><span class="lineno">  229</span>        <span class="keywordflow">if</span> (!val.has_value()) {</div>
-<div class="line"><a id="l00230" name="l00230"></a><span class="lineno">  230</span>            qDebug(lgSettingsParser) &lt;&lt; <span class="stringliteral">&quot;Failed to find value at key &quot;</span> &lt;&lt; key.c_str();</div>
+<div class="line"><a id="l00230" name="l00230"></a><span class="lineno">  230</span>            qDebug(lgSPVerbose) &lt;&lt; <span class="stringliteral">&quot;Failed to find value at key &quot;</span> &lt;&lt; key.c_str();</div>
 <div class="line"><a id="l00231" name="l00231"></a><span class="lineno">  231</span>            <span class="keywordflow">return</span> std::nullopt;</div>
 <div class="line"><a id="l00232" name="l00232"></a><span class="lineno">  232</span>        }</div>
 <div class="line"><a id="l00233" name="l00233"></a><span class="lineno">  233</span>        <span class="comment">// auto [node,meta,place] = val.value();</span></div>
@@ -295,7 +295,7 @@ $(document).ready(function(){initNavTree('dsSettings_8h_source.html',''); initRe
 <div class="line"><a id="l00239" name="l00239"></a><span class="lineno">  239</span>    std::optional&lt;ValueWMeta&lt;T&gt;&gt; originalValueWithMeta(<span class="keyword">const</span> std::string&amp; key, V&amp;&amp; overload) {</div>
 <div class="line"><a id="l00240" name="l00240"></a><span class="lineno">  240</span>        <span class="keyword">auto</span> val = <a class="code hl_function" href="classdsqt_1_1DsSettings.html#abb00659fc2ca4c291f6ac450c00acb80">getNodeViewWithMeta</a>(key);</div>
 <div class="line"><a id="l00241" name="l00241"></a><span class="lineno">  241</span>        <span class="keywordflow">if</span> (!val.has_value()) {</div>
-<div class="line"><a id="l00242" name="l00242"></a><span class="lineno">  242</span>            qDebug(lgSettingsParser) &lt;&lt; <span class="stringliteral">&quot;Failed to find value at key &quot;</span> &lt;&lt; key.c_str();</div>
+<div class="line"><a id="l00242" name="l00242"></a><span class="lineno">  242</span>            qDebug(lgSPVerbose) &lt;&lt; <span class="stringliteral">&quot;Failed to find value at key &quot;</span> &lt;&lt; key.c_str();</div>
 <div class="line"><a id="l00243" name="l00243"></a><span class="lineno">  243</span>            <span class="keywordflow">return</span> std::nullopt;</div>
 <div class="line"><a id="l00244" name="l00244"></a><span class="lineno">  244</span>        }</div>
 <div class="line"><a id="l00245" name="l00245"></a><span class="lineno">  245</span> </div>

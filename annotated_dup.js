@@ -18,6 +18,7 @@ var annotated_dup =
         [ "DsQmlContentModel", "classdsqt_1_1model_1_1DsQmlContentModel.html", null ],
         [ "DsQmlEvent", "classdsqt_1_1model_1_1DsQmlEvent.html", null ],
         [ "DsQmlEventSchedule", "classdsqt_1_1model_1_1DsQmlEventSchedule.html", null ],
+        [ "DsQmlPlaylist", "classdsqt_1_1model_1_1DsQmlPlaylist.html", null ],
         [ "DsQmlTextFileModel", "classdsqt_1_1model_1_1DsQmlTextFileModel.html", "classdsqt_1_1model_1_1DsQmlTextFileModel" ],
         [ "IContentHelper", "classdsqt_1_1model_1_1IContentHelper.html", "classdsqt_1_1model_1_1IContentHelper" ],
         [ "PropertyMapDiff", "classdsqt_1_1model_1_1PropertyMapDiff.html", "classdsqt_1_1model_1_1PropertyMapDiff" ],
