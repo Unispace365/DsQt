@@ -18,7 +18,7 @@ Item {
     //
     property bool autoPlay: true
     // The file path of the media as reported by the CMS.
-    readonly property string source: media ? media.filepath : ""
+    readonly property string source: media ? media.filepath : undefined
     // Contains the media dimensions as reported by the CMS.
     readonly property real mediaWidth: media && media.width ? media.width : undefined
     readonly property real mediaHeight: media && media.height ? media.height : undefined
@@ -40,17 +40,19 @@ Item {
 
     // Function to determine the component based on file extension
     function getComponentForExtension() {
-        var ext = source.toLowerCase().split('.').pop();
-        if (['mp4', 'avi', 'mov', 'mkv'].indexOf(ext) !== -1) {
-            return videoComponent;
-        } else if (['jpg', 'jpeg', 'png', 'gif', 'bmp'].indexOf(ext) !== -1) {
-            return imageComponent;
-        } else if (['html', 'htm'].indexOf(ext) !== -1 || source.startsWith("http")) {
-            return webViewComponent;
-        } else {
-            console.log("Unsupported file extension: " + ext);
-            return null;
+        if(source) {
+            var ext = source.toLowerCase().split('.').pop();
+            if (['mp4', 'avi', 'mov', 'mkv'].indexOf(ext) !== -1) {
+                return videoComponent;
+            } else if (['jpg', 'jpeg', 'png', 'gif', 'bmp'].indexOf(ext) !== -1) {
+                return imageComponent;
+            } else if (['html', 'htm'].indexOf(ext) !== -1 || source.startsWith("http")) {
+                return webViewComponent;
+            } else {
+                console.log("Unsupported file extension: " + ext);
+            }
         }
+        return null;
     }
 
     // Calculates the actual rendered width of the item based on its fill mode.
@@ -146,6 +148,15 @@ Item {
             autoPlay: root.autoPlay
             loops: root.loops
 
+            property bool loading: true
+            onBufferProgressChanged: {
+                if(loading && video.bufferProgress >= 1) {
+                    loading = false
+                    root.mediaLoaded()
+                    console.log("Video loaded: ", video.source)
+                }
+            }
+
             onStopped: root.videoFinished()
 
             readonly property real renderedOffsetX: (width - renderedWidth) / 2
@@ -172,17 +183,16 @@ Item {
                     console.log("Image loading error")
                 }
             }
+
+            property bool loading: true
             onProgressChanged: {
                 if (loading && image.progress >= 1) {
                     loading = false
                     root.mediaLoaded()
-                    console.log("Loaded: ", source)
-                } else {
-                    loading = image.progress > 0
+                    console.log("Image loaded: ", image.source)
                 }
             }
 
-            property bool loading: false
             readonly property real renderedOffsetX: (width - renderedWidth) / 2
             readonly property real renderedOffsetY: (height - renderedHeight) / 2
             readonly property real renderedWidth: getRenderedWidth(image)
