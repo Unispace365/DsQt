@@ -9,7 +9,7 @@ template<> std::optional<ValueWMeta<toml_nv>> DsSettings::getWithMeta(const std:
 
     auto val = getNodeViewWithMeta(key);
     if(!val.has_value()){
-		qDebug(lgSettingsParser)<<"Failed to find value at key "<<key.c_str();
+        qDebug(lgSPVerbose)<<"Failed to find value at key "<<key.c_str();
         return std::optional<ValueWMeta<toml_nv>>();
     }
 
@@ -25,7 +25,7 @@ template<> std::optional<ValueWMeta<toml_nv>> DsSettings::getWithMeta(const std:
 template<> std::optional<ValueWMeta<QVariantList>> DsSettings::getWithMeta(const std::string& key){
     auto val = getNodeViewWithMeta(key);
     if(!val.has_value()){
-        qDebug(lgSettingsParser)<<"Failed to find value at key "<<key.c_str();
+        qDebug(lgSPVerbose)<<"Failed to find value at key "<<key.c_str();
         return std::optional<ValueWMeta<QVariantList>>();
     }
 
@@ -47,7 +47,7 @@ template<> std::optional<ValueWMeta<QVariantList>> DsSettings::getWithMeta(const
 template<> std::optional<ValueWMeta<QVariantMap>> DsSettings::getWithMeta(const std::string& key){
     auto val = getNodeViewWithMeta(key);
     if(!val.has_value()){
-        qDebug(lgSettingsParser)<<"Failed to find value at key "<<key.c_str();
+        qDebug(lgSPVerbose)<<"Failed to find value at key "<<key.c_str();
         return std::optional<ValueWMeta<QVariantMap>>();
     }
 
