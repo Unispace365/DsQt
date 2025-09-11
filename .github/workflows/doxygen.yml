@@ -1,18 +1,45 @@
 name: Generate Doxygen Documentation
+
 on:
   push:
     branches: [ main ]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+  
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
+    - name: Checkout
+      uses: actions/checkout@v4
+    
     - name: Install Doxygen
-      run: sudo apt-get install -y doxygen
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y doxygen
+        
     - name: Generate Documentation
       run: doxygen Doxyfile
-    - name: Deploy to GitHub Pages
-      uses: peaceiris/actions-gh-pages@v3
+      
+    - name: Upload Pages artifact
+      uses: actions/upload-pages-artifact@v3
       with:
-        github_token: ${{ secrets.GITHUB_TOKEN }}
-        publish_dir: ./Docs/html
+        path: build/doxygen/html
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
