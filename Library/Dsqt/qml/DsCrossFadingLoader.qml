@@ -12,6 +12,8 @@ Item {
     property var model: []
     // (Optional) Set fade duration in milliseconds.
     property int fadeDuration: 500
+    // (Optional) Set fade delay in milliseconds.
+    property int fadeDelay: 0
 
     onSourceChanged: {
         if(a.z === 1) {
@@ -66,8 +68,19 @@ Item {
         Connections {
             target: a.item
             function onModelChanged() {
-                faderA.start()
+                if(fadeDelay > 0)
+                    timerA.start()
+                else
+                    faderA.start()
             }
+        }
+
+        Timer {
+            id: timerA
+            interval: fadeDelay
+            repeat: false
+            running: false
+            onTriggered: faderA.start()
         }
 
         onLoaded: {
@@ -85,8 +98,19 @@ Item {
         Connections {
             target: b.item
             function onModelChanged() {
-                faderB.start()
+                if(fadeDelay > 0)
+                    timerB.start()
+                else
+                    faderB.start()
             }
+        }
+
+        Timer {
+            id: timerB
+            interval: fadeDelay
+            repeat: false
+            running: false
+            onTriggered: faderB.start()
         }
 
         onLoaded: {
