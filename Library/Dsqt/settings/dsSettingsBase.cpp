@@ -10,7 +10,7 @@ template<> std::optional<ValueWMeta<std::string>> DsSettings::getWithMeta(const 
 
     auto val = getNodeViewWithMeta(key);
     if(!val.has_value()){
-		qDebug(lgSettingsParser)<<"Failed to find value at key "<<key.c_str();
+        qDebug(lgSPVerbose)<<"Failed to find value at key "<<key.c_str();
         return std::nullopt;
     }
 

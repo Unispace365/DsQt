@@ -169,7 +169,7 @@ std::vector<std::pair<std::string,std::optional<NodeWMeta>>> DsSettings::getNode
          stack.push_back(std::make_pair(returnPath,std::optional(NodeWMeta({value, metaTable, returnPath}))));
     }
     if(stack.empty()){
-        qCDebug(lgSettingsParser) << "Did not find any settings for key \"" << key.c_str() << "\"";
+        qCDebug(lgSPVerbose) << "Did not find any settings for key \"" << key.c_str() << "\"";
     }
 
     return stack;
@@ -216,7 +216,7 @@ std::optional<NodeWMeta> DsSettings::getNodeViewWithMeta(const std::string& key)
 			return std::optional(NodeWMeta({value, metaTable, returnPath}));
 		}
 	}
-	qCDebug(lgSettingsParser) << "Did not find setting for key \"" << key.c_str() << "\"";
+    qCDebug(lgSPVerbose) << "Did not find setting for key \"" << key.c_str() << "\"";
 	return std::nullopt;  //{toml::node_view<toml::node>(),nullptr,""};
 }
 

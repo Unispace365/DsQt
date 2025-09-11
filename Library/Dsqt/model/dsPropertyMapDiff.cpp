@@ -170,6 +170,8 @@ const DsQmlContentModel* PropertyMapDiff::nodeAtPath(const DsQmlContentModel& ro
 }
 
 void PropertyMapDiff::dumpChanges() {
+    return;
+
     qDebug() << "DUMP##############";
     for (const Change& c : m_changes) {
         QString                   typeString;

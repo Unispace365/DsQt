@@ -28,7 +28,7 @@ template<> std::optional<ValueWMeta<QDate>> DsSettings::getWithMeta(const std::s
 
     auto val = getNodeViewWithMeta(key);
     if(!val.has_value()){
-		qDebug(lgSettingsParser)<<"Failed to find value at key "<<key.c_str();
+        qDebug(lgSPVerbose)<<"Failed to find value at key "<<key.c_str();
         return std::optional<ValueWMeta<QDate>>();
     }
 
@@ -61,7 +61,7 @@ template<> std::optional<ValueWMeta<QTime>> DsSettings::getWithMeta(const std::s
 
     auto val = getNodeViewWithMeta(key);
     if(!val.has_value()){
-		qDebug(lgSettingsParser)<<"Failed to find value at key "<<key.c_str();
+        qDebug(lgSPVerbose)<<"Failed to find value at key "<<key.c_str();
         return std::optional<ValueWMeta<QTime>>();
     }
 
@@ -97,7 +97,7 @@ template<> std::optional<ValueWMeta<QDateTime>> DsSettings::getWithMeta(const st
 
     auto val = getNodeViewWithMeta(key);
     if(!val.has_value()){
-		qDebug(lgSettingsParser)<<"Failed to find value at key "<<key.c_str();
+        qDebug(lgSPVerbose)<<"Failed to find value at key "<<key.c_str();
         return std::optional<ValueWMeta<QDateTime>>();
     }
 

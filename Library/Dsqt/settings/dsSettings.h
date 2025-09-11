@@ -227,7 +227,7 @@ class DsSettings : public QObject {
 	std::optional<ValueWMeta<T>> getWithMeta(const std::string& key) {
 		auto val = getNodeViewWithMeta(key);
 		if (!val.has_value()) {
-			qDebug(lgSettingsParser) << "Failed to find value at key " << key.c_str();
+            qDebug(lgSPVerbose) << "Failed to find value at key " << key.c_str();
 			return std::nullopt;
 		}
 		// auto [node,meta,place] = val.value();
@@ -239,7 +239,7 @@ class DsSettings : public QObject {
 	std::optional<ValueWMeta<T>> originalValueWithMeta(const std::string& key, V&& overload) {
 		auto val = getNodeViewWithMeta(key);
 		if (!val.has_value()) {
-			qDebug(lgSettingsParser) << "Failed to find value at key " << key.c_str();
+            qDebug(lgSPVerbose) << "Failed to find value at key " << key.c_str();
 			return std::nullopt;
 		}
 

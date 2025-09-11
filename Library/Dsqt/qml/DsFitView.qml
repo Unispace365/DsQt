@@ -10,9 +10,6 @@ Item {
     // Current user-controlled scale (1.0 = 100%)
     property real userScale: 1.0
 
-    // Mode toggled by holding SHIFT
-    property bool mouseEnabled: false
-
     // Whether view fitting is enabled
     property bool fitEnabled: true
 
@@ -26,7 +23,7 @@ Item {
     default property alias contentData: contentWrapper.data
 
     //
-    property alias cursorShape: mouse.cursorShape
+    // property alias cursorShape: mouse.cursorShape
 
     // Enable keyboard focus
     focus: true
@@ -34,14 +31,14 @@ Item {
     // Handle key presses
     Keys.onPressed: (event) => {
                         if (event.key === Qt.Key_Shift) {
-                            mouseEnabled = true
+                            mouse.enabled = true
                             event.accepted = true
                         }
                     }
 
     Keys.onReleased: (event) => {
                          if (event.key === Qt.Key_Shift) {
-                             mouseEnabled = false
+                             mouse.enabled = false
                              event.accepted = true
                          }
                      }
@@ -61,17 +58,16 @@ Item {
         id: mouse
         anchors.fill: parent
         acceptedButtons: Qt.LeftButton | Qt.RightButton
-        hoverEnabled: true
-        enabled:false
+        //hoverEnabled: true
+        enabled: false
 
 
         // Change cursor based on mode
-        cursorShape: mouseEnabled ? (pressed ? Qt.ClosedHandCursor : Qt.OpenHandCursor) : Qt.ArrowCursor
+        cursorShape: enabled ? (pressed ? Qt.ClosedHandCursor : Qt.OpenHandCursor) : Qt.ArrowCursor
 
         property point lastPos
 
         onPressed: (mouse) => {
-                       if(mouseEnabled){
                            if(mouse.button === Qt.RightButton) {
                                fitToScreen()
                                mouse.accepted = true
@@ -81,10 +77,9 @@ Item {
                                mouse.accepted = true
                            }
                        }
-                   }
 
         onPositionChanged: (mouse) => {
-                               if (mouseEnabled && pressedButtons & Qt.LeftButton) {
+                               if (mouse.buttons & Qt.LeftButton) {
                                    var dx = mouse.x - lastPos.x
                                    var dy = mouse.y - lastPos.y
                                    contentWrapper.x += dx
@@ -94,14 +89,12 @@ Item {
                            }
 
         onWheel: (wheel) => {
-                     if (mouseEnabled) {
                          // Determine zoom factor (adjust as needed for sensitivity)
                          var factor = (wheel.angleDelta.y > 0) ? 1.1 : 1 / 1.1
                          zoomAt(wheel.x, wheel.y, factor)
                          wheel.accepted = true
                      }
                  }
-    }
 
     // Function to zoom around a specific point (mouse position)
     function zoomAt(mx, my, factor) {
