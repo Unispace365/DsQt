@@ -101,11 +101,11 @@ DsBridgeSyncSettings DsBridgeSqlQuery::getBridgeSyncSettings() {
     engSettings.setPrefix("engine.bridgesync");
 
     DsBridgeSyncSettings settings;
-    settings.server       = engSettings.getString("connection.server");
-    settings.authServer   = engSettings.getString("connection.auth_server");
-    settings.clientId     = engSettings.getString("connection.client_id");
-    settings.clientSecret = engSettings.getString("connection.client_secret");
-    settings.directory    = engSettings.getString("connection.directory");
+    settings.server       = engSettings.getString("connection.server", "");
+    settings.authServer   = engSettings.getString("connection.auth_server", "");
+    settings.clientId     = engSettings.getString("connection.client_id", "");
+    settings.clientSecret = engSettings.getString("connection.client_secret", "");
+    settings.directory    = engSettings.getString("connection.directory", "");
     settings.interval     = engSettings.getInt("connection.interval", 10);
     settings.verbose      = engSettings.getBool("connection.verbose", false);
     settings.asyncRecords = engSettings.getBool("connection.asyncRecords", true);
