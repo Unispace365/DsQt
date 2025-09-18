@@ -83,7 +83,8 @@ qt_add_qml_module(Dsqt
         utility/dsUrlImageLoader.cpp utility/dsUrlImageLoader.h
         waffles.qrc
         res/keyboard.qrc
-
+        rework/rwContentModel.cpp rework/rwContentModel.h
+        
     DEPENDENCIES
          QtQuick
          Dsqtplugin

@@ -258,7 +258,7 @@ class DsResource {
 	DsResource::Id mDbId;
 
 	/// See the public types above
-	int	   mType;
+    int	   mType;
 	double mDuration;
 	float  mWidth, mHeight;
 	float  mCropX = 0.f;
@@ -286,9 +286,17 @@ class DsResource {
 
 }  // namespace dsqt
 
+Q_DECLARE_METATYPE(dsqt::DsResource)
+
 // Make the resource ID available to standard stream operators
 std::ostream&  operator<<(std::ostream&, const dsqt::DsResource::Id&);
 std::wostream& operator<<(std::wostream&, const dsqt::DsResource::Id&);
+
+// // Make the resource available to the QT debugger
+// QDebug operator<<(QDebug dbg, const dsqt::DsResource& res) {
+//     dbg << "Resource('" << res.getTypeName() << "', '" << res.getFileName() << "')";
+//     return dbg;
+// }
 
 /*\cond Have doxygen ignore this, since it's an internal function that pops the std namespace on the main list
 		 Make the resource ID available for hashing functions

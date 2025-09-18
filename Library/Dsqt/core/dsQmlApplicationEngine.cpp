@@ -98,6 +98,11 @@ model::ContentModelRef DsQmlApplicationEngine::getContentRoot() {
     return mContentRoot;
 }
 
+rework::RwContentModel* DsQmlApplicationEngine::getRwContentRoot() {
+    if (!mRwContentRoot) mRwContentRoot = rework::RwContentModel::createNamed("root", this);
+    return mRwContentRoot;
+}
+
 model::IContentHelper* DsQmlApplicationEngine::getContentHelper() {
     if (mContentHelper == nullptr) {
         setContentHelper(new model::DsQmlContentHelper(this));

@@ -7,6 +7,7 @@
 #include "model/dsIContentHelper.h"
 #include "model/dsPropertyMapDiff.h"
 #include "model/dsQmlContentModel.h"
+#include "rework/rwContentModel.h"
 #include "settings/dsSettings.h"
 
 #include <QFileSystemWatcher>
@@ -79,6 +80,8 @@ class DsQmlApplicationEngine : public QQmlApplicationEngine {
      * @return model::ContentModelRef for the content root.
      */
     model::ContentModelRef getContentRoot();
+
+    rework::RwContentModel* getRwContentRoot();
 
     /**
      * @brief Sets this engine as the default engine.
@@ -257,6 +260,8 @@ class DsQmlApplicationEngine : public QQmlApplicationEngine {
   protected:
     /// Root content model reference.
     model::ContentModelRef mContentRoot;
+
+    rework::RwContentModel* mRwContentRoot = nullptr;
 
     /// QML reference map.
     model::ReferenceMap* mQmlRefMap;
