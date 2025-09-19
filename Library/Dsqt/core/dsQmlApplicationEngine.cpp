@@ -226,7 +226,7 @@ void DsQmlApplicationEngine::init() {
     mIdle->startIdling(true);
 
     mAppProxy->setTarget("app_settings");
-    updateContentRoot(nullptr);
+    updateContentRoot();
     connect(this, &DsQmlApplicationEngine::fileChanged, this, &DsQmlApplicationEngine::doReset);
     // rootContext()->setContextProperty("app_settings",mAppProxy);
     // rootContext()->setContextProperty("$QmlEngine", this);
@@ -273,27 +273,7 @@ DsQmlApplicationEngine* DsQmlApplicationEngine::DefEngine() {
     return sDefaultEngine;
 }
 
-void DsQmlApplicationEngine::updateContentRoot(QSharedPointer<model::PropertyMapDiff> diff) {
-    // updateContentRoot is responsible for cleaning up the diff.
-
-    qInfo("Updating Content Root");
-    if (mContentRoot.empty()) {
-        mContentRoot = model::ContentModelRef("root");
-        mContentRoot.setId("root");
-    }
-
-    if (mRootMap == nullptr) {
-        mRootMap = mContentRoot.getQml(mQmlRefMap, this);
-    } else if (diff) {
-        diff->dumpChanges();
-        diff->apply(*mRootMap, mQmlRefMap);
-    }
-
-    // mRootModel		  = mContentRoot.getModel(this);
-    // mRootMap		  = mContentRoot.getQml(this);
-    // rootContext()->setContextProperty("contentRootModel", mRootModel);
-    // rootContext()->setContextProperty("contentRootMap", mRootMap);
-
+void DsQmlApplicationEngine::updateContentRoot() {
     emit rootUpdated();
 }
 

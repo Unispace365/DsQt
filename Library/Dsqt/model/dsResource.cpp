@@ -568,6 +568,16 @@ bool DsResource::isLocal() const {
     return !mLocalFilePath.isEmpty() && mFileName.isEmpty() && mPath.isEmpty();
 }
 
+QVariantHash DsResource::toQml() const {
+    // TODO
+    QVariantHash qml;
+    qml.insert("filepath", mLocalFilePath);
+    qml.insert("width", mWidth);
+    qml.insert("height", mHeight);
+    qml.insert("crop", QVariantList{mCropX, mCropY, mCropW, mCropH});
+    return qml;
+}
+
 void DsResource::setTypeFromString(const QString& typeChar) {
     mType = makeTypeFromString(typeChar);
 }

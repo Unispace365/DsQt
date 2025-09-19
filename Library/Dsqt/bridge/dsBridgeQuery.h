@@ -208,6 +208,8 @@ class DsBridgeSqlQuery : public QObject {
 #endif
 
   private:
+    static QVariantHash toVariantHash(const QSqlRecord& record);
+
     struct DatabaseContent {
         QHash<QString, QVariantHash> records;   // All records.
         QStringList                  content;   // All content records.
@@ -218,105 +220,139 @@ class DsBridgeSqlQuery : public QObject {
         void buildTree() {
             // Clear existing list of children.
             for (auto node : records.asKeyValueRange()) {
-                node.second["children"] = QStringList();
+                node.second["child_uid"] = QStringList();
             }
             // Populate list of children.
             for (auto node : records.asKeyValueRange()) {
                 const auto uid         = node.second["uid"].toString();
-                const auto parent_uids = node.second["parent_uid"].toString().split(",", Qt::SkipEmptyParts);
-                if (parent_uids.size() > 1) continue; // Skip records with multiple parents.
+                const auto parent_uids = node.second["parent_uid"].toStringList();
+                if (parent_uids.size() != 1) continue; // Skip records with multiple parents, or no parents at all.
                 for (const auto& parent_uid : parent_uids) {
                     const auto id = parent_uid.trimmed();
                     if (records.contains(id)) {
-                        auto children = records[id]["children"].toStringList();
+                        auto children = records[id]["child_uid"].toStringList();
                         if (!children.contains(uid)) children.append(uid);
-                        records[id]["children"] = children;
+                        records[id]["child_uid"] = children;
                     }
                 }
             }
         }
     };
 
-    // Helper class to manage the content and provide an iterator
+    // Iterator class for tree traversal
     class DatabaseIterator {
       public:
-        // Constructor: takes the list of nodes and the root UID
-        DatabaseIterator(QHash<QString, QVariantHash>& nodes, const QString& rootUid)
+        DatabaseIterator(QHash<QString, QVariantHash>& nodes, const QList<QString>& order, qsizetype index)
             : m_nodes(nodes)
-            , m_rootUid(rootUid) {
-            if (m_nodes.contains(m_rootUid)) {
-                postOrderTraversal(m_rootUid);
+            , m_order(order)
+            , m_index(index) {}
+
+        // Dereference operator
+        const QVariantHash& operator*() const { return m_nodes[m_order[m_index]]; }
+
+        // Pointer operator
+        const QVariantHash* operator->() const { return &m_nodes[m_order[m_index]]; }
+
+        // Increment operator (pre-increment)
+        DatabaseIterator& operator++() {
+            if (m_index < m_order.size()) {
+                ++m_index;
+            }
+            return *this;
+        }
+
+        // Equality operator
+        bool operator==(const DatabaseIterator& other) const {
+            return m_index == other.m_index && &m_nodes == &other.m_nodes;
+        }
+
+        // Inequality operator
+        bool operator!=(const DatabaseIterator& other) const { return !(*this == other); }
+
+      private:
+        QHash<QString, QVariantHash>& m_nodes; // Reference to the node hash
+        const QList<QString>&         m_order; // UIDs in the correct order
+        qsizetype                     m_index; // Current position in traversal
+    };
+
+    // Helper class to traverse the database.
+    class DatabaseTree {
+      public:
+        enum class Traversal { PreOrder, PostOrder, Roots };
+
+        DatabaseTree(QHash<QString, QVariantHash>& nodes, const QString& rootUid,
+                     Traversal order = Traversal::PostOrder)
+            : m_nodes(nodes) {
+            if (m_nodes.contains(rootUid)) {
+                switch (order) {
+                case Traversal::PreOrder:
+                    preOrderTraversal(rootUid);
+                    break;
+                case Traversal::PostOrder:
+                    postOrderTraversal(rootUid);
+                    break;
+                case Traversal::Roots:
+                    rootsTraversal();
+                    break;
+                }
             }
         }
 
-        // Iterator class for post-order traversal
-        class Iterator {
-          public:
-            Iterator(QHash<QString, QVariantHash>& nodes, const QList<QString>& order, qsizetype index)
-                : m_nodes(nodes)
-                , m_order(order)
-                , m_index(index) {}
-
-            // Dereference operator
-            const QVariantHash& operator*() const { return m_nodes[m_order[m_index]]; }
-
-            // Pointer operator
-            const QVariantHash* operator->() const { return &m_nodes[m_order[m_index]]; }
-
-            // Increment operator (pre-increment)
-            Iterator& operator++() {
-                if (m_index < m_order.size()) {
-                    ++m_index;
-                }
-                return *this;
-            }
-
-            // Equality operator
-            bool operator==(const Iterator& other) const {
-                return m_index == other.m_index && &m_nodes == &other.m_nodes;
-            }
-
-            // Inequality operator
-            bool operator!=(const Iterator& other) const { return !(*this == other); }
-
-          private:
-            QHash<QString, QVariantHash>& m_nodes; // Reference to the node hash
-            const QList<QString>&         m_order; // UIDs in post-order
-            qsizetype                     m_index; // Current position in traversal
-        };
+        DatabaseTree(DatabaseContent& content, Traversal order = Traversal::PostOrder)
+            : DatabaseTree(content.records, content.content.front(), order) {}
 
         // Begin iterator
-        Iterator begin() const { return Iterator(m_nodes, m_postOrderUids, 0); }
+        DatabaseIterator begin() const { return DatabaseIterator(m_nodes, m_order, 0); }
 
         // End iterator
-        Iterator end() const { return Iterator(m_nodes, m_postOrderUids, m_postOrderUids.size()); }
+        DatabaseIterator end() const { return DatabaseIterator(m_nodes, m_order, m_order.size()); }
 
       private:
+        // Recursive pre-order traversal
+        void preOrderTraversal(const QString& uid) {
+            // Visit the node itself first
+            m_order.append(uid);
+            // Then visit children
+            const QStringList children = m_nodes[uid]["child_uid"].toStringList();
+            for (const QString& childUid : children) {
+                if (m_nodes.contains(childUid)) {
+                    preOrderTraversal(childUid);
+                }
+            }
+        }
+
         // Recursive post-order traversal
         void postOrderTraversal(const QString& uid) {
             // Visit children first
-            const QStringList children = m_nodes[uid]["children"].toStringList();
+            const QStringList children = m_nodes[uid]["child_uid"].toStringList();
             for (const QString& childUid : children) {
                 if (m_nodes.contains(childUid)) {
                     postOrderTraversal(childUid);
                 }
             }
             // Then visit the node itself
-            m_postOrderUids.append(uid);
+            m_order.append(uid);
         }
 
-        QHash<QString, QVariantHash>& m_nodes;         // Reference to the node hash (non-const for modification)
-        QString                       m_rootUid;       // Root UID
-        QList<QString>                m_postOrderUids; // UIDs of nodes in post-order
-    };
+        // Roots traversal
+        void rootsTraversal() {
+            for (const auto itr : m_nodes.asKeyValueRange()) {
+                const auto& record = itr.second;
+                if (!record.contains("parent_uid")) continue;
+                const auto parents   = record["parent_uid"].toStringList();
+                bool       hasParent = false;
+                for (const auto& parent : parents) {
+                    hasParent = m_nodes.contains(parent.trimmed());
+                    if (hasParent) break;
+                }
+                if (hasParent) continue;
+                m_order.append(itr.first);
+            }
+        }
 
-    /**
-     * @brief Handles errors from a QSqlQuery.
-     * @param query The query that may have errored.
-     * @param queryName Name of the query for logging.
-     * @return True if no error, false if error occurred.
-     */
-    // bool handleQueryError(const QSqlQuery& query, const QString& queryName);
+        QHash<QString, QVariantHash>& m_nodes; // Reference to the node hash (non-const for modification)
+        QList<QString>                m_order; // UIDs of nodes in post-order
+    };
 
     /**
      * @brief Retrieves the BridgeSync settings from configuration.
@@ -366,7 +402,7 @@ class DsBridgeSqlQuery : public QObject {
      * @param appKey The key to slugify.
      * @return The slugified QString.
      */
-    QString slugifyKey(QString appKey);
+    static QString slugifyKey(QString appKey);
 
   private:
     QSqlDatabase                    mDatabase;

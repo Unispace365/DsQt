@@ -99,7 +99,7 @@ class DsQmlApplicationEngine : public QQmlApplicationEngine {
      * @brief Updates the content root with a property map diff.
      * @param diff Shared pointer to the PropertyMapDiff to apply.
      */
-    void updateContentRoot(QSharedPointer<model::PropertyMapDiff> diff);
+    void updateContentRoot();
 
     /**
      * @brief Gets the ImGui item for QML integration.
@@ -257,6 +257,8 @@ class DsQmlApplicationEngine : public QQmlApplicationEngine {
      */
     void idleChanged();
 
+    void bridgeChanged();
+
   protected:
     /// Root content model reference.
     model::ContentModelRef mContentRoot;
@@ -298,6 +300,9 @@ class DsQmlApplicationEngine : public QQmlApplicationEngine {
 
     /// Pointer to the idle manager.
     DsQmlIdle* mIdle = nullptr;
+
+    /// Point to the content in Bridge CMS.
+    rework::RwContentModel* mBridge = nullptr;
 };
 
 } // namespace dsqt

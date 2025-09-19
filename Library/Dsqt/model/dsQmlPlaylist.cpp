@@ -1,8 +1,10 @@
 #include "model/dsQmlPlaylist.h"
 #include "core/dsEnvironment.h"
 #include "core/dsQmlApplicationEngine.h"
+#include "settings/dsQmlSettingsProxy.h"
 
 #include <QFileInfo>
+#include <QQmlContext>
 
 namespace dsqt::model {
 
@@ -105,11 +107,18 @@ void DsQmlPlaylist::updateNow() {
     // Obtain engine pointer.
     auto engine = DsQmlApplicationEngine::DefEngine();
 
-    // Obtain platform playlist from engine.
-    auto content  = engine->getContentRoot();
-    auto platform = content.getChildByName("platform").getChild(0);
+    // Obtain platform settings.
+    DsQmlSettingsProxy settings;
+    settings.setTarget("app_settings");
+    settings.setPrefix("platform");
 
-    auto playlistUid = platform.getPropertyString(mode.value("platformKey").toString());
+    // Obtain platform playlist from engine.
+    auto platformUid = settings.getString("id").toString();
+    auto platform    = rework::RwContentModel::find(platformUid);
+    if (!platform) return;
+
+    auto platformKey = mode.value("platformKey").toString();
+    auto playlistUid = platform->getProperty<QString>(platformKey);
 
     // Use the event's playlist if available.
     if (m_event) {
@@ -117,10 +126,11 @@ void DsQmlPlaylist::updateNow() {
         if (auto uid = model.getPropertyString(mode.value("eventKey").toString()); !uid.isEmpty()) playlistUid = uid;
     }
 
-    auto model = content.getReference("all_records", playlistUid);
-    if (!(model == m_playlist_model)) {
+    auto model = rework::RwContentModel::find(playlistUid);
+    if (model != m_playlist_model) {
         // Force a playlist restart if this is a different playlist.
-        if (model.getPropertyString("uid") != m_playlist_model.getPropertyString("uid")) {
+        if (model && m_playlist_model &&
+            model->getProperty<QString>("uid") != m_playlist_model->getProperty<QString>("uid")) {
             m_model = nullptr;
         }
 
@@ -132,9 +142,9 @@ void DsQmlPlaylist::updateNow() {
             setIndex(0);
         } else {
             // Adjust the playlist index if needed.
-            auto children = m_playlist_model.getChildren();
+            auto children = m_playlist_model->getChildren();
             for (qsizetype i = 0; i < children.size(); ++i) {
-                if (m_model->origin() == children.at(i)) {
+                if (m_model == children.at(i)) {
                     m_playlist_index = i;
                     break;
                 }
@@ -151,24 +161,17 @@ void DsQmlPlaylist::setIndex(qsizetype index) {
     m_playlist_index = index;
 
     // Obtain content model and check for changes.
-    auto count = m_playlist_model.getChildren().size();
+    auto count = m_playlist_model ? m_playlist_model->getChildren().size() : 0;
     if (count > 0) {
-        bool qmlChanged = false;
+        auto model      = m_playlist_model->getChild(index % count);
+        bool qmlChanged = model != m_model;
 
-        auto model = m_playlist_model.getChild(index % count);
-        if (auto qml = model.getQml(); qml != m_model) {
-            // Update content model now, so it can be used by new templates,
-            // but don't emit signal yet, so existing templates won't be affected.
-            m_model    = qml;
-            qmlChanged = true;
-
-            // for (auto& key : m_model->keys()) {
-            //     qInfo() << "Key:" << key << "=" << m_model->value(key);
-            // }
-        }
+        // Update content model now, so it can be used by new templates,
+        // but don't emit signal yet, so existing templates won't be affected.
+        m_model = model;
 
         // Get template QML and update source and component.
-        QString  typeUid = model.getPropertyString("type_uid");
+        QString  typeUid = m_model->getProperty<QString>("type_uid");
         QVariant value   = m_templates.value(typeUid);
         QString  source  = value.toString();
 

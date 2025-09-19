@@ -252,6 +252,8 @@ class DsResource {
 	/// The argument is the full thumbnail, if you want it.
 	// bool query(const DsResource::Id&, DsResource* outThumb);
 
+    QVariantHash toQml() const;
+
   private:
 	friend class ResourceList;
 
@@ -286,7 +288,7 @@ class DsResource {
 
 }  // namespace dsqt
 
-Q_DECLARE_METATYPE(dsqt::DsResource)
+//Q_DECLARE_METATYPE(dsqt::DsResource)
 
 // Make the resource ID available to standard stream operators
 std::ostream&  operator<<(std::ostream&, const dsqt::DsResource::Id&);

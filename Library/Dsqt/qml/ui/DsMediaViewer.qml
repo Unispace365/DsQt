@@ -12,7 +12,7 @@ import QtQuick.VectorImage
 Item {
     id: root
 
-    // The media content item, containing file path and crop information, among other things.
+    // The media resource, containing file path and crop information, among other things.
     property var media: undefined
     // The file path of the media as reported by the CMS.
     readonly property string source: media ? media.filepath : ""

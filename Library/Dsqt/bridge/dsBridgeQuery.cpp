@@ -6,7 +6,9 @@
 #include "settings/dsSettings.h"
 
 #include "qqmlcontext.h"
+
 #include <QSharedPointer>
+#include <QSqlField>
 #include <QString>
 
 Q_LOGGING_CATEGORY(lgBridgeSyncApp, "bridgeSync.app")
@@ -22,6 +24,11 @@ DsBridgeSqlQuery::DsBridgeSqlQuery(DsQmlApplicationEngine* parent)
     : QObject(parent) {
     // Initialize when the engine is ready.
     connect(parent, &DsQmlApplicationEngine::endInitialize, this, [this]() {
+        // Construct or update the content tree.
+        auto root = DsQmlApplicationEngine::DefEngine()->getRwContentRoot();
+        DsQmlApplicationEngine::DefEngine()->rootContext()->setContextProperty("bridge", root);
+        // DsQmlApplicationEngine::DefEngine()->setBridge(root);
+
         // If bridge sync is not running, try to launch it.
         if (!isBridgeSyncRunning()) {
             tryLaunchBridgeSync();
@@ -264,28 +271,62 @@ bool DsBridgeSqlQuery::isBridgeSyncRunning() {
 }
 
 void DsBridgeSqlQuery::onUpdated() {
+    QElapsedTimer timer;
+    timer.start();
+
     // This runs in the main thread when the background task completes.
     DatabaseContent result = mFutures.result();
 
     const auto isMainThread = QThread::currentThread() == QCoreApplication::instance()->thread();
     qCDebug(lgBridgeSyncQuery) << "BridgeService found" << result.records.size() << "records in the database";
 
+    // Traverse content tree.
+    auto t1 = timer.elapsed();
+
+    DatabaseTree roots(result, DatabaseTree::Traversal::Roots);
+    for (const auto& root : roots) {
+        DatabaseTree tree(result.records, root.value("uid").toString());
+        for (const auto& record : tree) {
+            rework::RwContentModel::createOrUpdate(record);
+        }
+    }
+    // Make sure all content is linked up (parent-child relations are enforced).
+    auto t2 = timer.elapsed();
+
+    rework::RwContentModel::linkUp();
+
     // Construct or update the content tree.
     auto root = DsQmlApplicationEngine::DefEngine()->getRwContentRoot();
 
-    // Traverse content tree.
-    DatabaseIterator tree(result.records, result.content.front());
-    for (const auto& record : tree) {
-        rework::RwContentModel::createOrUpdate(record);
-    }
-    // Make sure all content is linked up.
-    rework::RwContentModel::linkUp();
+    // // Update root.
+    // auto _content = QVariant::fromValue(rework::RwContentModel::find(result.content.front()));
+    // root->setProperty("content", _content);
+    // auto _events = QVariant::fromValue(rework::RwContentModel::find(result.events));
+    // root->setProperty("events", _events);
+    // auto _platforms = QVariant::fromValue(rework::RwContentModel::find(result.platforms));
+    // root->setProperty("platforms", _platforms);
+    // auto _records = QVariant::fromValue(rework::RwContentModel::find(result.records.keys()));
+    // root->setProperty("records", _records);
 
-    // Update root.
-    root->setProperty("content", QVariant::fromValue(rework::RwContentModel::find(result.content.front())));
-    root->setProperty("events", QVariant::fromValue(rework::RwContentModel::find(result.events)));
-    root->setProperty("platforms", QVariant::fromValue(rework::RwContentModel::find(result.platforms)));
-    root->setProperty("records", QVariant::fromValue(rework::RwContentModel::find(result.records.keys())));
+    DsQmlApplicationEngine::DefEngine()->updateContentRoot();
+
+    auto t3 = timer.elapsed();
+
+    qInfo() << "Updating content took" << timer.elapsed() / 1000.f << "seconds";
+    qInfo() << "- Retrieving data from background thread took" << t1 / 1000.f << "seconds";
+    qInfo() << "- Creating content tree took" << (t2 - t1) / 1000.f << "seconds";
+    qInfo() << "- Linking content tree took" << (t3 - t2) / 1000.f << "seconds";
+}
+
+QVariantHash DsBridgeSqlQuery::toVariantHash(const QSqlRecord& record) {
+    QVariantHash hash;
+    for (int i = 0; i < record.count(); ++i) {
+        const QSqlField field = record.field(i);
+        const QString   key   = field.name().toLower(); // Optional: normalize to lowercase
+        const QVariant  value = record.value(i);        // Auto-handles type and NULL (as invalid QVariant)
+        if (value.isValid() && !value.isNull()) hash[key] = value;
+    }
+    return hash;
 }
 
 void DsBridgeSqlQuery::queryDatabase() {
@@ -316,36 +357,6 @@ DsBridgeSqlQuery::DatabaseContent DsBridgeSqlQuery::queryTables() {
     // Make sure the database is opened.
     DatabaseGuard guard(mDatabase);
     if (!guard.isOpen()) return content;
-
-    // Perform queries inside a transaction. This is very important,
-    // because it effectively takes a snapshot of the current database,
-    // ensuring data between queries remains consistent.
-    if (!mDatabase.transaction()) {
-        qCCritical(lgBridgeSyncQuery) << "Error starting transaction:" << mDatabase.lastError().text();
-        return content;
-    }
-
-    // Get column information for the 'value' table.
-    QSqlRecord record      = mDatabase.record("value");
-    bool       hasDatetime = record.contains("datetime");
-    bool       hasDate     = record.contains("date");
-    bool       hasTime     = record.contains("time");
-
-    // Determine the datetime field expression.
-    QDateTime now = QDateTime::currentDateTime();
-    QString   datetimeSelect;
-    if (hasDatetime) {
-        datetimeSelect = "v.datetime";
-    } else if (hasDate && hasTime) {
-        // Handles cases where date or time is NULL
-        datetimeSelect = QString("COALESCE(v.date,'%1') || 'T' || COALESCE(v.time,'%2')")
-                             .arg(now.toString("yyyy-MM-dd"))
-                             .arg(now.toString("hh:mm:ss"));
-    } else if (hasDate) {
-        datetimeSelect = "v.date";
-    } else {
-        datetimeSelect = "NULL"; // Fallback if no datetime-related columns exist.
-    }
 
     QString sSlotQuery = QStringLiteral("SELECT "                   //
                                         " l.uid,"                   // 0
@@ -406,65 +417,77 @@ DsBridgeSqlQuery::DatabaseContent DsBridgeSqlQuery::queryTables() {
                        " LEFT JOIN defaults ON lookup.uid = defaults.field_uid"                          //
                        " WHERE EXISTS (select * from defaults where defaults.field_uid = lookup.uid);"); //
 
-    QString sValueQuery =                   //
-        QString("SELECT "                   //
-                " v.uid,"                   // 0
-                " v.field_uid,"             // 1
-                " v.record_uid,"            // 2
-                " v.field_type,"            // 3
-                " v.is_default,"            // 4
-                " v.is_empty,"              // 5
-                " v.checked,"               // 6
-                " v.color,"                 // 7
-                " v.text_value,"            // 8
-                " v.rich_text,"             // 9
-                " v.number,"                // 10
-                " v.number_min,"            // 11
-                " v.number_max,"            // 12
-                " %1 AS datetime,"          // 13
-                " v.resource_hash,"         // 14
-                " v.crop_x,"                // 15
-                " v.crop_y,"                // 16
-                " v.crop_w,"                // 17
-                " v.crop_h,"                // 18
-                " v.composite_frame,"       // 19
-                " v.composite_x,"           // 20
-                " v.composite_y,"           // 21
-                " v.composite_w,"           // 22
-                " v.composite_h,"           // 23
-                " v.option_type,"           // 24
-                " v.option_value,"          // 25
-                " v.link_url,"              // 26
-                " v.link_target_uid,"       // 27
-                " res.hash,"                // 28
-                " res.type,"                // 29
-                " res.uri,"                 // 30
-                " res.width,"               // 31
-                " res.height,"              // 32
-                " res.duration,"            // 33
-                " res.pages,"               // 34
-                " res.file_size,"           // 35
-                " l.name AS field_name,"    // 36
-                " l.app_key AS field_key,"  // 37
-                " v.preview_resource_hash," // 38
-                " preview_res.hash,"        // 39 ! overrides res.hash
-                " preview_res.type,"        // 40 ! overrides res.type
-                " preview_res.uri,"         // 41 ! overrides res.uri
-                " preview_res.width,"       // 42 ! overrides res.width
-                " preview_res.height,"      // 43 ! overrides res.height
-                " preview_res.duration,"    // 44 ! overrides res.duration
-                " preview_res.pages,"       // 45 ! overrides res.pages
-                " preview_res.file_size,"   // 46 ! overrides res.file_size
-                " v.hotspot_x,"             // 47
-                " v.hotspot_y,"             // 48
-                " v.hotspot_w,"             // 49
-                " v.hotspot_h,"             // 50
-                " res.filename"             // 51
+    // Get column information for the 'value' table.
+    QSqlRecord record      = mDatabase.record("value");
+    bool       hasDatetime = record.contains("datetime");
+    bool       hasDate     = record.contains("date");
+    bool       hasTime     = record.contains("time");
+
+    // Determine the date and time field expression.
+    QStringList datetimeSelect;
+    if (hasDatetime) datetimeSelect.append("v.datetime");
+    if (hasDate) datetimeSelect.append("v.date");
+    if (hasTime) datetimeSelect.append("v.time");
+
+    QString sValueQuery =                                      //
+        QString("SELECT "                                      //
+                " v.uid,"                                      // 0
+                " v.field_uid,"                                // 1
+                " v.record_uid,"                               // 2
+                " v.field_type,"                               // 3
+                " v.is_default,"                               // 4
+                " v.is_empty,"                                 // 5
+                " v.checked,"                                  // 6
+                " v.color,"                                    // 7
+                " v.text_value,"                               // 8
+                " v.rich_text,"                                // 9
+                " v.number,"                                   // 10
+                " v.number_min,"                               // 11
+                " v.number_max,"                               // 12
+                " %1,"                                         // 13 date, time and/or datetime
+                " v.resource_hash,"                            // 14
+                " v.crop_x,"                                   // 15
+                " v.crop_y,"                                   // 16
+                " v.crop_w,"                                   // 17
+                " v.crop_h,"                                   // 18
+                " v.composite_frame,"                          // 19
+                " v.composite_x,"                              // 20
+                " v.composite_y,"                              // 21
+                " v.composite_w,"                              // 22
+                " v.composite_h,"                              // 23
+                " v.option_type,"                              // 24
+                " v.option_value,"                             // 25
+                " v.link_url,"                                 // 26
+                " v.link_target_uid,"                          // 27
+                " res.hash,"                                   // 28
+                " res.type,"                                   // 29
+                " res.uri,"                                    // 30
+                " res.width,"                                  // 31
+                " res.height,"                                 // 32
+                " res.duration,"                               // 33
+                " res.pages,"                                  // 34
+                " res.file_size,"                              // 35
+                " l.name AS field_name,"                       // 36
+                " l.app_key AS field_key,"                     // 37
+                " v.preview_resource_hash,"                    // 38
+                " preview_res.hash AS preview_hash,"           // 39
+                " preview_res.type AS preview_type,"           // 40
+                " preview_res.uri AS preview_uri,"             // 41
+                " preview_res.width AS preview_width,"         // 42
+                " preview_res.height AS preview_height,"       // 43
+                " preview_res.duration AS preview_duration,"   // 44
+                " preview_res.pages AS preview_pages,"         // 45
+                " preview_res.file_size AS preview_file_size," // 46
+                " v.hotspot_x,"                                // 47
+                " v.hotspot_y,"                                // 48
+                " v.hotspot_w,"                                // 49
+                " v.hotspot_h,"                                // 50
+                " res.filename"                                // 51
                 " FROM value AS v"
                 " LEFT JOIN lookup AS l ON l.uid = v.field_uid"
                 " LEFT JOIN resource AS res ON res.hash = v.resource_hash"
                 " LEFT JOIN resource AS preview_res ON preview_res.hash = v.preview_resource_hash;")
-            .arg(datetimeSelect);
+            .arg(datetimeSelect.join(", "));
 
     // Create data structures.
     DatabaseQuery slotQuery(mDatabase, sSlotQuery);
@@ -472,6 +495,14 @@ DsBridgeSqlQuery::DatabaseContent DsBridgeSqlQuery::queryTables() {
     DatabaseQuery selectQuery(mDatabase, sSelectQuery);
     DatabaseQuery defaultsQuery(mDatabase, sDefaultsQuery);
     DatabaseQuery valueQuery(mDatabase, sValueQuery);
+
+    // Perform queries inside a transaction. This is very important,
+    // because it effectively takes a snapshot of the current database,
+    // ensuring data between queries remains consistent.
+    if (!mDatabase.transaction()) {
+        qCCritical(lgBridgeSyncQuery) << "Error starting transaction:" << mDatabase.lastError().text();
+        return content;
+    }
 
     // Now, perform all queries as fast as possible,
     // leaving data processing for after the transaction has finished.
@@ -498,46 +529,49 @@ DsBridgeSqlQuery::DatabaseContent DsBridgeSqlQuery::queryTables() {
     // Process slot query.
     std::unordered_map<QString, std::pair<QString, bool>> slotReverseOrdering;
     slotQuery.process([&](const QSqlRecord& result) {
-        const auto uid              = result.value(0).toString();
-        const auto app_key          = result.value(1).toString();
-        const auto reverse_ordering = result.value(2).toBool();
+        const auto uid              = result.value("uid").toString();
+        const auto app_key          = result.value("app_key").toString();
+        const auto reverse_ordering = result.value("reverse_ordering").toBool();
         slotReverseOrdering[uid]    = {app_key, reverse_ordering};
     });
 
     // Process record query.
     recordQuery.process([&](const QSqlRecord& result) {
-        const auto uid = result.value(0).toString();
+        const auto uid = result.value("uid").toString();
 
         // Create or retrieve the record.
         auto& record = content.records[uid];
 
         // Extract properties.
         record.insertOrAssign("uid", uid);
-        record.insertOrAssign("type_uid", result.value(1).toString());
-        record.insertOrAssign("type_name", result.value(2).toString());
-        record.insertOrAssign("type_key", result.value(3).toString());
+        record.insertOrAssign("type_uid", result.value("type_uid").toString());
+        record.insertOrAssign("type_name", result.value("type_name").toString());
+        record.insertOrAssign("type_key", result.value("type_key").toString());
+        record.insertOrAssign("record_name", result.value("name").toString());
 
-        const auto parent_uid  = result.value(4).toString();
-        const auto parent_slot = result.value(5).toString();
-        const auto variant     = result.value(6).toString();
+        // Note: parent_uid can be a list, separated by comma's. Always convert to a QStringList for convenience.
+        auto parent_uids = result.value("parent_uid").toString().split(",", Qt::SkipEmptyParts);
+        for (auto& parent_uid : parent_uids)
+            parent_uid = parent_uid.trimmed();
+        if (!parent_uids.isEmpty()) record.insertOrAssign("parent_uid", parent_uids);
 
-        if (!parent_uid.isEmpty()) record.insertOrAssign("parent_uid", parent_uid);
+        const auto parent_slot = result.value("parent_slot").toString();
         if (!parent_slot.isEmpty()) {
             record.insertOrAssign("parent_slot", parent_slot);
             record.insertOrAssign("label", slotReverseOrdering[parent_slot].first);
             record.insertOrAssign("reverse_ordered", slotReverseOrdering[parent_slot].second);
         }
+        const auto variant = result.value("variant").toString();
         record.insertOrAssign("variant", variant);
-        record.insertOrAssign("record_name", result.value(7).toString());
 
         if (variant == "SCHEDULE") {
             content.events.append(uid);
-            record.insertOrAssign("span_type", result.value(8).toString());
-            record.insertOrAssign("start_date", result.value(9).toString());  // toDate()?
-            record.insertOrAssign("end_date", result.value(10).toString());   // toDate()?
-            record.insertOrAssign("start_time", result.value(11).toString()); // toTime()?
-            record.insertOrAssign("end_time", result.value(12).toString());   // toTime()?
-            record.insertOrAssign("effective_days", result.value(13).toInt());
+            record.insertOrAssign("span_type", result.value("span_type").toString());
+            record.insertOrAssign("start_date", result.value("span_start_date").toString());
+            record.insertOrAssign("end_date", result.value("span_end_date").toString());
+            record.insertOrAssign("start_time", result.value("start_time").toString());
+            record.insertOrAssign("end_time", result.value("end_time").toString());
+            record.insertOrAssign("effective_days", result.value("effective_days").toInt());
         } else if (variant == "ROOT_CONTENT") {
             content.content.append(uid);
         } else if (variant == "ROOT_PLATFORM") {
@@ -550,162 +584,185 @@ DsBridgeSqlQuery::DatabaseContent DsBridgeSqlQuery::queryTables() {
 
     // Process select query.
     std::unordered_map<QString, QString> selectMap;
-    selectQuery.process(
-        [&](const QSqlRecord& result) { selectMap[result.value(0).toString()] = result.value(1).toString(); });
+    selectQuery.process([&](const QSqlRecord& result) {
+        selectMap[result.value("uid").toString()] = result.value("app_key").toString();
+    });
 
     // Process defaults query.
     defaultsQuery.process([&](const QSqlRecord& result) {
         // Retrieve the record.
-        const auto uid = result.value(0).toString();
+        const auto uid = result.value("uid").toString();
         if (!content.records.contains(uid)) return;
         auto& record = content.records[uid];
 
-        const auto field_key = slugifyKey(result.value(2).toString());
-        const auto field_uid = field_key.isEmpty() ? result.value(1).toString() : field_key;
-        const auto type      = result.value(3).toString();
+        const auto field_key = slugifyKey(result.value("app_key").toString());
+        const auto field_uid = field_key.isEmpty() ? result.value("field_uid").toString() : field_key;
+        const auto type      = result.value("field_type").toString();
 
         if (type == "TEXT") {
-            record.insertOrAssign(field_uid, result.value(6).toString());
+            record.insertOrAssign(field_uid, result.value("text_value").toString());
         } else if (type == "RICH_TEXT") {
-            record.insertOrAssign(field_uid, result.value(7).toString());
+            record.insertOrAssign(field_uid, result.value("rich_text").toString());
         } else if (type == "NUMBER") {
-            record.insertOrAssign(field_uid, result.value(8).toFloat());
+            record.insertOrAssign(field_uid, result.value("number").toFloat());
         } else if (type == "OPTIONS") {
-            const auto  key   = result.value(12).toString();
+            const auto  key   = result.value("option_value").toString();
             const auto& value = selectMap.at(key);
             record.insertOrAssign(field_uid, value);
             record.insertOrAssign(field_uid + "_value_uid", key);
         } else if (type == "CHECKBOX") {
-            record.insertOrAssign(field_uid, result.value(4).toBool());
+            record.insertOrAssign(field_uid, result.value("checked").toBool());
         }
 
-        record.insertOrAssign(field_uid + "_field_uid", result.value(1).toString());
+        record.insertOrAssign(field_uid + "_field_uid", result.value("field_uid").toString());
     });
 
     // Process value query.
     const dsqt::DsResource::Id cms(dsqt::DsResource::Id::CMS_TYPE, 0);
     valueQuery.process([&](const QSqlRecord& result) {
-        // Retrieve the record.
-        const auto uid = result.value(0).toString();
+        // Retrieve the record to which this value belongs.
+        const auto uid = result.value("record_uid").toString();
         if (!content.records.contains(uid)) return;
         auto& record = content.records[uid];
 
-        const auto field_key  = slugifyKey(result.value(37).toString());
-        const auto field_uid  = field_key.isEmpty() ? result.value(1).toString() : field_key;
-        const auto type       = result.value(3).toString();
-        const auto resourceId = result.value(28).toString();
+        // Determine field key.
+        const auto field_key = slugifyKey(result.value("field_key").toString());
+        const auto field_uid = field_key.isEmpty() ? result.value("field_uid").toString() : field_key;
 
-        if (type == "TEXT") {
-            record.insertOrAssign(field_uid, result.value(8).toString());
-        } else if (type == "RICH_TEXT") {
-            record.insertOrAssign(field_uid, result.value(9).toString());
-        } else if (type == "FILE_IMAGE" || type == "FILE_VIDEO" || type == "FILE_PDF") {
+        // Process value based on type.
+        const auto field_type = result.value("field_type").toString();
+        if (field_type == "TEXT") {
+            // Use the provided text.
+            record.insertOrAssign(field_uid, result.value("text_value").toString());
+        } else if (field_type == "RICH_TEXT") {
+            // Use the provided rich text.
+            record.insertOrAssign(field_uid, result.value("rich_text").toString());
+        } else if (field_type == "FILE_IMAGE" || field_type == "FILE_VIDEO" || field_type == "FILE_PDF") {
+            // Create resource.
+            const auto resourceId = result.value("hash").toString();
             if (!resourceId.isEmpty()) {
-                // Create resource.
+                const auto uri = result.value("uri").toString();
+
                 auto res = dsqt::DsResource(
-                    resourceId, dsqt::DsResource::Id::CMS_TYPE, double(result.value(33).toDouble()),
-                    float(result.value(31).toInt()), float(result.value(32).toInt()), result.value(51).toString(),
-                    result.value(30).toString(), -1, cms.getResourcePath() + "/" + result.value(30).toString());
+                    resourceId, dsqt::DsResource::Id::CMS_TYPE, double(result.value("duration").toDouble()),
+                    float(result.value("width").toInt()), float(result.value("height").toInt()),
+                    result.value("filename").toString(), uri, -1, cms.getResourcePath() + "/" + uri);
 
                 // Set resource type.
-                if (type == "FILE_IMAGE")
+                if (field_type == "FILE_IMAGE")
                     res.setType(dsqt::DsResource::IMAGE_TYPE);
-                else if (type == "FILE_VIDEO")
+                else if (field_type == "FILE_VIDEO")
                     res.setType(dsqt::DsResource::VIDEO_TYPE);
-                else if (type == "FILE_PDF")
+                else if (field_type == "FILE_PDF")
                     res.setType(dsqt::DsResource::PDF_TYPE);
-                else
-                    return; // TODO log error!
+                else {
+                    qWarning() << "Unknown file type for resource:" << field_type;
+                    return;
+                }
 
-                // Set crop parameters.
-                auto cropX = result.value(15).toFloat();
-                auto cropY = result.value(16).toFloat();
-                auto cropW = result.value(17).toFloat();
-                auto cropH = result.value(18).toFloat();
+                // Set crop parameters if applicable.
+                auto cropX = result.value("crop_x").toFloat();
+                auto cropY = result.value("crop_y").toFloat();
+                auto cropW = result.value("crop_w").toFloat();
+                auto cropH = result.value("crop_h").toFloat();
                 if (cropX > 0.f || cropY > 0.f || cropW > 0.f || cropH > 0.f) {
                     res.setCrop(cropX, cropY, cropW, cropH);
                 }
 
-                // Add resource.
-                record.insertOrAssign(field_uid, QVariant::fromValue(res));
-            }
+                // Add resource. TODO getQml() should contain all fields. Perhaps replace DsResource with a type
+                // compatible with QVariant.
+                record.insertOrAssign(field_uid, res.toQml());
 
-            const auto previewId = result.value(38).toString();
-            if (!previewId.isEmpty()) {
                 // Create resource for the preview.
-                auto res = dsqt::DsResource(
-                    previewId, dsqt::DsResource::Id::CMS_TYPE, double(result.value(44).toFloat()),
-                    float(result.value(42).toInt()), float(result.value(43).toInt()), result.value(41).toString(),
-                    result.value(41).toString(), -1, cms.getResourcePath() + "/" + result.value(41).toString());
+                const auto previewId = result.value("preview_resource_hash").toString();
+                if (!previewId.isEmpty()) {
+                    const auto previewUri  = result.value("preview_uri").toString();
+                    const auto previewType = result.value("preview_type").toString();
 
-                const auto previewType = result.value(40).toString();
-                res.setType(previewType == "FILE_IMAGE" ? dsqt::DsResource::IMAGE_TYPE : dsqt::DsResource::VIDEO_TYPE);
+                    auto res = dsqt::DsResource(
+                        previewId, dsqt::DsResource::Id::CMS_TYPE, double(result.value("preview_duration").toFloat()),
+                        float(result.value("preview_width").toInt()), float(result.value("preview_height").toInt()),
+                        result.value("filename").toString(), previewUri, -1, cms.getResourcePath() + "/" + previewUri);
 
-                // Add resource for the preview.
-                record.insertOrAssign(field_uid + "_preview", QVariant::fromValue(res));
+                    res.setType(previewType == "FILE_IMAGE" ? dsqt::DsResource::IMAGE_TYPE
+                                                            : dsqt::DsResource::VIDEO_TYPE);
+
+                    // Add resource for the preview. TODO getQml() should contain all fields. Perhaps replace DsResource
+                    // with a type compatible with QVariant.
+                    record.insertOrAssign(field_uid + "_preview", res.toQml());
+                }
             }
-        } else if (type == "LINKS") {
-            auto update = record.value(field_uid).toString();
-            if (!update.isEmpty()) update.append(", ");
-            update.append(result.value(27).toString());
+        } else if (field_type == "LINKS") {
+            // Add link.
+            auto update = record.value(field_uid).toStringList();
+            update.append(result.value("link_target_uid").toString());
             record.insertOrAssign(field_uid, update);
-        } else if (type == "LINK_WEB") {
-            const auto linkUrl = result.value(30).toString();
+        } else if (field_type == "LINK_WEB") {
+            const auto linkUrl = result.value("uri").toString();
+            if (!linkUrl.isEmpty()) {
+                // Create resource.
+                auto res =
+                    dsqt::DsResource(linkUrl, dsqt::DsResource::Id::CMS_TYPE,
+                                     double(result.value("duration").toFloat()), float(result.value("width").toInt()),
+                                     float(result.value("height").toInt()), linkUrl, linkUrl, -1, linkUrl);
 
-            // Create resource.
-            auto res = dsqt::DsResource(resourceId, dsqt::DsResource::Id::CMS_TYPE, double(result.value(33).toFloat()),
-                                        float(result.value(31).toInt()), float(result.value(32).toInt()), linkUrl,
-                                        linkUrl, -1, linkUrl);
-
-            // Assumes app settings are not changed concurrently on another thread.
-            auto webSize = appsettings->getOr<glm::vec2>("web:default_size", glm::vec2(1920.f, 1080.f));
-            res.setWidth(webSize.x);
-            res.setHeight(webSize.y);
-            res.setType(dsqt::DsResource::WEB_TYPE);
-            record.insertOrAssign(field_uid, QVariant::fromValue(res));
-
-            const auto previewId = result.value(38).toString();
-            if (!previewId.isEmpty()) {
-                const auto previewType = result.value(40).toString();
+                // Assumes app settings are not changed concurrently on another thread.
+                auto webSize = appsettings->getOr<glm::vec2>("web:default_size", glm::vec2(1920.f, 1080.f));
+                res.setWidth(webSize.x);
+                res.setHeight(webSize.y);
+                res.setType(dsqt::DsResource::WEB_TYPE);
+                record.insertOrAssign(field_uid, res.toQml());
 
                 // Create resource for the preview.
-                auto res = dsqt::DsResource(
-                    previewId, dsqt::DsResource::Id::CMS_TYPE, double(result.value(44).toFloat()),
-                    float(result.value(42).toInt()), float(result.value(43).toInt()), result.value(41).toString(),
-                    result.value(41).toString(), -1, cms.getResourcePath() + result.value(41).toString());
-                res.setType(type == "FILE_IMAGE" ? dsqt::DsResource::IMAGE_TYPE : dsqt::DsResource::VIDEO_TYPE);
+                const auto previewId = result.value("preview_resource_hash").toString();
+                if (!previewId.isEmpty()) {
+                    const auto previewUri  = result.value("preview_uri").toString();
+                    const auto previewType = result.value("preview_type").toString();
 
-                record.insertOrAssign(field_uid + "_preview", QVariant::fromValue(res));
+                    auto res = dsqt::DsResource(
+                        previewId, dsqt::DsResource::Id::CMS_TYPE, double(result.value("preview_duration").toFloat()),
+                        float(result.value("preview_width").toInt()), float(result.value("preview_height").toInt()),
+                        result.value("filename").toString(), previewUri, -1, cms.getResourcePath() + previewUri);
+                    res.setType(previewType == "FILE_IMAGE" ? dsqt::DsResource::IMAGE_TYPE
+                                                            : dsqt::DsResource::VIDEO_TYPE);
+
+                    record.insertOrAssign(field_uid + "_preview", res.toQml());
+                }
             }
-        } else if (type == "NUMBER") {
-            record.insertOrAssign(field_uid, result.value(10).toFloat());
-        } else if (type == "COMPOSITE_AREA") {
-            const auto frameUid = result.value(19).toString();
-            record.insertOrAssign(frameUid + "_x", result.value(20).toFloat());
-            record.insertOrAssign(frameUid + "_y", result.value(21).toFloat());
-            record.insertOrAssign(frameUid + "_w", result.value(22).toFloat());
-            record.insertOrAssign(frameUid + "_h", result.value(23).toFloat());
-        } else if (type == "IMAGE_AREA" || type == "IMAGE_SPOT") {
-            record.insertOrAssign("hotspot_x", result.value(47).toFloat());
-            record.insertOrAssign("hotspot_y", result.value(48).toFloat());
-            record.insertOrAssign("hotspot_w", result.value(49).toFloat());
-            record.insertOrAssign("hotspot_h", result.value(50).toFloat());
-        } else if (type == "OPTIONS") {
+        } else if (field_type == "NUMBER") {
+            record.insertOrAssign(field_uid, result.value("number").toFloat());
+        } else if (field_type == "COMPOSITE_AREA") {
+            const auto frameUid = result.value("composite_frame").toString();
+            record.insertOrAssign(frameUid + "_x", result.value("composite_x").toFloat());
+            record.insertOrAssign(frameUid + "_y", result.value("composite_y").toFloat());
+            record.insertOrAssign(frameUid + "_w", result.value("composite_w").toFloat());
+            record.insertOrAssign(frameUid + "_h", result.value("composite_h").toFloat());
+        } else if (field_type == "IMAGE_AREA" || field_type == "IMAGE_SPOT") {
+            record.insertOrAssign("hotspot_x", result.value("hotspot_x").toFloat());
+            record.insertOrAssign("hotspot_y", result.value("hotspot_y").toFloat());
+            record.insertOrAssign("hotspot_w", result.value("hotspot_w").toFloat());
+            record.insertOrAssign("hotspot_h", result.value("hotspot_h").toFloat());
+        } else if (field_type == "OPTIONS") {
             // this should be the following
-            const auto key = result.value(25).toString();
+            const auto key = result.value("option_value").toString();
             if (selectMap.count(key) > 0) {
                 record.insertOrAssign(field_uid, selectMap[key]);
                 record.insertOrAssign(field_uid + "_value_uid", key);
             } else {
                 // TODO log warning
             }
-        } else if (type == "CHECKBOX") {
-            record.insertOrAssign(field_uid, bool(result.value(6).toInt()));
-        } else if (type == "DATE_TIME") {
-            const auto datetime = result.value(13).toDateTime();
+        } else if (field_type == "CHECKBOX") {
+            record.insertOrAssign(field_uid, result.value("checked").toBool());
+        } else if (field_type == "DATE_TIME") {
+            QDateTime datetime = QDateTime::currentDateTime();
+            if (hasDatetime) datetime = result.value("datetime").toDateTime();
+            if (hasDate && !result.value("date").isNull()) datetime.setDate(result.value("date").toDate());
+            if (hasTime && !result.value("time").isNull()) datetime.setTime(result.value("time").toTime());
             record.insertOrAssign(field_uid, datetime);
+        } else {
+            qWarning() << "Invalid record type" << field_type;
         }
-        record.insertOrAssign(field_uid + "_field_uid", result.value(1).toString());
+        record.insertOrAssign(field_uid + "_field_uid", result.value("field_uid").toString());
     });
 
     // Build content tree.
@@ -716,8 +773,7 @@ DsBridgeSqlQuery::DatabaseContent DsBridgeSqlQuery::queryTables() {
 
 QString DsBridgeSqlQuery::slugifyKey(QString appKey) {
     static QRegularExpression badRe("\\W|^(?=\\d)");
-    QString                   result = appKey.replace(badRe, "_");
-    return result;
+    return appKey.replace(badRe, "_");
 }
 
 BridgeSyncProcessGuard::BridgeSyncProcessGuard(QProcess& process)
