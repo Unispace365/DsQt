@@ -123,7 +123,8 @@ void DsQmlPlaylist::updateNow() {
     // Use the event's playlist if available.
     if (m_event) {
         const auto& model = m_event->model();
-        if (auto uid = model.getPropertyString(mode.value("eventKey").toString()); !uid.isEmpty()) playlistUid = uid;
+        if (auto uid = model->getProperty<QString>(mode.value("eventKey").toString()); !uid.isEmpty())
+            playlistUid = uid;
     }
 
     auto model = rework::RwContentModel::find(playlistUid);

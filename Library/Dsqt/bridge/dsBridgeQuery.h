@@ -1,14 +1,8 @@
 #ifndef DSBRIDGEQUERY_H
 #define DSBRIDGEQUERY_H
 
-#define REWORK_CONTENT_MODEL
-
 #include "bridge/dsBridgeWatcher.h"
 #include "core/dsQmlApplicationEngine.h"
-
-#ifdef REWORK_CONTENT_MODEL
-#include "rework/rwContentModel.h"
-#endif
 
 #include <QFutureWatcher>
 #include <QLoggingCategory>
@@ -18,6 +12,7 @@
 #include <QSqlError>
 #include <QSqlQuery>
 #include <QSqlRecord>
+#include <qloggingcategory.h>
 
 #ifdef Q_OS_WIN
 #define NOMINMAX
@@ -197,15 +192,10 @@ class DsBridgeSqlQuery : public QObject {
     void onUpdated();
 
   signals:
-#ifdef REWORK_CONTENT_MODEL
-    void syncCompleted();
-#else
     /**
-     * @brief Signal emitted when a sync completes with differences.
-     * @param diff Shared pointer to the PropertyMapDiff containing changes.
+     * @brief Signal emitted when a sync completes.
      */
-    void syncCompleted(QSharedPointer<model::PropertyMapDiff> diff);
-#endif
+    void syncCompleted();
 
   private:
     static QVariantHash toVariantHash(const QSqlRecord& record);
@@ -215,14 +205,13 @@ class DsBridgeSqlQuery : public QObject {
         QStringList                  content;   // All content records.
         QStringList                  platforms; // All platform records.
         QStringList                  events;    // All event records.
-        QStringList                  order;     // Sort order.
 
         void buildTree() {
             // Clear existing list of children.
             for (auto node : records.asKeyValueRange()) {
                 node.second["child_uid"] = QStringList();
             }
-            // Populate list of children.
+            // Populate list of children. Children are not sorted in order!
             for (auto node : records.asKeyValueRange()) {
                 const auto uid         = node.second["uid"].toString();
                 const auto parent_uids = node.second["parent_uid"].toStringList();
@@ -285,13 +274,13 @@ class DsBridgeSqlQuery : public QObject {
             : m_nodes(nodes) {
             if (m_nodes.contains(rootUid)) {
                 switch (order) {
-                case Traversal::PreOrder:
+                case Traversal::PreOrder: // Visits the root node first, then recursively traverses its children.
                     preOrderTraversal(rootUid);
                     break;
-                case Traversal::PostOrder:
+                case Traversal::PostOrder: // Visits the child nodes before their parents, with the root node visited last.
                     postOrderTraversal(rootUid);
                     break;
-                case Traversal::Roots:
+                case Traversal::Roots: // Only visits nodes that have no parent.
                     rootsTraversal();
                     break;
                 }

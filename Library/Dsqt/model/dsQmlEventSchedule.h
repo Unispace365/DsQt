@@ -1,7 +1,7 @@
 #ifndef DSQMLEVENTSCHEDULE_H
 #define DSQMLEVENTSCHEDULE_H
 
-#include "model/dsContentModel.h"
+#include "rework/rwContentModel.h"
 #include "ui/dsQmlClock.h"
 
 #include <QColor>
@@ -12,9 +12,10 @@
 #include <QQmlListProperty>
 #include <QQmlPropertyMap>
 #include <QtConcurrentRun>
+// #include <qloggingcategory.h>
 
-Q_DECLARE_LOGGING_CATEGORY(lgEventSchedule)
-Q_DECLARE_LOGGING_CATEGORY(lgEventScheduleVerbose)
+// Q_DECLARE_LOGGING_CATEGORY(lgEventSchedule)
+// Q_DECLARE_LOGGING_CATEGORY(lgEventScheduleVerbose)
 namespace dsqt::model {
 
 // Wraps a scheduled event into a QML object.
@@ -35,13 +36,13 @@ class DsQmlEvent : public QObject {
     explicit DsQmlEvent(QObject* parent = nullptr)
         : QObject(parent) {}
 
-    DsQmlEvent(ContentModelRef model, qsizetype order, QObject* parent = nullptr);
+    DsQmlEvent(rework::RwContentModel* model, qsizetype order, QObject* parent = nullptr);
 
     DsQmlEvent* duplicate() const { return new DsQmlEvent(m_model, m_order, parent()); }
 
-    QString uid() const { return m_model.getPropertyString("uid"); }
+    QString uid() const { return m_model->getProperty<QString>("uid"); }
 
-    QString type() const { return m_model.getPropertyString("type_name"); }
+    QString type() const { return m_model->getProperty<QString>("type_name"); }
 
     QString title() const { return m_title; }
     void    setTitle(const QString& title) {
@@ -84,7 +85,7 @@ class DsQmlEvent : public QObject {
     double secondsSinceMidnight() const { return QTime(0, 0).secsTo(m_start.time()); }
     double durationInSeconds() const { return m_start.time().secsTo(m_end.time()); }
 
-    const ContentModelRef& model() const { return m_model; }
+    const rework::RwContentModel* model() const { return m_model; }
 
     // Returns whether the event is scheduled for the specified date and time, taking into account specific times or
     // weekdays.
@@ -128,11 +129,11 @@ class DsQmlEvent : public QObject {
     void orderChanged();
 
   private:
-    model::ContentModelRef m_model;
-    QString                m_title;
-    QDateTime              m_start;
-    QDateTime              m_end;
-    qsizetype              m_order;
+    rework::RwContentModel* m_model = nullptr;
+    QString                 m_title;
+    QDateTime               m_start;
+    QDateTime               m_end;
+    qsizetype               m_order;
 };
 
 // Provides a list of scheduled events, optionally filtered by type, and exposes it to QML.
@@ -200,24 +201,24 @@ class DsQmlEventSchedule : public QObject {
 
   public:
     // Returns whether the specified event is currently scheduled, taking into account specific times or weekdays.
-    static bool isEventNow(const model::ContentModelRef& event, QDateTime localDateTime);
+    static bool isEventNow(const rework::RwContentModel* event, QDateTime localDateTime);
     // Returns whether the specified event is scheduled for today, taking into account the weekdays.
-    static bool isEventToday(const model::ContentModelRef& event, QDate localDate);
+    static bool isEventToday(const rework::RwContentModel* event, QDate localDate);
     // Returns whether the specified event is within the time span.
-    static bool isEventWithinSpan(const model::ContentModelRef& event, QDateTime spanStart, QDateTime spanEnd);
+    static bool isEventWithinSpan(const rework::RwContentModel* event, QDateTime spanStart, QDateTime spanEnd);
 
     // Removes all events that are not of the specified type. Returns the number of removed events.
-    static size_t filterEvents(std::vector<model::ContentModelRef>& events, const QString& typeName);
+    static size_t filterEvents(QList<rework::RwContentModel*>& events, const QString& typeName);
     // Removes all events that are not scheduled at the specified date and time. Returns the number of removed events.
-    static size_t filterEvents(std::vector<model::ContentModelRef>& events, QDateTime localDateTime);
+    static size_t filterEvents(QList<rework::RwContentModel*>& events, QDateTime localDateTime);
     // Removes all events that are not scheduled at the specified date. Returns the number of removed events.
-    static size_t filterEvents(std::vector<model::ContentModelRef>& events, QDate localDate);
+    static size_t filterEvents(QList<rework::RwContentModel*>& events, QDate localDate);
     // Removes all events that are not within the specified time range. Does not check for specific times or weekdays.
     // Returns the number of removed events.
-    static size_t filterEvents(std::vector<model::ContentModelRef>& events, QDateTime spanStart, QDateTime spanEnd);
+    static size_t filterEvents(QList<rework::RwContentModel*>& events, QDateTime spanStart, QDateTime spanEnd);
 
     // Sorts events by the default sorting heuristic. Sorted from highest to lowest priority.
-    static void sortEvents(std::vector<model::ContentModelRef>& events, QDateTime localDateTime);
+    static void sortEvents(QList<rework::RwContentModel*>& events, QDateTime localDateTime);
 
   signals:
     void typeChanged();

@@ -2,6 +2,7 @@
 #include "core/dsEnvironment.h"
 #include "model/dsResource.h"
 #include "network/dsNodeWatcher.h"
+#include "rework/rwContentModel.h"
 #include "settings/dsQmlSettingsProxy.h"
 #include "settings/dsSettings.h"
 
@@ -10,6 +11,7 @@
 #include <QSharedPointer>
 #include <QSqlField>
 #include <QString>
+#include <qloggingcategory.h>
 
 Q_LOGGING_CATEGORY(lgBridgeSyncApp, "bridgeSync.app")
 Q_LOGGING_CATEGORY(lgBridgeSyncQuery, "bridgeSync.query")
@@ -295,27 +297,33 @@ void DsBridgeSqlQuery::onUpdated() {
 
     rework::RwContentModel::linkUp();
 
+    // Remove obsolete content.
+    auto t3 = timer.elapsed();
+
+    rework::RwContentModel::cleanUp(result.records.keys());
+
     // Construct or update the content tree.
     auto root = DsQmlApplicationEngine::DefEngine()->getRwContentRoot();
 
-    // // Update root.
-    // auto _content = QVariant::fromValue(rework::RwContentModel::find(result.content.front()));
-    // root->setProperty("content", _content);
-    // auto _events = QVariant::fromValue(rework::RwContentModel::find(result.events));
-    // root->setProperty("events", _events);
-    // auto _platforms = QVariant::fromValue(rework::RwContentModel::find(result.platforms));
-    // root->setProperty("platforms", _platforms);
-    // auto _records = QVariant::fromValue(rework::RwContentModel::find(result.records.keys()));
-    // root->setProperty("records", _records);
+    // Update root.
+    auto _content = QVariant::fromValue(rework::RwContentModel::find(result.content.front()));
+    root->setProperty("content", _content);
+    auto _events = QVariant::fromValue(rework::RwContentModel::find(result.events));
+    root->setProperty("events", _events);
+    auto _platforms = QVariant::fromValue(rework::RwContentModel::find(result.platforms));
+    root->setProperty("platforms", _platforms);
+    auto _records = QVariant::fromValue(rework::RwContentModel::find(result.records.keys()));
+    root->setProperty("records", _records);
+
+    auto t4 = timer.elapsed();
+
+    qInfo() << "Updating content took" << timer.elapsed() << "ms";
+    qInfo() << "- Retrieving data from background thread took" << t1 << "ms";
+    qInfo() << "- Creating content tree took" << (t2 - t1) << "ms";
+    qInfo() << "- Cleaning content tree took" << (t3 - t2) << "ms";
+    qInfo() << "- Linking content tree took" << (t4 - t3) << "ms";
 
     DsQmlApplicationEngine::DefEngine()->updateContentRoot();
-
-    auto t3 = timer.elapsed();
-
-    qInfo() << "Updating content took" << timer.elapsed() / 1000.f << "seconds";
-    qInfo() << "- Retrieving data from background thread took" << t1 / 1000.f << "seconds";
-    qInfo() << "- Creating content tree took" << (t2 - t1) / 1000.f << "seconds";
-    qInfo() << "- Linking content tree took" << (t3 - t2) / 1000.f << "seconds";
 }
 
 QVariantHash DsBridgeSqlQuery::toVariantHash(const QSqlRecord& record) {
@@ -536,6 +544,7 @@ DsBridgeSqlQuery::DatabaseContent DsBridgeSqlQuery::queryTables() {
     });
 
     // Process record query.
+    int rank = 0;
     recordQuery.process([&](const QSqlRecord& result) {
         const auto uid = result.value("uid").toString();
 
@@ -579,7 +588,7 @@ DsBridgeSqlQuery::DatabaseContent DsBridgeSqlQuery::queryTables() {
         }
 
         // Store order.
-        content.order.append(uid);
+        record.insertOrAssign("rank", ++rank);
     });
 
     // Process select query.

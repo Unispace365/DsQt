@@ -73,7 +73,7 @@ class RwContentModel : public QQmlPropertyMap {
      * @return Pointer to the created RwContentModel instance.
      */
     static RwContentModel* create(QObject* parent = nullptr) {
-        return new RwContentModel(QUuid::createUuid().toString(QUuid::WithoutBraces), parent);
+        return create(QUuid::createUuid().toString(QUuid::Id128), parent);
     }
 
     /**
@@ -103,7 +103,7 @@ class RwContentModel : public QQmlPropertyMap {
      * @return Pointer to the created RwContentModel instance.
      */
     static RwContentModel* createNamed(const QString& name, QObject* parent = nullptr) {
-        auto ptr = new RwContentModel(QUuid::createUuid().toString(QUuid::WithoutBraces), parent);
+        auto ptr = new RwContentModel(QUuid::createUuid().toString(QUuid::Id128), parent);
         ptr->setProperty("name", name);
         return ptr;
     }
@@ -125,12 +125,14 @@ class RwContentModel : public QQmlPropertyMap {
      * @brief Creates or updates a RwContentModel with specified properties.
      * @param props The properties to set or update, including the UID.
      */
-    static void createOrUpdate(const QVariantHash& props) {
+    static RwContentModel* createOrUpdate(const QVariantHash& props) {
         if (auto ptr = find(props["uid"].toString()); ptr) {
             ptr->setProperties(props);
+			return ptr;
         } else
-            create(props);
+            return create(props);
     }
+
 
     /**
      * @brief Finds a RwContentModel by its UID in the current thread's lookup table.
@@ -140,7 +142,7 @@ class RwContentModel : public QQmlPropertyMap {
     static RwContentModel* find(const QString& uid) {
         auto&      lookup = RwContentLookup::get();
         const auto itr    = lookup.constFind(uid);
-        return itr == lookup.constEnd() ? nullptr : *itr;
+        return itr == lookup.constEnd() ? nullptr : itr.value();
     }
 
     /**
@@ -148,13 +150,13 @@ class RwContentModel : public QQmlPropertyMap {
      * @param uids The list of unique identifiers to search for.
      * @return QObjectList containing pointers to found RwContentModel instances.
      */
-    static QObjectList find(const QStringList& uids) {
-        QObjectList result;
+    static QList<RwContentModel*> find(const QStringList& uids) {
+        QList<RwContentModel*> result;
 
         auto& lookup = RwContentLookup::get();
         for (const auto& uid : uids) {
             const auto itr = lookup.constFind(uid);
-            if (itr != lookup.constEnd()) result.append(*itr);
+            if (itr != lookup.constEnd()) result.append(itr.value());
         }
 
         return result;
@@ -174,21 +176,30 @@ class RwContentModel : public QQmlPropertyMap {
             const auto parent_uids = record->getProperty<QStringList>("parent_uid");
             if (parent_uids.size() != 1) continue; // Skip records with multiple parents, or no parent at all.
             const auto itr = lookup.constFind(parent_uids.front());
-            if (itr != lookup.constEnd()) {
-                // qInfo() << "Linking" << record->getProperty<QString>("record_name") << "to" <<
-                // itr.value()->getProperty<QString>("record_name");
+            if (itr != lookup.constEnd() && itr.value()) {
+                // qInfo() << "Linking" << record->getProperty<QString>("record_name") << "to"
+                //         << itr.value()->getProperty<QString>("record_name");
                 record->setParent(itr.value());
             }
         }
-        // TODO sort child_uid by order.
-        // Populate "children" property, as a QObject or QQmlPropertyMap does not by default allow access.
+        // Sort children by order.
         for (const auto& [uid, record] : lookup.asKeyValueRange()) {
-            QList<RwContentModel*> list;
+            record->sortChildren();
 
-            const auto child_uids = record->getProperty<QStringList>("child_uid");
-            for (const auto& child_uid : child_uids)
-                list.append(lookup.find(child_uid).value());
+            // Populate "children" property, as a QObject or QQmlPropertyMap does not by default allow access.
+            QList<RwContentModel*> list;
+            for (auto child : record->children()) {
+                if (auto ptr = dynamic_cast<RwContentModel*>(child); ptr) list.append(ptr);
+            }
             record->setProperty("children", QVariant::fromValue(list));
+        }
+    }
+
+    // Removes all records that are not listed in the provided keys.
+    static void cleanUp(const QStringList& keys) {
+        auto& lookup = RwContentLookup::get();
+        for (auto itr = lookup.begin(); itr != lookup.end(); ++itr) {
+            if (!keys.contains(itr.key())) itr.value()->deleteLater();
         }
     }
 
@@ -197,42 +208,38 @@ class RwContentModel : public QQmlPropertyMap {
      */
     RwContentModel(QObject* parent = nullptr) = delete;
 
-    /**
-     * @brief Destructor that removes the instance from the lookup table.
-     */
-    ~RwContentModel() {
-        auto& lookup = RwContentLookup::get();
-        lookup.remove(property("uid").toString());
-    }
+    QString getId() const { return property("uid").toString(); }
 
-    /**
-     * @brief Performs a deep comparison between this and another RwContentModel.
-     * @param other The other RwContentModel to compare against.
-     * @return True if the models are equal (excluding UID), false otherwise.
-     */
-    bool isEqualTo(const RwContentModel* other) const {
-        if (!other) return false;
-        if (other == this) return true;
-        if (size() != other->size()) return false;
+    QString getName() const { return property("record_name").toString(); }
 
-        const auto names = keys();
-        if (names != other->keys()) return false; // Assumes sorted.
+    // /**
+    //  * @brief Performs a deep comparison between this and another RwContentModel.
+    //  * @param other The other RwContentModel to compare against.
+    //  * @return True if the models are equal (excluding UID), false otherwise.
+    //  */
+    // bool isEqualTo(const RwContentModel* other) const {
+    //     if (!other) return false;
+    //     if (other == this) return true;
+    //     if (size() != other->size()) return false;
 
-        for (const auto& key : names) {
-            if (key == "uid") continue; // Skip uid, as it will always be different.
+    //     const auto names = keys();
+    //     if (names != other->keys()) return false; // Assumes sorted.
 
-            const auto val = value(key);
-            const auto ptr = qvariant_cast<RwContentModel*>(val);
-            if (ptr) {
-                const auto theirs = qvariant_cast<RwContentModel*>(other->value(key));
-                if (ptr == theirs) continue;
-                if (!ptr->isEqualTo(theirs)) return false;
-            } else if (val != other->value(key))
-                return false;
-        }
+    //     for (const auto& key : names) {
+    //         if (key == "uid") continue; // Skip uid, as it will always be different.
 
-        return true;
-    }
+    //         const auto val = value(key);
+    //         const auto ptr = qvariant_cast<RwContentModel*>(val);
+    //         if (ptr) {
+    //             const auto theirs = qvariant_cast<RwContentModel*>(other->value(key));
+    //             if (ptr == theirs) continue;
+    //             if (!ptr->isEqualTo(theirs)) return false;
+    //         } else if (val != other->value(key))
+    //             return false;
+    //     }
+
+    //     return true;
+    // }
 
     /**
      * @brief Helper to retrieve a property value by key, cast to the specified type.
@@ -261,12 +268,7 @@ class RwContentModel : public QQmlPropertyMap {
      * @param key The property key.
      * @param val The value to set.
      */
-    void setProperty(const QString& key, const QVariant& val) {
-        if (!contains(key) || value(key) != val) {
-            insert(key, val);
-            emit valueChanged(key, val);
-        }
-    }
+    void setProperty(const QString& key, const QVariant& val) { insert(key, val); }
 
     /**
      * @brief Helper to set multiple properties from a QVariantHash.
@@ -274,12 +276,8 @@ class RwContentModel : public QQmlPropertyMap {
      */
     void setProperties(const QVariantHash& props) {
         for (auto prop : props.asKeyValueRange()) {
-            if (!contains(prop.first) || value(prop.first) != prop.second) {
-                insert(prop.first, prop.second);
-                emit valueChanged(prop.first, prop.second);
-            }
+            insert(prop.first, prop.second); // Emits valueChanged signal.
         }
-        //  insert(props);
     }
 
     // Uses the lookup table.
@@ -337,6 +335,22 @@ class RwContentModel : public QQmlPropertyMap {
         return nullptr;
     }
 
+    RwContentModel* getChildByName(const char* name, const QString& prop = "record_name") const {
+        return getChildByName(QString(name), prop);
+    }
+
+    // Sorts children based on record order from database.
+    void sortChildren() {
+        std::stable_sort(d_ptr->children.begin(), d_ptr->children.end(), [](QObject* a, QObject* b) {
+            RwContentModel* ptrA = dynamic_cast<RwContentModel*>(a);
+            RwContentModel* ptrB = dynamic_cast<RwContentModel*>(b);
+            if (!ptrA || !ptrB) return false;
+            int rankA = ptrA->getProperty<int>("rank");
+            int rankB = ptrB->getProperty<int>("rank");
+            return rankA < rankB;
+        });
+    }
+
   private:
     /**
      * @brief Private constructor for creating a model with a UID.
@@ -371,15 +385,20 @@ class RwContentModel : public QQmlPropertyMap {
         //qInfo() << "Adding record" << uid << "with name" << value("record_name");
         lookup.insert(uid, this);
     }
+
+    /**
+     * @brief Destructor that removes the instance from the lookup table. Private, because lifetime is entirely managed
+     * by the lookup table.
+     */
+    ~RwContentModel() {
+        auto& lookup = RwContentLookup::get();
+        lookup.remove(property("uid").toString());
+    }
 };
 
 } // namespace dsqt::rework
 
-// Overload operator<< for QDebug
-inline QDebug operator<<(QDebug debug, const dsqt::rework::RwContentModel& obj) {
-    QDebugStateSaver saver(debug); // Preserves debug stream state
-    debug.nospace() << "(" << obj.value("record_name") << "(" << obj.value("uid") << ")";
-    return debug;
-}
+// Make the content model available to standard stream operators
+std::ostream& operator<<(std::ostream& os, const dsqt::rework::RwContentModel* o);
 
 #endif

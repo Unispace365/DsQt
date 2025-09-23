@@ -1,5 +1,7 @@
 #include "rework/rwContentModel.h"
 
+#include <iostream>
+
 namespace dsqt::rework {
 
 QHash<QString, RwContentModel*>& RwContentLookup::get(Qt::HANDLE threadId) {
@@ -20,3 +22,9 @@ void RwContentLookup::destroy(Qt::HANDLE threadId) {
 }
 
 } // namespace dsqt::rework
+
+std::ostream& operator<<(std::ostream& os, const dsqt::rework::RwContentModel* o) {
+    const auto name = o->value("record_name").toString().toStdString();
+    const auto uid  = o->value("uid").toString().toStdString();
+    return os << name << " (" << uid << ")";
+}

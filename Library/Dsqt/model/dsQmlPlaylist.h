@@ -1,8 +1,6 @@
 #ifndef DSQMLPLAYLIST_H
 #define DSQMLPLAYLIST_H
 
-#include "model/dsContentModel.h"
-#include "model/dsQmlContentModel.h"
 #include "model/dsQmlEventSchedule.h"
 #include "rework/rwContentModel.h"
 
@@ -14,6 +12,7 @@
 #include <QQmlEngine>
 #include <QQmlListProperty>
 #include <QtConcurrentRun>
+#include <qloggingcategory.h>
 
 Q_DECLARE_LOGGING_CATEGORY(lgPlaylist)
 Q_DECLARE_LOGGING_CATEGORY(lgPlaylistVerbose)
