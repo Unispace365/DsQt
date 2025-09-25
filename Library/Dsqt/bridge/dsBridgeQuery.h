@@ -188,30 +188,39 @@ class DsBridgeSqlQuery : public QObject {
      */
     bool isBridgeSyncRunning();
 
-  public slots:
+  private slots:
     void onUpdated();
-
-  signals:
-    /**
-     * @brief Signal emitted when a sync completes.
-     */
-    void syncCompleted();
+    // Create content records on the main thread.
+    void onProcessContent();
+    // Make sure all content records are linked up (parent-child relations are enforced).
+    void onLinkContent();
+    //
+    void onSortContent();
+    // Make sure obsolete content records are deleted.
+    void onCleanContent();
 
   private:
-    static QVariantHash toVariantHash(const QSqlRecord& record);
-
     struct DatabaseContent {
         QHash<QString, QVariantHash> records;   // All records.
         QStringList                  content;   // All content records.
         QStringList                  platforms; // All platform records.
         QStringList                  events;    // All event records.
+        QStringList                  sorted;    // All records sorted in order.
+        QStringList                  queue;     // All records in the order in which they need to be processed.
 
         void buildTree() {
             // Clear existing list of children.
             for (auto node : records.asKeyValueRange()) {
                 node.second["child_uid"] = QStringList();
             }
-            // Populate list of children. Children are not sorted in order!
+            // Create the sorted list of records.
+            sorted = records.keys();
+            std::sort(sorted.begin(), sorted.end(), [&](const QString& uid1, const QString& uid2) {
+                int rank1 = records.value(uid1).value("rank").toInt();
+                int rank2 = records.value(uid2).value("rank").toInt();
+                return rank1 < rank2; // Ascending order
+            });
+            // Populate list of children. Children are sorted in order.
             for (auto node : records.asKeyValueRange()) {
                 const auto uid         = node.second["uid"].toString();
                 const auto parent_uids = node.second["parent_uid"].toStringList();
@@ -221,6 +230,11 @@ class DsBridgeSqlQuery : public QObject {
                     if (records.contains(id)) {
                         auto children = records[id]["child_uid"].toStringList();
                         if (!children.contains(uid)) children.append(uid);
+                        std::sort(children.begin(), children.end(), [&](const QString& uid1, const QString& uid2) {
+                            int rank1 = records.value(uid1).value("rank").toInt();
+                            int rank2 = records.value(uid2).value("rank").toInt();
+                            return rank1 < rank2; // Ascending order
+                        });
                         records[id]["child_uid"] = children;
                     }
                 }
@@ -389,9 +403,11 @@ class DsBridgeSqlQuery : public QObject {
     static QString slugifyKey(QString appKey);
 
   private:
+    QAtomicInt                      mIsRunning = false;
     QSqlDatabase                    mDatabase;
     DsBridgeWatcher*                mWatcher = nullptr;
     QFutureWatcher<DatabaseContent> mFutures; // Tracks the async task.
+    DatabaseContent                 mContent;
 
 #ifndef Q_OS_WASM
     QProcess                                mBridgeSyncProcess;

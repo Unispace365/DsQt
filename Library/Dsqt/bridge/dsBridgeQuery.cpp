@@ -268,80 +268,157 @@ bool DsBridgeSqlQuery::isBridgeSyncRunning() {
 }
 
 void DsBridgeSqlQuery::onUpdated() {
+    // This runs in the main thread when the background task completes.
+    mContent = mFutures.result();
+    if (mContent.queue.isEmpty()) {
+        // Nothing to process.
+        bool success = mIsRunning.testAndSetRelaxed(true, false);
+    } else {
+        // We're going to process all content in chunks, so that we do not affect the main thread too much.
+        QTimer::singleShot(1, this, &DsBridgeSqlQuery::onProcessContent);
+    }
+}
+
+void DsBridgeSqlQuery::onProcessContent() {
+    qCDebug(lgBridgeSyncQueryVerbose) << "Process content" << mContent.queue.size();
+
     QElapsedTimer timer;
     timer.start();
 
-    // This runs in the main thread when the background task completes.
-    DatabaseContent result = mFutures.result();
+    // Process content as long as it takes less than 1ms.
+    while (!mContent.queue.isEmpty() && timer.nsecsElapsed() < 1000000) {
+        QString uid = mContent.queue.front();
+        mContent.queue.pop_front();
+        QVariantHash props = mContent.records.value(uid);
+        model::ContentModel::createOrUpdate(props);
+    }
 
-    const auto isMainThread = QThread::currentThread() == QCoreApplication::instance()->thread();
-    qCDebug(lgBridgeSyncQuery) << "BridgeService found" << result.records.size() << "records in the database";
-
-    // Traverse content tree.
-    auto t1 = timer.elapsed();
-
-    DatabaseTree roots(result, DatabaseTree::Traversal::Roots);
-    for (const auto& root : roots) {
-        DatabaseTree tree(result.records, root.value("uid").toString());
-        for (const auto& record : tree) {
-            model::ContentModel::createOrUpdate(record);
+    if (mContent.queue.isEmpty()) {
+        // Done processing. Setup content linking.
+        mContent.queue = mContent.records.keys();
+        if (mContent.queue.isEmpty()) {
+            // Nothing to link.
+            bool success = mIsRunning.testAndSetRelaxed(true, false);
+        } else {
+            // We're going to link all content in chunks, so that we do not affect the main thread too much.
+            QTimer::singleShot(1, this, &DsBridgeSqlQuery::onLinkContent);
         }
+    } else {
+        // Process next chunk later.
+        QTimer::singleShot(1, this, &DsBridgeSqlQuery::onProcessContent);
     }
-    // Make sure all content is linked up (parent-child relations are enforced).
-    auto t2 = timer.elapsed();
-
-    model::ContentModel::linkUp();
-
-    // Also link events to the current platform.
-    const auto platformUid = DsQmlApplicationEngine::DefEngine()->getAppSettings()->getOr<QString>("platform.id", "");
-
-    auto platform = model::ContentModel::find(platformUid);
-    if (platform) {
-        const auto children = platform->getChildren();
-        for (auto child : children)
-            child->setParent(platform);
-    }
-
-    // Remove obsolete content.
-    auto t3 = timer.elapsed();
-
-    model::ContentModel::cleanUp(result.records.keys());
-
-    // Construct or update the content tree.
-    auto root = DsQmlApplicationEngine::DefEngine()->bridge();
-
-    // Update root.
-    root->setProperty("content", result.content);
-    root->setProperty("events", result.events);
-    root->setProperty("platforms", result.platforms);
-
-    auto t4 = timer.elapsed();
-
-    qInfo() << "Updating content took" << timer.elapsed() << "ms";
-    qInfo() << "- Retrieving data from background thread took" << t1 << "ms";
-    qInfo() << "- Creating content tree took" << (t2 - t1) << "ms";
-    qInfo() << "- Cleaning content tree took" << (t3 - t2) << "ms";
-    qInfo() << "- Linking content tree took" << (t4 - t3) << "ms";
-
-    DsQmlApplicationEngine::DefEngine()->setBridge(root);
 }
 
-QVariantHash DsBridgeSqlQuery::toVariantHash(const QSqlRecord& record) {
-    QVariantHash hash;
-    for (int i = 0; i < record.count(); ++i) {
-        const QSqlField field = record.field(i);
-        const QString   key   = field.name().toLower(); // Optional: normalize to lowercase
-        const QVariant  value = record.value(i);        // Auto-handles type and NULL (as invalid QVariant)
-        if (value.isValid() && !value.isNull()) hash[key] = value;
+void DsBridgeSqlQuery::onLinkContent() {
+    qCDebug(lgBridgeSyncQueryVerbose) << "Link content" << mContent.queue.size();
+
+    QElapsedTimer timer;
+    timer.start();
+
+    // Link content as long as it takes less than 1ms.
+    while (!mContent.queue.isEmpty() && timer.nsecsElapsed() < 1000000) {
+        QString uid = mContent.queue.front();
+        mContent.queue.pop_front();
+        ContentModel* record = ContentModel::find(uid);
+        if (record) record->linkUpWithParent();
     }
-    return hash;
+
+    if (mContent.queue.isEmpty()) {
+        // Done linking. Setup content sorting.
+        mContent.queue = mContent.records.keys();
+        if (mContent.queue.isEmpty()) {
+            // Nothing to sort.
+            bool success = mIsRunning.testAndSetRelaxed(true, false);
+        } else {
+            // We're going to sort all content in chunks, so that we do not affect the main thread too much.
+            QTimer::singleShot(1, this, &DsBridgeSqlQuery::onSortContent);
+        }
+    } else {
+        // Link next chunk later.
+        QTimer::singleShot(1, this, &DsBridgeSqlQuery::onLinkContent);
+    }
+}
+
+void DsBridgeSqlQuery::onSortContent() {
+    qCDebug(lgBridgeSyncQueryVerbose) << "Sort content" << mContent.queue.size();
+
+    QElapsedTimer timer;
+    timer.start();
+
+    // Sort content as long as it takes less than 1ms.
+    while (!mContent.queue.isEmpty() && timer.nsecsElapsed() < 1000000) {
+        QString uid = mContent.queue.front();
+        mContent.queue.pop_front();
+        ContentModel* record = ContentModel::find(uid);
+        if (record) {
+            record->sortChildren();
+            // Populate "children" property, as a QObject or QQmlPropertyMap does not by default allow access.
+            ContentModelList children;
+            for (auto child : record->children()) {
+                if (auto ptr = dynamic_cast<ContentModel*>(child); ptr) children.append(ptr);
+            }
+            record->setProperty("children", QVariant::fromValue(children));
+        }
+    }
+
+    if (mContent.queue.isEmpty()) {
+        // Done sorting. Setup content cleaning.
+        mContent.queue = ContentLookup::get().keys();
+        if (mContent.queue.isEmpty()) {
+            // Nothing to clean.
+            bool success = mIsRunning.testAndSetRelaxed(true, false);
+        } else {
+            // We're going to clean all content in chunks, so that we do not affect the main thread too much.
+            QTimer::singleShot(1, this, &DsBridgeSqlQuery::onCleanContent);
+        }
+    } else {
+        // Sort next chunk later.
+        QTimer::singleShot(1, this, &DsBridgeSqlQuery::onSortContent);
+    }
+}
+
+void DsBridgeSqlQuery::onCleanContent() {
+    qCDebug(lgBridgeSyncQueryVerbose) << "Clean content" << mContent.queue.size();
+
+    QElapsedTimer timer;
+    timer.start();
+
+    // Clean content as long as it takes less than 1ms.
+    while (!mContent.queue.isEmpty() && timer.nsecsElapsed() < 1000000) {
+        QString uid = mContent.queue.front();
+        mContent.queue.pop_front();
+        // Ignore records using Id128, as they are created externally.
+        if (uid.length() <= 12 && !mContent.records.contains(uid)) {
+            ContentModel* record = ContentModel::find(uid);
+            record->deleteLater();
+        }
+    }
+
+    if (mContent.queue.isEmpty()) {
+        // Done cleaning.
+        bool success = mIsRunning.testAndSetRelaxed(true, false);
+
+        // Construct or update the content tree.
+        auto root = DsQmlApplicationEngine::DefEngine()->bridge();
+
+        // Update root.
+        root->setProperty("content", mContent.content);
+        root->setProperty("events", mContent.events);
+        root->setProperty("platforms", mContent.platforms);
+
+        // Set root and emit signal.
+        DsQmlApplicationEngine::DefEngine()->setBridge(root);
+    } else {
+        // Clean next chunk later.
+        QTimer::singleShot(1, this, &DsBridgeSqlQuery::onCleanContent);
+    }
 }
 
 void DsBridgeSqlQuery::queryDatabase() {
-    if (mFutures.isRunning()) return; // TODO handle this better.
-
-    // Capture main thread pointer.
-    QThread* mainThread = QThread::currentThread();
+    // Check if an update is in progress.
+    if (!mIsRunning.testAndSetRelaxed(false, true)) {
+        return;
+    }
 
     // Perform update on a background thread.
     QFuture<DatabaseContent> future = QtConcurrent::run([=]() { return queryTables(); });
@@ -574,7 +651,9 @@ DsBridgeSqlQuery::DatabaseContent DsBridgeSqlQuery::queryTables() {
         record.insertOrAssign("variant", variant);
 
         if (variant == "SCHEDULE") {
+#ifdef QT_DEBUG
             qInfo() << "Adding event" << uid << content.events.size();
+#endif
             content.events.append(uid);
             record.insertOrAssign("span_type", result.value("span_type").toString());
             record.insertOrAssign("start_date", result.value("span_start_date").toString());
@@ -777,6 +856,17 @@ DsBridgeSqlQuery::DatabaseContent DsBridgeSqlQuery::queryTables() {
 
     // Build content tree.
     content.buildTree();
+
+    // Determine processing order.
+    content.queue.clear();
+
+    DatabaseTree roots(content, DatabaseTree::Traversal::Roots);
+    for (const auto& root : roots) {
+        DatabaseTree tree(content.records, root.value("uid").toString());
+        for (const auto& record : tree) {
+            content.queue.append(record.value("uid").toString());
+        }
+    }
 
     return content;
 }

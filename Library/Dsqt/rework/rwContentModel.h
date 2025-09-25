@@ -103,9 +103,10 @@ class ContentModel : public QQmlPropertyMap {
      * @return Pointer to the created ContentModel instance.
      */
     static ContentModel* createNamed(const QString& name, QObject* parent = nullptr) {
-        auto ptr = new ContentModel(QUuid::createUuid().toString(QUuid::Id128), parent);
-        ptr->setProperty("record_name", name);
-        return ptr;
+        QVariantHash props;
+        props.insert("uid", QUuid::createUuid().toString(QUuid::Id128));
+        props.insert("record_name", name);
+        return new ContentModel(props, parent);
     }
 
     /**
@@ -116,9 +117,10 @@ class ContentModel : public QQmlPropertyMap {
      * @return Pointer to the created ContentModel instance.
      */
     static ContentModel* createNamed(const QString& name, const QString& uid, QObject* parent = nullptr) {
-        auto ptr = new ContentModel(uid, parent);
-        ptr->setProperty("record_name", name);
-        return ptr;
+        QVariantHash props;
+        props.insert("uid", uid);
+        props.insert("record_name", name);
+        return new ContentModel(props, parent);
     }
 
     /**
@@ -162,57 +164,40 @@ class ContentModel : public QQmlPropertyMap {
         return result;
     }
 
-    /**
-     * @brief Links ContentModel instances based on their parent_uid properties.
-     *
-     * Iterates through the lookup table and sets the parent of each model to the
-     * instance corresponding to its parent_uid, if found.
-     */
-    static void linkUp() {
-        auto& lookup = ContentLookup::get();
+    // /**
+    //  * @brief Links ContentModel instances based on their parent_uid properties.
+    //  *
+    //  * Iterates through the lookup table and sets the parent of each model to the
+    //  * instance corresponding to its parent_uid, if found.
+    //  */
+    // static void linkUp() {
+    //     auto& lookup = ContentLookup::get();
 
-        for (const auto& [uid, record] : lookup.asKeyValueRange()) {
-            // Check if parent specified.
-            if (!record->contains("parent_uid")) {
-                record->setParent(nullptr);
-                continue;
-            }
+    //     for (const auto& [uid, record] : lookup.asKeyValueRange()) {
+    //         record->linkUpWithParent();
+    //     }
 
-            const auto parent_uids = record->getProperty<QStringList>("parent_uid");
-            for (const auto& parent_uid : parent_uids) {
-                auto parent = lookup.find(parent_uid).value();
-                if (parent) {
-                    // Link records with a single parent to the parent node.
-                    if (parent_uids.size() == 1) record->setParent(parent);
-                    // Always add child uid to parent's list of childs.
-                    auto childs = parent->value("child_uid").toStringList();
-                    if (!childs.contains(uid)) childs.append(uid);
-                    parent->insert("child_uid", childs);
-                }
-            }
-        }
+    //     // Sort children by order.
+    //     for (const auto& [uid, record] : lookup.asKeyValueRange()) {
+    //         record->sortChildren();
 
-        // Sort children by order.
-        for (const auto& [uid, record] : lookup.asKeyValueRange()) {
-            record->sortChildren();
+    //         // Populate "children" property, as a QObject or QQmlPropertyMap does not by default allow access.
+    //         ContentModelList list;
+    //         for (auto child : record->children()) {
+    //             if (auto ptr = dynamic_cast<ContentModel*>(child); ptr) list.append(ptr);
+    //         }
+    //         record->setProperty("children", QVariant::fromValue(list));
+    //     }
+    // }
 
-            // Populate "children" property, as a QObject or QQmlPropertyMap does not by default allow access.
-            ContentModelList list;
-            for (auto child : record->children()) {
-                if (auto ptr = dynamic_cast<ContentModel*>(child); ptr) list.append(ptr);
-            }
-            record->setProperty("children", QVariant::fromValue(list));
-        }
-    }
-
-    // Removes all records that are not listed in the provided keys.
-    static void cleanUp(const QStringList& keys) {
-        auto& lookup = ContentLookup::get();
-        for (auto itr = lookup.begin(); itr != lookup.end(); ++itr) {
-            if (itr.key().length() > 12) continue; // Ignore records using Id128, as they are created externally.
-            if (!keys.contains(itr.key())) itr.value()->deleteLater();
-        }
-    }
+    // // Removes all records that are not listed in the provided keys.
+    // static void cleanUp(const QStringList& keys) {
+    //     auto& lookup = ContentLookup::get();
+    //     for (auto itr = lookup.begin(); itr != lookup.end(); ++itr) {
+    //         if (itr.key().length() > 12) continue; // Ignore records using Id128, as they are created externally.
+    //         if (!keys.contains(itr.key())) itr.value()->deleteLater();
+    //     }
+    // }
 
     /**
      * @brief Deleted default constructor to prevent direct instantiation, e.g. "ContentModel model;"
@@ -251,7 +236,9 @@ class ContentModel : public QQmlPropertyMap {
      * @param val The value to set.
      */
     void setProperty(const QString& key, const QVariant& val) {
+        bool isDifferent = value(key) != val;
         insert(key, val); // Emits valueChanged signal.
+        if (isDifferent) emit valueChanged(key, val);
     }
 
     /**
@@ -260,7 +247,9 @@ class ContentModel : public QQmlPropertyMap {
      */
     void setProperties(const QVariantHash& props) {
         for (auto prop : props.asKeyValueRange()) {
+            bool isDifferent = value(prop.first) != prop.second;
             insert(prop.first, prop.second); // Emits valueChanged signal.
+            if (isDifferent) emit valueChanged(prop.first, prop.second);
         }
     }
 
@@ -334,6 +323,15 @@ class ContentModel : public QQmlPropertyMap {
             int rankB = ptrB->getProperty<int>("rank");
             return rankA < rankB;
         });
+        // Always add child uid to parent's list of childs.
+        QStringList children;
+        for (auto child : d_ptr->children) {
+            auto ptr = dynamic_cast<ContentModel*>(child);
+            if (ptr) {
+                children.append(ptr->getId());
+            }
+        }
+        setProperty("child_uid", children);
     }
 
     /**
@@ -365,7 +363,33 @@ class ContentModel : public QQmlPropertyMap {
         return true;
     }
 
+    void linkUpWithParent() {
+        // Check if parent specified.
+        if (!contains("parent_uid")) {
+            setParent(nullptr);
+            return;
+        }
+
+        const auto uid         = getProperty<QString>("uid");
+        const auto parent_uids = getProperty<QStringList>("parent_uid");
+        for (const auto& parent_uid : parent_uids) {
+            auto parent = find(parent_uid);
+            if (parent) {
+                // Link records with a single parent to the parent node.
+                if (parent_uids.size() == 1) setParent(parent);
+                // // Always add child uid to parent's list of childs.
+                // auto childs = parent->value("child_uid").toStringList();
+                // if (!childs.contains(uid)) childs.append(uid);
+                // parent->insert("child_uid", childs);
+            }
+        }
+    }
+
   private:
+    void print(const QString& key, const QVariant& value) {
+        qDebug() << getName() << "changed" << key << "to" << value.toString();
+    }
+
     /**
      * @brief Private constructor for creating a model with a UID.
      * @param uid The unique identifier for the model.
@@ -374,11 +398,16 @@ class ContentModel : public QQmlPropertyMap {
      */
     ContentModel(const QString& uid, QObject* parent = nullptr)
         : QQmlPropertyMap(this, parent) {
+#ifdef QT_DEBUG
+        connect(this, &ContentModel::valueChanged, this, &ContentModel::print);
+#endif
         insert("uid", uid);
         if (uid.isEmpty()) throw std::runtime_error("UID must be valid");
         auto& lookup = ContentLookup::get();
         if (lookup.contains(uid)) throw std::runtime_error("UID must be unique");
-        // qInfo() << "Adding record" << uid << "with name" << value("record_name");
+#ifdef QT_DEBUG
+        qDebug() << "Adding" << value("record_name");
+#endif
         lookup.insert(uid, this);
     }
 
@@ -390,13 +419,18 @@ class ContentModel : public QQmlPropertyMap {
      */
     ContentModel(const QVariantHash& props, QObject* parent = nullptr)
         : QQmlPropertyMap(this, parent) {
+#ifdef QT_DEBUG
+        connect(this, &ContentModel::valueChanged, this, &ContentModel::print);
+#endif
         insert(props);
         if (!contains("uid")) throw std::runtime_error("UID must be specified");
         QString uid = property("uid").toString();
         if (uid.isEmpty()) throw std::runtime_error("UID must be valid");
         auto& lookup = ContentLookup::get();
         if (lookup.contains(uid)) throw std::runtime_error("UID must be unique");
-        // qInfo() << "Adding record" << uid << "with name" << value("record_name");
+#ifdef QT_DEBUG
+        qDebug() << "Adding" << value("record_name");
+#endif
         lookup.insert(uid, this);
     }
 
@@ -405,6 +439,9 @@ class ContentModel : public QQmlPropertyMap {
      * by the lookup table.
      */
     ~ContentModel() {
+#ifdef QT_DEBUG
+        qDebug() << "Deleting" << value("record_name");
+#endif
         auto& lookup = ContentLookup::get();
         lookup.remove(property("uid").toString());
     }
