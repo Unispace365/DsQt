@@ -53,12 +53,22 @@ Window {
                         let array = []
                         Object.keys(model.contentModel)?.forEach(
                             function (key) {
-                                let obj = {
-                                    "key": key,
-                                    "value": model.contentModel[key]
+                                // Filter keys.
+                                if(key.startsWith("__")) return
+                                if(key === "objectName") return
+                                if(key === "keys" || key === "children") return
+                                if(key.indexOf("Changed") !== -1) return
+                                //
+                                if( model.contentModel[key] !== undefined ) {
+                                    let obj = {
+                                        "key": key,
+                                        "value": model.contentModel[key]
+                                    }
+                                    array.push(obj)
                                 }
-                                array.push(obj)
                             })
+                        // Sort alphabetically.
+                        array.sort((a, b) => a.key.localeCompare(b.key))
                         listView.model = array
                         //console.log(JSON.stringify(model.contentModel, null, 2))
                     }
@@ -122,7 +132,18 @@ Window {
                                 font.pointSize: 11
                                 lineHeight: 1.2
                                 color: system.text
-                                text: itemDelegate.isObj ? itemDelegate.modelData.value.filepath : itemDelegate.modelData.value
+                                text: {
+                                    if (itemDelegate.modelData.value.length !== undefined && typeof itemDelegate.modelData.value === "object") {
+                                        // If value is an array (QStringList), join with commas
+                                        return itemDelegate.modelData.value.join(", ");
+                                    } else if (itemDelegate.isObj) {
+                                        // If value is an object with filepath, show filepath
+                                        return itemDelegate.modelData.value.filepath;
+                                    } else {
+                                        // Otherwise, show the value as is
+                                        return itemDelegate.modelData.value;
+                                    }
+                                }
                                 Layout.fillWidth: true
                                 Layout.alignment: Qt.AlignLeft | Qt.AlignVCenter
                                 elide: Text.ElideRight
@@ -222,15 +243,15 @@ Window {
             }
         }
 
-        Button {
-            font.family: "Lucida Sans"
-            font.pointSize: 11
-            text: "Reload" + (myModel?.isDirty ? " (dirty)" : "")
-            Layout.fillWidth: true
-            onClicked: {
-                myModel.reload()
-                console.log("Reloaded model")
-            }
-        }
+        // Button {
+        //     font.family: "Lucida Sans"
+        //     font.pointSize: 11
+        //     text: "Reload" + (myModel?.isDirty ? " (dirty)" : "")
+        //     Layout.fillWidth: true
+        //     onClicked: {
+        //         myModel.reload()
+        //         console.log("Reloaded model")
+        //     }
+        // }
     }
 }

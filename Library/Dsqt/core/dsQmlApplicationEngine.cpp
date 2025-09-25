@@ -1,8 +1,9 @@
 #include "core/dsQmlApplicationEngine.h"
 #include "core/dsEnvironment.h"
 #include "core/dsQmlEnvironment.h"
-#include "model/dsContentModel.h"
-#include "model/dsQmlContentHelper.h"
+// #include "model/dsContentModel.h"
+// #include "model/dsQmlContentHelper.h"
+#include "model/dsResource.h"
 #include "network/dsNodeWatcher.h"
 #include "settings/dsQmlSettingsProxy.h"
 
@@ -34,8 +35,6 @@ DsQmlApplicationEngine::DsQmlApplicationEngine(QObject* parent)
     // default idle
     mIdle = new DsQmlIdle(this);
     mIdle->setAreaItemTarget(qGuiApp);
-
-    mQmlRefMap = new model::ReferenceMap();
 
     qCInfo(lgAppEngine) << "connecting file watcher";
     connect(
@@ -90,37 +89,8 @@ DsSettingsRef DsQmlApplicationEngine::getAppSettings() {
     return mSettings;
 }
 
-model::ContentModelRef DsQmlApplicationEngine::getContentRoot() {
-    if (mContentRoot.empty()) {
-        mContentRoot = model::ContentModelRef("root");
-        mContentRoot.setId("root");
-    }
-    return mContentRoot;
-}
-
-rework::RwContentModel* DsQmlApplicationEngine::getRwContentRoot() {
-    if (!mRwContentRoot) mRwContentRoot = rework::RwContentModel::createNamed("root", this);
-    return mRwContentRoot;
-}
-
-model::IContentHelper* DsQmlApplicationEngine::getContentHelper() {
-    if (mContentHelper == nullptr) {
-        setContentHelper(new model::DsQmlContentHelper(this));
-    }
-    return mContentHelper;
-}
-
-void DsQmlApplicationEngine::setContentHelper(model::IContentHelper* helper) {
-    mContentHelper = helper;
-    mContentHelper->setEngine(this);
-}
-
 network::DsNodeWatcher* DsQmlApplicationEngine::getNodeWatcher() const {
     return mNodeWatcher;
-}
-
-model::ReferenceMap* DsQmlApplicationEngine::getReferenceMap() const {
-    return mQmlRefMap;
 }
 
 void DsQmlApplicationEngine::preInit() {
@@ -129,7 +99,7 @@ void DsQmlApplicationEngine::preInit() {
 
 void dsqt::DsQmlApplicationEngine::readSettings(bool reset) {
     qCInfo(lgAppEngine) << "\nLoad Settings >>>>>>>>>>>>>>>>>>>>>>>>";
-    mContentRoot = getContentRoot();
+
     qCInfo(lgAppEngine) << "loading main engine.toml";
     if (reset) {
         DsSettings::forgetSettings("engine");
@@ -145,30 +115,31 @@ void dsqt::DsQmlApplicationEngine::readSettings(bool reset) {
         }
     }
 
-    auto engSettings = dsqt::DsEnvironment::engineSettings();
-    std::function<QString(QString)> normPath = [this](QString path) {
+    auto                            engSettings = dsqt::DsEnvironment::engineSettings();
+    std::function<QString(QString)> normPath    = [this](QString path) {
         auto ret = path;
-        path.replace( '\\', '/');
+        path.replace('\\', '/');
 
         ret = QDir::fromNativeSeparators(ret);
 
         return ret;
     };
-    QString resourceLocation = engSettings->getOr<QString>("engine.resource.location","");
+    QString resourceLocation = engSettings->getOr<QString>("engine.resource.location", "");
     if (resourceLocation.isEmpty()) {
     } else {
         if (resourceLocation.contains("%USERPROFILE%")) {
 #ifndef _WIN32
             resourceLocation.replace("%USERPROFILE%", QDir::homePath());
-            qCInfo(lgAppEngine)<<"Non-windows workaround: Converting \"%USERPROFILE%\" to \"~\" in resources_location...";
+            qCInfo(lgAppEngine)
+                << "Non-windows workaround: Converting \"%USERPROFILE%\" to \"~\" in resources_location...";
 #endif
         }
         resourceLocation = DsEnvironment::expandq(resourceLocation); // allow use of %APP%, etc
         resourceLocation = QUrl::fromLocalFile(resourceLocation).toString();
 
         DsResource::Id::setupPaths(resourceLocation,
-                                   normPath(engSettings->getOr<QString>("engine.resource.resource_db","")),
-                                   normPath(engSettings->getOr<QString>("engine.project_path","")));
+                                   normPath(engSettings->getOr<QString>("engine.resource.resource_db", "")),
+                                   normPath(engSettings->getOr<QString>("engine.project_path", "")));
     }
 
 
@@ -226,13 +197,11 @@ void DsQmlApplicationEngine::init() {
     mIdle->startIdling(true);
 
     mAppProxy->setTarget("app_settings");
-    updateContentRoot();
+
     connect(this, &DsQmlApplicationEngine::fileChanged, this, &DsQmlApplicationEngine::doReset);
     // rootContext()->setContextProperty("app_settings",mAppProxy);
     // rootContext()->setContextProperty("$QmlEngine", this);
     // rootContext()->setContextProperty("$Env",mQmlEnv);
-
-
 }
 
 void DsQmlApplicationEngine::postInit() {
@@ -273,10 +242,6 @@ DsQmlApplicationEngine* DsQmlApplicationEngine::DefEngine() {
     return sDefaultEngine;
 }
 
-void DsQmlApplicationEngine::updateContentRoot() {
-    emit rootUpdated();
-}
-
 void DsQmlApplicationEngine::clearQmlCache() {
     this->clearComponentCache();
 }
@@ -291,6 +256,17 @@ DsQmlSettingsProxy* DsQmlApplicationEngine::getAppSettingsProxy() const {
 
 DsQmlIdle* DsQmlApplicationEngine::idle() const {
     return mIdle;
+}
+
+model::ContentModel* DsQmlApplicationEngine::bridge() const {
+    if (!mBridge) mBridge = model::ContentModel::createNamed("bridge");
+    return mBridge;
+}
+
+void DsQmlApplicationEngine::setBridge(model::ContentModel* bridge) {
+    // if (mBridge == bridge) return;
+    mBridge = bridge;
+    emit bridgeChanged();
 }
 
 } // namespace dsqt

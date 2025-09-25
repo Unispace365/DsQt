@@ -27,8 +27,8 @@ Item {
     // type of content to display. if empty, will determine based on file extension
     property string contentType: "" // "image", "image sequence", "web", "pdf", "video", "video stream","youtube?"
     // Contains the media dimensions as reported by the CMS.
-    readonly property real mediaWidth: media && media.width ? media.width : undefined
-    readonly property real mediaHeight: media && media.height ? media.height : undefined
+    readonly property real mediaWidth: media && media.width ? media.width : 0
+    readonly property real mediaHeight: media && media.height ? media.height : 0
     // Contains the cropping rectangle as reported by the CMS.
     readonly property real cropX: media && media.crop ? media.crop[0] : 0
     readonly property real cropY: media && media.crop ? media.crop[1] : 0

@@ -3,10 +3,10 @@
 
 #include "core/dsQmlIdle.h"
 #include "core/dsQmlImguiItem.h"
-#include "model/dsContentModel.h"
-#include "model/dsIContentHelper.h"
-#include "model/dsPropertyMapDiff.h"
-#include "model/dsQmlContentModel.h"
+// #include "model/dsContentModel.h"
+// #include "model/dsIContentHelper.h"
+// #include "model/dsPropertyMapDiff.h"
+// #include "model/dsQmlContentModel.h"
 #include "rework/rwContentModel.h"
 #include "settings/dsSettings.h"
 
@@ -47,6 +47,7 @@ class DsQmlApplicationEngine : public QQmlApplicationEngine {
     QML_ELEMENT
     QML_UNCREATABLE("Ya don't need to make an engine. get it from Ds.engine")
     Q_PROPERTY(DsQmlIdle* idle READ idle NOTIFY idleChanged FINAL)
+    Q_PROPERTY(model::ContentModel* bridge READ bridge WRITE setBridge NOTIFY bridgeChanged FINAL)
 
   public:
     /**
@@ -76,14 +77,6 @@ class DsQmlApplicationEngine : public QQmlApplicationEngine {
     DsSettingsRef getAppSettings();
 
     /**
-     * @brief Retrieves the root content model.
-     * @return model::ContentModelRef for the content root.
-     */
-    model::ContentModelRef getContentRoot();
-
-    rework::RwContentModel* getRwContentRoot();
-
-    /**
      * @brief Sets this engine as the default engine.
      * @param engine Pointer to the DsQmlApplicationEngine to set as default.
      */
@@ -94,12 +87,6 @@ class DsQmlApplicationEngine : public QQmlApplicationEngine {
      * @return Pointer to the default DsQmlApplicationEngine.
      */
     static DsQmlApplicationEngine* DefEngine();
-
-    /**
-     * @brief Updates the content root with a property map diff.
-     * @param diff Shared pointer to the PropertyMapDiff to apply.
-     */
-    void updateContentRoot();
 
     /**
      * @brief Gets the ImGui item for QML integration.
@@ -127,28 +114,10 @@ class DsQmlApplicationEngine : public QQmlApplicationEngine {
     DsQmlSettingsProxy* getAppSettingsProxy() const;
 
     /**
-     * @brief Gets the content helper.
-     * @return Pointer to model::IContentHelper.
-     */
-    model::IContentHelper* getContentHelper();
-
-    /**
-     * @brief Sets the content helper.
-     * @param helper Pointer to the IContentHelper to set.
-     */
-    void setContentHelper(model::IContentHelper* helper);
-
-    /**
      * @brief Gets the node watcher.
      * @return Pointer to network::DsNodeWatcher.
      */
     network::DsNodeWatcher* getNodeWatcher() const;
-
-    /**
-     * @brief Gets the reference map.
-     * @return Const pointer to model::ReferenceMap.
-     */
-    model::ReferenceMap* getReferenceMap() const;
 
     /**
      * @brief Reads the settings.
@@ -161,6 +130,10 @@ class DsQmlApplicationEngine : public QQmlApplicationEngine {
      * @return Pointer to DsQmlIdle.
      */
     DsQmlIdle* idle() const;
+
+    model::ContentModel* bridge() const;
+
+    void setBridge(model::ContentModel* bridge);
 
   private:
     /**
@@ -248,29 +221,16 @@ class DsQmlApplicationEngine : public QQmlApplicationEngine {
     void fileChanged(const QString& path);
 
     /**
-     * @brief Emitted when the root content is updated.
-     */
-    void rootUpdated();
-
-    /**
      * @brief Emitted when the idle manager changes.
      */
-    void idleChanged();
+    void idleChanged();    
 
+    /**
+     * @brief Emitted when the root content is updated.
+     */
     void bridgeChanged();
 
   protected:
-    /// Root content model reference.
-    model::ContentModelRef mContentRoot;
-
-    rework::RwContentModel* mRwContentRoot = nullptr;
-
-    /// QML reference map.
-    model::ReferenceMap* mQmlRefMap;
-
-    /// Pointer to the QML content model for the root.
-    model::DsQmlContentModel* mRootMap = nullptr;
-
     /// Static pointer to the default engine instance.
     static DsQmlApplicationEngine* sDefaultEngine;
 
@@ -292,9 +252,6 @@ class DsQmlApplicationEngine : public QQmlApplicationEngine {
     /// Pointer to the QML environment.
     DsQmlEnvironment* mQmlEnv = nullptr;
 
-    /// Pointer to the content helper.
-    model::IContentHelper* mContentHelper = nullptr;
-
     /// Pointer to the node watcher.
     network::DsNodeWatcher* mNodeWatcher = nullptr;
 
@@ -302,7 +259,7 @@ class DsQmlApplicationEngine : public QQmlApplicationEngine {
     DsQmlIdle* mIdle = nullptr;
 
     /// Point to the content in Bridge CMS.
-    rework::RwContentModel* mBridge = nullptr;
+    mutable model::ContentModel* mBridge = nullptr;
 };
 
 } // namespace dsqt

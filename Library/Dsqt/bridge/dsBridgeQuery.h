@@ -277,10 +277,11 @@ class DsBridgeSqlQuery : public QObject {
                 case Traversal::PreOrder: // Visits the root node first, then recursively traverses its children.
                     preOrderTraversal(rootUid);
                     break;
-                case Traversal::PostOrder: // Visits the child nodes before their parents, with the root node visited last.
+                case Traversal::PostOrder: // Visits the child nodes before their parents, with the root node visited
+                                           // last.
                     postOrderTraversal(rootUid);
                     break;
-                case Traversal::Roots: // Only visits nodes that have no parent.
+                case Traversal::Roots: // Only visits nodes that have no single parent.
                     rootsTraversal();
                     break;
                 }
@@ -328,14 +329,8 @@ class DsBridgeSqlQuery : public QObject {
             for (const auto itr : m_nodes.asKeyValueRange()) {
                 const auto& record = itr.second;
                 if (!record.contains("parent_uid")) continue;
-                const auto parents   = record["parent_uid"].toStringList();
-                bool       hasParent = false;
-                for (const auto& parent : parents) {
-                    hasParent = m_nodes.contains(parent.trimmed());
-                    if (hasParent) break;
-                }
-                if (hasParent) continue;
-                m_order.append(itr.first);
+                const auto parents = record["parent_uid"].toStringList();
+                if (parents.size() != 1) m_order.append(itr.first);
             }
         }
 

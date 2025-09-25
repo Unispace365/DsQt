@@ -9,8 +9,7 @@ DsQmlEnvironment::DsQmlEnvironment(QObject* parent)
     auto engine = DsQmlApplicationEngine::DefEngine();
 
     // Listen to content updates.
-    connect(engine, &DsQmlApplicationEngine::rootUpdated, this, &DsQmlEnvironment::updateNow,
-            Qt::ConnectionType::QueuedConnection);
+    connect(engine, &DsQmlApplicationEngine::bridgeChanged, this, &DsQmlEnvironment::updateNow);
 }
 
 const QString dsqt::DsQmlEnvironment::expand(const QString& string) {
@@ -23,13 +22,10 @@ const QUrl DsQmlEnvironment::expandUrl(const QString& string) {
 }
 
 void DsQmlEnvironment::updateNow() {
-    auto engine    = DsQmlApplicationEngine::DefEngine();
-    auto content   = engine->getContentRoot();
-    auto platforms = content.getChildByName("platforms");
-
-    // TODO select proper platform by UID.
-    auto platform = platforms.getChild(0);
-    setPlatformName(platform.getPropertyString("record_name"));
+    auto       engine      = DsQmlApplicationEngine::DefEngine();
+    const auto platformUid = engine->getAppSettings()->getOr<QString>("platform.id", "");
+    const auto platform    = model::ContentModel::find(platformUid);
+    if (platform) setPlatformName(platform->getName());
 }
 
 } // namespace dsqt

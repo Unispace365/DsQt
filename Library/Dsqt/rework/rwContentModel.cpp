@@ -2,15 +2,15 @@
 
 #include <iostream>
 
-namespace dsqt::rework {
+namespace dsqt::model {
 
-QHash<QString, RwContentModel*>& RwContentLookup::get(Qt::HANDLE threadId) {
+QHash<QString, ContentModel*>& ContentLookup::get(Qt::HANDLE threadId) {
     QMutexLocker lock(&s_mutex);
-    if (!s_lookup.contains(threadId)) s_lookup.insertOrAssign(threadId, QHash<QString, RwContentModel*>{});
+    if (!s_lookup.contains(threadId)) s_lookup.insertOrAssign(threadId, ContentModelHash{});
     return s_lookup[threadId];
 }
 
-void RwContentLookup::destroy(Qt::HANDLE threadId) {
+void ContentLookup::destroy(Qt::HANDLE threadId) {
     QMutexLocker lock(&s_mutex);
     if (s_lookup.contains(threadId)) {
         auto& records = s_lookup[threadId];
@@ -21,9 +21,9 @@ void RwContentLookup::destroy(Qt::HANDLE threadId) {
     }
 }
 
-} // namespace dsqt::rework
+} // namespace dsqt::model
 
-std::ostream& operator<<(std::ostream& os, const dsqt::rework::RwContentModel* o) {
+std::ostream& operator<<(std::ostream& os, const dsqt::model::ContentModel* o) {
     const auto name = o->value("record_name").toString().toStdString();
     const auto uid  = o->value("uid").toString().toStdString();
     return os << name << " (" << uid << ")";

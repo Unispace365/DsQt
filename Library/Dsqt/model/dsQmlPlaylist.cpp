@@ -18,7 +18,7 @@ DsQmlPlaylist::DsQmlPlaylist(QObject* parent)
     // Listen to timer.
     connect(m_timer, &QTimer::timeout, this, [this] { setIndex(m_playlist_index + 1); });
     // Listen to content updates.
-    connect(engine, &DsQmlApplicationEngine::rootUpdated, this, &DsQmlPlaylist::updateNow);
+    connect(engine, &DsQmlApplicationEngine::bridgeChanged, this, &DsQmlPlaylist::updateNow);
     // Restart playlist if mode changes.
     connect(this, &DsQmlPlaylist::modeChanged, this, &DsQmlPlaylist::updateNow);
     // Restart playlist if event changes.
@@ -107,14 +107,9 @@ void DsQmlPlaylist::updateNow() {
     // Obtain engine pointer.
     auto engine = DsQmlApplicationEngine::DefEngine();
 
-    // Obtain platform settings.
-    DsQmlSettingsProxy settings;
-    settings.setTarget("app_settings");
-    settings.setPrefix("platform");
-
     // Obtain platform playlist from engine.
-    auto platformUid = settings.getString("id").toString();
-    auto platform    = rework::RwContentModel::find(platformUid);
+    auto platformUid = engine->getAppSettings()->getOr<QString>("platform.id", "");
+    auto platform    = model::ContentModel::find(platformUid);
     if (!platform) return;
 
     auto platformKey = mode.value("platformKey").toString();
@@ -127,7 +122,7 @@ void DsQmlPlaylist::updateNow() {
             playlistUid = uid;
     }
 
-    auto model = rework::RwContentModel::find(playlistUid);
+    auto model = model::ContentModel::find(playlistUid);
     if (model != m_playlist_model) {
         // Force a playlist restart if this is a different playlist.
         if (model && m_playlist_model &&

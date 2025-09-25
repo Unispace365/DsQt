@@ -27,7 +27,7 @@ class DsQmlPlaylist : public QObject {
     Q_PROPERTY(QVariantMap components READ components WRITE setComponents NOTIFY componentsChanged)
     Q_PROPERTY(QString source READ source NOTIFY sourceChanged)
     Q_PROPERTY(QQmlComponent* component READ component NOTIFY componentChanged)
-    Q_PROPERTY(rework::RwContentModel* model READ model NOTIFY modelChanged)
+    Q_PROPERTY(model::ContentModel* model READ model NOTIFY modelChanged)
     Q_PROPERTY(DsQmlEvent* event READ event WRITE setEvent NOTIFY eventChanged)
     Q_PROPERTY(int interval READ interval WRITE setInterval NOTIFY intervalChanged FINAL)
 
@@ -51,9 +51,9 @@ class DsQmlPlaylist : public QObject {
     const QVariantMap& components() const { return m_components; };
     void               setComponents(const QVariantMap& components);
 
-    const QString&          source() const { return m_source; }
-    QQmlComponent*          component() const { return m_component; }
-    rework::RwContentModel* model() const { return m_model; }
+    const QString&       source() const { return m_source; }
+    QQmlComponent*       component() const { return m_component; }
+    model::ContentModel* model() const { return m_model; }
 
     int  interval() const { return m_interval; }
     void setInterval(int interval) {
@@ -82,19 +82,19 @@ class DsQmlPlaylist : public QObject {
     void updateNow();
     void setIndex(qsizetype index);
 
-    QString                 m_mode;
-    QVariantMap             m_modes;
-    QVariantMap             m_templates;
-    QVariantMap             m_components;
-    QString                 m_source;
-    QQmlComponent*          m_component      = nullptr; //
-    rework::RwContentModel* m_model          = nullptr; // Current slide.
-    DsQmlEvent*             m_event          = nullptr; // Current event.
-    QTimer*                 m_timer          = nullptr; //
-    rework::RwContentModel* m_playlist_model = nullptr; // Current playlist.
-    qsizetype               m_playlist_index = 0;       //
-    int                     m_interval       = 60000;   // In milliseconds.
-    rework::RwContentModel* m_bridge         = nullptr; // Pointer to bridge content instance.
+    QString              m_mode;
+    QVariantMap          m_modes;
+    QVariantMap          m_templates;
+    QVariantMap          m_components;
+    QString              m_source;
+    QQmlComponent*       m_component      = nullptr; //
+    model::ContentModel* m_model          = nullptr; // Current slide.
+    DsQmlEvent*          m_event          = nullptr; // Current event.
+    QTimer*              m_timer          = nullptr; //
+    model::ContentModel* m_playlist_model = nullptr; // Current playlist.
+    qsizetype            m_playlist_index = 0;       //
+    int                  m_interval       = 60000;   // In milliseconds.
+    model::ContentModel* m_bridge         = nullptr; // Pointer to bridge content instance.
 };
 
 } // namespace dsqt::model

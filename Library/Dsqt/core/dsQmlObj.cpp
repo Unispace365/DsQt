@@ -15,9 +15,8 @@ DsQmlObj::DsQmlObj(QQmlEngine* qmlEngine, QJSEngine* jsEngine, QObject* parent)
     if (mEngine == nullptr) {
         qWarning() << "Engine is not a DsQmlApplicationEngine or a subclass. $DS functionality will not be available";
     } else {
-        connect(mEngine, &DsQmlApplicationEngine::rootUpdated, this, &DsQmlObj::updatePlatform);
+        connect(mEngine, &DsQmlApplicationEngine::bridgeChanged, this, &DsQmlObj::updatePlatform);
     }
-    updatePlatform();
 }
 
 DsQmlObj* DsQmlObj::create(QQmlEngine* qmlEngine, QJSEngine* jsEngine) {
@@ -39,12 +38,17 @@ DsQmlApplicationEngine* DsQmlObj::engine() const {
     return mEngine;
 }
 
-model::DsQmlContentModel* DsQmlObj::platform() {
-    return mPlatformQml;
+model::ContentModel* DsQmlObj::platform() {
+    return mPlatform;
 }
 
 DsQmlPathHelper* DsQmlObj::path() const {
     return mPath;
+}
+
+model::ContentModel* DsQmlObj::getRecordById(const QString& id) const {
+    auto& lookup = model::ContentLookup::get();
+    return lookup.find(id).value();
 }
 
 void DsQmlObj::updatePlatform() {
@@ -52,17 +56,12 @@ void DsQmlObj::updatePlatform() {
 
     qDebug() << "Updating platform";
 
-    auto platform = mEngine->getContentHelper()->getPlatform();
+    const auto platformUid = appSettings()->getString("platform.id").toString();
+    const auto platform    = model::ContentModel::find(platformUid);
     if (platform != mPlatform) {
-        mPlatform    = platform.duplicate();
-        mPlatformQml = mEngine->getReferenceMap()->value(mPlatform.getId());
+        mPlatform = platform;
         emit platformChanged();
     }
-}
-
-model::DsQmlContentModel* DsQmlObj::getRecordById(QString id) const {
-    if (id.isEmpty()) return nullptr;
-    return mEngine->getReferenceMap()->value(id);
 }
 
 } // namespace dsqt

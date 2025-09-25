@@ -26,11 +26,6 @@ DsBridgeSqlQuery::DsBridgeSqlQuery(DsQmlApplicationEngine* parent)
     : QObject(parent) {
     // Initialize when the engine is ready.
     connect(parent, &DsQmlApplicationEngine::endInitialize, this, [this]() {
-        // Construct or update the content tree.
-        auto root = DsQmlApplicationEngine::DefEngine()->getRwContentRoot();
-        DsQmlApplicationEngine::DefEngine()->rootContext()->setContextProperty("bridge", root);
-        // DsQmlApplicationEngine::DefEngine()->setBridge(root);
-
         // If bridge sync is not running, try to launch it.
         if (!isBridgeSyncRunning()) {
             tryLaunchBridgeSync();
@@ -289,31 +284,36 @@ void DsBridgeSqlQuery::onUpdated() {
     for (const auto& root : roots) {
         DatabaseTree tree(result.records, root.value("uid").toString());
         for (const auto& record : tree) {
-            rework::RwContentModel::createOrUpdate(record);
+            model::ContentModel::createOrUpdate(record);
         }
     }
     // Make sure all content is linked up (parent-child relations are enforced).
     auto t2 = timer.elapsed();
 
-    rework::RwContentModel::linkUp();
+    model::ContentModel::linkUp();
+
+    // Also link events to the current platform.
+    const auto platformUid = DsQmlApplicationEngine::DefEngine()->getAppSettings()->getOr<QString>("platform.id", "");
+
+    auto platform = model::ContentModel::find(platformUid);
+    if (platform) {
+        const auto children = platform->getChildren();
+        for (auto child : children)
+            child->setParent(platform);
+    }
 
     // Remove obsolete content.
     auto t3 = timer.elapsed();
 
-    rework::RwContentModel::cleanUp(result.records.keys());
+    model::ContentModel::cleanUp(result.records.keys());
 
     // Construct or update the content tree.
-    auto root = DsQmlApplicationEngine::DefEngine()->getRwContentRoot();
+    auto root = DsQmlApplicationEngine::DefEngine()->bridge();
 
     // Update root.
-    auto _content = QVariant::fromValue(rework::RwContentModel::find(result.content.front()));
-    root->setProperty("content", _content);
-    auto _events = QVariant::fromValue(rework::RwContentModel::find(result.events));
-    root->setProperty("events", _events);
-    auto _platforms = QVariant::fromValue(rework::RwContentModel::find(result.platforms));
-    root->setProperty("platforms", _platforms);
-    auto _records = QVariant::fromValue(rework::RwContentModel::find(result.records.keys()));
-    root->setProperty("records", _records);
+    root->setProperty("content", result.content);
+    root->setProperty("events", result.events);
+    root->setProperty("platforms", result.platforms);
 
     auto t4 = timer.elapsed();
 
@@ -323,7 +323,7 @@ void DsBridgeSqlQuery::onUpdated() {
     qInfo() << "- Cleaning content tree took" << (t3 - t2) << "ms";
     qInfo() << "- Linking content tree took" << (t4 - t3) << "ms";
 
-    DsQmlApplicationEngine::DefEngine()->updateContentRoot();
+    DsQmlApplicationEngine::DefEngine()->setBridge(root);
 }
 
 QVariantHash DsBridgeSqlQuery::toVariantHash(const QSqlRecord& record) {
@@ -574,6 +574,7 @@ DsBridgeSqlQuery::DatabaseContent DsBridgeSqlQuery::queryTables() {
         record.insertOrAssign("variant", variant);
 
         if (variant == "SCHEDULE") {
+            qInfo() << "Adding event" << uid << content.events.size();
             content.events.append(uid);
             record.insertOrAssign("span_type", result.value("span_type").toString());
             record.insertOrAssign("start_date", result.value("span_start_date").toString());

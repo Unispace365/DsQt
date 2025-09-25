@@ -7,11 +7,11 @@
 
 namespace dsqt::model {
 
-DsQmlEvent::DsQmlEvent(rework::RwContentModel* model, qsizetype order, QObject* parent)
+DsQmlEvent::DsQmlEvent(model::ContentModel* model, qsizetype order, QObject* parent)
     : QObject(parent)
     , m_model(model)
     , m_order(order) {
-    m_title = m_model->getProperty<QString>("record_name");
+    m_title = m_model->getName();
     m_start.setDate(m_model->getProperty<QDate>(DsQmlEventSchedule::StartDate));
     m_start.setTime(m_model->getProperty<QTime>(DsQmlEventSchedule::StartTime));
     m_end.setDate(m_model->getProperty<QDate>(DsQmlEventSchedule::EndDate));
@@ -32,7 +32,7 @@ DsQmlEventSchedule::DsQmlEventSchedule(const QString& type_name, QObject* parent
     auto engine = DsQmlApplicationEngine::DefEngine();
 
     // Listen to content updates.
-    connect(engine, &DsQmlApplicationEngine::rootUpdated, this, &DsQmlEventSchedule::updateNow);
+    connect(engine, &DsQmlApplicationEngine::bridgeChanged, this, &DsQmlEventSchedule::updateNow);
 
     // Connect the watcher to handle task completion.
     connect(&m_watcher, &QFutureWatcher<QList<DsQmlEvent*>>::finished, this, &DsQmlEventSchedule::onUpdated);
@@ -96,7 +96,7 @@ QList<DsQmlEvent*> DsQmlEventSchedule::timeline() const {
     return m_timeline;
 }
 
-bool DsQmlEventSchedule::isEventNow(const rework::RwContentModel* event, QDateTime localDateTime) {
+bool DsQmlEventSchedule::isEventNow(const model::ContentModel* event, QDateTime localDateTime) {
     if (!isEventToday(event, localDateTime.date())) return false;
 
     const auto startTime = event->getProperty<QTime>(StartTime);
@@ -122,7 +122,7 @@ bool DsQmlEventSchedule::isEventNow(const rework::RwContentModel* event, QDateTi
     return true;
 }
 
-bool DsQmlEventSchedule::isEventToday(const rework::RwContentModel* event, QDate localDate) {
+bool DsQmlEventSchedule::isEventToday(const model::ContentModel* event, QDate localDate) {
     const auto startDate = event->getProperty<QDate>(StartDate);
     const auto endDate   = event->getProperty<QDate>(EndDate);
     if (!startDate.isValid()) {
@@ -157,8 +157,7 @@ bool DsQmlEventSchedule::isEventToday(const rework::RwContentModel* event, QDate
     return false;
 }
 
-bool DsQmlEventSchedule::isEventWithinSpan(const rework::RwContentModel* event, QDateTime spanStart,
-                                           QDateTime spanEnd) {
+bool DsQmlEventSchedule::isEventWithinSpan(const model::ContentModel* event, QDateTime spanStart, QDateTime spanEnd) {
     if (spanStart > spanEnd) return false; // Invalid span.
     QDateTime eventStart;
     eventStart.setDate(event->getProperty<QDate>(StartDate));
@@ -172,12 +171,12 @@ bool DsQmlEventSchedule::isEventWithinSpan(const rework::RwContentModel* event, 
     return (spanEnd >= eventStart && eventEnd >= spanStart);
 }
 
-size_t DsQmlEventSchedule::filterEvents(QList<rework::RwContentModel*>& events, const QString& typeName) {
+size_t DsQmlEventSchedule::filterEvents(model::ContentModelList& events, const QString& typeName) {
     size_t count = events.size();
     auto   empty = typeName.isEmpty();
     if (!empty) {
         events.erase(std::remove_if(events.begin(), events.end(),
-                                    [&](const rework::RwContentModel* item) {
+                                    [&](const model::ContentModel* item) {
                                         const auto type = item->getProperty<QString>("type_name");
                                         return type != typeName;
                                     }),
@@ -186,34 +185,33 @@ size_t DsQmlEventSchedule::filterEvents(QList<rework::RwContentModel*>& events, 
     return count - events.size();
 }
 
-size_t DsQmlEventSchedule::filterEvents(QList<rework::RwContentModel*>& events, QDateTime localDateTime) {
+size_t DsQmlEventSchedule::filterEvents(model::ContentModelList& events, QDateTime localDateTime) {
     size_t count = events.size();
     events.erase(std::remove_if(events.begin(), events.end(),
-                                [&](const rework::RwContentModel* item) { return !isEventNow(item, localDateTime); }),
+                                [&](const model::ContentModel* item) { return !isEventNow(item, localDateTime); }),
                  events.end());
     return count - events.size();
 }
 
-size_t DsQmlEventSchedule::filterEvents(QList<rework::RwContentModel*>& events, QDate localDate) {
+size_t DsQmlEventSchedule::filterEvents(model::ContentModelList& events, QDate localDate) {
     size_t count = events.size();
     events.erase(std::remove_if(events.begin(), events.end(),
-                                [&](const rework::RwContentModel* item) { return !isEventToday(item, localDate); }),
+                                [&](const model::ContentModel* item) { return !isEventToday(item, localDate); }),
                  events.end());
     return count - events.size();
 }
 
-size_t DsQmlEventSchedule::filterEvents(QList<rework::RwContentModel*>& events, QDateTime spanStart,
-                                        QDateTime spanEnd) {
+size_t DsQmlEventSchedule::filterEvents(model::ContentModelList& events, QDateTime spanStart, QDateTime spanEnd) {
     size_t count = events.size();
     events.erase(std::remove_if(
                      events.begin(), events.end(),
-                     [&](const rework::RwContentModel* item) { return !isEventWithinSpan(item, spanStart, spanEnd); }),
+                     [&](const model::ContentModel* item) { return !isEventWithinSpan(item, spanStart, spanEnd); }),
                  events.end());
     return count - events.size();
 }
 
-void DsQmlEventSchedule::sortEvents(QList<rework::RwContentModel*>& events, QDateTime localDateTime) {
-    auto heuristic = [&localDateTime](const rework::RwContentModel* a, const rework::RwContentModel* b) -> bool {
+void DsQmlEventSchedule::sortEvents(model::ContentModelList& events, QDateTime localDateTime) {
+    auto heuristic = [&localDateTime](const model::ContentModel* a, const model::ContentModel* b) -> bool {
         // Active Event trumps Inactive event
         const auto isActiveA = isEventNow(a, localDateTime);
         const auto isActiveB = isEventNow(b, localDateTime);
@@ -301,12 +299,10 @@ void DsQmlEventSchedule::update(const QDateTime& localDateTime) {
         auto engine = DsQmlApplicationEngine::DefEngine();
 
         // Obtain all events from engine.
-        auto content = engine->getRwContentRoot();
-        if (content) {
-            auto allEvents = content->getChildByName("events");
-            if (allEvents) {
-                auto events = allEvents->getChildren();
-
+        auto content = engine->bridge();
+        if (content && content->contains("events")) {
+            auto events = content->getProperty<model::ContentModelList>("events");
+            if (!events.isEmpty()) {
                 // Only keep events of a specific type.
                 DsQmlEventSchedule::filterEvents(events, m_type_name);
                 // Only keep today's events.

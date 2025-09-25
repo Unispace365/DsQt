@@ -4,9 +4,10 @@
 #include "core/dsQmlApplicationEngine.h"
 #include "core/dsQmlEnvironment.h"
 #include "core/dsQmlPathHelper.h"
-#include "model/dsQmlContentModel.h"
-#include "model/dsReferenceMap.h"
+// #include "model/dsQmlContentModel.h"
+// #include "model/dsReferenceMap.h"
 #include "settings/dsQmlSettingsProxy.h"
+#include "rework/rwContentModel.h"
 
 #include <QDebug>
 #include <QObject>
@@ -35,7 +36,7 @@ class DsQmlObj : public QObject {
     Q_PROPERTY(dsqt::DsQmlEnvironment* env READ env NOTIFY envChanged)
     Q_PROPERTY(dsqt::DsQmlSettingsProxy* appSettings READ appSettings NOTIFY appSettingsChanged)
     Q_PROPERTY(dsqt::DsQmlApplicationEngine* engine READ engine NOTIFY engineChanged)
-    Q_PROPERTY(dsqt::model::DsQmlContentModel* platform READ platform NOTIFY platformChanged)
+    Q_PROPERTY(dsqt::model::ContentModel* platform READ platform NOTIFY platformChanged)
     Q_PROPERTY(dsqt::DsQmlPathHelper* path READ path CONSTANT)
 
   public:
@@ -77,7 +78,7 @@ class DsQmlObj : public QObject {
      * \brief Getter for the platform content model.
      * \return Pointer to DsQmlContentModel representing the platform.
      */
-    model::DsQmlContentModel* platform();
+    model::ContentModel* platform();
 
 
     DsQmlPathHelper* path() const;
@@ -85,9 +86,9 @@ class DsQmlObj : public QObject {
     /**
      * \brief Retrieves a content model record by its ID.
      * \param id The ID of the record to retrieve.
-     * \return Pointer to DsQmlContentModel if found, or nullptr if the ID is empty or not found.
+     * \return Pointer to ContentModel if found, or nullptr if the ID is empty or not found.
      */
-    Q_INVOKABLE model::DsQmlContentModel* getRecordById(QString id) const;
+    Q_INVOKABLE model::ContentModel* getRecordById(const QString &id) const;
 
   signals:
     /**
@@ -113,8 +114,7 @@ class DsQmlObj : public QObject {
   private:
     DsQmlPathHelper*          mPath        = nullptr;
     DsQmlApplicationEngine*   mEngine      = nullptr;
-    model::DsQmlContentModel* mPlatformQml = nullptr;
-    model::ContentModelRef    mPlatform;
+    model::ContentModel*      mPlatform    = nullptr;
 
   private slots:
     /**
