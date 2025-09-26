@@ -36,6 +36,7 @@ qt_add_qml_module(Dsqt
         qml/waffles/menu_launcher/DsTestLauncher.qml
 
     SOURCES
+        bridge/dsBridgeDatabase.h
         bridge/dsBridgeQuery.cpp bridge/dsBridgeQuery.h
         bridge/dsBridgeWatcher.cpp bridge/dsBridgeWatcher.h
         core/dsEnvironment.cpp core/dsEnvironment.h

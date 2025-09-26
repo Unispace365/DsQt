@@ -1,6 +1,7 @@
 #ifndef DSQMLEVENTSCHEDULE_H
 #define DSQMLEVENTSCHEDULE_H
 
+#include "bridge/dsBridgeDatabase.h"
 #include "rework/rwContentModel.h"
 #include "ui/dsQmlClock.h"
 
@@ -36,13 +37,13 @@ class DsQmlEvent : public QObject {
     explicit DsQmlEvent(QObject* parent = nullptr)
         : QObject(parent) {}
 
-    DsQmlEvent(model::ContentModel* model, qsizetype order, QObject* parent = nullptr);
+    DsQmlEvent(const bridge::DatabaseRecord& record, qsizetype order, QObject* parent = nullptr);
 
-    DsQmlEvent* duplicate() const { return new DsQmlEvent(m_model, m_order, parent()); }
+    DsQmlEvent* duplicate() const { return new DsQmlEvent(m_record, m_order, parent()); }
 
-    QString uid() const { return m_model->getProperty<QString>("uid"); }
+    QString uid() const { return m_record.value("uid").toString(); }
 
-    QString type() const { return m_model->getProperty<QString>("type_name"); }
+    QString type() const { return m_record.value("type_name").toString(); }
 
     QString title() const { return m_title; }
     void    setTitle(const QString& title) {
@@ -85,7 +86,7 @@ class DsQmlEvent : public QObject {
     double secondsSinceMidnight() const { return QTime(0, 0).secsTo(m_start.time()); }
     double durationInSeconds() const { return m_start.time().secsTo(m_end.time()); }
 
-    const model::ContentModel* model() const { return m_model; }
+    const bridge::DatabaseRecord& record() const { return m_record; }
 
     // Returns whether the event is scheduled for the specified date and time, taking into account specific times or
     // weekdays.
@@ -129,11 +130,11 @@ class DsQmlEvent : public QObject {
     void orderChanged();
 
   private:
-    model::ContentModel* m_model = nullptr;
-    QString              m_title;
-    QDateTime            m_start;
-    QDateTime            m_end;
-    qsizetype            m_order;
+    bridge::DatabaseRecord m_record;
+    QString                m_title;
+    QDateTime              m_start;
+    QDateTime              m_end;
+    qsizetype              m_order;
 };
 
 // Provides a list of scheduled events, optionally filtered by type, and exposes it to QML.
@@ -200,24 +201,24 @@ class DsQmlEventSchedule : public QObject {
 
   public:
     // Returns whether the specified event is currently scheduled, taking into account specific times or weekdays.
-    static bool isEventNow(const model::ContentModel* event, QDateTime localDateTime);
+    static bool isEventNow(const bridge::DatabaseRecord& event, QDateTime localDateTime);
     // Returns whether the specified event is scheduled for today, taking into account the weekdays.
-    static bool isEventToday(const model::ContentModel* event, QDate localDate);
+    static bool isEventToday(const bridge::DatabaseRecord& event, QDate localDate);
     // Returns whether the specified event is within the time span.
-    static bool isEventWithinSpan(const model::ContentModel* event, QDateTime spanStart, QDateTime spanEnd);
+    static bool isEventWithinSpan(const bridge::DatabaseRecord& event, QDateTime spanStart, QDateTime spanEnd);
 
     // Removes all events that are not of the specified type. Returns the number of removed events.
-    static size_t filterEvents(model::ContentModelList& events, const QString& typeName);
+    static size_t filterEvents(bridge::DatabaseRecordList& events, const QString& typeName);
     // Removes all events that are not scheduled at the specified date and time. Returns the number of removed events.
-    static size_t filterEvents(model::ContentModelList& events, QDateTime localDateTime);
+    static size_t filterEvents(bridge::DatabaseRecordList& events, QDateTime localDateTime);
     // Removes all events that are not scheduled at the specified date. Returns the number of removed events.
-    static size_t filterEvents(model::ContentModelList& events, QDate localDate);
+    static size_t filterEvents(bridge::DatabaseRecordList& events, QDate localDate);
     // Removes all events that are not within the specified time range. Does not check for specific times or weekdays.
     // Returns the number of removed events.
-    static size_t filterEvents(model::ContentModelList& events, QDateTime spanStart, QDateTime spanEnd);
+    static size_t filterEvents(bridge::DatabaseRecordList& events, QDateTime spanStart, QDateTime spanEnd);
 
     // Sorts events by the default sorting heuristic. Sorted from highest to lowest priority.
-    static void sortEvents(model::ContentModelList& events, QDateTime localDateTime);
+    static void sortEvents(bridge::DatabaseRecordList& events, QDateTime localDateTime);
 
   signals:
     void typeChanged();

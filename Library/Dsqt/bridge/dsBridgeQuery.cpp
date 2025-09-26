@@ -270,7 +270,7 @@ bool DsBridgeSqlQuery::isBridgeSyncRunning() {
 void DsBridgeSqlQuery::onUpdated() {
     // This runs in the main thread when the background task completes.
     mContent = mFutures.result();
-    if (mContent.queue.isEmpty()) {
+    if (mContent.m_queue.isEmpty()) {
         // Nothing to process.
         bool success = mIsRunning.testAndSetRelaxed(true, false);
     } else {
@@ -280,23 +280,23 @@ void DsBridgeSqlQuery::onUpdated() {
 }
 
 void DsBridgeSqlQuery::onProcessContent() {
-    qCDebug(lgBridgeSyncQueryVerbose) << "Process content" << mContent.queue.size();
+    qCDebug(lgBridgeSyncQueryVerbose) << "Process content" << mContent.m_queue.size();
 
     QElapsedTimer timer;
     timer.start();
 
     // Process content as long as it takes less than 1ms.
-    while (!mContent.queue.isEmpty() && timer.nsecsElapsed() < 1000000) {
-        QString uid = mContent.queue.front();
-        mContent.queue.pop_front();
-        QVariantHash props = mContent.records.value(uid);
+    while (!mContent.m_queue.isEmpty() && timer.nsecsElapsed() < 1000000) {
+        QString uid = mContent.m_queue.front();
+        mContent.m_queue.pop_front();
+        QVariantHash props = mContent.m_records.value(uid);
         model::ContentModel::createOrUpdate(props);
     }
 
-    if (mContent.queue.isEmpty()) {
+    if (mContent.m_queue.isEmpty()) {
         // Done processing. Setup content linking.
-        mContent.queue = mContent.records.keys();
-        if (mContent.queue.isEmpty()) {
+        mContent.m_queue = mContent.m_records.keys();
+        if (mContent.m_queue.isEmpty()) {
             // Nothing to link.
             bool success = mIsRunning.testAndSetRelaxed(true, false);
         } else {
@@ -310,23 +310,23 @@ void DsBridgeSqlQuery::onProcessContent() {
 }
 
 void DsBridgeSqlQuery::onLinkContent() {
-    qCDebug(lgBridgeSyncQueryVerbose) << "Link content" << mContent.queue.size();
+    qCDebug(lgBridgeSyncQueryVerbose) << "Link content" << mContent.m_queue.size();
 
     QElapsedTimer timer;
     timer.start();
 
     // Link content as long as it takes less than 1ms.
-    while (!mContent.queue.isEmpty() && timer.nsecsElapsed() < 1000000) {
-        QString uid = mContent.queue.front();
-        mContent.queue.pop_front();
+    while (!mContent.m_queue.isEmpty() && timer.nsecsElapsed() < 1000000) {
+        QString uid = mContent.m_queue.front();
+        mContent.m_queue.pop_front();
         ContentModel* record = ContentModel::find(uid);
         if (record) record->linkUpWithParent();
     }
 
-    if (mContent.queue.isEmpty()) {
+    if (mContent.m_queue.isEmpty()) {
         // Done linking. Setup content sorting.
-        mContent.queue = mContent.records.keys();
-        if (mContent.queue.isEmpty()) {
+        mContent.m_queue = mContent.m_records.keys();
+        if (mContent.m_queue.isEmpty()) {
             // Nothing to sort.
             bool success = mIsRunning.testAndSetRelaxed(true, false);
         } else {
@@ -340,15 +340,15 @@ void DsBridgeSqlQuery::onLinkContent() {
 }
 
 void DsBridgeSqlQuery::onSortContent() {
-    qCDebug(lgBridgeSyncQueryVerbose) << "Sort content" << mContent.queue.size();
+    qCDebug(lgBridgeSyncQueryVerbose) << "Sort content" << mContent.m_queue.size();
 
     QElapsedTimer timer;
     timer.start();
 
     // Sort content as long as it takes less than 1ms.
-    while (!mContent.queue.isEmpty() && timer.nsecsElapsed() < 1000000) {
-        QString uid = mContent.queue.front();
-        mContent.queue.pop_front();
+    while (!mContent.m_queue.isEmpty() && timer.nsecsElapsed() < 1000000) {
+        QString uid = mContent.m_queue.front();
+        mContent.m_queue.pop_front();
         ContentModel* record = ContentModel::find(uid);
         if (record) {
             record->sortChildren();
@@ -361,10 +361,10 @@ void DsBridgeSqlQuery::onSortContent() {
         }
     }
 
-    if (mContent.queue.isEmpty()) {
+    if (mContent.m_queue.isEmpty()) {
         // Done sorting. Setup content cleaning.
-        mContent.queue = ContentLookup::get().keys();
-        if (mContent.queue.isEmpty()) {
+        mContent.m_queue = ContentLookup::get().keys();
+        if (mContent.m_queue.isEmpty()) {
             // Nothing to clean.
             bool success = mIsRunning.testAndSetRelaxed(true, false);
         } else {
@@ -378,36 +378,55 @@ void DsBridgeSqlQuery::onSortContent() {
 }
 
 void DsBridgeSqlQuery::onCleanContent() {
-    qCDebug(lgBridgeSyncQueryVerbose) << "Clean content" << mContent.queue.size();
+    qCDebug(lgBridgeSyncQueryVerbose) << "Clean content" << mContent.m_queue.size();
 
     QElapsedTimer timer;
     timer.start();
 
     // Clean content as long as it takes less than 1ms.
-    while (!mContent.queue.isEmpty() && timer.nsecsElapsed() < 1000000) {
-        QString uid = mContent.queue.front();
-        mContent.queue.pop_front();
+    while (!mContent.m_queue.isEmpty() && timer.nsecsElapsed() < 1000000) {
+        QString uid = mContent.m_queue.front();
+        mContent.m_queue.pop_front();
         // Ignore records using Id128, as they are created externally.
-        if (uid.length() <= 12 && !mContent.records.contains(uid)) {
-            ContentModel* record = ContentModel::find(uid);
-            record->deleteLater();
+        if (uid.length() <= 12 && !mContent.m_records.contains(uid)) {
+            ContentModel::deleteNow(uid);
         }
     }
 
-    if (mContent.queue.isEmpty()) {
+    if (mContent.m_queue.isEmpty()) {
         // Done cleaning.
         bool success = mIsRunning.testAndSetRelaxed(true, false);
+
+        bool isMainThread = QThread::currentThread() == QCoreApplication::instance()->thread();
+        Q_ASSERT(isMainThread);
 
         // Construct or update the content tree.
         auto root = DsQmlApplicationEngine::DefEngine()->bridge();
 
-        // Update root.
-        root->setProperty("content", mContent.content);
-        root->setProperty("events", mContent.events);
-        root->setProperty("platforms", mContent.platforms);
+        auto content = root->getChildByName("Content");
+        if (!content) content = ContentModel::createNamed("Content", root);
+        auto events = root->getChildByName("Events");
+        if (!events) events = ContentModel::createNamed("Events", root);
+        auto platforms = root->getChildByName("Platforms");
+        if (!platforms) platforms = ContentModel::createNamed("Platforms", root);
 
-        // Set root and emit signal.
+        // Update root.
+        root->setProperty("content_uid", mContent.m_content);
+        root->setProperty("event_uid", mContent.m_events);
+        root->setProperty("platform_uid", mContent.m_platforms);
+
+        for (const auto& uid : std::as_const(mContent.m_content))
+            ContentModel::find(uid)->setParent(content);
+        for (const auto& uid : std::as_const(mContent.m_events))
+            ContentModel::find(uid)->setParent(events);
+        for (const auto& uid : std::as_const(mContent.m_platforms))
+            ContentModel::find(uid)->setParent(platforms);
+
+        // Update root and emit bridgeChanged() signal.
         DsQmlApplicationEngine::DefEngine()->setBridge(root);
+
+        // Update thread-safe database and emit databaseChanged() signal.
+        DsQmlApplicationEngine::DefEngine()->setDatabase(std::move(mContent));
     } else {
         // Clean next chunk later.
         QTimer::singleShot(1, this, &DsBridgeSqlQuery::onCleanContent);
@@ -427,7 +446,7 @@ void DsBridgeSqlQuery::queryDatabase() {
     mFutures.setFuture(future);
 }
 
-DsBridgeSqlQuery::DatabaseContent DsBridgeSqlQuery::queryTables() {
+DatabaseContent DsBridgeSqlQuery::queryTables() {
     const auto isMainThread = QThread::currentThread() == QCoreApplication::instance()->thread();
 
     qCInfo(lgBridgeSyncQuery) << "BridgeService is loading content"
@@ -626,7 +645,7 @@ DsBridgeSqlQuery::DatabaseContent DsBridgeSqlQuery::queryTables() {
         const auto uid = result.value("uid").toString();
 
         // Create or retrieve the record.
-        auto& record = content.records[uid];
+        auto& record = content.m_records[uid];
 
         // Extract properties.
         record.insertOrAssign("uid", uid);
@@ -652,9 +671,9 @@ DsBridgeSqlQuery::DatabaseContent DsBridgeSqlQuery::queryTables() {
 
         if (variant == "SCHEDULE") {
 #ifdef QT_DEBUG
-            qInfo() << "Adding event" << uid << content.events.size();
+            qInfo() << "Adding event" << uid << content.m_events.size();
 #endif
-            content.events.append(uid);
+            content.m_events.append(uid);
             record.insertOrAssign("span_type", result.value("span_type").toString());
             record.insertOrAssign("start_date", result.value("span_start_date").toString());
             record.insertOrAssign("end_date", result.value("span_end_date").toString());
@@ -662,9 +681,9 @@ DsBridgeSqlQuery::DatabaseContent DsBridgeSqlQuery::queryTables() {
             record.insertOrAssign("end_time", result.value("end_time").toString());
             record.insertOrAssign("effective_days", result.value("effective_days").toInt());
         } else if (variant == "ROOT_CONTENT") {
-            content.content.append(uid);
+            content.m_content.append(uid);
         } else if (variant == "ROOT_PLATFORM") {
-            content.platforms.append(uid);
+            content.m_platforms.append(uid);
         }
 
         // Store order.
@@ -681,8 +700,8 @@ DsBridgeSqlQuery::DatabaseContent DsBridgeSqlQuery::queryTables() {
     defaultsQuery.process([&](const QSqlRecord& result) {
         // Retrieve the record.
         const auto uid = result.value("uid").toString();
-        if (!content.records.contains(uid)) return;
-        auto& record = content.records[uid];
+        if (!content.m_records.contains(uid)) return;
+        auto& record = content.m_records[uid];
 
         const auto field_key = slugifyKey(result.value("app_key").toString());
         const auto field_uid = field_key.isEmpty() ? result.value("field_uid").toString() : field_key;
@@ -711,8 +730,8 @@ DsBridgeSqlQuery::DatabaseContent DsBridgeSqlQuery::queryTables() {
     valueQuery.process([&](const QSqlRecord& result) {
         // Retrieve the record to which this value belongs.
         const auto uid = result.value("record_uid").toString();
-        if (!content.records.contains(uid)) return;
-        auto& record = content.records[uid];
+        if (!content.m_records.contains(uid)) return;
+        auto& record = content.m_records[uid];
 
         // Determine field key.
         const auto field_key = slugifyKey(result.value("field_key").toString());
@@ -858,13 +877,13 @@ DsBridgeSqlQuery::DatabaseContent DsBridgeSqlQuery::queryTables() {
     content.buildTree();
 
     // Determine processing order.
-    content.queue.clear();
+    content.m_queue.clear();
 
     DatabaseTree roots(content, DatabaseTree::Traversal::Roots);
     for (const auto& root : roots) {
-        DatabaseTree tree(content.records, root.value("uid").toString());
+        DatabaseTree tree(content.m_records, root.value("uid").toString());
         for (const auto& record : tree) {
-            content.queue.append(record.value("uid").toString());
+            content.m_queue.append(record.value("uid").toString());
         }
     }
 

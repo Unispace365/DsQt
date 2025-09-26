@@ -1,7 +1,7 @@
 #include "model/dsQmlPlaylist.h"
+
 #include "core/dsEnvironment.h"
 #include "core/dsQmlApplicationEngine.h"
-#include "settings/dsQmlSettingsProxy.h"
 
 #include <QFileInfo>
 #include <QQmlContext>
@@ -117,9 +117,10 @@ void DsQmlPlaylist::updateNow() {
 
     // Use the event's playlist if available.
     if (m_event) {
-        const auto& model = m_event->model();
-        if (auto uid = model->getProperty<QString>(mode.value("eventKey").toString()); !uid.isEmpty())
+        const auto& record = m_event->record();
+        if (auto uid = record.value(mode.value("eventKey").toString()).toString(); !uid.isEmpty()) {
             playlistUid = uid;
+        }
     }
 
     auto model = model::ContentModel::find(playlistUid);
@@ -133,7 +134,7 @@ void DsQmlPlaylist::updateNow() {
         // Keep track of playlist.
         m_playlist_model = model;
 
-        if (!m_model) {
+        if (!m_model || !m_playlist_model) {
             // Start the playlist now.
             setIndex(0);
         } else {
@@ -142,9 +143,11 @@ void DsQmlPlaylist::updateNow() {
             for (qsizetype i = 0; i < children.size(); ++i) {
                 if (m_model == children.at(i)) {
                     m_playlist_index = i;
-                    break;
+                    return;
                 }
             }
+            // Not a child, so reset the playlist.
+            setIndex(0);
         }
     }
 }
@@ -190,6 +193,19 @@ void DsQmlPlaylist::setIndex(qsizetype index) {
 
         // Always restart timer.
         m_timer->start(m_interval);
+    } else {
+        if (!m_source.isEmpty()) {
+            m_source.clear();
+            emit sourceChanged();
+        }
+        if (m_component) {
+            m_component = nullptr;
+            emit componentChanged();
+        }
+        if (m_model) {
+            m_model = nullptr;
+            emit modelChanged();
+        }
     }
 }
 

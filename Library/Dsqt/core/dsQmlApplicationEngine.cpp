@@ -259,7 +259,12 @@ DsQmlIdle* DsQmlApplicationEngine::idle() const {
 }
 
 model::ContentModel* DsQmlApplicationEngine::bridge() const {
-    if (!mBridge) mBridge = model::ContentModel::createNamed("bridge");
+    // Should only be called from main thread! Use database() to obtain thread-safe data model.
+    bool isMainThread = QThread::currentThread() == QCoreApplication::instance()->thread();
+    Q_ASSERT(isMainThread);
+
+    // Create and return the content model.
+    if (!mBridge) mBridge = model::ContentModel::createNamed("Bridge");
     return mBridge;
 }
 

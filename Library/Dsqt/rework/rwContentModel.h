@@ -164,6 +164,26 @@ class ContentModel : public QQmlPropertyMap {
         return result;
     }
 
+    static void deleteNow(const QString& uid) {
+        auto&      lookup = ContentLookup::get();
+        const auto itr    = lookup.constFind(uid);
+        if (itr != lookup.constEnd()) {
+            itr.value()->deleteLater();
+            lookup.erase(itr);
+        }
+    }
+
+    static void deleteNow(const QStringList& uids) {
+        auto& lookup = ContentLookup::get();
+        for (const auto& uid : uids) {
+            const auto itr = lookup.constFind(uid);
+            if (itr != lookup.constEnd()) {
+                itr.value()->deleteLater();
+                lookup.erase(itr);
+            }
+        }
+    }
+
     // /**
     //  * @brief Links ContentModel instances based on their parent_uid properties.
     //  *
@@ -266,15 +286,12 @@ class ContentModel : public QQmlPropertyMap {
         return result;
     }
 
-    // Uses the lookup table.
+    // Does not use the lookup table.
     ContentModelList getChildren() const {
         ContentModelList result;
-        if (contains("child_uid")) {
-            const auto parents = value("child_uid").toStringList();
-            for (const auto& parent : parents) {
-                auto node = find(parent.trimmed());
-                if (node) result.append(node);
-            }
+        for (auto child : children()) {
+            auto model = dynamic_cast<ContentModel*>(child);
+            if (model) result.append(model);
         }
         return result;
     }

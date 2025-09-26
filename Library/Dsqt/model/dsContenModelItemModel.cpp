@@ -93,25 +93,11 @@ void DsContenModelItemModel::reload() {
 }
 
 std::unique_ptr<ContentModelItem> DsContenModelItemModel::updateModelData(const ContentModel* model) {
+    const auto name = model ? model->getName() : "[undefined]";
+
     auto item = new ContentModelItem();
     if (model) {
         item->m_model = model;
-        // item->m_itemData.insert("name", model->getName());
-        // item->m_itemData.insert("id", model->getId());
-
-        // const auto var = QVariant::fromValue(model);
-        // switch (var.typeId()) {
-        // case QMetaType::QStringList:
-        //     item->m_itemData.insert("model", var.toStringList().join(","));
-        // case QMetaType::QDateTime:
-        //     item->m_itemData.insert("model", var.toDateTime().toString("yyyy-MM-dd hh:mm:ss"));
-        // case QMetaType::QDate:
-        //     item->m_itemData.insert("model", var.toDate().toString("yyyy-MM-dd"));
-        // case QMetaType::QTime:
-        //     item->m_itemData.insert("model", var.toTime().toString("hh:mm:ss"));
-        // default:
-        //     item->m_itemData.insert("model", var);
-        // }
 
         const auto children = model->getChildren();
         for (auto child : children) {
@@ -125,32 +111,7 @@ std::unique_ptr<ContentModelItem> DsContenModelItemModel::updateModelData(const 
 }
 
 void DsContenModelItemModel::updateModelData() {
-    auto root = new ContentModelItem();
-    m_rootItem.reset(root);
-
-    const auto content = mEngine->bridge()->getProperty<QStringList>("content");
-    for (const auto& uid : content) {
-        auto node = updateModelData(model::ContentModel::find(uid));
-
-        node->m_parentItem = m_rootItem.get();
-        m_rootItem->m_childItems.push_back(std::move(node));
-    }
-
-    const auto events = mEngine->bridge()->getProperty<QStringList>("events");
-    for (const auto& uid : events) {
-        auto node = updateModelData(model::ContentModel::find(uid));
-
-        node->m_parentItem = m_rootItem.get();
-        m_rootItem->m_childItems.push_back(std::move(node));
-    }
-
-    const auto records = mEngine->bridge()->getProperty<QStringList>("records");
-    for (const auto& uid : records) {
-        auto node = updateModelData(model::ContentModel::find(uid));
-
-        node->m_parentItem = m_rootItem.get();
-        m_rootItem->m_childItems.push_back(std::move(node));
-    }
+    m_rootItem = updateModelData(mEngine->bridge());
 }
 
 ContentModelItem* ContentModelItem::parentItem() {

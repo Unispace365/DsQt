@@ -1,12 +1,9 @@
 #ifndef DSQMLAPPLICATIONENGINE_H
 #define DSQMLAPPLICATIONENGINE_H
 
+#include "bridge/dsBridgeDatabase.h"
 #include "core/dsQmlIdle.h"
 #include "core/dsQmlImguiItem.h"
-// #include "model/dsContentModel.h"
-// #include "model/dsIContentHelper.h"
-// #include "model/dsPropertyMapDiff.h"
-// #include "model/dsQmlContentModel.h"
 #include "rework/rwContentModel.h"
 #include "settings/dsSettings.h"
 
@@ -135,6 +132,13 @@ class DsQmlApplicationEngine : public QQmlApplicationEngine {
 
     void setBridge(model::ContentModel* bridge);
 
+    const bridge::DatabaseContent& database() const { return mDatabase; }
+
+    void setDatabase(bridge::DatabaseContent&& database) {
+        mDatabase = std::move(database);
+        emit databaseChanged();
+    }
+
   private:
     /**
      * @brief Performs pre-initialization tasks.
@@ -223,12 +227,14 @@ class DsQmlApplicationEngine : public QQmlApplicationEngine {
     /**
      * @brief Emitted when the idle manager changes.
      */
-    void idleChanged();    
+    void idleChanged();
 
     /**
      * @brief Emitted when the root content is updated.
      */
     void bridgeChanged();
+
+    void databaseChanged();
 
   protected:
     /// Static pointer to the default engine instance.
@@ -260,6 +266,9 @@ class DsQmlApplicationEngine : public QQmlApplicationEngine {
 
     /// Point to the content in Bridge CMS.
     mutable model::ContentModel* mBridge = nullptr;
+
+    ///
+    bridge::DatabaseContent mDatabase;
 };
 
 } // namespace dsqt
