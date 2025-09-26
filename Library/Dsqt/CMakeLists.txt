@@ -51,7 +51,7 @@ qt_add_qml_module(Dsqt
         core/dsQmlPathHelper.cpp core/dsQmlPathHelper.h
         core/dsQmlTextMeasurer.h
         core/dsReloadUrlInterceptor.h core/dsReloadUrlInterceptor.cpp
-        model/dsContenModelItemModel.h model/dsContenModelItemModel.cpp
+        model/dsContentModelItemModel.h model/dsContentModelItemModel.cpp
         model/dsQmlEventSchedule.cpp model/dsQmlEventSchedule.h
         model/dsQmlPlaylist.cpp model/dsQmlPlaylist.h
         model/dsQmlTextFileModel.cpp model/dsQmlTextFileModel.h

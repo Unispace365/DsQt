@@ -1,5 +1,5 @@
-#ifndef DSCONTENMODELITEMMODEL_H
-#define DSCONTENMODELITEMMODEL_H
+#ifndef DSCONTENTMODELITEMMODEL_H
+#define DSCONTENTMODELITEMMODEL_H
 
 #include "core/dsQmlApplicationEngine.h"
 #include "rework/rwContentModel.h"
@@ -20,13 +20,14 @@ struct ContentModelItem {
     ContentModelItem*                              m_parentItem = nullptr;
 };
 
-class DsContenModelItemModel : public QAbstractItemModel {
+class DsContentModelItemModel : public QAbstractItemModel {
     Q_OBJECT
     QML_NAMED_ELEMENT(DsContentModelItemModel);
     Q_PROPERTY(bool isDirty READ isDirty WRITE setIsDirty NOTIFY isDirtyChanged FINAL)
+
   public:
-    explicit DsContenModelItemModel(QObject* parent = nullptr);
-    ~DsContenModelItemModel() override = default;
+    explicit DsContentModelItemModel(QObject* parent = nullptr);
+    ~DsContentModelItemModel() override = default;
 
     // Implement required methods for QAbstractItemModel
     QModelIndex            index(int row, int column, const QModelIndex& parent = QModelIndex()) const override;
@@ -53,4 +54,4 @@ class DsContenModelItemModel : public QAbstractItemModel {
     bool                              m_isDirty;
 };
 } // namespace dsqt::model
-#endif // DSCONTENMODELITEMMODEL_H
+#endif // DSCONTENTMODELITEMMODEL_H

@@ -1,8 +1,8 @@
-#include "model/dsContenModelItemModel.h"
+#include "model/dsContentModelItemModel.h"
 
 namespace dsqt::model {
 
-DsContenModelItemModel::DsContenModelItemModel(QObject* parent)
+DsContentModelItemModel::DsContentModelItemModel(QObject* parent)
     : QAbstractItemModel{parent} {
     mEngine = DsQmlApplicationEngine::DefEngine();
     connect(mEngine, &DsQmlApplicationEngine::bridgeChanged, this, [this]() {
@@ -19,7 +19,7 @@ DsContenModelItemModel::DsContenModelItemModel(QObject* parent)
     updateModelData();
 }
 
-QModelIndex DsContenModelItemModel::index(int row, int column, const QModelIndex& parent) const {
+QModelIndex DsContentModelItemModel::index(int row, int column, const QModelIndex& parent) const {
     if (!hasIndex(row, column, parent)) {
         return QModelIndex();
     }
@@ -32,7 +32,7 @@ QModelIndex DsContenModelItemModel::index(int row, int column, const QModelIndex
     return {};
 }
 
-QModelIndex DsContenModelItemModel::parent(const QModelIndex& index) const {
+QModelIndex DsContentModelItemModel::parent(const QModelIndex& index) const {
     if (!index.isValid()) return {};
 
     auto*             childItem  = static_cast<ContentModelItem*>(index.internalPointer());
@@ -41,7 +41,7 @@ QModelIndex DsContenModelItemModel::parent(const QModelIndex& index) const {
     return parentItem != m_rootItem.get() ? createIndex(parentItem->row(), 0, parentItem) : QModelIndex{};
 }
 
-int DsContenModelItemModel::rowCount(const QModelIndex& parent) const {
+int DsContentModelItemModel::rowCount(const QModelIndex& parent) const {
     if (parent.column() > 0) return 0;
 
     const ContentModelItem* parentItem =
@@ -50,12 +50,12 @@ int DsContenModelItemModel::rowCount(const QModelIndex& parent) const {
     return parentItem->childCount();
 }
 
-int DsContenModelItemModel::columnCount(const QModelIndex& parent) const {
+int DsContentModelItemModel::columnCount(const QModelIndex& parent) const {
     if (parent.isValid()) return static_cast<ContentModelItem*>(parent.internalPointer())->columnCount();
     return m_rootItem->columnCount();
 }
 
-QVariant DsContenModelItemModel::data(const QModelIndex& index, int role) const {
+QVariant DsContentModelItemModel::data(const QModelIndex& index, int role) const {
     if (!index.isValid()) {
         return {};
     }
@@ -73,11 +73,11 @@ QVariant DsContenModelItemModel::data(const QModelIndex& index, int role) const 
     return item->data(role);
 }
 
-Qt::ItemFlags DsContenModelItemModel::flags(const QModelIndex& index) const {
+Qt::ItemFlags DsContentModelItemModel::flags(const QModelIndex& index) const {
     return index.isValid() ? QAbstractItemModel::flags(index) : Qt::ItemFlags(Qt::NoItemFlags);
 }
 
-QHash<int, QByteArray> DsContenModelItemModel::roleNames() const {
+QHash<int, QByteArray> DsContentModelItemModel::roleNames() const {
     return QHash<int, QByteArray>{
         {Qt::DisplayRole,  "display"     },
         {Qt::UserRole,     "id"          },
@@ -85,14 +85,14 @@ QHash<int, QByteArray> DsContenModelItemModel::roleNames() const {
     };
 }
 
-void DsContenModelItemModel::reload() {
+void DsContentModelItemModel::reload() {
     beginResetModel();
     updateModelData();
     endResetModel();
     setIsDirty(false);
 }
 
-std::unique_ptr<ContentModelItem> DsContenModelItemModel::updateModelData(const ContentModel* model) {
+std::unique_ptr<ContentModelItem> DsContentModelItemModel::updateModelData(const ContentModel* model) {
     const auto name = model ? model->getName() : "[undefined]";
 
     auto item = new ContentModelItem();
@@ -110,7 +110,7 @@ std::unique_ptr<ContentModelItem> DsContenModelItemModel::updateModelData(const 
     return std::unique_ptr<ContentModelItem>(item);
 }
 
-void DsContenModelItemModel::updateModelData() {
+void DsContentModelItemModel::updateModelData() {
     m_rootItem = updateModelData(mEngine->bridge());
 }
 
@@ -155,11 +155,11 @@ int ContentModelItem::row() const {
     return -1;
 }
 
-bool DsContenModelItemModel::isDirty() const {
+bool DsContentModelItemModel::isDirty() const {
     return m_isDirty;
 }
 
-void DsContenModelItemModel::setIsDirty(bool newIsDirty) {
+void DsContentModelItemModel::setIsDirty(bool newIsDirty) {
     if (m_isDirty == newIsDirty) return;
     m_isDirty = newIsDirty;
     emit isDirtyChanged();
