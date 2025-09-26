@@ -5,18 +5,8 @@ namespace dsqt::model {
 DsContentModelItemModel::DsContentModelItemModel(QObject* parent)
     : QAbstractItemModel{parent} {
     mEngine = DsQmlApplicationEngine::DefEngine();
-    connect(mEngine, &DsQmlApplicationEngine::bridgeChanged, this, [this]() {
-        if (m_rootItem) {
-            bool doReload = m_rootItem->childCount() == 0;
-            doReload      = doReload || m_rootItem->childCount() > 0 ? m_rootItem->child(0)->childCount() > 0 : false;
-            if (doReload) {
-                reload();
-                return;
-            }
-        }
-        setIsDirty(true);
-    });
-    updateModelData();
+    connect(mEngine, &DsQmlApplicationEngine::bridgeChanged, this, &DsContentModelItemModel::update);
+    update();
 }
 
 QModelIndex DsContentModelItemModel::index(int row, int column, const QModelIndex& parent) const {
@@ -86,32 +76,38 @@ QHash<int, QByteArray> DsContentModelItemModel::roleNames() const {
 }
 
 void DsContentModelItemModel::reload() {
-    beginResetModel();
-    updateModelData();
-    endResetModel();
+}
+
+std::shared_ptr<ContentModelItem> DsContentModelItemModel::createModelItem(const ContentModel* model,
+                                                                           ContentModelItem*   parentItem) {
+    return std::make_shared<ContentModelItem>(model, parentItem);
+}
+
+void DsContentModelItemModel::updateModelData(const ContentModel* model, std::shared_ptr<ContentModelItem> item,
+                                              const QModelIndex& index) {
+    if (!item || !model) {
+        qWarning() << "Invalid model or item in updateModelData";
+        return;
+    }
+
+    // Check if item is still valid.
+    Q_ASSERT(item->model());
+}
+
+void DsContentModelItemModel::update() {
+    if (!m_rootItem) {
+        beginResetModel();
+        m_rootItem = createModelItem(mEngine->bridge());
+        endResetModel();
+    } else {
+        updateModelData(mEngine->bridge(), m_rootItem, QModelIndex());
+    }
     setIsDirty(false);
 }
 
-std::unique_ptr<ContentModelItem> DsContentModelItemModel::updateModelData(const ContentModel* model) {
-    const auto name = model ? model->getName() : "[undefined]";
-
-    auto item = new ContentModelItem();
-    if (model) {
-        item->m_model = model;
-
-        const auto children = model->getChildren();
-        for (auto child : children) {
-            auto node = updateModelData(child);
-
-            node->m_parentItem = item;
-            item->m_childItems.push_back(std::move(node));
-        }
-    }
-    return std::unique_ptr<ContentModelItem>(item);
-}
-
-void DsContentModelItemModel::updateModelData() {
-    m_rootItem = updateModelData(mEngine->bridge());
+ContentModelItem::ContentModelItem(const ContentModel* ptr, ContentModelItem* parent) {
+    m_parentItem = parent;
+    reset(ptr);
 }
 
 ContentModelItem* ContentModelItem::parentItem() {
@@ -137,7 +133,7 @@ QVariant ContentModelItem::data(int role) const {
     case Qt::UserRole:
         return m_model->getId();
     case Qt::UserRole + 1:
-        return QVariant::fromValue(m_model);
+        return QVariant::fromValue(m_model.get());
     default:
         qDebug() << "Unhandled role:" << role;
         return {};
@@ -148,11 +144,28 @@ int ContentModelItem::row() const {
     if (m_parentItem == nullptr) return 0;
     const auto it =
         std::find_if(m_parentItem->m_childItems.cbegin(), m_parentItem->m_childItems.cend(),
-                     [this](const std::unique_ptr<ContentModelItem>& treeItem) { return treeItem.get() == this; });
+                     [this](const std::shared_ptr<ContentModelItem>& treeItem) { return treeItem.get() == this; });
 
     if (it != m_parentItem->m_childItems.cend()) return std::distance(m_parentItem->m_childItems.cbegin(), it);
     Q_ASSERT(false); // should not happen
     return -1;
+}
+
+bool ContentModelItem::reset(const ContentModel* ptr) {
+    if (m_model && m_model->isEqualTo(ptr)) return false;
+
+    m_model = ptr;
+    m_childItems.clear();
+
+    if (m_model) {
+        const auto children = m_model->getChildren();
+        for (auto child : children) {
+            auto node = std::make_shared<ContentModelItem>(child, this);
+            m_childItems.push_back(node);
+        }
+    }
+
+    return true;
 }
 
 bool DsContentModelItemModel::isDirty() const {

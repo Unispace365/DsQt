@@ -7,7 +7,14 @@
 
 namespace dsqt::model {
 
-struct ContentModelItem {
+class ContentModelItem {
+  public:
+    ContentModelItem() = default;
+    ContentModelItem(const ContentModel* ptr, ContentModelItem* parent = nullptr);
+
+    const ContentModel* model() const { return m_model.get(); }
+    const auto&         children() const { return m_childItems; }
+
     ContentModelItem* parentItem();
     ContentModelItem* child(int row);
     int               childCount() const;
@@ -15,9 +22,13 @@ struct ContentModelItem {
     QVariant          data(int role) const;
     int               row() const;
 
-    const ContentModel*                            m_model = nullptr;
-    std::vector<std::unique_ptr<ContentModelItem>> m_childItems;
+    bool reset(const ContentModel* ptr);
+    void replace(const std::vector<std::shared_ptr<ContentModelItem>>& children) { m_childItems = children; }
+
+  private:
+    QPointer<const ContentModel>                   m_model;
     ContentModelItem*                              m_parentItem = nullptr;
+    std::vector<std::shared_ptr<ContentModelItem>> m_childItems;
 };
 
 class DsContentModelItemModel : public QAbstractItemModel {
@@ -46,11 +57,13 @@ class DsContentModelItemModel : public QAbstractItemModel {
     void isDirtyChanged();
 
   private:
-    dsqt::DsQmlApplicationEngine*     mEngine = nullptr;
-    std::unique_ptr<ContentModelItem> updateModelData(const ContentModel* model);
-    void                              updateModelData();
+    void                              update();
+    std::shared_ptr<ContentModelItem> createModelItem(const ContentModel* model,
+                                                      ContentModelItem*   parentItem = nullptr);
+    void updateModelData(const ContentModel* model,  std::shared_ptr<ContentModelItem> parentItem, const QModelIndex& parentIndex);
 
-    std::unique_ptr<ContentModelItem> m_rootItem;
+    dsqt::DsQmlApplicationEngine*     mEngine = nullptr;
+    std::shared_ptr<ContentModelItem> m_rootItem;
     bool                              m_isDirty;
 };
 } // namespace dsqt::model

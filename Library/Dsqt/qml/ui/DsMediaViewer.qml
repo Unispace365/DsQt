@@ -15,7 +15,7 @@ Item {
     // The media resource, containing file path and crop information, among other things.
     property var media: undefined
     // The file path of the media as reported by the CMS.
-    readonly property string source: media ? media.filepath : ""
+    readonly property string source: media && media.filepath ? media.filepath : ""
     // Preferred fill mode.
     property int fillMode: Image.PreserveAspectCrop
     // Preferred loop mode.

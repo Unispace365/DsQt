@@ -356,7 +356,7 @@ class ContentModel : public QQmlPropertyMap {
      * @param other The other ContentModel to compare against.
      * @return True if the models are equal (excluding UID), false otherwise.
      */
-    bool isEqualTo(const ContentModel* other) const {
+    bool isEqualTo(const ContentModel* other, bool recursive = false) const {
         if (!other) return false;
         if (other == this) return true;
         if (size() != other->size()) return false;
@@ -372,7 +372,7 @@ class ContentModel : public QQmlPropertyMap {
             if (ptr) {
                 const auto theirs = qvariant_cast<ContentModel*>(other->value(key));
                 if (ptr == theirs) continue;
-                if (!ptr->isEqualTo(theirs)) return false;
+                if (!ptr->isEqualTo(theirs, recursive)) return false;
             } else if (val != other->value(key))
                 return false;
         }
