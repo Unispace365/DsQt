@@ -53,73 +53,27 @@ Item {
         }
     }
 
-    /*SequentialAnimation on x {
-        id: anim
-        property real initScale: 0.5;
-        loops: Animation.Infinite
-        NumberAnimation { to: sizer.width; duration: 10000 * anim.initScale; onStopped: { anim.initScale=1; }}
-        NumberAnimation { to: -sizer.width; duration: 10000 }
-        Component.onCompleted: {
-            anim.initScale = 1.0 - (x-(-sizer.width)/(sizer.width - (-sizer.width)));
-            console.log(anim.initScale)
-        }
-    }*/
-
-    // DSRadialMenu {
-    //     id: radialMenu
-    //     radius: 250
-    //     width: 500
-    //     height: 500
-    //     model: [
-    //         {
-    //             text: "Menu",
-    //             icon: "qrc:/res/data/waffles/icons/1x/Home_64.png",
-    //             action: function() {
-    //                 console.log("Menu clicked");
-    //             }
-    //         },
-    //         {
-    //             text: "Settings",
-    //             icon: "qrc:/icons/settings.svg",
-    //             action: function() {
-    //                 console.log("Settings clicked");
-    //             }
-    //         },
-    //         {
-    //             text: "what",
-    //             icon: "qrc:/icons/close.svg",
-    //             action: function() {
-    //                 console.log("Close clicked");
-    //             }
-    //         }
-    //     ]
-    //     delegate: DSRadialMenuIconItem {
-    //         text: modelData.text
-    //     }
-    //     DragHandler {
-    //         target: radialMenu
-    //     }
-    // }
-
-    /*MultiPointTouchArea {
-        id: touchArea
-        anchors.fill: parent
-        minimumTouchPoints: 5
-        maximumTouchPoints: 5
-        mouseEnabled: true
-        onPressed: {
-            console.log("onPressed")
-            //anim.running = true
-        }
-        onReleased: {
-            console.log("onReleased")
-            //anim.running = false
-        }
-    }*/
-
     DsSettingsProxy {
         id:appProxy
         target:"app_settings"
+    }
+
+    DsClock {
+        id: clock
+        // interval: 50
+        // speed: 1800
+        anchors.left: parent.left
+        anchors.leftMargin: 20
+        anchors.top: parent.top
+        anchors.topMargin: 20
+        width: 150
+        height: 150
+        secondHandColor: "#00000000"
+    }
+
+    DsEventSchedule {
+        id: contentEvents
+        clock: clock
     }
 
     DsClusterView {
@@ -141,6 +95,18 @@ Item {
         anchors.fill: parent
     }
 
+    Connections {
+        target: Ds.engine
+        function onRootUpdated() {
+            //let m = Ds.getEventsForSpan(new Date().toISOString(),new Date().toISOString());
+            //console.log("***----------->",m)
+            //console.log("root updated in qml")
+            //let ev = Ds.getEventsForSpan(new Date().toISOString(),new Date().toISOString())[0]
+            //if(playlist.model !== ev){
 
+                //playlist.model = ev
 
+            //}
+        }
+    }
 }

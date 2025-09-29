@@ -11,4 +11,25 @@ box = {r=0,g=0.56,b=0.78,a=1.0}
 box = {r=0,g=0.56,b=0.78,a=1.0}
 
 [platform]
-id = "CniWJvnMsq3d"
+id = "ERvvM9LW0GPB" #16:9 Platform ID
+
+[quickMenu]
+closeDelay = 7000 #miliseconds
+
+[playlist.templateMap]
+default = "qrc:/qt/qml/WhiteLabelWaffles/qml/templates/FullscreenTemplate.qml"
+15ZhnyA8lolv="qrc:/qt/qml/WhiteLabelWaffles/qml/templates/ParticleMessageTemplate.qml"
+dKcQBtZY2jZ1="qrc:/qt/qml/WhiteLabelWaffles/qml/templates/MessageTemplate.qml"
+z9P90ysGZv4V="qrc:/qt/qml/WhiteLabelWaffles/qml/templates/FullscreenTemplate.qml"
+uTt8HaFq871J="qrc:/qt/qml/WhiteLabelWaffles/qml/templates/AgendaTemplate.qml"
+lJTiZqezZIhl="qrc:/qt/qml/WhiteLabelWaffles/qml/templates/CustomLayoutTemplate.qml"
+
+[app]
+#set this to the Main Qml file you want to load
+mainView = "Main" #default main view type
+
+#the application can use this setting
+#to load a different starting view.
+#the intent is that this is set to a resonable default
+#in the main app_settings.toml and changed in overrides
+startView = "/qt/qml/WhiteLabelWaffles/qml/PlaylistPlayground.qml"

@@ -15,6 +15,14 @@ Item {
         color: "black"
     }
 
+    DsSettingsProxy {
+        id:appProxy
+        target:"app_settings"
+        Component.onCompleted: ()=>{
+            console.log(appProxy.getSize)
+        }
+    }
+
     /*Downstream {
         id:ds
         width: implicitWidth
@@ -39,9 +47,12 @@ Item {
         id:vds
         anchors.right: root.right
         anchors.bottom: root.bottom
-        source:Ds.env.expand("file:%APP%/data/images/2025_Downstream_Logo_white.svg")
+        source:DS.env.expand("file:%APP%/data/images/2025_Downstream_Logo_white.svg")
         fillMode: Image.PreserveAspectFit
        //preferredRendererType: VectorImage.CurveRenderer
+        Component.onCompleted: {
+            console.log("image")
+        }
 
     }
 
@@ -60,11 +71,14 @@ Item {
         anchors.fill: root
         viewer: DsTitledMediaViewer {
             id: viewer
+
             source:DS.env.expand("file:%APP%/data/images/landscape.jpeg")
+
+
             controls: [
                 DsControlSet {
                     id:controlRoot
-                    edge: DsWaffleStage.Edge.TopOuter
+                    edge: DsControlSet.Edge.TopOuter
                     height: close.height
                     //required property string contentModel
 
@@ -94,15 +108,99 @@ Item {
                                 target:viewer
                             }
                         }
+
+                        Button {
+                            id: close2
+                            Layout.preferredWidth: 32
+                            Layout.preferredHeight: 32
+                            Layout.alignment: Qt.AlignRight
+                            icon.source: "qrc:///res/data/waffles/icons/1x/Close_64.png"
+                            icon.width: 32
+                            icon.height: 32
+                            icon.color: "black"
+                            onPressed: {
+                                viewer.destroy();
+                            }
+
+                            DragHandler {
+                                target:viewer
+                            }
+                        }
                     }
                 }
 
             ]
         }
 
-        launcher: DsTestLauncher {
+        launcher: DsContentLauncher {
             stage: wStage
+            model: Ds.getRecordById(Ds.platform?.ambient_playlist)?.children ?? [{'record_name':"woot"},{'record_name':"none"}];
+            Component.onCompleted: {
+                //console.log("platform_id:"+DS.platform["uid"])
+            }
+            Connections {
+                target: Ds
+                function onPlatformChanged() {
+                    console.log("playlist:"+DS.platform?.ambient_playlist ?? "none")
+                }
+            }
         }
+    }
+
+    RowLayout {
+        anchors.centerIn: root
+
+        DsQuickMenu {
+            model: [
+                {iconText: "right",
+                iconWidth:32,
+                iconHeight:32,
+                iconPath:"qrc:/res/data/waffles/ui/Cards_256.png"}
+                ,{iconText: "left"},
+                {}
+            ]
+            Layout.alignment: Qt.AlignHCenter | Qt.AlignVCenter
+        }
+
+        DsQuickMenu {
+            model: [
+                {selected: false}
+                ,{selected: true}
+                ,{selected: false}
+                ,{selected: true}
+            ]
+            Layout.alignment: Qt.AlignHCenter | Qt.AlignVCenter
+        }
+
+        DsQuickMenu {
+            model: [
+                {selected: false}
+                ,{selected: false}
+                ,{selected: false}
+                ,{selected: true}
+                ,{selected: false}
+                ,{selected: false}
+                ,{selected: false}
+                ,{selected: false}
+                ,{selected: false}
+            ]
+            Layout.alignment: Qt.AlignHCenter | Qt.AlignVCenter
+        }
+
+        DsQuickMenu {
+            model: [
+                {selected: false}
+                ,{selected: true}
+                ,{selected: false}
+                ,{selected: true}
+                ,{selected: false}
+                ,{selected: false}
+                ,{selected: false}
+                ,{selected: false}
+            ]
+            Layout.alignment: Qt.AlignHCenter | Qt.AlignVCenter
+        }
+
     }
 
     Text {
