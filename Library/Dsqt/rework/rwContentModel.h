@@ -404,7 +404,7 @@ class ContentModel : public QQmlPropertyMap {
 
   private:
     void print(const QString& key, const QVariant& value) {
-        qDebug() << getName() << "changed" << key << "to" << value.toString();
+        //qDebug() << getName() << "changed" << key << "to" << value.toString();
     }
 
     /**
@@ -437,7 +437,7 @@ class ContentModel : public QQmlPropertyMap {
     ContentModel(const QVariantHash& props, QObject* parent = nullptr)
         : QQmlPropertyMap(this, parent) {
 #ifdef QT_DEBUG
-        connect(this, &ContentModel::valueChanged, this, &ContentModel::print);
+        //connect(this, &ContentModel::valueChanged, this, &ContentModel::print);
 #endif
         insert(props);
         if (!contains("uid")) throw std::runtime_error("UID must be specified");
@@ -446,7 +446,7 @@ class ContentModel : public QQmlPropertyMap {
         auto& lookup = ContentLookup::get();
         if (lookup.contains(uid)) throw std::runtime_error("UID must be unique");
 #ifdef QT_DEBUG
-        qDebug() << "Adding" << value("record_name");
+        //qDebug() << "Adding" << value("record_name");
 #endif
         lookup.insert(uid, this);
     }
@@ -457,7 +457,7 @@ class ContentModel : public QQmlPropertyMap {
      */
     ~ContentModel() {
 #ifdef QT_DEBUG
-        qDebug() << "Deleting" << value("record_name");
+        //qDebug() << "Deleting" << value("record_name");
 #endif
         auto& lookup = ContentLookup::get();
         lookup.remove(property("uid").toString());

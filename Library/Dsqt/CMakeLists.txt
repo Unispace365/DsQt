@@ -55,7 +55,7 @@ qt_add_qml_module(Dsqt
         model/dsQmlEventSchedule.cpp model/dsQmlEventSchedule.h
         model/dsQmlPlaylist.cpp model/dsQmlPlaylist.h
         model/dsQmlTextFileModel.cpp model/dsQmlTextFileModel.h
-		model/dsResource.cpp model/dsResource.h
+        model/dsResource.cpp model/dsResource.h
         model/qJsonModel.cpp model/qJsonModel.h
         network/dsNodeWatcher.cpp network/dsNodeWatcher.h
         settings/dsOverloaded.h
@@ -77,8 +77,7 @@ qt_add_qml_module(Dsqt
         utility/dsFileMetaData.cpp utility/dsFileMetaData.h
         utility/dsStringUtils.cpp utility/dsStringUtils.h
         utility/dsUrlImageLoader.cpp utility/dsUrlImageLoader.h
-        waffles.qrc
-        res/keyboard.qrc
+
         rework/rwContentModel.cpp rework/rwContentModel.h
         
     DEPENDENCIES
@@ -86,6 +85,7 @@ qt_add_qml_module(Dsqt
          Dsqtplugin
     RESOURCES
         res/keyboard.qrc
+        res/data.qrc
 )
 
 target_link_libraries(Dsqtplugin PRIVATE Qt6::Core Qt6::Multimedia Qt6::Quick Qt6::Pdf PUBLIC Qt6::WebEngineQuick)

@@ -2,6 +2,8 @@
 #include "core/dsEnvironment.h"
 
 #include <filesystem>
+#include <QUrl>
+#include <QFile>
 #include <qtimezone.h>
 #include <string>
 #include <toml++/toml.h>
@@ -22,6 +24,56 @@ DsSettings::DsSettings(std::string name, QObject* parent) : QObject(parent) {
 
 DsSettings::~DsSettings() {}
 
+
+bool DsSettings::loadSettingFileFromResource(const QString& file) {
+    return loadSettingFileFromResource(file.toStdString());
+}
+
+bool DsSettings::loadSettingFileFromResource(const std::string& file) {
+
+    QFile fileObj(QString::fromStdString(file));
+    if (!fileObj.exists()) {
+        qCWarning(lgSPVerbose) << "Resource file doesn't exist warning: Attempting to load resource file \"" << file
+                              << "\" but it does not exist";
+        return false;
+    }
+
+    auto		 clearItr	= mResultStack.end();
+    SettingFile* loadResult = nullptr;
+
+           //check if we loaded this path already
+    for (auto resultItr = mResultStack.begin(); resultItr != mResultStack.end(); ++resultItr) {
+        if (resultItr->filepath == file) {
+            qCWarning(lgSPVerbose) << "File already loaded warning: Updating already loaded file";
+            loadResult = &(*resultItr);
+        }
+    }
+
+           //if not push a new result on the stack
+    if (!loadResult) {
+        mResultStack.push_back(SettingFile());
+        loadResult = &mResultStack.back();
+    }
+
+           //either way fill the result with the new file.
+    loadResult->filepath = file;
+    loadResult->valid	 = false;
+
+
+
+    try {
+        fileObj.open(QIODevice::ReadOnly | QIODevice::Text);
+        auto text = fileObj.readAll().toStdString();
+        loadResult->data  = toml::parse(text);
+        loadResult->valid = true;
+    } catch (const toml::parse_error& e) {
+        qCWarning(lgSettingsParser) << "Failed to parse setting resource \"" << file.c_str() << "\n:" << e.what();
+        return false;
+    }
+
+    return true;
+}
+
 bool DsSettings::loadSettingFile(const std::string& file) {
 
     std::string fullFile = DsEnvironment::expand(file);
@@ -32,6 +84,8 @@ bool DsSettings::loadSettingFile(const std::string& file) {
 	}
 	auto		 clearItr	= mResultStack.end();
 	SettingFile* loadResult = nullptr;
+
+    //check if we loaded this path already
 	for (auto resultItr = mResultStack.begin(); resultItr != mResultStack.end(); ++resultItr) {
 		if (resultItr->filepath == fullFile) {
 			qCWarning(lgSPVerbose) << "File already loaded warning: Updating already loaded file";
@@ -39,18 +93,20 @@ bool DsSettings::loadSettingFile(const std::string& file) {
 		}
 	}
 
+    //if not push a new result on the stack
 	if (!loadResult) {
 		mResultStack.push_back(SettingFile());
 		loadResult = &mResultStack.back();
 	}
 
+    //either way fill the result with the new file.
 	loadResult->filepath = fullFile;
 	loadResult->valid	 = false;
 	try {
 		loadResult->data  = toml::parse_file(fullFile);
 		loadResult->valid = true;
 	} catch (const toml::parse_error& e) {
-		qCWarning(lgSettingsParser) << "Faild to parse setting file \"" << fullFile.c_str() << "\n:" << e.what();
+        qCWarning(lgSettingsParser) << "Failed to parse setting file \"" << fullFile.c_str() << "\n:" << e.what();
 		return false;
 	}
 
