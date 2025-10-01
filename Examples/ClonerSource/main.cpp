@@ -100,7 +100,7 @@ int main(int argc, char *argv[])
         Qt::QueuedConnection);
 
     auto mainQml = engine.getAppSettings()->getOr<QString>("app.mainView","Main");
-    engine.loadFromModule("WhiteLabelWaffles", mainQml);
+    engine.loadFromModule("ClonerSource", mainQml);
 
     auto retval = app.exec();
 

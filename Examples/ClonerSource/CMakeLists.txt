@@ -12,6 +12,7 @@ project(${DS_APP_NAME} VERSION 0.1 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_INSTALL_PREFIX "${CMAKE_BINARY_DIR}/DEPLOY/")
+set(QT_FORCE_CMP0156_TO_VALUE NEW)
 set(QT_QML_GENERATE_QMLLS_INI ON)
 set(DS_QT_DLLS_SUBDIR ON CACHE BOOL "Set to ON to copy the Qt dlls to a subdirectory of the install directory. Default is ON.")
 find_package(Qt6 6.9 REQUIRED COMPONENTS Core Quick QuickControls2 Multimedia Gui ShaderTools Concurrent Sql)
@@ -42,7 +43,7 @@ qt_add_executable(${DS_EXE_NAME}
     app.rc
 )
 
-target_link_libraries((${DS_EXE_NAME} PRIVATE Qt6::Quick)
+target_link_libraries(${DS_EXE_NAME} PRIVATE Qt6::Quick)
 qt_add_resources(${DS_EXE_NAME} "icon" FILES newds.ico)
 
 qt_add_qml_module(${DS_EXE_NAME}
@@ -50,27 +51,14 @@ qt_add_qml_module(${DS_EXE_NAME}
     VERSION 1.0
     QML_FILES
         Main.qml
-        qml/ContentItem.qml
+        qml/MainView.qml
         qml/CustomClock.qml
-        qml/Downstream.qml
-        qml/Gallery.qml
-        qml/Paul.qml
-        qml/Schedule.qml
-        qml/Sizer.qml
-        qml/Test.qml
+
     IMPORT_PATH "${CMAKE_BINARY_DIR}/Library"
     DEPENDENCIES
         Dsqt
         WafflesUx
         QtQuick
-        QML_FILES 
-            #qml/MediaViewerProxy.qml
-            #qml/templates/FullscreenTemplate.qml
-            qml/templates/Agenda.qml
-            qml/templates/FullScreenMedia.qml
-            QML_FILES Demo.qml
-            QML_FILES qml/demo/TitledMediaViewDemo.qml
-            QML_FILES qml/viewer/MediaViewer.qml
         #RESOURCES cmake/app.rc.in
 )
 

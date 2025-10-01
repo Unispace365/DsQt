@@ -3,7 +3,6 @@ import QtQuick.Controls
 import QtQuick.Shapes
 import QtQuick.VirtualKeyboard
 import Dsqt
-import WhiteLabelWaffles
 
 /// Sets up our window, menu bar and basic functionality.
 DsAppBase {
@@ -38,7 +37,7 @@ DsAppBase {
 
         Loader {
             id: main
-            source: "/qt/qml/WhiteLabelWaffles/qml/Paul.qml"
+            source: "/qt/qml/ClonerSource/qml/MainView.qml"
             anchors.fill: parent
         }
 

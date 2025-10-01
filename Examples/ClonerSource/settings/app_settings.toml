@@ -17,16 +17,17 @@ id = "ERvvM9LW0GPB" #16:9 Platform ID
 closeDelay = 7000 #miliseconds
 
 [playlist.templateMap]
-default = "qrc:/qt/qml/WhiteLabelWaffles/qml/templates/FullscreenTemplate.qml"
-15ZhnyA8lolv="qrc:/qt/qml/WhiteLabelWaffles/qml/templates/ParticleMessageTemplate.qml"
-dKcQBtZY2jZ1="qrc:/qt/qml/WhiteLabelWaffles/qml/templates/MessageTemplate.qml"
-z9P90ysGZv4V="qrc:/qt/qml/WhiteLabelWaffles/qml/templates/FullscreenTemplate.qml"
-uTt8HaFq871J="qrc:/qt/qml/WhiteLabelWaffles/qml/templates/AgendaTemplate.qml"
-lJTiZqezZIhl="qrc:/qt/qml/WhiteLabelWaffles/qml/templates/CustomLayoutTemplate.qml"
+default = "qrc:/qt/qml/ClonerSource/qml/templates/FullscreenTemplate.qml"
+15ZhnyA8lolv="qrc:/qt/qml/ClonerSource/qml/templates/ParticleMessageTemplate.qml"
+dKcQBtZY2jZ1="qrc:/qt/qml/ClonerSource/qml/templates/MessageTemplate.qml"
+z9P90ysGZv4V="qrc:/qt/qml/ClonerSource/qml/templates/FullscreenTemplate.qml"
+uTt8HaFq871J="qrc:/qt/qml/ClonerSource/qml/templates/AgendaTemplate.qml"
+lJTiZqezZIhl="qrc:/qt/qml/ClonerSource/qml/templates/CustomLayoutTemplate.qml"
 
 [app]
-#set this to the Main Qml file you want to load
+#set this to the main Qml file you want to load
 mainView = "Main" #default main view type
+#mainView = "Start" #the start qml view type. This uses the startView below
 
 #the application can use this setting
 #to load a different starting view.

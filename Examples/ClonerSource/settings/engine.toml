@@ -5,7 +5,7 @@
 #doing it bothways allows for a simpler settings file but also allows to give hints on
 #conversions or visualization metadata. 
 [engine]
-project_path=["waffles_dev",{type="string", test="", restart="full"}]
+project_path=["ClonerSource_dev",{type="string", test="", restart="full"}]
 #Seconds before idle happens. 300 = 5 minutes.
 idle_timeout=600
 #extra settings files that will be added to app_settings or engine as appropriate.
@@ -26,7 +26,7 @@ paths = [
   {path = "%APP%/qml/", recurse = true},
 ] #reload path to data
 prefixes = [
-  {from = "qrc:/qt/qml/WhiteLabelWaffles/", to = "file:///%APP%/"},
+  {from = "qrc:/qt/qml/ClonerSource/", to = "file:///%APP%/"},
   {from = "qrc:/qt/qml/Dsqt/", to = "file:///%ENV%(DS_QT_PLATFORM_100)/Library/Dsqt"},
 ]
 
