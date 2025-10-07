@@ -3,6 +3,7 @@ import QtQuick.Controls
 import QtQuick.Shapes
 import QtQuick.VirtualKeyboard
 import Dsqt
+import "qml"
 
 /// Sets up our window, menu bar and basic functionality.
 DsAppBase {
