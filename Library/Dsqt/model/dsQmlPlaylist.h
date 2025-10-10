@@ -2,7 +2,7 @@
 #define DSQMLPLAYLIST_H
 
 #include "model/dsQmlEventSchedule.h"
-#include "rework/rwContentModel.h"
+#include "model/dsContentModel.h"
 
 #include <QColor>
 #include <QDateTime>

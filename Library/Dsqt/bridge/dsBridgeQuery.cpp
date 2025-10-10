@@ -2,7 +2,7 @@
 #include "core/dsEnvironment.h"
 #include "model/dsResource.h"
 #include "network/dsNodeWatcher.h"
-#include "rework/rwContentModel.h"
+#include "model/dsContentModel.h"
 #include "settings/dsQmlSettingsProxy.h"
 #include "settings/dsSettings.h"
 

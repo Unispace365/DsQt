@@ -79,7 +79,7 @@ qt_add_qml_module(Dsqt
         utility/dsStringUtils.cpp utility/dsStringUtils.h
         utility/dsUrlImageLoader.cpp utility/dsUrlImageLoader.h
 
-        rework/rwContentModel.cpp rework/rwContentModel.h
+
         
     DEPENDENCIES
          QtQuick
@@ -87,6 +87,8 @@ qt_add_qml_module(Dsqt
     RESOURCES
         res/keyboard.qrc
         res/data.qrc
+        SOURCES model/dsContentModel.cpp
+        SOURCES model/dsContentModel.h
 )
 
 target_link_libraries(Dsqtplugin PRIVATE Qt6::Core Qt6::Multimedia Qt6::Quick Qt6::Pdf PUBLIC Qt6::WebEngineQuick)

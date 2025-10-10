@@ -2,7 +2,7 @@
 #define DSQMLEVENTSCHEDULE_H
 
 #include "bridge/dsBridgeDatabase.h"
-#include "rework/rwContentModel.h"
+#include "model/dsContentModel.h"
 #include "ui/dsQmlClock.h"
 
 #include <QColor>

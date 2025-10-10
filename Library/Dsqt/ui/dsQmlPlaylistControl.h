@@ -2,7 +2,7 @@
 #define DSQMLPLAYLISTCONTROL_H
 
 #include "core/dsQmlApplicationEngine.h"
-#include "rework/rwContentModel.h"
+#include "model/dsContentModel.h"
 #include <QQmlComponent>
 #include <QQuickItem>
 

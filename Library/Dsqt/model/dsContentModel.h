@@ -1,379 +1,472 @@
-#pragma once
+/**
+ * @file rwContentModel.h
+ * @brief Header file for the ContentModel and ContentLookup classes.
+ *
+ * This file defines the ContentModel class, which extends QQmlPropertyMap to manage content properties with unique
+ * identifiers, and the ContentLookup class, which provides thread-safe storage and retrieval of ContentModel
+ * instances.
+ */
 
-#ifndef DSCONTENTMODEL_H
-#define DSCONTENTMODEL_H
+#ifndef RWCONTENTMODEL_H
+#define RWCONTENTMODEL_H
 
-#include "model/dsReferenceMap.h"
-#include "model/dsResource.h"
-#include "model/qJsonModel.h"
+#include <QMutex>
+#include <QQmlPropertyMap>
+#include <QThread>
+#include <QUuid>
 
-#include <QColor>
-#include <QLoggingCategory>
-#include <QRect>
-#include <QSharedData>
-#include <QSharedDataPointer>
-#include <QUrl>
-
-#include <glm/glm.hpp>
-#include <map>
-#include <memory>
-#include <model/qjsonmodel.h>
-#include <string>
-#include <vector>
-
-Q_DECLARE_LOGGING_CATEGORY(lgContentModel)
-Q_DECLARE_LOGGING_CATEGORY(lgContentModelVerbose)
 namespace dsqt::model {
 
-class DsQmlContentModel;
-
-
-/**
- * \class ContentProperty
- * \brief A single property on a ContentModel.
- *		 For instance, this could be ContentProperty("longitude", 123.456); or ContentProperty("title", "The title
- *of this thing")
- */
-
-class ContentProperty {
-  public:
-    ContentProperty();
-    ContentProperty(const QString& name, const QString& value);
-    ContentProperty(const QString& name, const QString& value, int valueInt, double valueDouble);
-    ContentProperty(const ContentProperty& prop)
-        : mName(prop.mName)
-        , mValue(prop.mValue)
-        , mIntValue(prop.mIntValue)
-        , mDoubleValue(prop.mDoubleValue)
-        , mResource(prop.mResource) {};
-    ~ContentProperty() = default;
-
-    /// Get the name of this property
-    const QString& getName() const;
-    void           setName(const QString& name);
-
-    const QString& getValue() const;
-    void           setValue(const QString& value);
-    void           setValue(const std::wstring& value);
-    void           setValue(const int& value);
-    void           setValue(const double& value);
-    void           setValue(const float& value);
-    void           setValue(const QColor& value);
-    void           setValue(const QDate& value);
-    void           setValue(const QTime& value);
-    void           setValue(const QDateTime& value);
-    void           setValue(const glm::vec2& value);
-    void           setValue(const glm::vec3& value);
-    void           setValue(const glm::vec4& value);
-    void           setValue(const QRectF& value);
-    // todo: add qvector values as in settings
-
-    // im guesing we don't need to worry about
-    // resources as we'll rely on QML's system.
-    DsResource getResource() const;
-    void	 setResource(const dsqt::DsResource& resource);
-
-    // replace resources with urls
-    void setValue(const QUrl& value);
-
-    /// The name, value and resource are equal
-    bool operator==(const ContentProperty&) const;
-
-    bool empty() const;
-    /// ------- This value, type converted when called --------- //
-
-    bool   getBool() const;
-    int    getInt() const;
-    float  getFloat() const;
-    double getDouble() const;
-    QUrl   getUrl() const;
-
-    /// The Engine is supplied to look up named colors
-    QColor getColor() const;
-
-    /// Special date and time values.
-    QDate     getDate() const;
-    QTime     getTime() const;
-    QDateTime getDateTime() const;
-
-    const QString& getString() const; // same as getValue(), but supplied here for convenience
-    const QString& getQString() const;
-    // std::wstring       getWString() const;
-
-    glm::vec2 getVec2() const;
-    glm::vec3 getVec3() const;
-    QRectF    getRect() const;
-
-  protected:
-    QString                     mName;
-    QString                     mValue; // this should always be valid.
-    int                         mIntValue;
-    double                      mDoubleValue;
-    std::shared_ptr<DsResource> mResource;
-};
-
-class ContentModelRef;
-class Data : public QSharedData {
-  public:
-    Data();
-    Data(const Data& other);
-    ~Data();
-
-
-    QString                                                         mName;
-    QString                                                         mLabel;
-    void*                                                           mUserData;
-    QString                                                         mId;
-    std::map<QString, ContentProperty>                              mProperties;
-    std::map<QString, std::vector<ContentProperty>>                 mPropertyLists;
-    std::vector<ContentModelRef>                                    mChildren;
-    std::map<QString, std::unordered_map<QString, ContentModelRef>> mReferences;
-    QObject*                                                        mRefQObj;
-    bool                                                            mNotToQml;
-};
+class ContentModel;
+using ContentModelList = QList<ContentModel*>;
+using ContentModelHash = QHash<QString, ContentModel*>;
 
 /**
- * \class ContentModelRef
- * \brief A nodal hierarchy-based generic content model
- *		 Each ContentModelRef points to an underlying Data object by a shared pointer, so you can copy these
- *instances around freely Each ContentModelRef has:
- *			* A series of properties (e.g. Title, Body, ImageResource, Latitude, etc)
- *			* A series of children, all ContentModelRefs themselves, to build a hierarchy
- *			* A name, which can be used to look up models. Typically the name of a table from a database
- *			* A label, for identifying models to humans
- *			* An Id, which has no guarantee of uniqueness, that typically comes from a database, and can be used to
- *look up models
+ * @class ContentLookup
+ * @brief A thread-safe lookup table for managing ContentModel instances.
+ *
+ * This class provides static methods to retrieve and destroy ContentModel instances in a thread-safe way.
  */
-class ContentModelRef {
+class ContentLookup {
   public:
-    /// TODO: auto validation (e.g. exists, is a date, media meets certain qualifications, etc)
-    /// TODO: remove child
+    /**
+     * @brief Retrieves the lookup table for the current thread.
+     * @return Reference to the QHash mapping UIDs to ContentModel pointers for the current thread.
+     */
+    static ContentModelHash& get() { return get(QThread::currentThreadId()); }
 
-    ContentModelRef();
-    ContentModelRef(const ContentModelRef& other);
-    ContentModelRef& operator=(const ContentModelRef& other);
-    ContentModelRef(const QString& name, const QString& id = 0, const QString& label = "");
+    /**
+     * @brief Retrieves the lookup table for a specified thread ID.
+     * @param threadId The thread ID for which to retrieve the lookup table.
+     * @return Reference to the QHash mapping UIDs to ContentModel pointers for the specified thread.
+     */
+    static ContentModelHash& get(Qt::HANDLE threadId);
 
-    /// Enables doing `if (mModel) ...` to check if model is valid
-    operator bool() const { return !empty(); }
+    /**
+     * @brief Destroys all ContentModel instances for the current thread.
+     */
+    static void destroy() { destroy(QThread::currentThreadId()); }
 
-    /// Get the id for this item
-    const QString& getId() const;
-    void           setId(const QString& id);
-
-    /// Get the name of this item
-    /// Name is generally inherited by the table or thing this belongs to
-    /// This is used in the getChildByName()
-    const QString& getName() const;
-    void           setName(const QString& name);
-
-    /// Get the label for this item
-    /// This is a helpful name or display name for this thing
-    const QString& getLabel() const;
-    void           setLabel(const QString& label);
-
-    /// Get the user data pointer.
-    void* getUserData() const;
-    void  setUserData(void* userData);
-
-    /// If this item has no data, value, name, id, properties or children
-    bool empty() const;
-
-    /// Removes all data (children, properties, name, id, etc). After calling this, empty() will return true
-    void clear();
-
-    /// Makes a copy of this content.
-    /// This make a brand new ContentModelRef with a different underlying data object, so you can modify the two
-    /// independently
-    dsqt::model::ContentModelRef duplicate() const;
-
-    /// Tests if this ContentModelRef has the same Id, Name, Label and underlying data pointer
-    bool operator==(const ContentModelRef&) const;
-
-    bool weakEqual(const ContentModelRef& b) const;
-
-    bool equalChildrenAndReferences(const ContentModelRef&                            b,
-                                    std::vector<std::pair<const void*, const void*>>& alreadyChecked) const;
-
-    bool operator!=(const ContentModelRef&) const;
-
-    /// Use this for looking stuff up only. Recommend using the other functions to manage the list
-    const std::map<QString, ContentProperty>& getProperties() const;
-    void                                      setProperties(const std::map<QString, ContentProperty>& newProperties);
-    /// This can return an empty property, which is why it's const.
-    /// If you want to modify a property, use the setProperty() function
-
-    ContentProperty getProperty(const QString& propertyName) const;
-    QString         getPropertyValue(const QString& propertyName) const;
-    // QString		getPropertyValue(const QString& propertyName) const;
-
-    bool getPropertyBool(const QString& propertyName) const;
-    // bool			getPropertyBool(const QString& propertyName) const;
-
-    int    getPropertyInt(const QString& propertyName) const;
-    float  getPropertyFloat(const QString& propertyName) const;
-    double getPropertyDouble(const QString& propertyName) const;
-
-    /// The Engine is supplied to look up named colors
-    QColor getPropertyColor(const QString& propertyName) const;
-
-    /// Special date and time values.
-    QDateTime getPropertyDateTime(const QString& propertyNameDate, const QString& propertyNameTime) const;
-    QDate     getPropertyDate(const QString& propertyName) const;
-    QTime     getPropertyTime(const QString& propertyName) const;
-
-    QString getPropertyString(const QString& propertyName) const;
-    // QString	  getPropertyQString(const QString& propertyName) const;
-    glm::vec2  getPropertyVec2(const QString& propertyName) const;
-    glm::vec3  getPropertyVec3(const QString& propertyName) const;
-    glm::vec4  getPropertyVec4(const QString& propertyName) const;
-    QRectF     getPropertyRect(const QString& propertyName) const;
-    QUrl       getPropertyUrl(const QString& propertyName) const;
-    DsResource  getPropertyResource(const QString& propertyName) const;
-
-    /// Set the property with a given name
-    void setProperty(const QString& propertyName, ContentProperty& theProp);
-    void setProperty(const QString& propertyName, char* value);
-    void setProperty(const QString& propertyName, const QString& value);
-    void setProperty(const QString& propertyName, const int& value);
-    void setProperty(const QString& propertyName, const double& value);
-    void setProperty(const QString& propertyName, const float& value);
-    void setProperty(const QString& propertyName, const QColor& value);
-    void setProperty(const QString& propertyName, const QDate& value);
-    void setProperty(const QString& propertyName, const QTime& value);
-
-    void setProperty(const QString& propertyName, const glm::vec2& value);
-    void setProperty(const QString& propertyName, const glm::vec3& value);
-    void setProperty(const QString& propertyName, const glm::vec4& value);
-    void setProperty(const QString& propertyName, const QRectF& value);
-    void setProperty(const QString& propertyName, const QUrl& value);
-    void setPropertyResource(const QString& propertyName, const DsResource& resource);
-
-    /// property lists are stored separately from regular properties
-    const std::map<QString, std::vector<ContentProperty>>& getAllPropertyLists() const;
-    const std::vector<ContentProperty>&                    getPropertyList(const QString& propertyName) const;
-    std::vector<bool>                                      getPropertyListBool(const QString& propertyName) const;
-    std::vector<int>                                       getPropertyListInt(const QString& propertyName) const;
-    std::vector<float>                                     getPropertyListFloat(const QString& propertyName) const;
-    std::vector<double>                                    getPropertyListDouble(const QString& propertyName) const;
-    std::vector<QColor>                                    getPropertyListColor(const QString& propertyName) const;
-    // std::vector<ci::ColorA>                                    getPropertyListColorA(ds::ui::SpriteEngine&, const
-    // QString& propertyName) const;
-    std::vector<QString>   getPropertyListString(const QString& propertyName) const;
-    std::vector<QString>   getPropertyListQString(const QString& propertyName) const;
-    std::vector<glm::vec2> getPropertyListVec2(const QString& propertyName) const;
-    std::vector<glm::vec3> getPropertyListVec3(const QString& propertyName) const;
-    std::vector<QRectF>    getPropertyListRect(const QString& propertyName) const;
-
-    /// Returns the list as a delimiter-separated string
-    QString getPropertyListAsString(const QString& propertyName, const QString& delimiter = "; ") const;
-    QString getPropertyListAsQString(const QString& propertyName, const QString& delimiter = "; ") const;
-
-    /// Adds this to a property list
-    void addPropertyToList(const QString& propertyListName, const QString& value);
-
-    /// Replaces a property list
-    void setPropertyList(const QString& propertyListName, const std::vector<QString>& value);
-    void setPropertyList(const QString& propertyListName, const std::vector<ContentProperty>& value);
-
-    /// Clears the list for a specific property
-    void clearPropertyList(const QString& propertyName);
-
-    /// Gets all of the children
-    /// Don't modify the children here, use the other functions
-    const std::vector<ContentModelRef>& getChildren() const;
-
-    /// If no children exist, returns an empty data model
-    /// If index is greater than the size of the children, returns the last child
-    ContentModelRef getChild(const size_t index);
-
-    /// Get the first child that matches this id
-    /// If no children exist or match that id, returns an empty data model
-    ContentModelRef getChildById(const QString& id);
-
-    /// Get the first child that matches this name
-    /// Can get nested children using dot notation. for example:
-    /// getChildByName("the_stories.chapter_one.first_paragraph"); If no children exist or match that id, returns an
-    /// empty data model
-    ContentModelRef getChildByName(const QString& childName) const;
-
-    /// Looks through the entire tree to find a child that matches the name and id.
-    /// For instance, if you have a branched tree several levels deep and need to find a specific node.
-    /// Depends on children having a consistent name and unique id.
-    ContentModelRef getDescendant(const QString& childId) const;
-
-    /// Looks through all direct children, and returns all children that have a given label.
-    /// Useful for models that have children from more than one table
-    /// \note By default, labels are in the form "sql_table_name row"
-    std::vector<ContentModelRef> getChildrenWithLabel(const QString& label) const;
-
-    /// Get first direct decendant where 'propertyName' has a value of 'propertyValue'
-    /// Returns an empty model if no match is found
-    ContentModelRef findChildByPropertyValue(const QString& propertyName, const QString& propertyValue) const;
-
-    /// Adds this child to the end of this children list, or at the index supplied
-    void addChild(const ContentModelRef& datamodel);
-    void addChild(const ContentModelRef& datamodel, const size_t index);
-
-    /// If there's a direct descendant with the name, replaces it, adds it if it doesn't exist
-    void replaceChild(const dsqt::model::ContentModelRef& datamodel);
-
-    /// Is there a child with this name?
-    bool hasChild(const QString& name) const;
-    bool hasDirectChild(const QString& name) const;
-
-    /// Is there at least one child?
-    bool hasChildren() const;
-
-    /// Replaces all children
-    void setChildren(const std::vector<dsqt::model::ContentModelRef>& children);
-
-    /// Removes all children
-    void clearChildren();
-
-    /// Adds a reference map with the corresponding string name
-    void setReferences(const QString&                                             referenceName,
-                       std::unordered_map<QString, dsqt::model::ContentModelRef>& reference);
-
-    /// Gets a map of all the references for the given name. If you need to modify the map, make a copy and set it
-    /// again using setReference
-    const std::unordered_map<QString, dsqt::model::ContentModelRef>& getReferences(const QString& referenceName) const;
-
-    /// Returns a content model from a specific reference by the reference name and the node id
-    dsqt::model::ContentModelRef getReference(const QString& referenceName, const QString nodeId) const;
-
-    /// Clears the reference map at the specified name
-    void clearReferences(const QString& name);
-
-    /// Removes all references
-    void clearAllReferences();
-
-    /// Logs this, it's properties, and all it's children recursively
-    void printTree(const bool verbose, const QString& indent = "") const;
-
-    /// get a json model for this content model and its children;
-    QJsonModel* getModel(QObject* parent = nullptr);
-    /// break this content model from other copies. (copy on write behavior)
-    // void detach();
-    /// get a property map for this content model
-    DsQmlContentModel *getQml() const;
-    DsQmlContentModel* getQml(ReferenceMap* refMap, QObject* parent = nullptr, QString deep = "") const;
-    void             setNotToQml(bool toQml) {
-        createData();
-        mData->mNotToQml = toQml;
-    }
-    void     detach();
-    void     updateQml(DsQmlContentModel* map = nullptr);
-    QObject* getRefQObject();
-
+    /**
+     * @brief Destroys all ContentModel instances for a specified thread ID.
+     * @param threadId The thread ID for which to destroy the lookup table.
+     */
+    static void destroy(Qt::HANDLE threadId);
 
   private:
-    void                                            createData();
-    QJsonValue                                      getJson();
-    QExplicitlySharedDataPointer<dsqt::model::Data> mData;
-    static DsQmlContentModel*                         mEmptyQmlContentModel;
+    /// @brief Mutex for thread-safe access to the lookup table.
+    inline static QMutex s_mutex{};
+    /// @brief Lookup table mapping thread IDs to QHash of UIDs and ContentModel pointers.
+    inline static QHash<Qt::HANDLE, ContentModelHash> s_lookup{};
+};
+
+/**
+ * @class ContentModel
+ * @brief A property map for managing content with a unique identifier.
+ *
+ * This class extends QQmlPropertyMap to store content properties and provides methods
+ * for creating, finding, and linking instances, with automatic registration in the ContentLookup.
+ */
+class ContentModel : public QQmlPropertyMap {
+  public:
+    /**
+     * @brief Creates a new ContentModel with a generated UUID.
+     * @param parent The parent QObject, defaults to nullptr.
+     * @return Pointer to the created ContentModel instance.
+     */
+    static ContentModel* create(QObject* parent = nullptr) {
+        return create(QUuid::createUuid().toString(QUuid::Id128), parent);
+    }
+
+    /**
+     * @brief Creates a new ContentModel with a specified UID.
+     * @param uid The unique identifier for the model.
+     * @param parent The parent QObject, defaults to nullptr.
+     * @return Pointer to the created ContentModel instance.
+     */
+    static ContentModel* create(const QString& uid, QObject* parent = nullptr) { return new ContentModel(uid, parent); }
+
+    /**
+     * @brief Creates a new ContentModel with specified properties.
+     * @param props The initial properties to set on the model.
+     * @param parent The parent QObject, defaults to nullptr.
+     * @return Pointer to the created ContentModel instance.
+     */
+    static ContentModel* create(const QVariantHash& props, QObject* parent = nullptr) {
+        return new ContentModel(props, parent);
+    }
+
+    /**
+     * @brief Creates a new ContentModel with a name and generated UUID.
+     * @param name The name property to set on the model.
+     * @param parent The parent QObject, defaults to nullptr.
+     * @return Pointer to the created ContentModel instance.
+     */
+    static ContentModel* createNamed(const QString& name, QObject* parent = nullptr) {
+        QVariantHash props;
+        props.insert("uid", QUuid::createUuid().toString(QUuid::Id128));
+        props.insert("record_name", name);
+        return new ContentModel(props, parent);
+    }
+
+    /**
+     * @brief Creates a new ContentModel with a name and specified UID.
+     * @param name The name property to set on the model.
+     * @param uid The unique identifier for the model.
+     * @param parent The parent QObject, defaults to nullptr.
+     * @return Pointer to the created ContentModel instance.
+     */
+    static ContentModel* createNamed(const QString& name, const QString& uid, QObject* parent = nullptr) {
+        QVariantHash props;
+        props.insert("uid", uid);
+        props.insert("record_name", name);
+        return new ContentModel(props, parent);
+    }
+
+    /**
+     * @brief Creates or updates a ContentModel with specified properties.
+     * @param props The properties to set or update, including the UID.
+     */
+    static ContentModel* createOrUpdate(const QVariantHash& props) {
+        if (auto ptr = find(props["uid"].toString()); ptr) {
+            ptr->setProperties(props);
+            return ptr;
+        } else
+            return create(props);
+    }
+
+
+    /**
+     * @brief Finds a ContentModel by its UID in the current thread's lookup table.
+     * @param uid The unique identifier to search for.
+     * @return Pointer to the ContentModel if found, nullptr otherwise.
+     */
+    static ContentModel* find(const QString& uid) {
+        auto&      lookup = ContentLookup::get();
+        const auto itr    = lookup.constFind(uid);
+        return itr == lookup.constEnd() ? nullptr : itr.value();
+    }
+
+    /**
+     * @brief Finds multiple ContentModel instances by their UIDs.
+     * @param uids The list of unique identifiers to search for.
+     * @return QObjectList containing pointers to found ContentModel instances.
+     */
+    static ContentModelList find(const QStringList& uids) {
+        ContentModelList result;
+
+        auto& lookup = ContentLookup::get();
+        for (const auto& uid : uids) {
+            const auto itr = lookup.constFind(uid);
+            if (itr != lookup.constEnd()) result.append(itr.value());
+        }
+
+        return result;
+    }
+
+    static void deleteNow(const QString& uid) {
+        auto&      lookup = ContentLookup::get();
+        const auto itr    = lookup.constFind(uid);
+        if (itr != lookup.constEnd()) {
+            itr.value()->deleteLater();
+            lookup.erase(itr);
+        }
+    }
+
+    static void deleteNow(const QStringList& uids) {
+        auto& lookup = ContentLookup::get();
+        for (const auto& uid : uids) {
+            const auto itr = lookup.constFind(uid);
+            if (itr != lookup.constEnd()) {
+                itr.value()->deleteLater();
+                lookup.erase(itr);
+            }
+        }
+    }
+
+    // /**
+    //  * @brief Links ContentModel instances based on their parent_uid properties.
+    //  *
+    //  * Iterates through the lookup table and sets the parent of each model to the
+    //  * instance corresponding to its parent_uid, if found.
+    //  */
+    // static void linkUp() {
+    //     auto& lookup = ContentLookup::get();
+
+    //     for (const auto& [uid, record] : lookup.asKeyValueRange()) {
+    //         record->linkUpWithParent();
+    //     }
+
+    //     // Sort children by order.
+    //     for (const auto& [uid, record] : lookup.asKeyValueRange()) {
+    //         record->sortChildren();
+
+    //         // Populate "children" property, as a QObject or QQmlPropertyMap does not by default allow access.
+    //         ContentModelList list;
+    //         for (auto child : record->children()) {
+    //             if (auto ptr = dynamic_cast<ContentModel*>(child); ptr) list.append(ptr);
+    //         }
+    //         record->setProperty("children", QVariant::fromValue(list));
+    //     }
+    // }
+
+    // // Removes all records that are not listed in the provided keys.
+    // static void cleanUp(const QStringList& keys) {
+    //     auto& lookup = ContentLookup::get();
+    //     for (auto itr = lookup.begin(); itr != lookup.end(); ++itr) {
+    //         if (itr.key().length() > 12) continue; // Ignore records using Id128, as they are created externally.
+    //         if (!keys.contains(itr.key())) itr.value()->deleteLater();
+    //     }
+    // }
+
+    /**
+     * @brief Deleted default constructor to prevent direct instantiation, e.g. "ContentModel model;"
+     */
+    ContentModel(QObject* parent = nullptr) = delete;
+
+    QString getId() const { return property("uid").toString(); }
+
+    QString getName() const { return property("record_name").toString(); }
+
+    /**
+     * @brief Helper to retrieve a property value by key, cast to the specified type.
+     * @tparam T The type to cast the property value to.
+     * @param key The property key.
+     * @return The property value cast to type T.
+     */
+    template <typename T>
+    T getProperty(const char* key) const {
+        return property(key).value<T>();
+    }
+
+    /**
+     * @brief Helper to retrieve a property value by QString key, cast to the specified type.
+     * @tparam T The type to cast the property value to.
+     * @param key The property key.
+     * @return The property value cast to type T.
+     */
+    template <typename T>
+    T getProperty(const QString& key) const {
+        return value(key).value<T>();
+    }
+
+    /**
+     * @brief Helper to set a property value by key.
+     * @param key The property key.
+     * @param val The value to set.
+     */
+    void setProperty(const QString& key, const QVariant& val) {
+        bool isDifferent = value(key) != val;
+        insert(key, val); // Emits valueChanged signal.
+        if (isDifferent) emit valueChanged(key, val);
+    }
+
+    /**
+     * @brief Helper to set multiple properties from a QVariantHash.
+     * @param props The properties to set.
+     */
+    void setProperties(const QVariantHash& props) {
+        for (auto prop : props.asKeyValueRange()) {
+            bool isDifferent = value(prop.first) != prop.second;
+            insert(prop.first, prop.second); // Emits valueChanged signal.
+            if (isDifferent) emit valueChanged(prop.first, prop.second);
+        }
+    }
+
+    // Uses the lookup table.
+    ContentModelList getParents() const {
+        ContentModelList result;
+        if (contains("parent_uid")) {
+            const auto parents = value("parent_uid").toStringList();
+            for (const auto& parent : parents) {
+                auto node = find(parent.trimmed());
+                if (node) result.append(node);
+            }
+        }
+        return result;
+    }
+
+    // Does not use the lookup table.
+    ContentModelList getChildren() const {
+        ContentModelList result;
+        for (auto child : children()) {
+            auto model = dynamic_cast<ContentModel*>(child);
+            if (model) result.append(model);
+        }
+        return result;
+    }
+
+    // Does not use the lookup table.
+    ContentModel* getChild(qsizetype index) const {
+        for (auto child : children()) {
+            auto model = dynamic_cast<ContentModel*>(child);
+            if (model) {
+                if (!index) return model;
+                --index;
+            }
+        }
+        return nullptr;
+    }
+
+    // Does not use the lookup table.
+    ContentModel* getChildByName(QStringView name, const QString& prop = "record_name") const {
+        qsizetype idx = name.indexOf('.');
+        if (idx != -1) {
+            auto left  = name.left(idx);
+            auto right = name.right(idx);
+            auto model = getChildByName(left);
+            if (model) return model->getChildByName(right);
+        } else {
+            for (auto child : children()) {
+                auto model = dynamic_cast<ContentModel*>(child);
+                if (model && model->value(prop).toString() == name) return model;
+            }
+        }
+        return nullptr;
+    }
+
+    // Does not use the lookup table.
+    ContentModel* getChildByName(const char* name, const QString& prop = "record_name") const {
+        return getChildByName(QString(name), prop);
+    }
+
+    // Sorts children based on record order from database.
+    void sortChildren() {
+        std::stable_sort(d_ptr->children.begin(), d_ptr->children.end(), [](QObject* a, QObject* b) {
+            ContentModel* ptrA = dynamic_cast<ContentModel*>(a);
+            ContentModel* ptrB = dynamic_cast<ContentModel*>(b);
+            if (ptrA == ptrB || !ptrA || !ptrB) return false;
+            int rankA = ptrA->getProperty<int>("rank");
+            int rankB = ptrB->getProperty<int>("rank");
+            return rankA < rankB;
+        });
+        // Always add child uid to parent's list of childs.
+        QStringList children;
+        for (auto child : d_ptr->children) {
+            auto ptr = dynamic_cast<ContentModel*>(child);
+            if (ptr) {
+                children.append(ptr->getId());
+            }
+        }
+        setProperty("child_uid", children);
+    }
+
+    /**
+     * @brief Performs a deep comparison between this and another ContentModel.
+     * @param other The other ContentModel to compare against.
+     * @return True if the models are equal (excluding UID), false otherwise.
+     */
+    bool isEqualTo(const ContentModel* other, bool recursive = false) const {
+        if (!other) return false;
+        if (other == this) return true;
+        if (size() != other->size()) return false;
+
+        const auto names = keys();
+        if (names != other->keys()) return false; // Assumes sorted.
+
+        for (const auto& key : names) {
+            if (key == "uid") continue; // Skip uid, as it will always be different.
+
+            const auto val = value(key);
+            const auto ptr = qvariant_cast<ContentModel*>(val);
+            if (ptr) {
+                const auto theirs = qvariant_cast<ContentModel*>(other->value(key));
+                if (ptr == theirs) continue;
+                if (!ptr->isEqualTo(theirs, recursive)) return false;
+            } else if (val != other->value(key))
+                return false;
+        }
+
+        return true;
+    }
+
+    void linkUpWithParent() {
+        // Check if parent specified.
+        if (!contains("parent_uid")) {
+            setParent(nullptr);
+            return;
+        }
+
+        const auto uid         = getProperty<QString>("uid");
+        const auto parent_uids = getProperty<QStringList>("parent_uid");
+        for (const auto& parent_uid : parent_uids) {
+            auto parent = find(parent_uid);
+            if (parent) {
+                // Link records with a single parent to the parent node.
+                if (parent_uids.size() == 1) setParent(parent);
+                // // Always add child uid to parent's list of childs.
+                // auto childs = parent->value("child_uid").toStringList();
+                // if (!childs.contains(uid)) childs.append(uid);
+                // parent->insert("child_uid", childs);
+            }
+        }
+    }
+
+  private:
+    void print(const QString& key, const QVariant& value) {
+        //qDebug() << getName() << "changed" << key << "to" << value.toString();
+    }
+
+    /**
+     * @brief Private constructor for creating a model with a UID.
+     * @param uid The unique identifier for the model.
+     * @param parent The parent QObject, defaults to nullptr.
+     * @throws If the UID is empty or already exists in the lookup table.
+     */
+    ContentModel(const QString& uid, QObject* parent = nullptr)
+        : QQmlPropertyMap(this, parent) {
+#ifdef QT_DEBUG
+        connect(this, &ContentModel::valueChanged, this, &ContentModel::print);
+#endif
+        insert("uid", uid);
+        if (uid.isEmpty()) throw std::runtime_error("UID must be valid");
+        auto& lookup = ContentLookup::get();
+        if (lookup.contains(uid)) throw std::runtime_error("UID must be unique");
+#ifdef QT_DEBUG
+        qDebug() << "Adding" << value("record_name");
+#endif
+        lookup.insert(uid, this);
+    }
+
+    /**
+     * @brief Private constructor for creating a model with properties.
+     * @param props The initial properties to set.
+     * @param parent The parent QObject, defaults to nullptr.
+     * @throws If the UID is empty or already exists in the lookup table.
+     */
+    ContentModel(const QVariantHash& props, QObject* parent = nullptr)
+        : QQmlPropertyMap(this, parent) {
+#ifdef QT_DEBUG
+        //connect(this, &ContentModel::valueChanged, this, &ContentModel::print);
+#endif
+        insert(props);
+        if (!contains("uid")) throw std::runtime_error("UID must be specified");
+        QString uid = property("uid").toString();
+        if (uid.isEmpty()) throw std::runtime_error("UID must be valid");
+        auto& lookup = ContentLookup::get();
+        if (lookup.contains(uid)) throw std::runtime_error("UID must be unique");
+#ifdef QT_DEBUG
+        //qDebug() << "Adding" << value("record_name");
+#endif
+        lookup.insert(uid, this);
+    }
+
+    /**
+     * @brief Destructor that removes the instance from the lookup table. Private, because lifetime is entirely managed
+     * by the lookup table.
+     */
+    ~ContentModel() {
+#ifdef QT_DEBUG
+        //qDebug() << "Deleting" << value("record_name");
+#endif
+        auto& lookup = ContentLookup::get();
+        lookup.remove(property("uid").toString());
+    }
 };
 
 } // namespace dsqt::model
+
+// Make the content model available to standard stream operators
+std::ostream& operator<<(std::ostream& os, const dsqt::model::ContentModel* o);
 
 #endif
