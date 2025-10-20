@@ -8,7 +8,9 @@ DsViewer {
     property list<DsControlSet> controls
 
     property var model: null
+    readonly property var config: configObj
 
+    property DsWaffleStage stage: null
     //@brief this defines this objects default config.
     //the keys of theconfig map to the property of the TitledMediaViewers config object which is passed to controlSets.
     //that config object is filled with the values from your model. If you are using custom contolSets that
@@ -25,7 +27,7 @@ DsViewer {
 
 
     QtObject {
-        id: config
+        id: configObj
         property var media: model[root.modelConfig.media]
         property var title: model[root.modelConfig.title]
         property var subtitle: model[root.modelConfig.subtitle]
@@ -122,13 +124,13 @@ DsViewer {
     //type. We should make this explicit so the we can use VectorImage and Web element as well.
     Item {
         id: mediaView
-        width: childrenRect.width;
-        height: childrenRect.height;
+        width: root.viewerWidth;
+        height: root.viewerHeight
         property alias viewer: viewer
         DsMediaViewer {
             id: viewer
             anchors.fill: parent
-            media: root.source
+            media: root.config.media
             autoPlay: true
         }
     }
@@ -211,5 +213,30 @@ DsViewer {
 
     //this is a rudimentary
     DragHandler {}
+    Connections {
+        target: root.stage
+        function onHideControlsExcept(viewer) {
+            //set opacity of all controls to 0 if viewer !== root
+            if(viewer !== root) {
+                root.hideControls()
+            } else {
+                root.showControls()
+            }
+        }
+    }
+
+    function hideControls() {
+        for(var i=0; i <root.controls.length; i++){
+            let ctrl = root.controls[i];
+            ctrl.opacity = 0;
+        }
+    }
+
+    function showControls() {
+        for(var i=0; i <root.controls.length; i++){
+            let ctrl = root.controls[i];
+            ctrl.opacity = 1;
+        }
+    }
 
 }

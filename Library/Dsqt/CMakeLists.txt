@@ -1,3 +1,4 @@
+
 set(QML_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
 set(QML_BIN_ROOT "${CMAKE_BINARY_DIR}/Library")
 set(QML_IMPORT_PATH
@@ -55,7 +56,7 @@ qt_add_qml_module(Dsqt
         model/dsQmlEventSchedule.cpp model/dsQmlEventSchedule.h
         model/dsQmlPlaylist.cpp model/dsQmlPlaylist.h
         model/dsQmlTextFileModel.cpp model/dsQmlTextFileModel.h
-		model/dsResource.cpp model/dsResource.h
+        model/dsResource.cpp model/dsResource.h
         model/qJsonModel.cpp model/qJsonModel.h
         network/dsNodeWatcher.cpp network/dsNodeWatcher.h
         settings/dsOverloaded.h
@@ -77,15 +78,17 @@ qt_add_qml_module(Dsqt
         utility/dsFileMetaData.cpp utility/dsFileMetaData.h
         utility/dsStringUtils.cpp utility/dsStringUtils.h
         utility/dsUrlImageLoader.cpp utility/dsUrlImageLoader.h
-        waffles.qrc
-        res/keyboard.qrc
-        rework/rwContentModel.cpp rework/rwContentModel.h
+
+
         
     DEPENDENCIES
          QtQuick
          Dsqtplugin
     RESOURCES
         res/keyboard.qrc
+        res/data.qrc
+        SOURCES model/dsContentModel.cpp
+        SOURCES model/dsContentModel.h
 )
 
 target_link_libraries(Dsqtplugin PRIVATE Qt6::Core Qt6::Multimedia Qt6::Quick Qt6::Pdf PUBLIC Qt6::WebEngineQuick)

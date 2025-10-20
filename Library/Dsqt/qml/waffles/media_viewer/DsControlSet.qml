@@ -22,6 +22,7 @@ Item {
     property real offset
     property real horizontalOffset
     property real verticalOffset
+    property var signalObject: null
 
     signal closedViewer(viewer: var)
     signal pinContent()

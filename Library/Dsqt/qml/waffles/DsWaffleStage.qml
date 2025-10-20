@@ -63,14 +63,14 @@ Item {
             viewer.statusChanged.connect(()=>{completeViewer(viewerProps);})
     }
 
-    function completeViewer() {
-        if(launcher.status == Component.Ready) {
-            let viewerInstance = viewer.createObject(topLayer,{ "x": 30, "y": 30,"opacity":1});
+    function completeViewer(viewerProps: var) {
+        if(viewer.status == Component.Ready) {
+            let viewerInstance = viewer.createObject(topLayer,viewerProps);
             if(viewerInstance == null)
             {
                 console.log("Error creating viewer");
             }
-        } else if (launcher.status === Component.Error) {
+        } else if (viewer.status === Component.Error) {
             console.log("Error loading component:", viewer.errorString());
         }
     }
@@ -78,13 +78,26 @@ Item {
     function openViewer(viewerProps: var){
         createViewer(viewerProps);
     }
-    TapHandler {
 
+    signal hideControlsExcept(child:var)
+
+    TapHandler {
+        target: null
         onTapped: (point,button)=>{
             if(tapCount == 2){
                 _private.launcher.x = point.position.x
                 _private.launcher.y = point.position.y
             }
+            let inView = null;
+            for(let i=0;i<topLayer.children.length;i++){
+              let child = topLayer.children[i];
+              if(child.contains(child.mapFromGlobal(point.globalPosition))){
+                  inView = child;
+              }
+
+            }
+            wafflesRoot.hideControlsExcept(inView);
+
         }
     }
 }

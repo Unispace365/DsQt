@@ -6,7 +6,7 @@
 
 // Icon with lowest ID value placed first to ensure application icon
 // remains consistent on all systems.
-IDI_ICON                      ICON                    "newds.ico"
+ID                      ICON                    "newds.ico"
 
 VS_VERSION_INFO VERSIONINFO
  FILEVERSION @DS_APP_VERSION@

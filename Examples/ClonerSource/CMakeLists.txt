@@ -12,9 +12,10 @@ project(${DS_APP_NAME} VERSION 0.1 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_INSTALL_PREFIX "${CMAKE_BINARY_DIR}/DEPLOY/")
+set(QT_FORCE_CMP0156_TO_VALUE NEW)
 set(QT_QML_GENERATE_QMLLS_INI ON)
 set(DS_QT_DLLS_SUBDIR ON CACHE BOOL "Set to ON to copy the Qt dlls to a subdirectory of the install directory. Default is ON.")
-find_package(Qt6 6.9 REQUIRED COMPONENTS Quick Gui ShaderTools Core Sql)
+find_package(Qt6 6.9 REQUIRED COMPONENTS Core Quick QuickControls2 Multimedia Gui ShaderTools Concurrent Sql)
 qt_standard_project_setup(REQUIRES 6.9)
 
 
@@ -42,6 +43,7 @@ qt_add_executable(${DS_EXE_NAME}
     app.rc
 )
 
+target_link_libraries(${DS_EXE_NAME} PRIVATE Qt6::Quick)
 qt_add_resources(${DS_EXE_NAME} "icon" FILES newds.ico)
 
 qt_add_qml_module(${DS_EXE_NAME}
@@ -49,13 +51,14 @@ qt_add_qml_module(${DS_EXE_NAME}
     VERSION 1.0
     QML_FILES
         Main.qml
-        qml/Sizer.qml
-        qml/Gallery.qml
-        qml/Downstream.qml
+        qml/MainView.qml
+        qml/CustomClock.qml
+
+    IMPORT_PATH "${CMAKE_BINARY_DIR}/Library"
     DEPENDENCIES
         Dsqt
+        WafflesUx
         QtQuick
-        QML_FILES qml/MediaViewerProxy.qml
         #RESOURCES cmake/app.rc.in
 )
 
@@ -141,7 +144,24 @@ target_include_directories(${DS_EXE_NAME} PUBLIC ${tomlplusplus_SOURCE_DIR}/incl
 
 
 target_link_libraries(${DS_EXE_NAME}
-    PRIVATE Qt6::Quick Dsqt Dsqtplugin Dsqtplugin_init Dsqt_resources_1 Dsqt_resources_2 Dsqt_resources_3 glm Qt6::Sql Qt6::GuiPrivate Qt6::Gui Qt6::ShaderTools Qt6::ShaderToolsPrivate
+    PRIVATE 
+        Dsqt 
+        Dsqt_resources_1 
+        Dsqt_resources_2 
+        Dsqt_resources_3
+        Dsqtplugin
+        Dsqtplugin_init 
+        glm
+        Qt6::Concurrent 
+        Qt6::Core
+        Qt6::Gui 
+        Qt6::GuiPrivate 
+        Qt6::Multimedia 
+        Qt6::Quick
+        Qt6::QuickControls2
+        Qt6::ShaderTools
+        Qt6::ShaderToolsPrivate
+        Qt6::Sql
 )
 
 message("HEADERS ${Dsqt_INCLUDES}")

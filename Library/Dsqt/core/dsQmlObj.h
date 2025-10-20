@@ -7,7 +7,7 @@
 // #include "model/dsQmlContentModel.h"
 // #include "model/dsReferenceMap.h"
 #include "settings/dsQmlSettingsProxy.h"
-#include "rework/rwContentModel.h"
+#include "model/dsContentModel.h"
 
 #include <QDebug>
 #include <QObject>

@@ -103,10 +103,19 @@ template<> std::optional<ValueWMeta<QColor>> DsSettings::getWithMeta(const std::
                     }
 
     } else if (node.is_string()) {
-        std::string val = node.value_or<std::string>("");
-        if(QColor::isValidColorName(val)) {
-            resultcolor = QColor::fromString(val);
+        std::string strVal = node.value_or<std::string>("");
+        if(QColor::isValidColorName(strVal)) {
+            resultcolor = QColor::fromString(strVal);
         } else {
+            if(strVal !=""){
+                auto col = get<QColor>(strVal).value();
+                if(col.isValid()){
+                    resultcolor = col;
+                } else {
+                    qCWarning(lgSettingsParser)<<"Color string \""<<strVal.c_str()<<"\" is not a valid color name or hex value.";
+                    return std::optional<ValueWMeta<QColor>>();
+                }
+            }
             resultcolor.setRgbF(0,0,0,1.0f);
         }
     }

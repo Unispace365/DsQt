@@ -29,7 +29,7 @@ Item {
     focus: true
 
     // Handle key presses
-    Keys.onPressed: (event) => {
+    /*Keys.onPressed: (event) => {
                         if (event.key === Qt.Key_Shift) {
                             mouse.enabled = true
                             event.accepted = true
@@ -42,18 +42,51 @@ Item {
                              event.accepted = true
                          }
                      }
-
+    */
     // The wrapper for content, which is scaled and translated
     Item {
         id: contentWrapper
-        width: preferredWidth
-        height: preferredHeight
+        width: viewer.preferredWidth
+        height: viewer.preferredHeight
         transformOrigin: Item.TopLeft
-        scale: userScale
+        scale: viewer.userScale
     }
 
     // Mouse area for handling wheel, hover, and drag
+    WheelHandler {
+        acceptedModifiers:  Qt.ControlModifier | Qt.AltModifier
+        orientation: Qt.Horizontal | Qt.Vertical
+        onWheel: (wheel) => {
+                     // Determine zoom factor (adjust as needed for sensitivity)
+                     var factor = (wheel.angleDelta.y + wheel.angleDelta.x > 0) ? 1.1 : 1 / 1.1
+                     viewer.zoomAt(wheel.x, wheel.y, factor)
+                     wheel.accepted = true
+                 }
+    }
 
+    TapHandler {
+        acceptedButtons: Qt.RightButton
+        acceptedModifiers: Qt.ControlModifier | Qt.AltModifier
+        onTapped: (tap) => {
+                      viewer.fitToScreen()
+                      tap.accepted = true
+                  }
+    }
+
+    DragHandler {
+        acceptedButtons: Qt.LeftButton
+        acceptedModifiers: Qt.ControlModifier | Qt.AltModifier
+        target:contentWrapper
+        cursorShape: Qt.ClosedHandCursor
+    }
+
+    HoverHandler {
+        acceptedModifiers: Qt.ControlModifier | Qt.AltModifier
+        target:contentWrapper
+        cursorShape: Qt.OpenHandCursor
+    }
+
+       /*
     MouseArea {
         id: mouse
         anchors.fill: parent
@@ -95,6 +128,7 @@ Item {
                          wheel.accepted = true
                      }
                  }
+                 */
 
     // Function to zoom around a specific point (mouse position)
     function zoomAt(mx, my, factor) {

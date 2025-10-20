@@ -94,7 +94,7 @@ Window {
                     highlightResizeDuration: 0
 
                     highlight: Rectangle {
-                        anchors.fill: parent.currentItem
+                        anchors.fill: parent?.currentItem
                         color: system.highlight
                     }
 
@@ -186,7 +186,7 @@ Window {
                 SplitView.maximumHeight: sview.height
                 SplitView.minimumWidth: sview.width / 5
                 SplitView.maximumWidth: sview.width / 5 * 4
-                visible: listView.currentItem && listView.currentItem.isObj
+                visible: listView.currentItem && listView.currentItem?.isObj
 
                 // Media.
                 DsMediaViewer {
@@ -198,7 +198,7 @@ Window {
                     loops: MediaPlayer.Infinite
                     // visible: listView.currentItem && listView.currentItem.isObj
                     cropOverlay: true
-                    media: listView.currentItem.modelData.value
+                    media: listView.currentItem?.modelData.value
                 }
 
                 // // Info.

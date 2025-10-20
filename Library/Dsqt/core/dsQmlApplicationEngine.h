@@ -4,7 +4,7 @@
 #include "bridge/dsBridgeDatabase.h"
 #include "core/dsQmlIdle.h"
 #include "core/dsQmlImguiItem.h"
-#include "rework/rwContentModel.h"
+#include "model/dsContentModel.h"
 #include "settings/dsSettings.h"
 
 #include <QFileSystemWatcher>

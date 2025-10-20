@@ -132,6 +132,12 @@ class DsSettings : public QObject {
     /// or that no setting file existed (false)
 	static bool forgetSettings(const std::string& name);
 
+    /// load a setting file into this setting object from a qrc path
+    /// \param file the absolute qrc file name of a settings file to add to the object.
+    /// \return a bool the indecates the success
+    /// or failure of loading the file.
+    bool loadSettingFileFromResource(const std::string& file);
+    bool loadSettingFileFromResource(const QString& file);
 
 	/// load a setting file into this setting object.
     /// \param file the absolute file name of a settings file to add to the object.

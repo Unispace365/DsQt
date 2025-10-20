@@ -2,7 +2,7 @@
 #include "core/dsEnvironment.h"
 #include "model/dsResource.h"
 #include "network/dsNodeWatcher.h"
-#include "rework/rwContentModel.h"
+#include "model/dsContentModel.h"
 #include "settings/dsQmlSettingsProxy.h"
 #include "settings/dsSettings.h"
 
@@ -867,6 +867,8 @@ DatabaseContent DsBridgeSqlQuery::queryTables() {
             if (hasDate && !result.value("date").isNull()) datetime.setDate(result.value("date").toDate());
             if (hasTime && !result.value("time").isNull()) datetime.setTime(result.value("time").toTime());
             record.insertOrAssign(field_uid, datetime);
+        } else if (field_type == "COLOR") {
+            record.insertOrAssign(field_uid, result.value("color").toString());
         } else {
             qWarning() << "Invalid record type" << field_type;
         }

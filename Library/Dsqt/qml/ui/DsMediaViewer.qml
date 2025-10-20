@@ -15,7 +15,7 @@ Item {
     // The media resource, containing file path and crop information, among other things.
     property var media: undefined
     // The file path of the media as reported by the CMS.
-    readonly property string source: media ? media.filepath : ""
+    readonly property string source: media && media.filepath ? media.filepath : ""
     // Preferred fill mode.
     property int fillMode: Image.PreserveAspectCrop
     // Preferred loop mode.
@@ -82,17 +82,22 @@ Item {
     }
 
     function getComponentForContent() {
-        if(contentType === "video" || contentType === "video stream" ) {
+        let ctype = contentType.toLowerCase().trim();
+        if(!ctype){
+            ctype = media && media.type ? media.type : "";
+        }
+
+        if(ctype === "video" || ctype === "video stream" ) {
             return videoComponent;
-        } else if(contentType === "image") {
-            return imageComponent;
-        } else if(contentType === "image sequence") {
+        } else if(ctype === "image") {
+            return isCropped ? imageComponent : animatedImageComponent;
+        } else if(ctype === "image sequence") {
             return animatedImageComponent;
-        } else if(contentType === "vector" || contentType === "vector sequence") {
+        } else if(ctype === "vector" || ctype === "vector sequence") {
             return vectorComponent;
-        } else if(contentType === "web" || contentType === "youtube") {
+        } else if(ctype === "web" || ctype === "youtube") {
             return webViewComponent;
-        } else if(contentType === "pdf") {
+        } else if(ctype === "pdf") {
             return pdfViewComponent;
         } else {
             return getComponentForExtension();
