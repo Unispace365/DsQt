@@ -25,7 +25,7 @@ if(PROJECT_IS_TOP_LEVEL)
     endif()
 endif()
 
-find_package(Qt6 6.9 COMPONENTS Core Concurrent Quick Gui ShaderTools Sql REQUIRED COMPONENTS Test)
+find_package(Qt6 6.9 COMPONENTS Core Concurrent Quick Gui GuiPrivate ShaderTools Sql REQUIRED COMPONENTS Test)
 qt_standard_project_setup(REQUIRES 6.9)
 
 add_subdirectory("Dsqt")
