@@ -7,6 +7,7 @@
 #include <QStandardPaths>
 #include <QString>
 #include <qapplicationstatic.h>
+#include <mutex>
 
 Q_LOGGING_CATEGORY(lgEnv, "core.environment");
 Q_LOGGING_CATEGORY(lgEnvVerbose, "core.environment.verbose");
