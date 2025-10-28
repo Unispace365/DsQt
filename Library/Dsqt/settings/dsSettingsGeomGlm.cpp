@@ -5,7 +5,7 @@
 namespace dsqt {
 
 template <>
-std::optional<ValueWMeta<glm::vec4>> DsSettings::getWithMeta(const std::string& key) {
+MaybeVec4Meta DsSettings::getWithMeta(const std::string& key) {
 	qCDebug(lgSPVerbose) << "RUNNING glm::vec4";
 	auto val = getNodeViewWithMeta(key);
 	if (!val.has_value()) return {};
@@ -19,15 +19,14 @@ std::optional<ValueWMeta<glm::vec4>> DsSettings::getWithMeta(const std::string& 
 		auto v3 = nArray[2].value<double>();
 		auto v4 = nArray[3].value<double>();
 		if ((v1 && v2 && v3 && v4)) {
-			return std::optional<ValueWMeta<glm::vec4>>(
-				ValueWMeta<glm::vec4>(glm::vec4(v1.value(), v2.value(), v3.value(), v4.value()), meta, place));
+            return MaybeVec4Meta( {glm::vec4(v1.value(), v2.value(), v3.value(), v4.value()), meta, place} );
 		}
 	}
 	return {};
 }
 
 template <>
-std::optional<ValueWMeta<glm::vec3>> DsSettings::getWithMeta(const std::string& key) {
+MaybeVec3Meta DsSettings::getWithMeta(const std::string& key) {
 	qCDebug(lgSPVerbose) << "RUNNING glm::vec3";
 	auto val = getNodeViewWithMeta(key);
 	if (!val.has_value()) return {};
@@ -41,15 +40,14 @@ std::optional<ValueWMeta<glm::vec3>> DsSettings::getWithMeta(const std::string& 
 		auto v3 = nArray[2].value<double>();
 
 		if ((v1 && v2 && v3)) {
-			return std::optional<ValueWMeta<glm::vec3>>(
-				ValueWMeta<glm::vec3>(glm::vec3(v1.value(), v2.value(), v3.value()), meta, place));
+			return MaybeVec3Meta( {glm::vec3(v1.value(), v2.value(), v3.value()), meta, place} );
 		}
 	}
 	return {};
 }
 
 template <>
-std::optional<ValueWMeta<glm::vec2>> DsSettings::getWithMeta(const std::string& key) {
+MaybeVec2Meta DsSettings::getWithMeta(const std::string& key) {
 	qCDebug(lgSPVerbose) << "RUNNING glm::vec2";
 	auto val = getNodeViewWithMeta(key);
 	if (!val.has_value()) return {};
@@ -63,8 +61,7 @@ std::optional<ValueWMeta<glm::vec2>> DsSettings::getWithMeta(const std::string& 
 
 
 		if ((v1 && v2)) {
-			return std::optional<ValueWMeta<glm::vec2>>(
-				ValueWMeta<glm::vec2>(glm::vec2(v1.value(), v2.value()), meta, place));
+			return MaybeVec2Meta( {glm::vec2(v1.value(), v2.value()), meta, place} );
 		}
 	}
 	return {};
