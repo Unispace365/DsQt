@@ -18,15 +18,15 @@ template<> std::optional<ValueWMeta<toml_nv>> DsSettings::getWithMeta(const std:
     auto meta= m;
     auto place = p;
 
-    return std::optional<ValueWMeta<toml_nv>>(ValueWMeta<toml_nv>(node,meta,place));;
+    return std::optional<ValueWMeta<toml_nv>>(ValueWMeta<toml_nv>(node, meta, place));;
 
 }
 
-template<> std::optional<ValueWMeta<QVariantList>> DsSettings::getWithMeta(const std::string& key){
+template<> MaybeQVariantListMeta DsSettings::getWithMeta(const std::string& key){
     auto val = getNodeViewWithMeta(key);
     if(!val.has_value()){
         qDebug(lgSPVerbose)<<"Failed to find value at key "<<key.c_str();
-        return std::optional<ValueWMeta<QVariantList>>();
+        return MaybeQVariantListMeta();
     }
 
     auto [n,m,p] = val.value();
@@ -39,16 +39,16 @@ template<> std::optional<ValueWMeta<QVariantList>> DsSettings::getWithMeta(const
 
     auto outVal = tomlNodeViewToQVariant(node);
     if(outVal.canConvert<QVariantList>()){
-        return std::optional<ValueWMeta<QVariantList>>(ValueWMeta<QVariantList>(outVal.toList(),meta,place));
+        return MaybeQVariantListMeta( {outVal.toList(), meta, place} );
     }
-    return std::optional<ValueWMeta<QVariantList>>(ValueWMeta<QVariantList>(QVariantList(),meta,place));
+    return MaybeQVariantListMeta( {QVariantList(), meta, place} );
 }
 
-template<> std::optional<ValueWMeta<QVariantMap>> DsSettings::getWithMeta(const std::string& key){
+template<> MaybeQVariantMapMeta DsSettings::getWithMeta(const std::string& key){
     auto val = getNodeViewWithMeta(key);
     if(!val.has_value()){
         qDebug(lgSPVerbose)<<"Failed to find value at key "<<key.c_str();
-        return std::optional<ValueWMeta<QVariantMap>>();
+        return MaybeQVariantMapMeta();
     }
 
     auto [n,m,p] = val.value();
@@ -61,9 +61,9 @@ template<> std::optional<ValueWMeta<QVariantMap>> DsSettings::getWithMeta(const 
 
     auto outVal = tomlNodeViewToQVariant(node);
     if(outVal.canConvert<QVariantMap>()){
-        return std::optional<ValueWMeta<QVariantMap>>(ValueWMeta<QVariantMap>(outVal.toMap(),meta,place));
+        return MaybeQVariantMapMeta( {outVal.toMap(), meta, place} );
     }
-    return std::optional<ValueWMeta<QVariantMap>>(ValueWMeta<QVariantMap>(QVariantMap(),meta,place));
+    return MaybeQVariantMapMeta( {QVariantMap(), meta, place} );
 }
 
 }

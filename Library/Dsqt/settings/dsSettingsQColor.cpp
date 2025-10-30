@@ -30,11 +30,12 @@ std::unordered_map<std::string,std::function<void(QColor&,float,float,float,floa
 }}
 };
 
-template<> std::optional<ValueWMeta<QColor>> DsSettings::getWithMeta(const std::string& key){
+template<>
+MaybeQColorMeta DsSettings::getWithMeta(const std::string& key){
     auto val = getNodeViewWithMeta(key);
-    if(!val.has_value()) return std::optional<ValueWMeta<QColor>>();
+    if(!val.has_value()) return MaybeQColorMeta();
 
-    auto [node,meta,place] = val.value();
+    auto [node, meta, place] = val.value();
     QColor resultcolor;
 
     std::string elementType = "float";
@@ -113,13 +114,13 @@ template<> std::optional<ValueWMeta<QColor>> DsSettings::getWithMeta(const std::
                     resultcolor = col;
                 } else {
                     qCWarning(lgSettingsParser)<<"Color string \""<<strVal.c_str()<<"\" is not a valid color name or hex value.";
-                    return std::optional<ValueWMeta<QColor>>();
+                    return MaybeQColorMeta();
                 }
             }
             resultcolor.setRgbF(0,0,0,1.0f);
         }
     }
-    return std::optional<ValueWMeta<QColor>>({resultcolor,meta,place});
+    return MaybeQColorMeta( {resultcolor, meta, place} );
 
 }
 }

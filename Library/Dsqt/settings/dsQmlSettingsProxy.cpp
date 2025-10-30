@@ -77,7 +77,7 @@ QVariant DsQmlSettingsProxy::getDate(const QString& key, QVariant def) {
 	QVariant	result;
     std::string keyPath = _prefix_str + key.toStdString();
 	if (def.canConvert<QDateTime>()) {
-		result = _settings->getOr(keyPath, def.toString());
+		result = _settings->getOr(keyPath, def.toDateTime());
 	} else {
 		auto strOpt = _settings->get<QDateTime>(keyPath);
 		if (strOpt) {

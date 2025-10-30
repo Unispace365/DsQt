@@ -32,7 +32,7 @@ ArrayType getArrayTypeFromMeta(toml::table* metaData) {
 
 
 template <>
-std::optional<ValueWMeta<QVector4D>> DsSettings::getWithMeta(const std::string& key) {
+MaybeQVector4DMeta DsSettings::getWithMeta(const std::string& key) {
 	qCDebug(lgSPVerbose) << "RUNNING QVector4D";
 	auto val = getNodeViewWithMeta(key);
 	if (!val.has_value()) return {};
@@ -46,15 +46,14 @@ std::optional<ValueWMeta<QVector4D>> DsSettings::getWithMeta(const std::string& 
 		auto v3 = nArray[2].value<double>();
 		auto v4 = nArray[3].value<double>();
 		if (v1 && v2 && v3 && v4) {
-			return std::optional<ValueWMeta<QVector4D>>(
-				ValueWMeta<QVector4D>(QVector4D(v1.value(), v2.value(), v3.value(), v4.value()), meta, place));
+            return MaybeQVector4DMeta( {QVector4D(v1.value(), v2.value(), v3.value(), v4.value()), meta, place} );
 		}
 	}
 	return {};
 }
 
 template <>
-std::optional<ValueWMeta<QVector3D>> DsSettings::getWithMeta(const std::string& key) {
+MaybeQVector3DMeta DsSettings::getWithMeta(const std::string& key) {
 	qCDebug(lgSPVerbose) << "RUNNING QVector3D";
 	auto val = getNodeViewWithMeta(key);
 	if (!val.has_value()) return {};
@@ -68,15 +67,14 @@ std::optional<ValueWMeta<QVector3D>> DsSettings::getWithMeta(const std::string& 
 		auto v3 = nArray[2].value<double>();
 
 		if (v1 && v2 && v3) {
-			return std::optional<ValueWMeta<QVector3D>>(
-				ValueWMeta<QVector3D>(QVector3D(v1.value(), v2.value(), v3.value()), meta, place));
+			return MaybeQVector3DMeta( { QVector3D(v1.value(), v2.value(), v3.value()), meta, place} );
 		}
 	}
 	return {};
 }
 
 template <>
-std::optional<ValueWMeta<QVector2D>> DsSettings::getWithMeta(const std::string& key) {
+MaybeQVector2DMeta DsSettings::getWithMeta(const std::string& key) {
 	qCDebug(lgSPVerbose) << "RUNNING QVector2D";
 	auto val = getNodeViewWithMeta(key);
 	if (!val.has_value()) return {};
@@ -88,15 +86,14 @@ std::optional<ValueWMeta<QVector2D>> DsSettings::getWithMeta(const std::string& 
 		auto v2 = nArray[1].value<double>();
 
 		if (v1 && v2 ) {
-			return std::optional<ValueWMeta<QVector2D>>(
-				ValueWMeta<QVector2D>(QVector2D(v1.value(), v2.value()), meta, place));
+			return MaybeQVector2DMeta( { QVector2D(v1.value(), v2.value()), meta, place} );
 		}
 	}
 	return {};
 }
 
 template <>
-std::optional<ValueWMeta<QRectF>> DsSettings::getWithMeta(const std::string& key) {
+MaybeQRectFMeta DsSettings::getWithMeta(const std::string& key) {
 	qCDebug(lgSPVerbose) << "RUNNING QRectF";
 	auto val = getNodeViewWithMeta(key);
 	if (!val.has_value()) return {};
@@ -112,11 +109,9 @@ std::optional<ValueWMeta<QRectF>> DsSettings::getWithMeta(const std::string& key
 		auto v4 = nArray[3].value<double>();
 		if ((v1 && v2 && v3 && v4)) {
 			if (type == ArrayType::XYWH) {
-				return std::optional<ValueWMeta<QRectF>>(
-					ValueWMeta<QRectF>(QRectF(v1.value(), v2.value(), v3.value(), v4.value()), meta, place));
+				return MaybeQRectFMeta( {QRectF(v1.value(), v2.value(), v3.value(), v4.value()), meta, place} );
 			} else {
-				return std::optional<ValueWMeta<QRectF>>(
-					ValueWMeta<QRectF>(QRectF(QPointF(v1.value(), v2.value()), QPointF(v3.value(), v4.value())), meta, place));
+				return MaybeQRectFMeta( {QRectF(QPointF(v1.value(), v2.value()), QPointF(v3.value(), v4.value())), meta, place} );
 			}
 		}
 	} else if (node.is_table()) {
@@ -124,29 +119,27 @@ std::optional<ValueWMeta<QRectF>> DsSettings::getWithMeta(const std::string& key
 		auto x								   = _x.value_or(0.0);
 		auto y								   = _y.value_or(0.0);
 		if (w && h) {
-			return std::optional<ValueWMeta<QRectF>>(
-				ValueWMeta<QRectF>(QRectF(x, y, w.value_or(0.0f), h.value_or(0.0f)), meta, place));
+			return MaybeQRectFMeta( {QRectF(x, y, w.value_or(0.0f), h.value_or(0.0f)), meta, place} );
 		} else if (x2 && y2) {
-			return std::optional<ValueWMeta<QRectF>>(ValueWMeta<QRectF>(
-				QRectF(QPointF(x1.value_or(x), y1.value_or(y)), QPointF(x2.value_or(0.0f), y2.value_or(0.0f))), meta, place));
+			return MaybeQRectFMeta( {QRectF(QPointF(x1.value_or(x), y1.value_or(y)), QPointF(x2.value_or(0.0f), y2.value_or(0.0f))), meta, place} );
 		}
 	}
 	return {};
 }
 
 template <>
-std::optional<ValueWMeta<QRect>> DsSettings::getWithMeta(const std::string& key) {
+MaybeQRectMeta DsSettings::getWithMeta(const std::string& key) {
 	qCDebug(lgSPVerbose) << "RUNNING QRect";
-	auto val = getWithMeta<QRectF>(key);
-	if (!val.has_value()) return {};
+    MaybeQRectFMeta val = getWithMeta<QRectF>(key);
+    if (!val.has_value()) return {};
 	auto [node, meta, place] = val.value();
 
 	QRect outVal(node.x(), node.y(),node.width(),node.height());
-	return std::optional<ValueWMeta<QRect>>(ValueWMeta<QRect>(outVal, meta, place));
+	return MaybeQRectMeta( {outVal, meta, place} );
 }
 
 template <>
-std::optional<ValueWMeta<QPointF>> DsSettings::getWithMeta(const std::string& key) {
+MaybeQPointFMeta DsSettings::getWithMeta(const std::string& key) {
 	qCDebug(lgSPVerbose) << "RUNNING QPointF";
 	auto val = getNodeViewWithMeta(key);
 	if (!val.has_value()) return {};
@@ -159,56 +152,53 @@ std::optional<ValueWMeta<QPointF>> DsSettings::getWithMeta(const std::string& ke
 		auto v2 = nArray[1].value<double>();
 		if ((v1 && v2)) {
 
-			return std::optional<ValueWMeta<QPointF>>(ValueWMeta<QPointF>(QPointF(v1.value(), v2.value()), meta, place));
+			return MaybeQPointFMeta( {QPointF(v1.value(), v2.value()), meta, place} );
 		}
 	} else if (node.is_table()) {
 		auto [x, y, z, w, h, x1, y1, x2, y2] = getGeomElementsFromTable(node);
 
 		if (x && y) {
-			return std::optional<ValueWMeta<QPointF>>(
-				ValueWMeta<QPointF>(QPointF(x.value_or(0.0), y.value_or(0.0)), meta, place));
+			return MaybeQPointFMeta( {QPointF(x.value_or(0.0), y.value_or(0.0)), meta, place} );
 		} else if (x1 && y1) {
-			return std::optional<ValueWMeta<QPointF>>(
-				ValueWMeta<QPointF>(QPointF(x1.value_or(0.0), y1.value_or(0.0)), meta, place));
+			return MaybeQPointFMeta( {QPointF(x1.value_or(0.0), y1.value_or(0.0)), meta, place} );
 		} else if (w && h) {
-			return std::optional<ValueWMeta<QPointF>>(
-				ValueWMeta<QPointF>(QPointF(w.value_or(0.0), h.value_or(0.0)), meta, place));
+			return MaybeQPointFMeta( {QPointF(w.value_or(0.0), h.value_or(0.0)), meta, place} );
 		}
 	}
 	return {};
 }
 
 template <>
-std::optional<ValueWMeta<QPoint>> DsSettings::getWithMeta(const std::string& key) {
+MaybeQPointMeta DsSettings::getWithMeta(const std::string& key) {
 	qCDebug(lgSPVerbose) << "RUNNING QPoint";
-	auto val = getWithMeta<QPointF>(key);
+    MaybeQPointFMeta val = getWithMeta<QPointF>(key);
 	if (!val.has_value()) return {};
 	auto [node, meta, place] = val.value();
 
 	QPoint outVal(node.x(), node.y());
-	return std::optional<ValueWMeta<QPoint>>(ValueWMeta<QPoint>(outVal, meta, place));
+	return MaybeQPointMeta( {outVal, meta, place} );
 }
 
 template <>
-std::optional<ValueWMeta<QSizeF>> DsSettings::getWithMeta(const std::string& key) {
+MaybeQSizeFMeta DsSettings::getWithMeta(const std::string& key) {
 	qCDebug(lgSPVerbose) << "RUNNING QSizeF";
-	auto val = getWithMeta<QPointF>(key);
+    MaybeQPointFMeta val = getWithMeta<QPointF>(key);
 	if (!val.has_value()) return {};
 	auto [node, meta, place] = val.value();
 
 	QSizeF outVal(node.x(), node.y());
-	return std::optional<ValueWMeta<QSizeF>>(ValueWMeta<QSizeF>(outVal, meta, place));
+	return MaybeQSizeFMeta({outVal, meta, place} );
 }
 
 template <>
-std::optional<ValueWMeta<QSize>> DsSettings::getWithMeta(const std::string& key) {
+MaybeQSizeMeta DsSettings::getWithMeta(const std::string& key) {
 	qCDebug(lgSPVerbose) << "RUNNING QSize";
 	auto val = getWithMeta<QPointF>(key);
 	if (!val.has_value()) return {};
 	auto [node, meta, place] = val.value();
 
 	QSize outVal(node.x(), node.y());
-	return std::optional<ValueWMeta<QSize>>(ValueWMeta<QSize>(outVal, meta, place));
+	return MaybeQSizeMeta({outVal, meta, place} );
 }
 
 }  // namespace dsqt

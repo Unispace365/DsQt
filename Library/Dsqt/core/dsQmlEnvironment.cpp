@@ -1,5 +1,5 @@
 #include "core/dsQmlEnvironment.h"
-#include "core/DsQmlApplicationEngine.h"
+#include "core/dsQmlApplicationEngine.h"
 #include "core/dsEnvironment.h"
 
 namespace dsqt {

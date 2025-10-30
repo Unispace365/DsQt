@@ -32,15 +32,27 @@ Documentation is compiled by Doxygen and can be found here:
 2. Go to <https://www.qt.io/download-qt-installer-oss> and download Qt for x64
 3. Run the online installer.
 4. You don't need to install everything. In fact I'd strongly recommend against it. But also it's hard to know what your going to need. I think the following are the important ones:
-    * Qt->Qt 6.9.0->MSVC 2022 64-bit
-    * Qt->Qt 6.9.0->Additional Libraries->
-        * Qt Multimedia
-        * Qt Image Formats
-        * Qt Language Server
-        * Qt Virtual Keyboard
-        * Qt Quick 3d
-        * Qt Quick Effect Maker
-        * (Everything else you can get just to be safe)
+
+    * Extensions:
+        * Qt PDF:
+            * Qt 6.9.3:
+                * MSVC 2022 x64
+        * Qt WebEngine:
+            * Qt 6.9.3:
+                * MSVC 2022 x64
+    * Qt:
+        * Qt 6.9.3:
+            * MSVC 2022 64-bit
+            * Additional Libraries:
+                * Qt Multimedia
+                * Qt Image Formats
+                * Qt Language Server
+                * Qt Positioning
+                * Qt Virtual Keyboard
+                * Qt Quick 3d
+                * Qt Quick Effect Maker
+                * Qt WebChannel
+                * (Everything else you can get just to be safe)
     * Qt Creator (check all boxes)
 5. Depending on what you selected this can take a while to download (hours sometimes).
 

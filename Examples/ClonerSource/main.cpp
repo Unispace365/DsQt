@@ -8,6 +8,7 @@
 #include <QQmlApplicationEngine>
 #include <QQuickStyle>
 #include <QtWebEngineQuick>
+#include <QIcon>
 #include <dsBridgeQuery.h>
 #include <dsEnvironment.h>
 #include <dsGuiApplication.h>
