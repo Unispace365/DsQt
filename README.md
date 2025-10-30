@@ -47,9 +47,11 @@ Documentation is compiled by Doxygen and can be found here:
                 * Qt Multimedia
                 * Qt Image Formats
                 * Qt Language Server
+                * Qt Positioning
                 * Qt Virtual Keyboard
                 * Qt Quick 3d
                 * Qt Quick Effect Maker
+                * Qt WebChannel
                 * (Everything else you can get just to be safe)
     * Qt Creator (check all boxes)
 5. Depending on what you selected this can take a while to download (hours sometimes).
