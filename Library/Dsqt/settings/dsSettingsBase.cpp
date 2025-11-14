@@ -149,7 +149,7 @@ template<> MaybeFloatMeta DsSettings::getWithMeta(const std::string& key){
     if(node.is_floating_point()){
         return MaybeFloatMeta( {static_cast<float>(node.ref<double>()), meta, place} );
     } else if(node.is_integer()){
-        return MaybeFloatMeta( {static_cast<float>(node.ref<double>()), meta, place} );
+        return MaybeFloatMeta( {static_cast<float>(node.ref<int64_t>()), meta, place} );
     } else if(node.is_string()) {
         double double_val;
         try {

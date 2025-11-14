@@ -93,12 +93,12 @@ template<> MaybeQTimeMeta DsSettings::getWithMeta(const std::string& key){
 
 }
 
-template<> MaybeQDateTime DsSettings::getWithMeta(const std::string& key){
+template<> MaybeQDateTimeMeta DsSettings::getWithMeta(const std::string& key){
 
     auto val = getNodeViewWithMeta(key);
     if(!val.has_value()){
         qDebug(lgSPVerbose)<<"Failed to find value at key "<<key.c_str();
-        return MaybeQDateTime();
+        return MaybeQDateTimeMeta();
     }
 
     auto [n,m,p] = val.value();
@@ -130,7 +130,7 @@ template<> MaybeQDateTime DsSettings::getWithMeta(const std::string& key){
         }
     }
 
-    return MaybeQDateTime( {retval, meta, place} );
+    return MaybeQDateTimeMeta( {retval, meta, place} );
 
 }
 

@@ -289,9 +289,9 @@ class DsSettings : public QObject {
     template<> std::optional<ValueWMeta<QString>>                getWithMeta(const std::string& key);
 
     // Collections
-    template<> std::optional<ValueWMeta<toml::node>>             getWithMeta(const std::string& key);
-    template<> std::optional<ValueWMeta<QVector<QVariant>>>      getWithMeta(const std::string& key);
-    template<> std::optional<ValueWMeta<QQVariantMap>>>          getWithMeta(const std::string& key);
+    template<> std::optional<ValueWMeta<toml::node_view<...>>>   getWithMeta(const std::string& key);
+    template<> std::optional<ValueWMeta<QVariantList>>           getWithMeta(const std::string& key);
+    template<> std::optional<ValueWMeta<QVariantMap>>            getWithMeta(const std::string& key);
 
     //QColor
     template<> std::optional<ValueWMeta<QColor>>                 getWithMeta(const std::string& key);
