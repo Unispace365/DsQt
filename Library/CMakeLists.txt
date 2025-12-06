@@ -92,9 +92,6 @@ PRIVATE Qt6::Quick Qt6::Core Qt6::Concurrent Qt6::Gui Qt6::ShaderTools Qt6::GuiP
 target_include_directories(Dsqt PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} ${imgui_base})
 
 cmake_path(NATIVE_PATH CMAKE_CURRENT_SOURCE_DIR DS_QMLLINT_ROOT)
-#configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake/.qmllint.in.ini ${CMAKE_SOURCE_DIR}/.qmllintx.ini)
-#configure_file(${CMAKE_SOURCE_DIR}/cmake/FindDsqt.in.cmake ${CMAKE_SOURCE_DIR}/cmake/FindDsqt.cmake @ONLY)
-#export(TARGETS Dsqt Dsqt_resources_1 Dsqt_resources_2 Dsqt_resources_3 Dsqt_resources_4 Dsqtplugin Dsqtplugin_init NAMESPACE Dsqt:: FILE ${CMAKE_SOURCE_DIR}/cmake/DsqtImport.cmake )
 set_target_properties(Dsqt PROPERTIES FOLDER DsQt-Framework)
 set_target_properties(WafflesUx PROPERTIES FOLDER WafflesUx)
 
