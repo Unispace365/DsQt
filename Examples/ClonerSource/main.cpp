@@ -16,6 +16,17 @@
 #include <dsQmlApplicationEngine.h>
 #include <dsReloadUrlInterceptor.h>
 
+//activate high performance graphics on windows laptops with dual graphics cards
+#ifdef Q_OS_WIN
+extern "C" {
+// Enable dedicated graphics for NVIDIA
+__declspec(dllexport) unsigned long NvOptimusEnablement = 0x00000001;
+
+// Enable dedicated graphics for AMD Radeon
+__declspec(dllexport) int AmdPowerXpressRequestHighPerformance = 1;
+}
+#endif
+
 int main(int argc, char *argv[])
 {
     //ensure the data.qrc is initialized
@@ -28,7 +39,7 @@ int main(int argc, char *argv[])
                                      "reloadUrl.*=false\n"
                                      "bridgeSync.app=false\n"
                                      "bridgeSync.query=true\n"
-                                     "settings.parser=false\n"
+                                     "settings.parser=true\n"
                                      "idle=false\n"
                                      "qt.multimedia.ffmpeg.*=false\n"
                                      );

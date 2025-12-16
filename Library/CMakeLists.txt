@@ -25,7 +25,7 @@ if(PROJECT_IS_TOP_LEVEL)
     endif()
 endif()
 
-find_package(Qt6 6.9 COMPONENTS Core Concurrent Quick Gui GuiPrivate ShaderTools Sql REQUIRED COMPONENTS Test)
+find_package(Qt6 6.9 COMPONENTS Core Concurrent Quick Gui ShaderTools Sql REQUIRED COMPONENTS Test)
 qt_standard_project_setup(REQUIRES 6.9)
 
 add_subdirectory("Dsqt")
@@ -53,22 +53,6 @@ FetchContent_Declare(
 FetchContent_GetProperties(glm)
 FetchContent_MakeAvailable(glm)
 
-FetchContent_Declare(
-    qtimgui
-    GIT_REPOSITORY https://github.com/alpqr/qrhiimgui2.git
-    GIT_TAG        94c99a8f141469169421d17b64007793988c4009
-    #PREFIX ${CMAKE_DIR_LOCATION}/_deps
-)
-FetchContent_GetProperties(qtimgui)
-FetchContent_MakeAvailable(qtimgui)
-
-##connect qrhiimgui
-set(imgui_base ${qtimgui_SOURCE_DIR}/imgui)
-set(imgui_target Dsqt)
-#include(${imgui_base}/imgui.cmakeinc)
-#include(${imgui_base}/imguiquick.cmakeinc)
-target_include_directories(Dsqt PUBLIC ${imgui_base})
-
 ##connect glm
 target_include_directories(Dsqt PUBLIC ${glm_SOURCE_DIR})
 
@@ -87,7 +71,7 @@ set_target_properties(Dsqt PROPERTIES
 target_compile_definitions(Dsqt
     PRIVATE $<$<OR:$<CONFIG:Debug>,$<CONFIG:RelWithDebInfo>>:QT_QML_DEBUG>)
 target_link_libraries(Dsqt
-PRIVATE Qt6::Quick Qt6::Core Qt6::Concurrent Qt6::Gui Qt6::ShaderTools Qt6::GuiPrivate Qt6::Sql)
+PRIVATE Qt6::Quick Qt6::Core Qt6::Concurrent Qt6::Gui Qt6::ShaderTools Qt6::Sql)
 
 target_include_directories(Dsqt PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} ${imgui_base})
 
