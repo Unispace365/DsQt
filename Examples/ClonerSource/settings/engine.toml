@@ -17,6 +17,7 @@ app_settings = [
 
 engine = [
   "bridgesync.toml",
+  "engine.font.toml"
 ]
 
 [engine.reload]
@@ -24,7 +25,8 @@ paths = [
   {path = "%APP%/data/", recurse = true},
   {path = "%APP%/settings/", recurse = true},
   {path = "%APP%/qml/", recurse = true},
-] #reload path to data
+]
+#reload path to data. this is disabled for now.
 prefixes = [
   {from = "qrc:/qt/qml/ClonerSource/", to = "file:///%APP%/"},
   {from = "qrc:/qt/qml/Dsqt/", to = "file:///%ENV%(DS_QT_PLATFORM_100)/Library/Dsqt"},
@@ -36,6 +38,7 @@ displayIndex = 0
 width = 3840
 height = 2160
 
+#need to fix the scaleLoader it is currently broken
 [engine.scaleLoader]
 world_dimensions=[{w=3840,h=2160},{type="size"}] #The size of the overall app space.
 source={x=0,y=0,w=3840,h=2160} #the rectangle of the world space to render.
@@ -50,10 +53,6 @@ resource_db = "db.sqlite"
 app_path = "c:/downstream/bridgesync/bridge_sync_console.exe"
 launch_bridgesync = true
 
-#unimplemented, but the idea is to allow these settings to live in seperate toml files
-#use_settings_file=false
-#settings_file="bridgesync.toml"
-
 [engine.bridgesync.connection]
 server = "http://api.waffles.localhost"
 #server = "https://app.hpi1.dev.bridge.downstream.com"
@@ -67,6 +66,7 @@ verbose = true
 [engine.logging]
 rules=[[
     "*.verbose=false", #turn off all verbose
+    "settings.*=true",
     "reloadUrl.*=false",
     "bridgeSync.app=true",
 ]]

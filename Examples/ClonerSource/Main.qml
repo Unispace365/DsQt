@@ -9,19 +9,7 @@ import "qml"
 DsAppBase {
     id: base
 
-    // Load fonts.
-    FontLoader {
-        id: helveticaNeueThin
-        source: Ds.env.expand("file://%APP%/fonts/HelveticaNeueThin.otf")
-    }
-    FontLoader {
-        id: helveticaNeueMedium
-        source: Ds.env.expand("file://%APP%/fonts/HelveticaNeueMedium.otf")
-    }
-    FontLoader {
-        id: helveticaNeueRoman
-        source: Ds.env.expand("file://%APP%/fonts/HelveticaNeueRoman.otf")
-    }
+
 
     // Allows us to measure the exact text size.
     DsTextMeasurer {
@@ -34,7 +22,7 @@ DsAppBase {
         anchors.fill: parent
         preferredWidth: 1920
         preferredHeight: 1080
-        fitEnabled: false
+        fitEnabled: true
 
         Loader {
             id: main

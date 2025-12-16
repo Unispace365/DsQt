@@ -8,8 +8,10 @@
 #include <QQuickPaintedItem>
 #include <QQuickWindow>
 #include <QTimer>
+#include <QElapsedTimer>
 
 #include <deque>
+
 
 namespace dsqt::ui {
 

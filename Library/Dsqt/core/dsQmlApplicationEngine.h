@@ -3,7 +3,6 @@
 
 #include "bridge/dsBridgeDatabase.h"
 #include "core/dsQmlIdle.h"
-#include "core/dsQmlImguiItem.h"
 #include "model/dsContentModel.h"
 #include "settings/dsSettings.h"
 
@@ -11,6 +10,7 @@
 #include <QObject>
 #include <QQmlApplicationEngine>
 #include <QTimer>
+#include <QElapsedTimer>
 
 Q_DECLARE_LOGGING_CATEGORY(lgAppEngine)
 Q_DECLARE_LOGGING_CATEGORY(lgAppEngineVerbose)
@@ -84,12 +84,6 @@ class DsQmlApplicationEngine : public QQmlApplicationEngine {
      * @return Pointer to the default DsQmlApplicationEngine.
      */
     static DsQmlApplicationEngine* DefEngine();
-
-    /**
-     * @brief Gets the ImGui item for QML integration.
-     * @return Pointer to DsQmlImguiItem.
-     */
-    DsQmlImguiItem* imgui();
 
     /**
      * @brief Clears the QML component cache.
@@ -239,9 +233,6 @@ class DsQmlApplicationEngine : public QQmlApplicationEngine {
   protected:
     /// Static pointer to the default engine instance.
     static DsQmlApplicationEngine* sDefaultEngine;
-
-    /// Pointer to the ImGui item.
-    DsQmlImguiItem* mImgui;
 
     /// File system watcher for hot reloading.
     QFileSystemWatcher* mWatcher = nullptr;

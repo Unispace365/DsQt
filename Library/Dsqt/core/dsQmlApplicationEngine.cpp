@@ -6,6 +6,7 @@
 #include "model/dsResource.h"
 #include "network/dsNodeWatcher.h"
 #include "settings/dsQmlSettingsProxy.h"
+#include "core/dsFontManager.h"
 
 #include <QDir>
 #include <QDirIterator>
@@ -197,6 +198,13 @@ void DsQmlApplicationEngine::init() {
     mIdle->startIdling(true);
 
     mAppProxy->setTarget("app_settings");
+
+    //lets load som fernts
+    DsFontManager fontManager(DsEnvironment::engineSettings());
+    fontManager.loadFonts(&DsEnvironment::expandq);
+    QFont defaultFont = fontManager.createDefaultFont();
+
+    qGuiApp->setFont(defaultFont);
 
     connect(this, &DsQmlApplicationEngine::fileChanged, this, &DsQmlApplicationEngine::doReset);
     // rootContext()->setContextProperty("app_settings",mAppProxy);

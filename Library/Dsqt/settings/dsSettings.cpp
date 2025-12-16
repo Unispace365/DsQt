@@ -1,3 +1,5 @@
+
+
 #include "settings/dsSettings.h"
 #include "core/dsEnvironment.h"
 
@@ -99,6 +101,7 @@ bool DsSettings::loadSettingFile(const std::string& file) {
 		loadResult = &mResultStack.back();
 	}
 
+
     //either way fill the result with the new file.
 	loadResult->filepath = fullFile;
 	loadResult->valid	 = false;
@@ -108,7 +111,10 @@ bool DsSettings::loadSettingFile(const std::string& file) {
 	} catch (const toml::parse_error& e) {
         qCWarning(lgSettingsParser) << "Failed to parse setting file \"" << fullFile.c_str() << "\n:" << e.what();
 		return false;
-	}
+    } catch (const std::exception& e) {
+        qCWarning(lgSettingsParser) << "Failed to open setting file \"" << fullFile.c_str() << "\n:" << e.what();
+        return false;
+    }
 
 	return true;
 }
