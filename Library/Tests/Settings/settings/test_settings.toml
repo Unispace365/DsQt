@@ -6,25 +6,6 @@
 no_table="test value"
 no_table_arrayed=["test value",{type="string"}]
 
-project_path=["dsqt_development",{type="string", test="", restart="full"}]
-
-[test]
-read_string="string value"
-read_number=10
-read_array=[["",20,30]]
-read_int_from_string="10"
-read_float_from_string="5.5"
-read_float=5.5
-read_vec2=[[20,15]]
-read_vec3=[[20,15,10]]
-read_vec4=[[20,15,10,5]]
-read_size={w=1920,h=1080}
-read_rect={x=10,y=10,w=1920,h=1080}
-read_rect_as_points={x1=10,y1=10,x2=1930,y2=1090}
-read_color_as_floats={r=0.5,g=0.88,b=0.25,a=1}
-read_color_as_int={r=128,g=255,b=255,a=128}
-read_color_as_string="#ffeeaa80"
-
 [test.bool]
 bool_true = true
 bool_str_true = "true"
@@ -60,12 +41,6 @@ string_from_table = {one="1",two="2",three="3"}
 [test.color.strings]
 hex="#80ffeeaa"
 name="blue"
-
-[test.color.no_meta]
-array_1 = [[0.5]] #float rgb gray
-array_2 = [[0.5,1.0]] #float rgb gray and alpha
-array_3 = [[0.5,0,0]] #float rgb
-array_4 = [[0.5,0,0,1.0]] #float float_a
 
 [test.color.arrays]
 float_gray = [[0.5],{type="color",element_type="float",array_color_type="rgb"}]
@@ -159,17 +134,44 @@ rect_x1y1x2y2 = {x1=10,y1=20,x2=50,y2=70}
 
 
 [test.list]
-list = [10,"string",10.5,{r=1,g=0,b=0,a=1}]
-list_wo_meta = [[10,"string",10.5,{r=1,g=0,b=0,a=1}]]
-#list_w_meta = [[10,"string",10.5,{r=1,g=0,b=0,a=1}],{types=["int","string","float","color"]}]
+#list        =  [10, "string", 10.5, {r=1, g=0, b=0, a=1}]
+list_wo_meta = [[10, "string", 10.5, {r=1, g=0, b=0, a=1}]]
+list_w_meta  = [[10, "string", 10.5, {r=1, g=0, b=0, a=1}], { types=["int", "string", "float", "color"]} ]
 
-[[test.list.header]]
-a="first first"
-b="first second"
+# test.list.header = [
+#      {
+#        "a": "first first",
+#        "b": "first second"
+#      },
+#      {
+#        "a": "second first",
+#        "b": "second second"
+#      }
+# ]
 
-[[test.list.header]]
-a="second first"
-b="second second"
+## [[test.list.header]]
+## a="first first"
+## b="first second"
+##
+## [[test.list.header]]
+## a="second first"
+## b="second second"
+# In order for DsSettings to load the above, it has to look like the following,
+# because of the way that DsSettings::getNodeViewWithMeta processes TOML nodes:
+#   If a toml node is an array then:
+#    the first  value in that array is the retrieved value.
+#    and second value in that array is the meta-data table
+# With the "header" syntax (array of tables), all the elements are tables / QMaps, so it's not
+# possible for the 1st element to be a list...
+list_of_maps_w_meta = [
+    # First element: the actual data
+    [
+        { a="first first",  b="first second" },
+        { a="second first",  b="second second" }
+    ],
+    # Second instance: the meta data
+    { type = "QVariantMap" }
+]
 
 [test.maps]
 map_a={int=10,string="string",float=10.5,obj={a="one"},array=[1],date=1979-05-27T07:32:00Z}
@@ -182,18 +184,20 @@ obj={a="one"}
 array=[1]
 date=1979-05-27T07:32:00Z
 
-[engine.window]
-world_dimensions=[{w=1920,h=1080},{type="size"}] #The size of the overall app space.
-source_rectangle=[{x=0,y=0,w=1920,h=1080},{type="rect"}] #the rectangle of the world space to render.
-destination_rectangle=[{x=0,y=0,w=0,h=0},{type="rect"}] #The output window size and position to render.
+[[test.maps.header_meta]]
+    fruit_1 = "apple"
+    fruit_2 = "banana"
+    array = [1, 2, 3]
+    map   = {a=1, b=2, c=3}
 
-[engine.examples]
-#this is the same as example_simple = [450,{}] and should take the same code path
-example_simple = 450 #simple example makes an int
+[[test.maps.header_meta]]
+    types = ["string", "string", "array", "map"]
 
-example_full = ["450",{type="int",max=700,min=0,step=10,name="Example Full",desc="An example of a full value with meta data for a stepped slider"}]
-example_string = "450" #simple format, will read as string, but you can convert to a number ofcourse
+[test.meta]
+meta_example = [ "string-value", {type="string"} ]
 
+
+[example]
 #an array. note the double brackets
 example_array = [["fe","fi","fo","fum"]]
 
@@ -213,3 +217,4 @@ example_color_1 = {r=0.5,g=0.5,b=0.5,a=1.0}
 example_color_2 = [{r=0.5,g=0.5,b=0.5,a=1.0},{type="color"}]
 example_color_3 = [[0.5,0.5,0.5,1.0],{type="color"}]
 example_color_4 = [[0.5,0.5,0.5],{type="color"}]
+

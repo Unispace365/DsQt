@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls
+import ClonerSource
 //an item that uses qt layouts to position items. it has a large font title and below that a horizontal flickable that
 //contains a series of buttons with images and text below the image. the buttons should be square and clicking on one
 //shows the image fullscreen.
@@ -14,8 +15,7 @@ Item {
         Text {
             id: title
             text: "Image Gallery"
-            font.pixelSize: 32
-            font.bold: true
+            font: Fnt.menuTitle
             horizontalAlignment: Text.AlignHCenter
             Layout.alignment: Qt.AlignHCenter
         }
@@ -37,8 +37,8 @@ Item {
                     model: 20 // Number of images
 
                     Button {
-                        width: flickable.height - 20 // Make buttons square with some padding
-                        height: flickable.height - 20
+                        width:  20 // Make buttons square with some padding
+                        height: 20
                         property int index: index
 
                         Column {

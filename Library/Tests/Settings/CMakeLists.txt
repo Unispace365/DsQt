@@ -1,20 +1,24 @@
 cmake_minimum_required(VERSION 3.29)
 include(FetchContent)
 
+# Setup DS_PLATFORM_100
+set(DS_QT_PLATFORM_100 "${CMAKE_CURRENT_SOURCE_DIR}/../../..")
+set(DS_QT_PLATFORM_100_LIBRARY "${DS_QT_PLATFORM_100}/Library/Dsqt")
+
 #project info
-set(DS_APP_NAME settings)
+set(DS_APP_NAME ds_settings)
 set(DS_EXE_NAME test_${DS_APP_NAME})
 set(DS_APP_VERSION "1.0.0.0")
 set(DS_PROJECT_NAME "settings_tests")
 set(DS_PROJECT_DESC "settings_tests")
 
-#project(${DS_APP_NAME} VERSION 0.1 LANGUAGES CXX)
+project(${DS_EXE_NAME} VERSION 0.1 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_INSTALL_PREFIX "${CMAKE_BINARY_DIR}/DEPLOY/")
 set(QT_QML_GENERATE_QMLLS_INI ON)
 set(DS_QT_DLLS_SUBDIR ON CACHE BOOL "Set to ON to copy the Qt dlls to a subdirectory of the install directory. Default is ON.")
-find_package(Qt6 6.9 REQUIRED COMPONENTS Quick Gui ShaderTools Core Sql Test)
+find_package(Qt6 6.9 REQUIRED COMPONENTS Quick Gui ShaderTools Core Sql Test Qml)
 qt_standard_project_setup(REQUIRES 6.9)
 
 
@@ -24,8 +28,17 @@ enable_testing()
 
 
 qt_add_executable(${DS_EXE_NAME}
-
     tst_dssettingstest.cpp
+    "${DS_QT_PLATFORM_100_LIBRARY}/settings/dsQmlSettingsProxy.cpp"
+    "${DS_QT_PLATFORM_100_LIBRARY}/settings/dsSettings.cpp"
+    "${DS_QT_PLATFORM_100_LIBRARY}/settings/dsSettingsBase.cpp"
+    "${DS_QT_PLATFORM_100_LIBRARY}/settings/dsSettingsCollections.cpp"
+    "${DS_QT_PLATFORM_100_LIBRARY}/settings/dsSettingsDateTime.cpp"
+    "${DS_QT_PLATFORM_100_LIBRARY}/settings/dsSettingsGeomCommon.cpp"
+    "${DS_QT_PLATFORM_100_LIBRARY}/settings/dsSettingsGeomGlm.cpp"
+    "${DS_QT_PLATFORM_100_LIBRARY}/settings/dsSettingsGeomQt.cpp"
+    "${DS_QT_PLATFORM_100_LIBRARY}/settings/dsSettingsQColor.cpp"
+    "${DS_QT_PLATFORM_100_LIBRARY}/core/dsEnvironment.cpp"
 )
 
 add_test(NAME ${DS_EXE_NAME} COMMAND ${DS_EXE_NAME})
@@ -75,22 +88,7 @@ FetchContent_Declare(
 FetchContent_GetProperties(glm)
 FetchContent_MakeAvailable(glm)
 
-FetchContent_Declare(
-    qtimgui
-    GIT_REPOSITORY https://github.com/alpqr/qrhiimgui2.git
-    GIT_TAG        94c99a8f141469169421d17b64007793988c4009
-    #PREFIX ${CMAKE_DIR_LOCATION}/_deps
-)
-FetchContent_GetProperties(qtimgui)
-FetchContent_MakeAvailable(qtimgui)
-
 target_include_directories(${DS_EXE_NAME} PRIVATE ${Dsqt_INCLUDES} Qt6::ShaderToolsPrivate)
-
-##connect qrhiimgui
-set(imgui_base ${qtimgui_SOURCE_DIR}/imgui)
-set(imgui_target ${DS_EXE_NAME})
-include(${imgui_base}/imgui.cmakeinc)
-include(${imgui_base}/imguiquick.cmakeinc)
 
 ##connect glm
 target_include_directories(${DS_EXE_NAME} PUBLIC ${glm_SOURCE_DIR})
@@ -100,14 +98,18 @@ target_include_directories(${DS_EXE_NAME} PUBLIC ${tomlplusplus_SOURCE_DIR}/incl
 
 target_include_directories(${DS_EXE_NAME} PUBLIC ${tomlplusplus_SOURCE_DIR}/include)
 
+## DsQt Includes
+target_include_directories(${DS_EXE_NAME} PUBLIC ${DS_QT_PLATFORM_100_LIBRARY})
+
 target_link_libraries(${DS_EXE_NAME}
-    PRIVATE Qt6::Quick Dsqt Dsqtplugin Dsqtplugin_init Dsqt_resources_1 Dsqt_resources_2 Dsqt_resources_3 glm Qt6::Sql Qt6::GuiPrivate Qt6::Gui Qt6::ShaderTools Qt6::ShaderToolsPrivate Qt6::Test
+    PRIVATE
+        Qt6::Quick
+        Qt6::Test
 )
 
-target_include_directories(${DS_EXE_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} "../." ${imgui_base})
+target_include_directories(${DS_EXE_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} "../." )
 
 include(GNUInstallDirs)
-
 
 
 

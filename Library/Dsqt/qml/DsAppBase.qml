@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Window
 import Dsqt
 
 /// \brief main window for DsQt QML applications.
@@ -12,7 +13,7 @@ ApplicationWindow {
 
     // Keep track of screen changes.
     onScreenChanged: {
-        var screens = Qt.application.screens
+        var screens = Application.screens
         for(var i=0; i<screens.length; ++i) {
             if(window.screen.virtualX === screens[i].virtualX &&
                     window.screen.virtualY === screens[i].virtualY) {
@@ -35,7 +36,7 @@ ApplicationWindow {
         property int preferredHeight : windowProxy.getInt("height", 0)           //
 
         function getDisplayIndex() : int {
-            var screens = Qt.application.screens
+            var screens = Application.screens
 
             if(displayName !== "") {
                 for(var i=0; i<screens.length; ++i) {

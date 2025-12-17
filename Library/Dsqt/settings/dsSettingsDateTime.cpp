@@ -24,12 +24,12 @@ std::optional<toml::date_time> getDateTimeFromNode(toml::node_view<toml::node>& 
     return retval;
 };
 
-template<> std::optional<ValueWMeta<QDate>> DsSettings::getWithMeta(const std::string& key){
+template<> MaybeQDateMeta DsSettings::getWithMeta(const std::string& key){
 
     auto val = getNodeViewWithMeta(key);
     if(!val.has_value()){
         qDebug(lgSPVerbose)<<"Failed to find value at key "<<key.c_str();
-        return std::optional<ValueWMeta<QDate>>();
+        return MaybeQDateMeta();
     }
 
     auto [n,m,p] = val.value();
@@ -53,16 +53,16 @@ template<> std::optional<ValueWMeta<QDate>> DsSettings::getWithMeta(const std::s
         }
     }
 
-    return std::optional<ValueWMeta<QDate>>(ValueWMeta<QDate>(retval,meta,place));;
+    return MaybeQDateMeta( {retval, meta, place} );
 
 }
 
-template<> std::optional<ValueWMeta<QTime>> DsSettings::getWithMeta(const std::string& key){
+template<> MaybeQTimeMeta DsSettings::getWithMeta(const std::string& key){
 
     auto val = getNodeViewWithMeta(key);
     if(!val.has_value()){
         qDebug(lgSPVerbose)<<"Failed to find value at key "<<key.c_str();
-        return std::optional<ValueWMeta<QTime>>();
+        return MaybeQTimeMeta();
     }
 
     auto [n,m,p] = val.value();
@@ -89,16 +89,16 @@ template<> std::optional<ValueWMeta<QTime>> DsSettings::getWithMeta(const std::s
         }
     }
 
-    return std::optional<ValueWMeta<QTime>>(ValueWMeta<QTime>(retval,meta,place));;
+    return MaybeQTimeMeta( {retval, meta, place} );
 
 }
 
-template<> std::optional<ValueWMeta<QDateTime>> DsSettings::getWithMeta(const std::string& key){
+template<> MaybeQDateTimeMeta DsSettings::getWithMeta(const std::string& key){
 
     auto val = getNodeViewWithMeta(key);
     if(!val.has_value()){
         qDebug(lgSPVerbose)<<"Failed to find value at key "<<key.c_str();
-        return std::optional<ValueWMeta<QDateTime>>();
+        return MaybeQDateTimeMeta();
     }
 
     auto [n,m,p] = val.value();
@@ -130,7 +130,7 @@ template<> std::optional<ValueWMeta<QDateTime>> DsSettings::getWithMeta(const st
         }
     }
 
-    return std::optional<ValueWMeta<QDateTime>>(ValueWMeta<QDateTime>(retval,meta,place));;
+    return MaybeQDateTimeMeta( {retval, meta, place} );
 
 }
 

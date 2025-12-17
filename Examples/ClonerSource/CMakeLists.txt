@@ -8,6 +8,7 @@ set(DS_APP_VERSION "1.0.0.0")
 set(DS_PROJECT_NAME "PROJECT_NAME_")
 set(DS_PROJECT_DESC "PROJECT_DESC_")
 
+#define the project
 project(${DS_APP_NAME} VERSION 0.1 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -15,7 +16,7 @@ set(CMAKE_INSTALL_PREFIX "${CMAKE_BINARY_DIR}/DEPLOY/")
 set(QT_FORCE_CMP0156_TO_VALUE NEW)
 set(QT_QML_GENERATE_QMLLS_INI ON)
 set(DS_QT_DLLS_SUBDIR ON CACHE BOOL "Set to ON to copy the Qt dlls to a subdirectory of the install directory. Default is ON.")
-find_package(Qt6 6.9 REQUIRED COMPONENTS Core Quick QuickControls2 Multimedia Gui ShaderTools Concurrent Sql)
+find_package(Qt6 6.9 REQUIRED COMPONENTS Core Quick QuickControls2 Multimedia Gui ShaderTools Concurrent Sql Pdf WebEngineQuick)
 qt_standard_project_setup(REQUIRES 6.9)
 
 
@@ -46,11 +47,15 @@ qt_add_executable(${DS_EXE_NAME}
 target_link_libraries(${DS_EXE_NAME} PRIVATE Qt6::Quick)
 qt_add_resources(${DS_EXE_NAME} "icon" FILES newds.ico)
 
+#make Fnt.qml a singleton
+set_source_files_properties(Fnt.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
+
 qt_add_qml_module(${DS_EXE_NAME}
     URI ${DS_APP_NAME}
     VERSION 1.0
     QML_FILES
         Main.qml
+        Fnt.qml
         qml/MainView.qml
         qml/CustomClock.qml
 
@@ -59,6 +64,7 @@ qt_add_qml_module(${DS_EXE_NAME}
         Dsqt
         WafflesUx
         QtQuick
+        QML_FILES
         #RESOURCES cmake/app.rc.in
 )
 
@@ -119,22 +125,7 @@ FetchContent_Declare(
 FetchContent_GetProperties(glm)
 FetchContent_MakeAvailable(glm)
 
-FetchContent_Declare(
-    qtimgui
-    GIT_REPOSITORY https://github.com/alpqr/qrhiimgui2.git
-    GIT_TAG        94c99a8f141469169421d17b64007793988c4009
-    #PREFIX ${CMAKE_DIR_LOCATION}/_deps
-)
-FetchContent_GetProperties(qtimgui)
-FetchContent_MakeAvailable(qtimgui)
-
-target_include_directories(${DS_EXE_NAME} PRIVATE ${Dsqt_INCLUDES} Qt6::ShaderToolsPrivate)
-
-##connect qrhiimgui
-set(imgui_base ${qtimgui_SOURCE_DIR}/imgui)
-set(imgui_target ${DS_EXE_NAME})
-include(${imgui_base}/imgui.cmakeinc)
-include(${imgui_base}/imguiquick.cmakeinc)
+target_include_directories(${DS_EXE_NAME} PRIVATE ${Dsqt_INCLUDES})
 
 ##connect glm
 target_include_directories(${DS_EXE_NAME} PUBLIC ${glm_SOURCE_DIR})
@@ -155,12 +146,10 @@ target_link_libraries(${DS_EXE_NAME}
         Qt6::Concurrent 
         Qt6::Core
         Qt6::Gui 
-        Qt6::GuiPrivate 
         Qt6::Multimedia 
         Qt6::Quick
         Qt6::QuickControls2
         Qt6::ShaderTools
-        Qt6::ShaderToolsPrivate
         Qt6::Sql
 )
 

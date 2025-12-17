@@ -44,6 +44,42 @@ using tomlType	 = std::variant<ValueWMeta<toml::value<bool>>, ValueWMeta<toml::v
 								ValueWMeta<toml::value<toml::date>>, ValueWMeta<toml::value<toml::time>>,
 								ValueWMeta<toml::value<toml::date_time>>>;
 
+template <typename T>
+using MaybeMeta                 = std::optional<ValueWMeta<T>>;
+using MaybeBoolMeta             = MaybeMeta<bool>;
+using MaybeInt64Meta            = MaybeMeta<int64_t>;
+using MaybeInt32Meta            = MaybeMeta<int32_t>;
+using MaybeDoubleMeta           = MaybeMeta<double>;
+using MaybeFloatMeta            = MaybeMeta<float>;
+using MaybeStringMeta           = MaybeMeta<std::string>;
+using MaybeQStringMeta          = MaybeMeta<QString>;
+
+using MaybeTomlNodeMeta         = MaybeMeta<toml::node>;
+using MaybeQVariantListMeta     = MaybeMeta<QVector<QVariant>>;
+using MaybeQVariantMapMeta      = MaybeMeta<QVariantMap>;
+
+using MaybeQColorMeta           = MaybeMeta<QColor>;
+
+using MaybeQDateMeta            = MaybeMeta<QDate>;
+using MaybeQTimeMeta            = MaybeMeta<QTime>;
+using MaybeQDateTimeMeta        = MaybeMeta<QDateTime>;
+
+using MaybeQVector4DMeta        = MaybeMeta<QVector4D>;
+using MaybeQVector3DMeta        = MaybeMeta<QVector3D>;
+using MaybeQVector2DMeta        = MaybeMeta<QVector2D>;
+using MaybeQVector2DMeta        = MaybeMeta<QVector2D>;
+using MaybeQRectFMeta           = MaybeMeta<QRectF>;
+using MaybeQRectMeta            = MaybeMeta<QRect>;
+using MaybeQPointFMeta          = MaybeMeta<QPointF>;
+using MaybeQPointMeta           = MaybeMeta<QPoint>;
+using MaybeQSizeFMeta           = MaybeMeta<QSizeF>;
+using MaybeQSizeMeta            = MaybeMeta<QSize>;
+
+using MaybeVec4Meta             = MaybeMeta<glm::vec4>;
+using MaybeVec3Meta             = MaybeMeta<glm::vec3>;
+using MaybeVec2Meta             = MaybeMeta<glm::vec2>;
+
+
 ///\brief The DSSettings class
 ///
 ///Description
@@ -169,80 +205,28 @@ class DsSettings : public QObject {
     /// \param def the default value to return if key doesn't exist
 	template <class T>
 	T getOr(const std::string& key, const T& def) {
-		static_assert(is_valid_setting_type<T>, "The type is not directly gettable from a settings file");
-		std::optional<T> value = get<T>(key);
-		return value.value_or(def);
-	};
+        static_assert(is_valid_setting_type<T>, "The type is not directly gettable from a settings file");
+        std::optional<T> value = get<T>(key);
+        return value.value_or(def);
+    };
 
 	template <class T>
 	std::optional<T> get(const std::string& key) {
-		static_assert(is_valid_setting_type<T>, "The type is not directly gettable from a settings file");
-		auto retval = getWithMeta<T>(key);
-		if (retval) {
-			auto [value, x, y] = retval.value();
-			return value;
-		}
-		return std::optional<T>();
-	}
-
-
-    template<> std::optional<QVariantList> get(const std::string& key) {
-        auto retval = getWithMeta<QVariantList>(key);
+        static_assert(is_valid_setting_type<T>, "The type is not directly gettable from a settings file");
+        auto retval = getWithMeta<T>(key);
         if (retval) {
             auto [value, x, y] = retval.value();
-            //if value is empty and meta is null...
-            if(value.isEmpty()){
-                const auto rawNode = getRawNode(key);
-                const auto raw = toml::node_view<const toml::node>(rawNode);
-                if(raw.is_array()){
-                    auto variantValue = tomlArrayViewToVariantList(raw);
-                    return std::optional<QVariantList>(variantValue);
-                }
-            }
             return value;
         }
-        return std::optional<QVariantList>(QVariantList());
-    }
-
-    template<> std::optional<QVariantMap> get(const std::string& key) {
-        auto retval = getWithMeta<QVariantMap>(key);
-        if (retval) {
-            auto [value, x, y] = retval.value();
-            //if value is empty and meta is null...
-            if(value.isEmpty()){
-                const auto rawNode = getRawNode(key);
-                const auto raw = toml::node_view<const toml::node>(rawNode);
-                if(raw.is_table()){
-                    auto variantValue = tomlTableViewToVariantMap(raw);
-                    return std::optional<QVariantMap>(variantValue);
-                }
-            }
-            return value;
-        }
-        return std::optional<QVariantMap>(QVariantMap());
+        return std::optional<T>();
     }
 
 	/// Get a setting from the collection with the meta data.
 	/// This is used for debuging and internal management.
 	std::optional<NodeWMeta> getNodeViewWithMeta(const std::string& key);
 
-	/// Get a setting from the collection with the meta data.
-	/// This is used for debuging and internal management.
-
-	template <class T>
-	std::optional<ValueWMeta<T>> getWithMeta(const std::string& key) {
-		auto val = getNodeViewWithMeta(key);
-		if (!val.has_value()) {
-            qDebug(lgSPVerbose) << "Failed to find value at key " << key.c_str();
-			return std::nullopt;
-		}
-		// auto [node,meta,place] = val.value();
-
-		return std::nullopt;
-	}
-
 	template <class T, class V>
-	std::optional<ValueWMeta<T>> originalValueWithMeta(const std::string& key, V&& overload) {
+	MaybeMeta<T> originalValueWithMeta(const std::string& key, V&& overload) {
 		auto val = getNodeViewWithMeta(key);
 		if (!val.has_value()) {
             qDebug(lgSPVerbose) << "Failed to find value at key " << key.c_str();
@@ -294,68 +278,46 @@ class DsSettings : public QObject {
 		return process(node, meta);
 	}
 
-	// template<typename T> std::optional<ValueWMeta<std::vector<T>>> getWithMeta(const std::string& key);
+    /* All getWithMeta() template specializations should be declared using only a single template definition
+    // base types
+    template<> std::optional<ValueWMeta<bool>>                   getWithMeta(const std::string& key);
+    template<> std::optional<ValueWMeta<int64_t>>                getWithMeta(const std::string& key);
+    template<> std::optional<ValueWMeta<int32_t>>                getWithMeta(const std::string& key);
+    template<> std::optional<ValueWMeta<double>>                 getWithMeta(const std::string& key);
+    template<> std::optional<ValueWMeta<float>>                  getWithMeta(const std::string& key);
+    template<> std::optional<ValueWMeta<std::string>>            getWithMeta(const std::string& key);
+    template<> std::optional<ValueWMeta<QString>>                getWithMeta(const std::string& key);
 
-	// base types
-	template <>
-	std::optional<ValueWMeta<bool>> getWithMeta(const std::string& key);
-	template <>
-	std::optional<ValueWMeta<int64_t>> getWithMeta(const std::string& key);
-	template <>
-	std::optional<ValueWMeta<int32_t>> getWithMeta(const std::string& key);
-	template <>
-	std::optional<ValueWMeta<double>> getWithMeta(const std::string& key);
-	template <>
-	std::optional<ValueWMeta<float>> getWithMeta(const std::string& key);
-	template <>
-	std::optional<ValueWMeta<std::string>> getWithMeta(const std::string& key);
-	template <>
-	std::optional<ValueWMeta<QString>> getWithMeta(const std::string& key);
+    // Collections
+    template<> std::optional<ValueWMeta<toml::node_view<...>>>   getWithMeta(const std::string& key);
+    template<> std::optional<ValueWMeta<QVariantList>>           getWithMeta(const std::string& key);
+    template<> std::optional<ValueWMeta<QVariantMap>>            getWithMeta(const std::string& key);
 
-	// Collections
-	template <>
-	std::optional<ValueWMeta<toml::node>> getWithMeta(const std::string& key);
-    template<> std::optional<ValueWMeta<QVector<QVariant>>> getWithMeta(const std::string& key);
-    template<> std::optional<ValueWMeta<QMap<QString,QVariant>>> getWithMeta(const std::string& key);
+    //QColor
+    template<> std::optional<ValueWMeta<QColor>>                 getWithMeta(const std::string& key);
 
-	// QColor
-	template <>
-	std::optional<ValueWMeta<QColor>> getWithMeta(const std::string& key);
+    // QDate, QTime, QDateTime
+    template<> std::optional<ValueWMeta<QDate>>                  getWithMeta(const std::string& key);
+    template<> std::optional<ValueWMeta<QTime>>                  getWithMeta(const std::string& key);
+    template<> std::optional<ValueWMeta<QDateTime>>              getWithMeta(const std::string& key);
 
+    // Geometry
+    template<> std::optional<ValueWMeta<QVector4D>>              getWithMeta(const std::string& key);
+    template<> std::optional<ValueWMeta<QVector3D>>              getWithMeta(const std::string& key);
+    template<> std::optional<ValueWMeta<QVector2D>>              getWithMeta(const std::string& key);
+    template<> std::optional<ValueWMeta<QRectF>>                 getWithMeta(const std::string& key);
+    template<> std::optional<ValueWMeta<QRect>>                  getWithMeta(const std::string& key);
+    template<> std::optional<ValueWMeta<QPointF>>                getWithMeta(const std::string& key);
+    template<> std::optional<ValueWMeta<QPoint>>                 getWithMeta(const std::string& key);
+    template<> std::optional<ValueWMeta<QSizeF>>                 getWithMeta(const std::string& key);
+    template<> std::optional<ValueWMeta<QSize>>                  getWithMeta(const std::string& key);
 
-	// QDate, QTime, QDateTime
-	template <>
-	std::optional<ValueWMeta<QDate>> getWithMeta(const std::string& key);
-	template <>
-	std::optional<ValueWMeta<QTime>> getWithMeta(const std::string& key);
-	template <>
-	std::optional<ValueWMeta<QDateTime>> getWithMeta(const std::string& key);
-
-	// Geometry
-	template <>
-	std::optional<ValueWMeta<QVector2D>> getWithMeta(const std::string& key);
-	template <>
-	std::optional<ValueWMeta<QVector3D>> getWithMeta(const std::string& key);
-	template <>
-	std::optional<ValueWMeta<QVector4D>> getWithMeta(const std::string& key);
-	template <>
-	std::optional<ValueWMeta<QRect>> getWithMeta(const std::string& key);
-	template <>
-	std::optional<ValueWMeta<QRectF>> getWithMeta(const std::string& key);
-	template <>
-	std::optional<ValueWMeta<QSize>> getWithMeta(const std::string& key);
-	template <>
-	std::optional<ValueWMeta<QSizeF>> getWithMeta(const std::string& key);
-	template <>
-	std::optional<ValueWMeta<QPoint>> getWithMeta(const std::string& key);
-	template <>
-	std::optional<ValueWMeta<QPointF>> getWithMeta(const std::string& key);
-	template <>
-	std::optional<ValueWMeta<glm::vec2>> getWithMeta(const std::string& key);
-	template <>
-	std::optional<ValueWMeta<glm::vec3>> getWithMeta(const std::string& key);
-	template <>
-	std::optional<ValueWMeta<glm::vec4>> getWithMeta(const std::string& key);
+    // glm types
+    template<> std::optional<ValueWMeta<glm::vec2>>              getWithMeta(const std::string& key);
+    template<> std::optional<ValueWMeta<glm::vec3>>              getWithMeta(const std::string& key);
+    template<> std::optional<ValueWMeta<glm::vec4>>              getWithMeta(const std::string& key);
+    */
+    template<typename T> MaybeMeta<T>                            getWithMeta(const std::string& key);
 
 	/*
 	const std::string&				SETTING_TYPE_UNKNOWN = "unknown";
@@ -399,7 +361,6 @@ class DsSettings : public QObject {
     QVariantMap tomlTableViewToVariantMap(const toml::node_view<const toml::node>& tabView);
 	// static std::unordered_map<std::type_index,DSOverloaded> sOverloadMap;
 };
-
 
 
 }  // namespace dsqt

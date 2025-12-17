@@ -47,11 +47,12 @@ qt_add_qml_module(Dsqt
         core/dsQmlEnvironment.h core/dsQmlEnvironment.cpp
         core/dsQmlIdle.h core/dsQmlIdle.cpp
         core/dsQmlIdlePreventer.h core/dsQmlIdlePreventer.cpp
-        core/dsQmlImguiItem.h
+
         core/dsQmlObj.h core/dsQmlObj.cpp
         core/dsQmlPathHelper.cpp core/dsQmlPathHelper.h
         core/dsQmlTextMeasurer.h
         core/dsReloadUrlInterceptor.h core/dsReloadUrlInterceptor.cpp
+        model/dsContentModel.cpp model/dsContentModel.h
         model/dsContentModelItemModel.h model/dsContentModelItemModel.cpp
         model/dsQmlEventSchedule.cpp model/dsQmlEventSchedule.h
         model/dsQmlPlaylist.cpp model/dsQmlPlaylist.h
@@ -78,8 +79,6 @@ qt_add_qml_module(Dsqt
         utility/dsFileMetaData.cpp utility/dsFileMetaData.h
         utility/dsStringUtils.cpp utility/dsStringUtils.h
         utility/dsUrlImageLoader.cpp utility/dsUrlImageLoader.h
-
-
         
     DEPENDENCIES
          QtQuick
@@ -89,8 +88,10 @@ qt_add_qml_module(Dsqt
         res/data.qrc
         SOURCES model/dsContentModel.cpp
         SOURCES model/dsContentModel.h
+        SOURCES core/dsFontManager.h core/dsFontManager.cpp
 )
 
 target_link_libraries(Dsqtplugin PRIVATE Qt6::Core Qt6::Multimedia Qt6::Quick Qt6::Pdf PUBLIC Qt6::WebEngineQuick)
+target_link_libraries(Dsqtplugin PRIVATE Qt6::Core)
 
 target_include_directories(Dsqt PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} bridge core model network qml resources settings ui utility)

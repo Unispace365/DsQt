@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Shapes
 import Dsqt
+import ClonerSource
 
 Item {
     id: root
@@ -42,7 +43,7 @@ Item {
                 id: time
                 text: root.clock.timeHM
                 color: root.textColor
-                font.family: helveticaNeueThin.name
+                font.family: Fnt.bitcountClk.family
                 font.weight: 200
                 font.pixelSize: 0.5 * frame.height
                 width: parent.width
@@ -59,7 +60,7 @@ Item {
                     id: day
                     text: root.clock.dateFull.split(",")[0]
                     color: root.textColor
-                    font.family: helveticaNeueMedium.name
+                    font.family: Fnt.bitcountClk.family
                     font.weight: 500
                     font.pixelSize: 0.25 * time.font.pixelSize
                     width: contentWidth
@@ -72,7 +73,7 @@ Item {
                     id: datum
                     text: "," + root.clock.dateFull.split(",")[1] + "," + root.clock.dateFull.split(",")[2]
                     color: root.textColor
-                    font.family: helveticaNeueThin.name
+                    font.family: Fnt.bitcountClk.family
                     font.weight: 200
                     font.pixelSize: 0.25 * time.font.pixelSize
                     width: contentWidth

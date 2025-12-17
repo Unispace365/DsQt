@@ -3,7 +3,7 @@
 
 #include <QObject>
 #include <QQmlEngine>
-#include <Qtimer>
+#include <QTimer>
 
 namespace dsqt {
 
