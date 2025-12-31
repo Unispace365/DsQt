@@ -4,26 +4,26 @@
 #include <QUuid>
 #include <QTimer>
 
-class TouchEngineInstance;
-class TouchEngineTextureNode;
+class DsQmlTouchEngineInstance;
+class DsTouchEngineTextureNode;
 class QRhiTexture;
 
 /**
- * TouchEngineOutputView - QML item for displaying TouchEngine output
+ * DsQmlTouchEngineOutputView - QML item for displaying TouchEngine output
  * Uses Qt Quick Scene Graph for efficient rendering with RHI
  */
-class TouchEngineOutputView : public QQuickItem
+class DsQmlTouchEngineOutputView : public QQuickItem
 {
     Q_OBJECT
-    QML_NAMED_ELEMENT(TouchEngineOutputView)
+    QML_NAMED_ELEMENT(DsTouchEngineOutputView)
     Q_PROPERTY(QString instanceId READ instanceId WRITE setInstanceId NOTIFY instanceIdChanged)
     Q_PROPERTY(QString outputLink READ outputLink WRITE setOutputLink NOTIFY outputLinkChanged)
     Q_PROPERTY(bool autoUpdate READ autoUpdate WRITE setAutoUpdate NOTIFY autoUpdateChanged)
 
 
 public:
-    explicit TouchEngineOutputView(QQuickItem* parent = nullptr);
-    ~TouchEngineOutputView() override;
+    explicit DsQmlTouchEngineOutputView(QQuickItem* parent = nullptr);
+    ~DsQmlTouchEngineOutputView() override;
 
     QString instanceId() const { return m_instanceId; }
     void setInstanceId(const QString& id);
@@ -53,7 +53,7 @@ private:
     QString m_instanceId;
     QString m_outputLink = "output";
     bool m_autoUpdate = true;
-    TouchEngineInstance* m_instance = nullptr;
+    DsQmlTouchEngineInstance* m_instance = nullptr;
     QSharedPointer<QRhiTexture> m_rhiTexture = nullptr;
     void connectInstance();
     void disconnectInstance();

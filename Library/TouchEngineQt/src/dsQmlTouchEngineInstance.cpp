@@ -1,11 +1,11 @@
-#include "touchengineinstance.h"
+#include "dsQmlTouchEngineInstance.h"
 //#include "DX11Renderer.h"
 #include "D3D12Renderer.h"
 #include "OpenGLRenderer.h"
 #include <QtCore>
 #include "VulkanRenderer.h"
 
-TouchEngineInstance::TouchEngineInstance(QObject *parent,QQuickWindow* window)
+DsQmlTouchEngineInstance::DsQmlTouchEngineInstance(QObject *parent,QQuickWindow* window)
     : QObject{parent}
 {
     m_frameTimer.start();
@@ -14,13 +14,13 @@ TouchEngineInstance::TouchEngineInstance(QObject *parent,QQuickWindow* window)
 }
 
 void
-TouchEngineInstance::linkLayoutDidChange()
+DsQmlTouchEngineInstance::linkLayoutDidChange()
 {
     QMutexLocker locker(&myMutex);
     myPendingLayoutChange = true;
 }
 
-void TouchEngineInstance::didConfigure(TEResult result)
+void DsQmlTouchEngineInstance::didConfigure(TEResult result)
 {
     if(result != TEResultCancelled) {
         QMutexLocker locker(&myMutex);
@@ -30,7 +30,7 @@ void TouchEngineInstance::didConfigure(TEResult result)
 }
 
 void
-TouchEngineInstance::eventCallback(TEInstance * instance,
+DsQmlTouchEngineInstance::eventCallback(TEInstance * instance,
                               TEEvent event,
                               TEResult result,
                               int64_t start_time_value,
@@ -39,7 +39,7 @@ TouchEngineInstance::eventCallback(TEInstance * instance,
                               int32_t end_time_scale,
                               void * info)
 {
-    TouchEngineInstance *inst = static_cast<TouchEngineInstance *>(info);
+    DsQmlTouchEngineInstance *inst = static_cast<DsQmlTouchEngineInstance *>(info);
 
     switch (event)
     {
@@ -62,9 +62,9 @@ TouchEngineInstance::eventCallback(TEInstance * instance,
 }
 
 void
-TouchEngineInstance::linkEventCallback(TEInstance * instance, TELinkEvent event, const char *identifier, void * info)
+DsQmlTouchEngineInstance::linkEventCallback(TEInstance * instance, TELinkEvent event, const char *identifier, void * info)
 {
-    TouchEngineInstance* inst = static_cast<TouchEngineInstance*>(info);
+    DsQmlTouchEngineInstance* inst = static_cast<DsQmlTouchEngineInstance*>(info);
     switch (event)
     {
     case TELinkEventAdded:
@@ -79,7 +79,7 @@ TouchEngineInstance::linkEventCallback(TEInstance * instance, TELinkEvent event,
 }
 
 void
-TouchEngineInstance::linkValueChange(const char* identifier)
+DsQmlTouchEngineInstance::linkValueChange(const char* identifier)
 {
     TouchObject<TELinkInfo> link;
     TEResult result = TEInstanceLinkGetInfo(myInstance, identifier, link.take());
@@ -142,13 +142,13 @@ TouchEngineInstance::linkValueChange(const char* identifier)
 }
 
 void
-TouchEngineInstance::endFrame(int64_t time_value, int32_t time_scale, TEResult result)
+DsQmlTouchEngineInstance::endFrame(int64_t time_value, int32_t time_scale, TEResult result)
 {
     setInFrame(false);
 }
 
 void
-TouchEngineInstance::getState(bool& configured, bool& ready, bool& loaded, bool& linksChanged, bool& inFrame)
+DsQmlTouchEngineInstance::getState(bool& configured, bool& ready, bool& loaded, bool& linksChanged, bool& inFrame)
 {
     QMutexLocker locker(&myMutex);
     configured = myConfigureRenderer;
@@ -170,14 +170,14 @@ TouchEngineInstance::getState(bool& configured, bool& ready, bool& loaded, bool&
 }
 
 void
-TouchEngineInstance::setInFrame(bool inFrame)
+DsQmlTouchEngineInstance::setInFrame(bool inFrame)
 {
     QMutexLocker locker(&myMutex);
     myInFrame = inFrame;
 }
 
 bool
-TouchEngineInstance::applyOutputTextureChange()
+DsQmlTouchEngineInstance::applyOutputTextureChange()
 {
     // Only hold the lock briefly
     std::vector<QString> changes;
@@ -202,12 +202,12 @@ TouchEngineInstance::applyOutputTextureChange()
     return !changes.empty();
 }
 
-bool TouchEngineInstance::hasInputLink(QString identifier)
+bool DsQmlTouchEngineInstance::hasInputLink(QString identifier)
 {
     return lastInputLinks.contains(identifier);
 }
 
-void TouchEngineInstance::applyLayoutChange()
+void DsQmlTouchEngineInstance::applyLayoutChange()
 {
     myRenderer->beginImageLayout();
 
@@ -268,7 +268,7 @@ void TouchEngineInstance::applyLayoutChange()
 }
 
 
-bool TouchEngineInstance::initialize(QRhi* rhi, TEGraphicsAPI apiType)
+bool DsQmlTouchEngineInstance::initialize(QRhi* rhi, TEGraphicsAPI apiType)
 {
     switch (apiType){
         case TEGraphicsAPI_OpenGL:
@@ -289,10 +289,10 @@ bool TouchEngineInstance::initialize(QRhi* rhi, TEGraphicsAPI apiType)
             return false;
     }
 
-    connect(m_window,&QQuickWindow::afterFrameEnd,this,&TouchEngineInstance::update,Qt::DirectConnection);
+    connect(m_window,&QQuickWindow::afterFrameEnd,this,&DsQmlTouchEngineInstance::update,Qt::DirectConnection);
 
     // Connect to sceneGraphInvalidated to release textures before device is destroyed
-    connect(m_window,&QQuickWindow::sceneGraphInvalidated,this,&TouchEngineInstance::onSceneGraphInvalidated,Qt::DirectConnection);
+    connect(m_window,&QQuickWindow::sceneGraphInvalidated,this,&DsQmlTouchEngineInstance::onSceneGraphInvalidated,Qt::DirectConnection);
 
     if (!myRenderer->setup(m_window))
     {
@@ -319,7 +319,7 @@ bool TouchEngineInstance::initialize(QRhi* rhi, TEGraphicsAPI apiType)
     return true;
 }
 
-bool TouchEngineInstance::loadComponent()
+bool DsQmlTouchEngineInstance::loadComponent()
 {
     std::string utf8 = std::string(m_componentPath.toUtf8().constData());
 
@@ -358,7 +358,7 @@ bool TouchEngineInstance::loadComponent()
     return true;
 }
 
-void TouchEngineInstance::unloadComponent()
+void DsQmlTouchEngineInstance::unloadComponent()
 {
     if (myInstance.get()) {
         TEInstanceSuspend(myInstance.get());
@@ -386,7 +386,7 @@ void TouchEngineInstance::unloadComponent()
     emit isReadyChanged();
 }
 
-void TouchEngineInstance::startNewFrame() {
+void DsQmlTouchEngineInstance::startNewFrame() {
 
 
     if (myOtherDidLoad && !myOtherInFrame) {
@@ -412,7 +412,7 @@ void TouchEngineInstance::startNewFrame() {
     }
 }
 
-void TouchEngineInstance::update() {
+void DsQmlTouchEngineInstance::update() {
     bool configured, ready, loaded, linksChanged, inFrame;
     getState(configured, ready, loaded, linksChanged, inFrame);
     myOtherDidLoad = loaded;
@@ -461,13 +461,13 @@ void TouchEngineInstance::update() {
     }
 }
 
-QString TouchEngineInstance::componentPath() const
+QString DsQmlTouchEngineInstance::componentPath() const
 {
     QMutexLocker locker(&myMutex);
     return m_componentPath;
 }
 
-void TouchEngineInstance::setComponentPath(const QString &newComponentPath)
+void DsQmlTouchEngineInstance::setComponentPath(const QString &newComponentPath)
 {
     if (m_componentPath == newComponentPath)
         return;
@@ -475,19 +475,19 @@ void TouchEngineInstance::setComponentPath(const QString &newComponentPath)
     emit componentPathChanged();
 }
 
-bool TouchEngineInstance::isLoaded() const
+bool DsQmlTouchEngineInstance::isLoaded() const
 {
     QMutexLocker locker(&myMutex);
     return myDidLoad;
 }
 
-bool TouchEngineInstance::isReady() const
+bool DsQmlTouchEngineInstance::isReady() const
 {
     QMutexLocker locker(&myMutex);
     return myIsReady;
 }
 
-void TouchEngineInstance::setIsReady(bool ready) {
+void DsQmlTouchEngineInstance::setIsReady(bool ready) {
 
     QMutexLocker locker(&myMutex);
     if(myIsReady == ready) return;
@@ -495,17 +495,17 @@ void TouchEngineInstance::setIsReady(bool ready) {
     emit isReadyChanged();
 }
 
-QString TouchEngineInstance::errorString() const
+QString DsQmlTouchEngineInstance::errorString() const
 {
     return m_errorString;
 }
 
-qreal TouchEngineInstance::frameRate() const
+qreal DsQmlTouchEngineInstance::frameRate() const
 {
     return m_frameRate;
 }
 
-void TouchEngineInstance::setFrameRate(qreal newFrameRate)
+void DsQmlTouchEngineInstance::setFrameRate(qreal newFrameRate)
 {
     if (qFuzzyCompare(m_frameRate, newFrameRate))
         return;
@@ -513,17 +513,17 @@ void TouchEngineInstance::setFrameRate(qreal newFrameRate)
     emit frameRateChanged();
 }
 
-QString TouchEngineInstance::instanceIdString() const
+QString DsQmlTouchEngineInstance::instanceIdString() const
 {
     return m_instanceIdString;
 }
 
-QString TouchEngineInstance::name() const
+QString DsQmlTouchEngineInstance::name() const
 {
     return m_name;
 }
 
-void TouchEngineInstance::setName(const QString &newName)
+void DsQmlTouchEngineInstance::setName(const QString &newName)
 {
     if (m_name == newName)
         return;
@@ -531,7 +531,7 @@ void TouchEngineInstance::setName(const QString &newName)
     emit nameChanged();
 }
 
-QSharedPointer<QRhiTexture> TouchEngineInstance::getRhiTexture(QString &linkName)
+QSharedPointer<QRhiTexture> DsQmlTouchEngineInstance::getRhiTexture(QString &linkName)
 {
     if (myOutputLinkTextureMap.contains(linkName) )
     {
@@ -547,7 +547,7 @@ QSharedPointer<QRhiTexture> TouchEngineInstance::getRhiTexture(QString &linkName
     return nullptr;
 }
 
-// GLint TouchEngineInstance::getGLTexture(QString &linkName)
+// GLint DsQmlTouchEngineInstance::getGLTexture(QString &linkName)
 // {
 //     if (myOutputLinkTextureMap.contains(linkName))
 //     {
@@ -557,7 +557,7 @@ QSharedPointer<QRhiTexture> TouchEngineInstance::getRhiTexture(QString &linkName
 // }
 
 int64_t
-TouchEngineInstance::getRenderTime()
+DsQmlTouchEngineInstance::getRenderTime()
 {
     LARGE_INTEGER now{ 0 };
 
@@ -579,14 +579,14 @@ TouchEngineInstance::getRenderTime()
     return now.QuadPart;
 }
 
-TEGraphicsContext *TouchEngineInstance::graphicsContext() const
+TEGraphicsContext *DsQmlTouchEngineInstance::graphicsContext() const
 {
     if (!myRenderer)
         return nullptr;
     return myRenderer->getTEContext();
 }
 
-const QOpenGLFunctions *TouchEngineInstance::getGLFunctions() const
+const QOpenGLFunctions *DsQmlTouchEngineInstance::getGLFunctions() const
 {
     OpenGLRenderer* oglRender = dynamic_cast<OpenGLRenderer*>(myRenderer.get());
     if(oglRender) {
@@ -595,7 +595,7 @@ const QOpenGLFunctions *TouchEngineInstance::getGLFunctions() const
     return nullptr;
 }
 
-void TouchEngineInstance::onSceneGraphInvalidated()
+void DsQmlTouchEngineInstance::onSceneGraphInvalidated()
 {
     // Release Vulkan/D3D12 textures before the graphics device is destroyed
     if (myRenderer) {

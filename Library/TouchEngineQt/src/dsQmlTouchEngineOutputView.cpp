@@ -1,10 +1,10 @@
-#include "touchengineoutputview.h"
-#include "touchenginetexturenode.h"
-#include "touchenginemanager.h"
-#include "touchengineinstance.h"
+#include "dsQmlTouchEngineOutputView.h"
+#include "dsTouchEngineTextureNode.h"
+#include "dsQmlTouchEngineManager.h"
+#include "dsQmlTouchEngineInstance.h"
 #include <QQuickWindow>
 
-TouchEngineOutputView::TouchEngineOutputView(QQuickItem* parent)
+DsQmlTouchEngineOutputView::DsQmlTouchEngineOutputView(QQuickItem* parent)
     : QQuickItem(parent)
 {
     setFlag(ItemHasContents, true);
@@ -12,12 +12,12 @@ TouchEngineOutputView::TouchEngineOutputView(QQuickItem* parent)
 
 }
 
-TouchEngineOutputView::~TouchEngineOutputView()
+DsQmlTouchEngineOutputView::~DsQmlTouchEngineOutputView()
 {
     disconnectInstance();
 }
 
-void TouchEngineOutputView::setInstanceId(const QString& id)
+void DsQmlTouchEngineOutputView::setInstanceId(const QString& id)
 {
     if (m_instanceId != id) {
         disconnectInstance();
@@ -28,7 +28,7 @@ void TouchEngineOutputView::setInstanceId(const QString& id)
     }
 }
 
-void TouchEngineOutputView::setOutputLink(const QString& link)
+void DsQmlTouchEngineOutputView::setOutputLink(const QString& link)
 {
     if (m_outputLink != link) {
         m_outputLink = link;
@@ -37,7 +37,7 @@ void TouchEngineOutputView::setOutputLink(const QString& link)
     }
 }
 
-void TouchEngineOutputView::setAutoUpdate(bool enable)
+void DsQmlTouchEngineOutputView::setAutoUpdate(bool enable)
 {
     if (m_autoUpdate != enable) {
         m_autoUpdate = enable;
@@ -45,14 +45,14 @@ void TouchEngineOutputView::setAutoUpdate(bool enable)
     }
 }
 
-void TouchEngineOutputView::requestFrame()
+void DsQmlTouchEngineOutputView::requestFrame()
 {
     if (m_instance) {
         //m_instance->startFrame();
     }
 }
 
-QSGNode* TouchEngineOutputView::updatePaintNode(QSGNode* oldNode, UpdatePaintNodeData* data)
+QSGNode* DsQmlTouchEngineOutputView::updatePaintNode(QSGNode* oldNode, UpdatePaintNodeData* data)
 {
 
 
@@ -61,12 +61,12 @@ QSGNode* TouchEngineOutputView::updatePaintNode(QSGNode* oldNode, UpdatePaintNod
     };
 
     //update();
-    auto* node = static_cast<TouchEngineTextureNode*>(oldNode);
+    auto* node = static_cast<DsTouchEngineTextureNode*>(oldNode);
     //return node;
 
     // Create or update node
     if (!node) {
-        node = new TouchEngineTextureNode(window(),m_instanceId,m_outputLink);
+        node = new DsTouchEngineTextureNode(window(),m_instanceId,m_outputLink);
     }
 
     auto rhi = window()->rhi();
@@ -78,9 +78,9 @@ QSGNode* TouchEngineOutputView::updatePaintNode(QSGNode* oldNode, UpdatePaintNod
 
     // OpenGL needs vertical flip due to coordinate system differences
     if (rhi->backend() == QRhi::OpenGLES2) {
-        node->setTextureCoordinatesTransform(TouchEngineTextureNode::MirrorVertically);
+        node->setTextureCoordinatesTransform(DsTouchEngineTextureNode::MirrorVertically);
     } else {
-        node->setTextureCoordinatesTransform(TouchEngineTextureNode::NoTransform);
+        node->setTextureCoordinatesTransform(DsTouchEngineTextureNode::NoTransform);
     }
 
     //auto rhiTexture = m_instance->getRhiTexture(m_outputLink);
@@ -125,12 +125,12 @@ QSGNode* TouchEngineOutputView::updatePaintNode(QSGNode* oldNode, UpdatePaintNod
     return node;
 }
 
-void TouchEngineOutputView::releaseResources()
+void DsQmlTouchEngineOutputView::releaseResources()
 {
     disconnectInstance();
 }
 
-void TouchEngineOutputView::handleFrameFinished()
+void DsQmlTouchEngineOutputView::handleFrameFinished()
 {
     if (m_autoUpdate) {
         //qDebug() << "Frame finished, updating output view";
@@ -138,34 +138,34 @@ void TouchEngineOutputView::handleFrameFinished()
     }
 }
 
-void TouchEngineOutputView::handleTextureUpdated(const QString& linkName)
+void DsQmlTouchEngineOutputView::handleTextureUpdated(const QString& linkName)
 {
     if (linkName == m_outputLink && m_autoUpdate) {
         update();
     }
 }
 
-void TouchEngineOutputView::connectInstance()
+void DsQmlTouchEngineOutputView::connectInstance()
 {
     if (!m_instanceId.isEmpty()) {
-        m_instance = TouchEngineManager::inst()->getInstance(m_instanceId);
+        m_instance = DsQmlTouchEngineManager::inst()->getInstance(m_instanceId);
 
         if (m_instance) {
             m_updateTimer.setInterval(1000/120);
-            connect(window(),&QQuickWindow::frameSwapped,this,&TouchEngineOutputView::handleFrameFinished,Qt::QueuedConnection);
-            //connect(&m_updateTimer,&QTimer::timeout,this,&TouchEngineOutputView::handleFrameFinished,Qt::DirectConnection);
+            connect(window(),&QQuickWindow::frameSwapped,this,&DsQmlTouchEngineOutputView::handleFrameFinished,Qt::QueuedConnection);
+            //connect(&m_updateTimer,&QTimer::timeout,this,&DsQmlTouchEngineOutputView::handleFrameFinished,Qt::DirectConnection);
             m_updateTimer.start();
-            //connect(m_instance, &TouchEngineInstance2::frameFinished,
-            //        this, &TouchEngineOutputView::handleFrameFinished,Qt::QueuedConnection);
-            //connect(m_instance, &TouchEngineInstance2::textureUpdated,
-            //        this, &TouchEngineOutputView::handleTextureUpdated,Qt::DirectConnection);
-            connect(m_instance, &TouchEngineInstance::destroyed,
-                    this, &TouchEngineOutputView::disconnectInstance,Qt::QueuedConnection);
+            //connect(m_instance, &DsQmlTouchEngineInstance::frameFinished,
+            //        this, &DsQmlTouchEngineOutputView::handleFrameFinished,Qt::QueuedConnection);
+            //connect(m_instance, &DsQmlTouchEngineInstance::textureUpdated,
+            //        this, &DsQmlTouchEngineOutputView::handleTextureUpdated,Qt::DirectConnection);
+            connect(m_instance, &DsQmlTouchEngineInstance::destroyed,
+                    this, &DsQmlTouchEngineOutputView::disconnectInstance,Qt::QueuedConnection);
         }
     }
 }
 
-void TouchEngineOutputView::disconnectInstance()
+void DsQmlTouchEngineOutputView::disconnectInstance()
 {
     if (m_instance) {
         disconnect(m_instance, nullptr, this, nullptr);

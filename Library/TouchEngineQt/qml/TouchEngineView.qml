@@ -19,7 +19,7 @@ Item {
     }
     
     // The actual C++ backed view
-    TouchEngineOutputView {
+    DsTouchEngineOutputView {
         id: view
         anchors.fill: parent
     }

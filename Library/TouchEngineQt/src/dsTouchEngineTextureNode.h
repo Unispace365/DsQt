@@ -6,17 +6,17 @@
 #include <QQuickWindow>
 
 class RHITextureBridge;
-class TouchEngineMaterial;
+class DsTouchEngineMaterial;
 
 /**
- * TouchEngineTextureNode - Scene graph node for rendering TouchEngine textures
+ * DsTouchEngineTextureNode - Scene graph node for rendering TouchEngine textures
  * Uses Qt RHI for cross-platform texture rendering
  */
-class TouchEngineTextureNode : public QSGImageNode
+class DsTouchEngineTextureNode : public QSGImageNode
 {
 public:
-    explicit TouchEngineTextureNode(QQuickWindow* window,QString instanceId,QString linkName);
-    ~TouchEngineTextureNode() override;
+    explicit DsTouchEngineTextureNode(QQuickWindow* window,QString instanceId,QString linkName);
+    ~DsTouchEngineTextureNode() override;
 
     void setTexture(QSharedPointer<QRhiTexture> rhiTex, const QSize& size);
 
@@ -70,7 +70,7 @@ private:
 
     // Geometry and material
     QSGGeometry* m_geometry = nullptr;
-    TouchEngineMaterial* m_material = nullptr;
+    DsTouchEngineMaterial* m_material = nullptr;
 
     // QSGImageNode state
     QRectF m_rect;

@@ -18,7 +18,7 @@
 #include <TouchEngine/TEOpenGL.h>
 #include <QOpenGLFunctions_4_4_Core>
 #include <QOffscreenSurface>
-#include <touchenginemanager.h>
+#include <dsQmlTouchEngineManager.h>
 
 
 
@@ -38,8 +38,8 @@ OpenGLRenderer::setup(QQuickWindow *window)
 
     bool success = Renderer::setup(window);
 
-    auto currentContext = TouchEngineManager::inst()->getShareContext();
-    //auto rContext = TouchEngineManager::inst()->getRenderContext();
+    auto currentContext = DsQmlTouchEngineManager::inst()->getShareContext();
+    //auto rContext = DsQmlTouchEngineManager::inst()->getRenderContext();
     QRhiGles2InitParams initParams;
     initParams.shareContext = currentContext;
     initParams.fallbackSurface = initParams.newFallbackSurface(currentContext->format());

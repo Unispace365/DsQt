@@ -1,5 +1,5 @@
-#ifndef TOUCHENGINEINSTANCE_H
-#define TOUCHENGINEINSTANCE_H
+#ifndef DSQMLTOUCHENGINEINSTANCE_H
+#define DSQMLTOUCHENGINEINSTANCE_H
 
 #include <QObject>
 #include <QQmlEngine>
@@ -15,11 +15,11 @@
 
 Q_DECLARE_OPAQUE_POINTER(TEInstance*)
 
-class TouchEngineInstance : public QObject
+class DsQmlTouchEngineInstance : public QObject
 {
     Q_OBJECT
-    QML_NAMED_ELEMENT(TouchEngineInstance)
-    QML_UNCREATABLE("TouchEngineInstance2 cannot be created from QML");
+    QML_NAMED_ELEMENT(DsTouchEngineInstance)
+    QML_UNCREATABLE("DsTouchEngineInstance cannot be created from QML");
     Q_PROPERTY(QString componentPath READ componentPath WRITE setComponentPath NOTIFY componentPathChanged)
     Q_PROPERTY(bool isLoaded READ isLoaded NOTIFY isLoadedChanged)
     Q_PROPERTY(bool isReady READ isReady NOTIFY isReadyChanged)
@@ -39,7 +39,7 @@ public:
         TEGraphicsAPI_Metal = 5
     };
 
-    explicit TouchEngineInstance(QObject *parent = nullptr,QQuickWindow* window=nullptr);
+    explicit DsQmlTouchEngineInstance(QObject *parent = nullptr,QQuickWindow* window=nullptr);
 
     // C++ internal ID
     QUuid instanceId() const { return m_instanceId; }
@@ -179,4 +179,4 @@ private:
     QTemporaryFile *m_tempFile;
 };
 
-#endif // TOUCHENGINEINSTANCE_H
+#endif // DSQMLTOUCHENGINEINSTANCE_H

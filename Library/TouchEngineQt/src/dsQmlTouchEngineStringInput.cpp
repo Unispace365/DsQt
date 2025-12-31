@@ -1,17 +1,17 @@
-#include "touchenginestringinput.h"
+#include "dsQmlTouchEngineStringInput.h"
 #include <TouchEngine/TouchEngine.h>
 #include <QDebug>
 
-TouchEngineStringInput::TouchEngineStringInput(QObject *parent)
-    : TouchEngineInputBase(parent)
+DsQmlTouchEngineStringInput::DsQmlTouchEngineStringInput(QObject *parent)
+    : DsQmlTouchEngineInputBase(parent)
 {
 }
 
-TouchEngineStringInput::~TouchEngineStringInput()
+DsQmlTouchEngineStringInput::~DsQmlTouchEngineStringInput()
 {
 }
 
-void TouchEngineStringInput::setValue(const QString &value)
+void DsQmlTouchEngineStringInput::setValue(const QString &value)
 {
     if (m_value != value) {
         m_value = value;
@@ -25,7 +25,7 @@ void TouchEngineStringInput::setValue(const QString &value)
 
 
 
-void TouchEngineStringInput::applyValue(TEInstance* teInstance)
+void DsQmlTouchEngineStringInput::applyValue(TEInstance* teInstance)
 {
     if (!getInstance() || linkName().isEmpty()) {
         return;

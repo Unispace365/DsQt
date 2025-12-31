@@ -7,10 +7,10 @@
 /**
  * Material for rendering TouchEngine textures with RHI
  */
-class TouchEngineMaterial : public QSGMaterial
+class DsTouchEngineMaterial : public QSGMaterial
 {
 public:
-    TouchEngineMaterial();
+    DsTouchEngineMaterial();
 
     QSGMaterialType* type() const override;
     QSGMaterialShader* createShader(QSGRendererInterface::RenderMode renderMode) const override;
@@ -34,10 +34,10 @@ private:
 /**
  * RHI-based shader for TouchEngine material
  */
-class TouchEngineMaterialShader : public QSGMaterialShader
+class DsTouchEngineMaterialShader : public QSGMaterialShader
 {
 public:
-    TouchEngineMaterialShader();
+    DsTouchEngineMaterialShader();
 
     bool updateUniformData(RenderState& state,
                            QSGMaterial* newMaterial,

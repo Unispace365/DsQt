@@ -1,53 +1,53 @@
-#include "touchenginemanager.h"
+#include "dsQmlTouchEngineManager.h"
 #include <QDebug>
 #include <QOpenGLContext>
 #include <rhi/qrhi.h>
 
-TouchEngineManager* TouchEngineManager::s_instance = nullptr;
+DsQmlTouchEngineManager* DsQmlTouchEngineManager::s_instance = nullptr;
 
-TouchEngineManager *TouchEngineManager::create(QQmlEngine *engine, QJSEngine *scriptEngine) {
+DsQmlTouchEngineManager *DsQmlTouchEngineManager::create(QQmlEngine *engine, QJSEngine *scriptEngine) {
     Q_UNUSED(engine)
     Q_UNUSED(scriptEngine)
-    qInfo()<<"using create to make TouchEngineManager singleton";
-    return TouchEngineManager::inst();
+    qInfo()<<"using create to make DsQmlTouchEngineManager singleton";
+    return DsQmlTouchEngineManager::inst();
 }
 
-TouchEngineManager* TouchEngineManager::inst()
+DsQmlTouchEngineManager* DsQmlTouchEngineManager::inst()
 {
     if (!s_instance) {
-        s_instance = new TouchEngineManager();
+        s_instance = new DsQmlTouchEngineManager();
     }
     return s_instance;
 }
 
-TouchEngineManager::TouchEngineManager(QObject* parent)
+DsQmlTouchEngineManager::DsQmlTouchEngineManager(QObject* parent)
     : QObject(parent)
 {
-    qDebug() << "TouchEngineManager created";
+    qDebug() << "DsQmlTouchEngineManager created";
 }
 
-TouchEngineManager::~TouchEngineManager()
+DsQmlTouchEngineManager::~DsQmlTouchEngineManager()
 {
     // Clean up all instances
-    qDebug() << "TouchEngineManager destroyed, cleaning up" << m_instances.count() << "instances";
+    qDebug() << "DsQmlTouchEngineManager destroyed, cleaning up" << m_instances.count() << "instances";
     qDeleteAll(m_instances);
     m_instances.clear();
 }
 
-QString TouchEngineManager::createInstance()
+QString DsQmlTouchEngineManager::createInstance()
 {
     if(!m_isInitialized){
-        qWarning() << "TouchEngineManager is not initialized. Cannot create instance.";
+        qWarning() << "DsQmlTouchEngineManager is not initialized. Cannot create instance.";
         return QString();
     }
     QRhi* rhi = nullptr;
     if(m_window){
         rhi = m_window->rhi();
     }
-    auto* instance = new TouchEngineInstance(this,m_window);
+    auto* instance = new DsQmlTouchEngineInstance(this,m_window);
 
     // Initialize with graphics device if available
-    if (m_nativeDevice || m_graphicsAPI == TouchEngineInstance::TEGraphicsAPI_OpenGL) {
+    if (m_nativeDevice || m_graphicsAPI == DsQmlTouchEngineInstance::TEGraphicsAPI_OpenGL) {
         if (!instance->initialize(rhi, m_graphicsAPI)) {
             qWarning() << "Failed to initialize new instance with graphics API:" << m_graphicsAPI;
         }
@@ -64,12 +64,12 @@ QString TouchEngineManager::createInstance()
     return idString;
 }
 
-void TouchEngineManager::destroyInstance(const QString& idString)
+void DsQmlTouchEngineManager::destroyInstance(const QString& idString)
 {
     QUuid id = stringToUuid(idString);
 
     if (m_instances.contains(id)) {
-        TouchEngineInstance* instance = m_instances.take(id);
+        DsQmlTouchEngineInstance* instance = m_instances.take(id);
         instance->deleteLater();
 
         emit instanceCountChanged();
@@ -81,13 +81,13 @@ void TouchEngineManager::destroyInstance(const QString& idString)
     }
 }
 
-TouchEngineInstance* TouchEngineManager::getInstance(const QString& idString)
+DsQmlTouchEngineInstance* DsQmlTouchEngineManager::getInstance(const QString& idString)
 {
     QUuid id = stringToUuid(idString);
     return m_instances.value(id, nullptr);
 }
 
-TouchEngineInstance *TouchEngineManager::getInstanceByName(const QString &nameString)
+DsQmlTouchEngineInstance *DsQmlTouchEngineManager::getInstanceByName(const QString &nameString)
 {
     for(auto instance : m_instances) {
         if(instance->name() == nameString) {
@@ -98,7 +98,7 @@ TouchEngineInstance *TouchEngineManager::getInstanceByName(const QString &nameSt
     return nullptr;
 }
 
-bool TouchEngineManager::initializeGraphics(QRhi* rhi,void* nativeDevice)
+bool DsQmlTouchEngineManager::initializeGraphics(QRhi* rhi,void* nativeDevice)
 {
     m_nativeDevice = nativeDevice;
 
@@ -107,7 +107,7 @@ bool TouchEngineManager::initializeGraphics(QRhi* rhi,void* nativeDevice)
 
     // Initialize all existing instances
     bool allSuccess = true;
-    for (TouchEngineInstance* instance : m_instances) {
+    for (DsQmlTouchEngineInstance* instance : m_instances) {
         if (!instance->initialize(rhi, m_graphicsAPI)) {
             qWarning() << "Failed to initialize graphics for instance:" << instance->instanceId();
             allSuccess = false;
@@ -121,12 +121,12 @@ bool TouchEngineManager::initializeGraphics(QRhi* rhi,void* nativeDevice)
     return allSuccess;
 }
 
-QQuickWindow *TouchEngineManager::window() const
+QQuickWindow *DsQmlTouchEngineManager::window() const
 {
     return m_window;
 }
 
-void TouchEngineManager::setWindow(QQuickWindow *newWindow)
+void DsQmlTouchEngineManager::setWindow(QQuickWindow *newWindow)
 {
     if (m_window == newWindow)
         return;
@@ -139,37 +139,37 @@ void TouchEngineManager::setWindow(QQuickWindow *newWindow)
 
             QRhi* rhi = m_window->rhi();
             if (!rhi) {
-                qWarning() << "TouchEngineManager: No RHI available";
+                qWarning() << "DsQmlTouchEngineManager: No RHI available";
                 return;
             }
 
             // Detect graphics API from RHI backend
             QRhi::Implementation backend = rhi->backend();
-            qDebug() << "TouchEngineManager: RHI backend is" << backend;
+            qDebug() << "DsQmlTouchEngineManager: RHI backend is" << backend;
 
             switch (backend) {
                 case QRhi::OpenGLES2:
-                    m_graphicsAPI = TouchEngineInstance::TEGraphicsAPI_OpenGL;
+                    m_graphicsAPI = DsQmlTouchEngineInstance::TEGraphicsAPI_OpenGL;
                     initializeOpenGL();
                     break;
 #ifdef _WIN32
                 case QRhi::D3D11:
                     // D3D11 not fully implemented, fall through to D3D12 or use OpenGL
-                    qWarning() << "TouchEngineManager: D3D11 backend detected but not fully supported, using D3D12";
-                    m_graphicsAPI = TouchEngineInstance::TEGraphicsAPI_D3D12;
+                    qWarning() << "DsQmlTouchEngineManager: D3D11 backend detected but not fully supported, using D3D12";
+                    m_graphicsAPI = DsQmlTouchEngineInstance::TEGraphicsAPI_D3D12;
                     initializeD3D12();
                     break;
                 case QRhi::D3D12:
-                    m_graphicsAPI = TouchEngineInstance::TEGraphicsAPI_D3D12;
+                    m_graphicsAPI = DsQmlTouchEngineInstance::TEGraphicsAPI_D3D12;
                     initializeD3D12();
                     break;
                 case QRhi::Vulkan:
-                    m_graphicsAPI = TouchEngineInstance::TEGraphicsAPI_Vulkan;
+                    m_graphicsAPI = DsQmlTouchEngineInstance::TEGraphicsAPI_Vulkan;
                     initializeVulkan();
                     break;
 #endif
                 default:
-                    qWarning() << "TouchEngineManager: Unsupported RHI backend:" << backend;
+                    qWarning() << "DsQmlTouchEngineManager: Unsupported RHI backend:" << backend;
                     break;
             }
         }, Qt::DirectConnection);
@@ -177,9 +177,9 @@ void TouchEngineManager::setWindow(QQuickWindow *newWindow)
     emit windowChanged();
 }
 
-void TouchEngineManager::initializeOpenGL()
+void DsQmlTouchEngineManager::initializeOpenGL()
 {
-    qDebug() << "TouchEngineManager: Initializing OpenGL";
+    qDebug() << "DsQmlTouchEngineManager: Initializing OpenGL";
 
     if (m_glContextQt) {
         // Already initialized
@@ -189,7 +189,7 @@ void TouchEngineManager::initializeOpenGL()
     QRhi* rhi = m_window->rhi();
     const QRhiGles2NativeHandles* handles = static_cast<const QRhiGles2NativeHandles*>(rhi->nativeHandles());
     if (!handles || !handles->context) {
-        qWarning() << "TouchEngineManager: Failed to get OpenGL context from RHI";
+        qWarning() << "DsQmlTouchEngineManager: Failed to get OpenGL context from RHI";
         return;
     }
 
@@ -202,7 +202,7 @@ void TouchEngineManager::initializeOpenGL()
     m_glContextQt->doneCurrent();
 
     if (!m_glShareContext->create()) {
-        qWarning() << "TouchEngineManager: Failed to create OpenGL share context";
+        qWarning() << "DsQmlTouchEngineManager: Failed to create OpenGL share context";
         delete m_glShareContext;
         m_glShareContext = nullptr;
         m_glContextQt->makeCurrent(surface);
@@ -210,48 +210,48 @@ void TouchEngineManager::initializeOpenGL()
     }
 
     m_glContextQt->makeCurrent(surface);
-    qDebug() << "TouchEngineManager: OpenGL initialized successfully";
+    qDebug() << "DsQmlTouchEngineManager: OpenGL initialized successfully";
     setIsInitialized(true);
 }
 
-void TouchEngineManager::initializeD3D12()
+void DsQmlTouchEngineManager::initializeD3D12()
 {
 #ifdef _WIN32
-    qDebug() << "TouchEngineManager: Initializing D3D12";
+    qDebug() << "DsQmlTouchEngineManager: Initializing D3D12";
 
     // D3D12 doesn't require special context sharing like OpenGL
-    // Each TouchEngineInstance will create its own D3D12 device
+    // Each DsQmlTouchEngineInstance will create its own D3D12 device
     // and communicate with TouchEngine via shared NT handles
 
-    qDebug() << "TouchEngineManager: D3D12 initialized successfully";
+    qDebug() << "DsQmlTouchEngineManager: D3D12 initialized successfully";
     setIsInitialized(true);
 #else
-    qWarning() << "TouchEngineManager: D3D12 not available on this platform";
+    qWarning() << "DsQmlTouchEngineManager: D3D12 not available on this platform";
 #endif
 }
 
-void TouchEngineManager::initializeVulkan()
+void DsQmlTouchEngineManager::initializeVulkan()
 {
 #ifdef _WIN32
-    qDebug() << "TouchEngineManager: Initializing Vulkan";
+    qDebug() << "DsQmlTouchEngineManager: Initializing Vulkan";
 
     // Vulkan doesn't require special context sharing like OpenGL
-    // Each TouchEngineInstance will create its own Vulkan device
+    // Each DsQmlTouchEngineInstance will create its own Vulkan device
     // and communicate with TouchEngine via external memory handles
 
-    qDebug() << "TouchEngineManager: Vulkan initialized successfully";
+    qDebug() << "DsQmlTouchEngineManager: Vulkan initialized successfully";
     setIsInitialized(true);
 #else
-    qWarning() << "TouchEngineManager: Vulkan not available on this platform";
+    qWarning() << "DsQmlTouchEngineManager: Vulkan not available on this platform";
 #endif
 }
 
-bool TouchEngineManager::isInitialized() const
+bool DsQmlTouchEngineManager::isInitialized() const
 {
     return m_isInitialized;
 }
 
-void TouchEngineManager::setIsInitialized(bool newIsInitialized)
+void DsQmlTouchEngineManager::setIsInitialized(bool newIsInitialized)
 {
     if (m_isInitialized == newIsInitialized)
         return;

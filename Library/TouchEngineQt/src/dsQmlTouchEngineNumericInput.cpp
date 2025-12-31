@@ -1,20 +1,20 @@
-#include "touchenginenumericinput.h"
-#include "touchengineinstance.h"
+#include "dsQmlTouchEngineNumericInput.h"
+#include "dsQmlTouchEngineInstance.h"
 #include <TouchEngine/TouchEngine.h>
 #include <QDebug>
 #include <limits>
 
-TouchEngineNumericInput::TouchEngineNumericInput(QObject *parent)
-    : TouchEngineInputBase(parent)
+DsQmlTouchEngineNumericInput::DsQmlTouchEngineNumericInput(QObject *parent)
+    : DsQmlTouchEngineInputBase(parent)
 {
     m_value = 0.0;
 }
 
-TouchEngineNumericInput::~TouchEngineNumericInput()
+DsQmlTouchEngineNumericInput::~DsQmlTouchEngineNumericInput()
 {
 }
 
-void TouchEngineNumericInput::setValue(const QVariant &value)
+void DsQmlTouchEngineNumericInput::setValue(const QVariant &value)
 {
     QVariant newValue = value;
     
@@ -48,7 +48,7 @@ void TouchEngineNumericInput::setValue(const QVariant &value)
     }
 }
 
-void TouchEngineNumericInput::setInputType(InputType type)
+void DsQmlTouchEngineNumericInput::setInputType(InputType type)
 {
     if (m_inputType != type) {
         m_inputType = type;
@@ -78,7 +78,7 @@ void TouchEngineNumericInput::setInputType(InputType type)
     }
 }
 
-void TouchEngineNumericInput::setMinValue(double min)
+void DsQmlTouchEngineNumericInput::setMinValue(double min)
 {
     if (!qFuzzyCompare(m_minValue, min)) {
         m_minValue = min;
@@ -90,7 +90,7 @@ void TouchEngineNumericInput::setMinValue(double min)
     }
 }
 
-void TouchEngineNumericInput::setMaxValue(double max)
+void DsQmlTouchEngineNumericInput::setMaxValue(double max)
 {
     if (!qFuzzyCompare(m_maxValue, max)) {
         m_maxValue = max;
@@ -102,7 +102,7 @@ void TouchEngineNumericInput::setMaxValue(double max)
     }
 }
 
-void TouchEngineNumericInput::setClampValue(bool clamp)
+void DsQmlTouchEngineNumericInput::setClampValue(bool clamp)
 {
     if (m_clampValue != clamp) {
         m_clampValue = clamp;
@@ -114,25 +114,25 @@ void TouchEngineNumericInput::setClampValue(bool clamp)
     }
 }
 
-void TouchEngineNumericInput::setIntValue(int value)
+void DsQmlTouchEngineNumericInput::setIntValue(int value)
 {
     setInputType(Integer);
     setValue(value);
 }
 
-void TouchEngineNumericInput::setFloatValue(float value)
+void DsQmlTouchEngineNumericInput::setFloatValue(float value)
 {
     setInputType(Float);
     setValue(value);
 }
 
-void TouchEngineNumericInput::setDoubleValue(double value)
+void DsQmlTouchEngineNumericInput::setDoubleValue(double value)
 {
     setInputType(Double);
     setValue(value);
 }
 
-void TouchEngineNumericInput::setBoolValue(bool value)
+void DsQmlTouchEngineNumericInput::setBoolValue(bool value)
 {
     setInputType(Boolean);
     setValue(value);
@@ -140,7 +140,7 @@ void TouchEngineNumericInput::setBoolValue(bool value)
 
 
 
-void TouchEngineNumericInput::applyValue(TEInstance* teInstance)
+void DsQmlTouchEngineNumericInput::applyValue(TEInstance* teInstance)
 {
     if (!getInstance() || linkName().isEmpty()) {
         return;
@@ -203,7 +203,7 @@ void TouchEngineNumericInput::applyValue(TEInstance* teInstance)
     }
 }
 
-QVariant TouchEngineNumericInput::clampedValue() const
+QVariant DsQmlTouchEngineNumericInput::clampedValue() const
 {
     if (m_inputType == Boolean) {
         return m_value;

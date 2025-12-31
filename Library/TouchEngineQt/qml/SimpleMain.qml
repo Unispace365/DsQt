@@ -8,29 +8,29 @@ ApplicationWindow {
     height: 720
     visible: true
     title: "TouchEngine Qt Example - Multiple Instances"
-    property var instanceId: TouchEngineManager.createInstance();
-    property TouchEngineInstance engineInstance: TouchEngineManager.getInstance(instanceId);
+    property var instanceId: DsTouchEngineManager.createInstance();
+    property DsTouchEngineInstance engineInstance: DsTouchEngineManager.getInstance(instanceId);
 
     onInstanceIdChanged: {
-        if(instanceId != "" && TouchEngineManager.isInitialized) {
-            root.engineInstance = TouchEngineManager.getInstance(instanceId);
+        if(instanceId != "" && DsTouchEngineManager.isInitialized) {
+            root.engineInstance = DsTouchEngineManager.getInstance(instanceId);
             root.engineInstance.componentPath = "C:/dev/QtTouchEngine/resources/TD/Testbed.tox"
             root.engineInstance.loadComponent();
         }
     }
 
     Connections {
-        target: TouchEngineManager
+        target: DsTouchEngineManager
         function onIsInitializedChanged() {
-            if(root.instanceId==="" && TouchEngineManager.isInitialized) {
-                root.instanceId = TouchEngineManager.createInstance();
+            if(root.instanceId==="" && DsTouchEngineManager.isInitialized) {
+                root.instanceId = DsTouchEngineManager.createInstance();
             }
         }
     }
 
 
 
-    TouchEngineView {
+    DsTouchEngineOutputView {
         id: touchView
         enabled: true
         anchors.horizontalCenter: parent.horizontalCenter
@@ -43,7 +43,7 @@ ApplicationWindow {
 
     }
 
-    TouchEngineFloatBufferInput {
+    DsTouchEngineFloatBufferInput {
         id: floatInput
         instanceId: root.instanceId
         linkName: "op/in2"
@@ -65,7 +65,7 @@ ApplicationWindow {
         }
     }
 
-    TouchEngineStringInput {
+    DsTouchEngineStringInput {
         id: stringInput
         instanceId: root.instanceId
         linkName: "op/in3"
@@ -89,7 +89,7 @@ ApplicationWindow {
     }
 
     //while this "works" it seems to cause a memory leak.
-    //TouchEngineTextureInput {
+    //DsTouchEngineTextureInput {
        // id: texInput
        // instanceId: root.instanceId
        // linkName: "op/in1"

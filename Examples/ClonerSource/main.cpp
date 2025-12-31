@@ -18,9 +18,9 @@
 
 #include <QQuickWindow>
 #include <QSGRendererInterface>
-#include "touchenginemanager.h"
-#include "touchengineinstance.h"
-#include "touchengineoutputview.h"
+#include "dsQmlTouchEngineManager.h"
+#include "dsQmlTouchEngineInstance.h"
+#include "dsQmlTouchEngineOutputView.h"
 
 //activate high performance graphics on windows laptops with dual graphics cards
 #ifdef Q_OS_WIN
@@ -141,36 +141,36 @@ int main(int argc, char *argv[])
             if (rif) {
                 // Get native graphics device based on backend
                 void* device = nullptr;
-                TouchEngineInstance::TEGraphicsAPI apiType = TouchEngineInstance::TEGraphicsAPI_Unknown;
+                DsQmlTouchEngineInstance::TEGraphicsAPI apiType = DsQmlTouchEngineInstance::TEGraphicsAPI_Unknown;
 
                 switch (rif->graphicsApi()) {
                 case QSGRendererInterface::Direct3D11: {
                     device = rif->getResource(window, QSGRendererInterface::DeviceResource);
-                    apiType = TouchEngineInstance::TEGraphicsAPI_D3D11;
+                    apiType = DsQmlTouchEngineInstance::TEGraphicsAPI_D3D11;
                     qDebug() << "Using Direct3D 11!";
                     break;
                 }
                 case QSGRendererInterface::Direct3D12: {
                     device = rif->getResource(window, QSGRendererInterface::DeviceResource);
-                    apiType = TouchEngineInstance::TEGraphicsAPI_D3D12;
+                    apiType = DsQmlTouchEngineInstance::TEGraphicsAPI_D3D12;
                     qDebug() << "Using Direct3D 12!";
                     break;
                 }
                 case QSGRendererInterface::Vulkan: {
                     device = rif->getResource(window, QSGRendererInterface::DeviceResource);
-                    apiType = TouchEngineInstance::TEGraphicsAPI_Vulkan;
+                    apiType = DsQmlTouchEngineInstance::TEGraphicsAPI_Vulkan;
                     qDebug() << "Using Vulkan!";
                     break;
                 }
                 case QSGRendererInterface::OpenGL: {
                     // OpenGL context should be current
-                    apiType = TouchEngineInstance::TEGraphicsAPI_OpenGL;
+                    apiType = DsQmlTouchEngineInstance::TEGraphicsAPI_OpenGL;
                     qDebug() << "Using OpenGL!";
                     break;
                 }
                 case QSGRendererInterface::Metal: {
                     device = rif->getResource(window, QSGRendererInterface::DeviceResource);
-                    apiType = TouchEngineInstance::TEGraphicsAPI_Metal;
+                    apiType = DsQmlTouchEngineInstance::TEGraphicsAPI_Metal;
                     qDebug() << "Using Metal!";
                     break;
                 }
@@ -179,14 +179,14 @@ int main(int argc, char *argv[])
                     break;
                 }
 
-                if (apiType != TouchEngineInstance::TEGraphicsAPI_Unknown) {
-                    // Initialize TouchEngineManager with the detected API
-                    TouchEngineManager* manager = TouchEngineManager::inst();
+                if (apiType != DsQmlTouchEngineInstance::TEGraphicsAPI_Unknown) {
+                    // Initialize DsTouchEngineManager with the detected API
+                    DsQmlTouchEngineManager* manager = DsQmlTouchEngineManager::inst();
 
                            // Store API type in manager for future instances
                     manager->setGraphicsAPI(apiType);
                     manager->setWindow(window);
-                    if (device || apiType == TouchEngineInstance::TEGraphicsAPI_OpenGL) {
+                    if (device || apiType == DsQmlTouchEngineInstance::TEGraphicsAPI_OpenGL) {
                         manager->initializeGraphics(rhi,device);
                     }
                 }

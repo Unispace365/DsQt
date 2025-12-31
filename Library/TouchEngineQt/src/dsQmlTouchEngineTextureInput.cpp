@@ -1,5 +1,5 @@
-#include "touchenginetextureinput.h"
-#include "touchengineinstance.h"
+#include "dsQmlTouchEngineTextureInput.h"
+#include "dsQmlTouchEngineInstance.h"
 #include <QQuickWindow>
 #include <QSGRendererInterface>
 #include <QSGTexture>
@@ -16,12 +16,12 @@
 #include <TouchEngine/TouchEngine.h>    // for TEInstanceLinkSetTextureValue, TETexture*, etc.
 
 
-TouchEngineTextureInput::TouchEngineTextureInput(QObject *parent)
-    : TouchEngineInputBase(parent)
+DsQmlTouchEngineTextureInput::DsQmlTouchEngineTextureInput(QObject *parent)
+    : DsQmlTouchEngineInputBase(parent)
 {
 }
 
-void TouchEngineTextureInput::setSourceItem(QQuickItem *item)
+void DsQmlTouchEngineTextureInput::setSourceItem(QQuickItem *item)
 {
     if (m_sourceItem == item)
         return;
@@ -39,11 +39,11 @@ void TouchEngineTextureInput::setSourceItem(QQuickItem *item)
 
         // in case the item is reparented or its window changes later
         connect(m_sourceItem, &QQuickItem::windowChanged,
-                this, &TouchEngineTextureInput::handleWindowChanged);
+                this, &DsQmlTouchEngineTextureInput::handleWindowChanged);
     }
 }
 
-void TouchEngineTextureInput::handleWindowChanged()
+void DsQmlTouchEngineTextureInput::handleWindowChanged()
 {
     if (!m_sourceItem)
         return;
@@ -53,7 +53,7 @@ void TouchEngineTextureInput::handleWindowChanged()
         attachToWindow(w);
 }
 
-void TouchEngineTextureInput::attachToWindow(QQuickWindow *w)
+void DsQmlTouchEngineTextureInput::attachToWindow(QQuickWindow *w)
 {
     if (!w)
         return;
@@ -62,11 +62,11 @@ void TouchEngineTextureInput::attachToWindow(QQuickWindow *w)
 
     // we want the *render-thread* signal, so use DirectConnection
     connect(w, &QQuickWindow::afterRendering,
-            this, &TouchEngineTextureInput::handleAfterRendering,
+            this, &DsQmlTouchEngineTextureInput::handleAfterRendering,
             Qt::DirectConnection);
 }
 
-void TouchEngineTextureInput::detachFromWindow()
+void DsQmlTouchEngineTextureInput::detachFromWindow()
 {
     if (m_window) {
         disconnect(m_window, nullptr, this, nullptr);
@@ -74,7 +74,7 @@ void TouchEngineTextureInput::detachFromWindow()
     }
 }
 
-void TouchEngineTextureInput::handleAfterRendering()
+void DsQmlTouchEngineTextureInput::handleAfterRendering()
 {
     // runs every frame
     grabLayerTexture();
@@ -83,7 +83,7 @@ void TouchEngineTextureInput::handleAfterRendering()
     }
 }
 
-GLuint TouchEngineTextureInput::grabLayerTexture()
+GLuint DsQmlTouchEngineTextureInput::grabLayerTexture()
 {
     if (!m_sourceItem)
         return 0;
@@ -120,7 +120,7 @@ GLuint TouchEngineTextureInput::grabLayerTexture()
     //qDebug() << "Grabbed texture ID from item:" << lastRenderId;
     m_lastSize = rhiTex->pixelSize();
 
-    // mark as dirty so TouchEngineInputBase will call applyValue()
+    // mark as dirty so DsQmlTouchEngineInputBase will call applyValue()
     //if (autoUpdate() && getInstance()) {
     //    updateValue();
     //}
@@ -128,7 +128,7 @@ GLuint TouchEngineTextureInput::grabLayerTexture()
     return id;
 }
 
-void TouchEngineTextureInput::applyValue(TEInstance *teInstance)
+void DsQmlTouchEngineTextureInput::applyValue(TEInstance *teInstance)
 {
     if (!teInstance)
         return;
@@ -136,7 +136,7 @@ void TouchEngineTextureInput::applyValue(TEInstance *teInstance)
 
 
     // we need an instance object so we can ask which graphics API we are using
-    TouchEngineInstance *inst = getInstance();
+    DsQmlTouchEngineInstance *inst = getInstance();
     if (!inst)
         return;
 
@@ -165,7 +165,7 @@ void TouchEngineTextureInput::applyValue(TEInstance *teInstance)
     //TouchObject<TEOpenGLTexture> texture;
     switch (api)
     {
-    case TouchEngineInstance::TEGraphicsAPI_OpenGL:
+    case DsQmlTouchEngineInstance::TEGraphicsAPI_OpenGL:
     {
 
         // we got this from QSGTexture::textureId()
@@ -187,7 +187,7 @@ void TouchEngineTextureInput::applyValue(TEInstance *teInstance)
                 m_lastSize.height(),
                 TETextureOriginTopLeft,
                 kTETextureComponentMapIdentity,
-                TouchEngineTextureInput::textureReleaseCallback,
+                DsQmlTouchEngineTextureInput::textureReleaseCallback,
                 tk);
 
 
@@ -202,7 +202,7 @@ void TouchEngineTextureInput::applyValue(TEInstance *teInstance)
 
     }
 
-    case TouchEngineInstance::TEGraphicsAPI_D3D11:
+    case DsQmlTouchEngineInstance::TEGraphicsAPI_D3D11:
     {
         // You’ll need to store an ID3D11Texture2D* from your render hook
         // (i.e. when you manage to grab a shareable D3D11 texture from Qt).
@@ -219,20 +219,20 @@ void TouchEngineTextureInput::applyValue(TEInstance *teInstance)
         return;
     }
 
-    case TouchEngineInstance::TEGraphicsAPI_D3D12:
+    case DsQmlTouchEngineInstance::TEGraphicsAPI_D3D12:
     {
         // Same idea as D3D11 but with TED3D12TextureCreate(...)
         return;
     }
 
-    case TouchEngineInstance::TEGraphicsAPI_Vulkan:
+    case DsQmlTouchEngineInstance::TEGraphicsAPI_Vulkan:
     {
         // For Vulkan you need the VkImage + semaphore info that Qt gives you,
         // then use the functions in TEVulkan.h to wrap it.
         return;
     }
 
-    case TouchEngineInstance::TEGraphicsAPI_Metal:
+    case DsQmlTouchEngineInstance::TEGraphicsAPI_Metal:
     {
         // On Windows you probably won’t hit this, but if you do:
         // TEMetalTextureCreate(mtlTex, TETextureOriginTopLeft, ...);
@@ -245,7 +245,7 @@ void TouchEngineTextureInput::applyValue(TEInstance *teInstance)
 
     // finally push it into the instance
     std::string utf8Id = std::string(id.toUtf8().constData());
-    // context can be nullptr because your TouchEngineInstance already
+    // context can be nullptr because your DsQmlTouchEngineInstance already
     // called TEInstanceAssociateGraphicsContext(...)
     TouchObject<TESemaphore> semaphore;
     uint64_t waitValue = 0;
@@ -283,10 +283,10 @@ void TouchEngineTextureInput::applyValue(TEInstance *teInstance)
         optional: qWarning() << "failed to set texture on link" << id << r;
     }
 }
-QOpenGLFunctions* TouchEngineTextureInput::m_funcs = nullptr;
+QOpenGLFunctions* DsQmlTouchEngineTextureInput::m_funcs = nullptr;
 
 void
-TouchEngineTextureInput::textureReleaseCallback(GLuint texture, TEObjectEvent event, void *info)
+DsQmlTouchEngineTextureInput::textureReleaseCallback(GLuint texture, TEObjectEvent event, void *info)
 {
 
     // // TODO: might come from another thread

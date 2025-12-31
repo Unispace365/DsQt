@@ -1,20 +1,20 @@
-#include "touchenginefloatbufferinput.h"
+#include "dsQmlTouchEngineFloatBufferInput.h"
 #include <TouchEngine/TouchEngine.h>
 #include <QDebug>
 #include <QtMath>
 #include <QRandomGenerator>
 
-TouchEngineFloatBufferInput::TouchEngineFloatBufferInput(QObject *parent)
-    : TouchEngineInputBase(parent)
+DsQmlTouchEngineFloatBufferInput::DsQmlTouchEngineFloatBufferInput(QObject *parent)
+    : DsQmlTouchEngineInputBase(parent)
 {
     resizeBufferData();
 }
 
-TouchEngineFloatBufferInput::~TouchEngineFloatBufferInput()
+DsQmlTouchEngineFloatBufferInput::~DsQmlTouchEngineFloatBufferInput()
 {
 }
 
-void TouchEngineFloatBufferInput::setChannelCount(int count)
+void DsQmlTouchEngineFloatBufferInput::setChannelCount(int count)
 {
     if (count < 1) count = 1;
     
@@ -29,7 +29,7 @@ void TouchEngineFloatBufferInput::setChannelCount(int count)
     }
 }
 
-void TouchEngineFloatBufferInput::setCapacity(int capacity)
+void DsQmlTouchEngineFloatBufferInput::setCapacity(int capacity)
 {
     if (capacity < 1) capacity = 1;
     
@@ -44,7 +44,7 @@ void TouchEngineFloatBufferInput::setCapacity(int capacity)
     }
 }
 
-void TouchEngineFloatBufferInput::setChannelNames(const QStringList &names)
+void DsQmlTouchEngineFloatBufferInput::setChannelNames(const QStringList &names)
 {
     if (m_channelNames != names) {
         m_channelNames = names;
@@ -56,7 +56,7 @@ void TouchEngineFloatBufferInput::setChannelNames(const QStringList &names)
     }
 }
 
-void TouchEngineFloatBufferInput::setIsTimeDependant(bool timeDependant)
+void DsQmlTouchEngineFloatBufferInput::setIsTimeDependant(bool timeDependant)
 {
     if (m_isTimeDependant != timeDependant) {
         m_isTimeDependant = timeDependant;
@@ -68,7 +68,7 @@ void TouchEngineFloatBufferInput::setIsTimeDependant(bool timeDependant)
     }
 }
 
-void TouchEngineFloatBufferInput::setSampleRate(double rate)
+void DsQmlTouchEngineFloatBufferInput::setSampleRate(double rate)
 {
     if (!qFuzzyCompare(m_sampleRate, rate)) {
         m_sampleRate = rate;
@@ -80,7 +80,7 @@ void TouchEngineFloatBufferInput::setSampleRate(double rate)
     }
 }
 
-void TouchEngineFloatBufferInput::setChannelData(int channel, const QVariantList &data)
+void DsQmlTouchEngineFloatBufferInput::setChannelData(int channel, const QVariantList &data)
 {
     if (channel < 0 || channel >= m_channelCount) {
         qWarning() << "Channel index out of bounds:" << channel;
@@ -110,7 +110,7 @@ void TouchEngineFloatBufferInput::setChannelData(int channel, const QVariantList
     }
 }
 
-void TouchEngineFloatBufferInput::setSample(int channel, int sampleIndex, float value)
+void DsQmlTouchEngineFloatBufferInput::setSample(int channel, int sampleIndex, float value)
 {
     if (channel < 0 || channel >= m_channelCount || sampleIndex < 0 || sampleIndex >= m_capacity) {
         qWarning() << "Index out of bounds - channel:" << channel << "sample:" << sampleIndex;
@@ -137,7 +137,7 @@ void TouchEngineFloatBufferInput::setSample(int channel, int sampleIndex, float 
     }
 }
 
-float TouchEngineFloatBufferInput::getSample(int channel, int sampleIndex) const
+float DsQmlTouchEngineFloatBufferInput::getSample(int channel, int sampleIndex) const
 {
     if (channel < 0 || channel >= m_bufferData.size() || 
         sampleIndex < 0 || sampleIndex >= m_bufferData[channel].size()) {
@@ -147,7 +147,7 @@ float TouchEngineFloatBufferInput::getSample(int channel, int sampleIndex) const
     return m_bufferData[channel][sampleIndex];
 }
 
-void TouchEngineFloatBufferInput::fillAllChannels(float value)
+void DsQmlTouchEngineFloatBufferInput::fillAllChannels(float value)
 {
     resizeBufferData();
     
@@ -166,7 +166,7 @@ void TouchEngineFloatBufferInput::fillAllChannels(float value)
     }
 }
 
-void TouchEngineFloatBufferInput::clear()
+void DsQmlTouchEngineFloatBufferInput::clear()
 {
     for (auto &channelData : m_bufferData) {
         channelData.clear();
@@ -182,7 +182,7 @@ void TouchEngineFloatBufferInput::clear()
     }
 }
 
-void TouchEngineFloatBufferInput::generateSineWaveAll(double frequency, double amplitude, double phase)
+void DsQmlTouchEngineFloatBufferInput::generateSineWaveAll(double frequency, double amplitude, double phase)
 {
     resizeBufferData();
     
@@ -202,7 +202,7 @@ void TouchEngineFloatBufferInput::generateSineWaveAll(double frequency, double a
     }
 }
 
-void TouchEngineFloatBufferInput::generateSineWave(const QVariant& channel,double frequency, double amplitude, double phase){
+void DsQmlTouchEngineFloatBufferInput::generateSineWave(const QVariant& channel,double frequency, double amplitude, double phase){
     auto chString = channel.toString();
     //do we have a channel named chString?
     int index = m_channelNames.indexOf(chString);
@@ -220,7 +220,7 @@ void TouchEngineFloatBufferInput::generateSineWave(const QVariant& channel,doubl
     return;
 }
 
-void TouchEngineFloatBufferInput::generateSineWave_(int channel,double frequency, double amplitude, double phase)
+void DsQmlTouchEngineFloatBufferInput::generateSineWave_(int channel,double frequency, double amplitude, double phase)
 {
     resizeBufferData();
 
@@ -235,7 +235,7 @@ void TouchEngineFloatBufferInput::generateSineWave_(int channel,double frequency
 
 
 
-void TouchEngineFloatBufferInput::baseGenerateSineWave_(int channel,double frequency, double amplitude, double phase)
+void DsQmlTouchEngineFloatBufferInput::baseGenerateSineWave_(int channel,double frequency, double amplitude, double phase)
 {
     double samplesPerCycle = m_sampleRate / frequency;
 
@@ -250,7 +250,7 @@ void TouchEngineFloatBufferInput::baseGenerateSineWave_(int channel,double frequ
 
 }
 
-void TouchEngineFloatBufferInput::generateWhiteNoiseAll(double amplitude)
+void DsQmlTouchEngineFloatBufferInput::generateWhiteNoiseAll(double amplitude)
 {
     resizeBufferData();
     
@@ -270,7 +270,7 @@ void TouchEngineFloatBufferInput::generateWhiteNoiseAll(double amplitude)
 
 
 
-void TouchEngineFloatBufferInput::generateWhiteNoise(const QVariant& channel,double amplitude){
+void DsQmlTouchEngineFloatBufferInput::generateWhiteNoise(const QVariant& channel,double amplitude){
     auto chString = channel.toString();
     //do we have a channel named chString?
     int index = m_channelNames.indexOf(chString);
@@ -288,7 +288,7 @@ void TouchEngineFloatBufferInput::generateWhiteNoise(const QVariant& channel,dou
     return;
 }
 
-void TouchEngineFloatBufferInput::generateWhiteNoise_(int channel,double amplitude)
+void DsQmlTouchEngineFloatBufferInput::generateWhiteNoise_(int channel,double amplitude)
 {
     resizeBufferData();
 
@@ -307,7 +307,7 @@ void TouchEngineFloatBufferInput::generateWhiteNoise_(int channel,double amplitu
 
 
 
-void TouchEngineFloatBufferInput::baseGenerateWhiteNoise_(int channel,double amplitude)
+void DsQmlTouchEngineFloatBufferInput::baseGenerateWhiteNoise_(int channel,double amplitude)
 {
 
 
@@ -327,7 +327,7 @@ void TouchEngineFloatBufferInput::baseGenerateWhiteNoise_(int channel,double amp
     }
 }
 
-void TouchEngineFloatBufferInput::pushChannelData(int channel, const QVariant &data)
+void DsQmlTouchEngineFloatBufferInput::pushChannelData(int channel, const QVariant &data)
 {
     resizeBufferData();
     if (channel < 0 || channel >= m_channelCount) {
@@ -356,7 +356,7 @@ void TouchEngineFloatBufferInput::pushChannelData(int channel, const QVariant &d
     emit dataChanged();
 }
 
-void TouchEngineFloatBufferInput::applyValue(TEInstance *teInstance)
+void DsQmlTouchEngineFloatBufferInput::applyValue(TEInstance *teInstance)
 {
     if (!getInstance() || linkName().isEmpty()) {
         return;
@@ -451,7 +451,7 @@ void TouchEngineFloatBufferInput::applyValue(TEInstance *teInstance)
     }
 }
 
-void TouchEngineFloatBufferInput::resizeBufferData()
+void DsQmlTouchEngineFloatBufferInput::resizeBufferData()
 {
     m_bufferData.resize(m_channelCount);
     

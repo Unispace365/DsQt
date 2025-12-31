@@ -9,12 +9,12 @@ Rectangle {
     
     property var instanceId
     property int instanceNumber: 1
-    property TouchEngineInstance instance: TouchEngineManager.getInstance(instanceId)
+    property DsTouchEngineInstance instance: DsTouchEngineManager.getInstance(instanceId)
     
     signal removeRequested()
     onInstanceIdChanged: {
         console.log('instance ID changed to ', instanceId)
-        instance = TouchEngineManager.getInstance(instanceId)
+        instance = DsTouchEngineManager.getInstance(instanceId)
     }
     color: "#2d2d2d"
     radius: 8
@@ -69,7 +69,7 @@ Rectangle {
             border.color: "#404040"
             border.width: 1
             
-            TouchEngineView {
+            DsTouchEngineOutputView {
                 id: touchView
                 enabled: false
                 anchors.horizontalCenter: parent.horizontalCenter

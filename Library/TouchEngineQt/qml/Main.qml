@@ -184,7 +184,7 @@ ApplicationWindow {
     }
 
     function addInstance() {
-        var instanceId = TouchEngineManager.createInstance()
+        var instanceId = DsTouchEngineManager.createInstance()
         instancesModel.append({
             "instanceId": instanceId
         })
@@ -192,7 +192,7 @@ ApplicationWindow {
 
     function removeInstance(index) {
         var instanceId = instancesModel.get(index).instanceId
-        TouchEngineManager.destroyInstance(instanceId)
+        DsTouchEngineManager.destroyInstance(instanceId)
         instancesModel.remove(index)
     }
 

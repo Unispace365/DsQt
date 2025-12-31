@@ -1,18 +1,18 @@
-#include "touchenginetableinput.h"
-#include "touchengineinstance.h"
+#include "dsQmlTouchEngineTableInput.h"
+#include "dsQmlTouchEngineInstance.h"
 #include <TouchEngine/TouchEngine.h>
 #include <QDebug>
 
-TouchEngineTableInput::TouchEngineTableInput(QObject *parent)
-    : TouchEngineInputBase(parent)
+DsQmlTouchEngineTableInput::DsQmlTouchEngineTableInput(QObject *parent)
+    : DsQmlTouchEngineInputBase(parent)
 {
 }
 
-TouchEngineTableInput::~TouchEngineTableInput()
+DsQmlTouchEngineTableInput::~DsQmlTouchEngineTableInput()
 {
 }
 
-void TouchEngineTableInput::setColumnCount(int count)
+void DsQmlTouchEngineTableInput::setColumnCount(int count)
 {
     if (count < 0) count = 0;
     
@@ -27,7 +27,7 @@ void TouchEngineTableInput::setColumnCount(int count)
     }
 }
 
-void TouchEngineTableInput::setRowCount(int count)
+void DsQmlTouchEngineTableInput::setRowCount(int count)
 {
     if (count < 0) count = 0;
     
@@ -42,7 +42,7 @@ void TouchEngineTableInput::setRowCount(int count)
     }
 }
 
-void TouchEngineTableInput::setColumnNames(const QStringList &names)
+void DsQmlTouchEngineTableInput::setColumnNames(const QStringList &names)
 {
     if (m_columnNames != names) {
         m_columnNames = names;
@@ -60,7 +60,7 @@ void TouchEngineTableInput::setColumnNames(const QStringList &names)
     }
 }
 
-void TouchEngineTableInput::setTableData(const QVariantList &data)
+void DsQmlTouchEngineTableInput::setTableData(const QVariantList &data)
 {
     m_tableData = data;
     
@@ -83,7 +83,7 @@ void TouchEngineTableInput::setTableData(const QVariantList &data)
     }
 }
 
-void TouchEngineTableInput::setCellValue(int row, int column, const QVariant &value)
+void DsQmlTouchEngineTableInput::setCellValue(int row, int column, const QVariant &value)
 {
     if (row < 0 || row >= m_rowCount || column < 0 || column >= m_columnCount) {
         qWarning() << "Cell index out of bounds:" << row << "," << column;
@@ -110,7 +110,7 @@ void TouchEngineTableInput::setCellValue(int row, int column, const QVariant &va
     }
 }
 
-QVariant TouchEngineTableInput::getCellValue(int row, int column) const
+QVariant DsQmlTouchEngineTableInput::getCellValue(int row, int column) const
 {
     if (row < 0 || row >= m_rowCount || column < 0 || column >= m_columnCount) {
         return QVariant();
@@ -126,7 +126,7 @@ QVariant TouchEngineTableInput::getCellValue(int row, int column) const
     return QVariant();
 }
 
-void TouchEngineTableInput::addRow(const QVariantList &rowData)
+void DsQmlTouchEngineTableInput::addRow(const QVariantList &rowData)
 {
     QVariantList newRow = rowData;
     
@@ -146,7 +146,7 @@ void TouchEngineTableInput::addRow(const QVariantList &rowData)
     }
 }
 
-void TouchEngineTableInput::removeRow(int row)
+void DsQmlTouchEngineTableInput::removeRow(int row)
 {
     if (row >= 0 && row < m_tableData.size()) {
         m_tableData.removeAt(row);
@@ -161,7 +161,7 @@ void TouchEngineTableInput::removeRow(int row)
     }
 }
 
-void TouchEngineTableInput::addColumn(const QString &columnName)
+void DsQmlTouchEngineTableInput::addColumn(const QString &columnName)
 {
     m_columnCount++;
     
@@ -185,7 +185,7 @@ void TouchEngineTableInput::addColumn(const QString &columnName)
     }
 }
 
-void TouchEngineTableInput::removeColumn(int column)
+void DsQmlTouchEngineTableInput::removeColumn(int column)
 {
     if (column >= 0 && column < m_columnCount) {
         m_columnCount--;
@@ -213,7 +213,7 @@ void TouchEngineTableInput::removeColumn(int column)
     }
 }
 
-void TouchEngineTableInput::clear()
+void DsQmlTouchEngineTableInput::clear()
 {
     m_tableData.clear();
     m_rowCount = 0;
@@ -228,7 +228,7 @@ void TouchEngineTableInput::clear()
 }
 
 
-void TouchEngineTableInput::applyValue(TEInstance* teInstance)
+void DsQmlTouchEngineTableInput::applyValue(TEInstance* teInstance)
 {
     if (!getInstance() || linkName().isEmpty()) {
         return;
@@ -308,7 +308,7 @@ void TouchEngineTableInput::applyValue(TEInstance* teInstance)
     }
 }
 
-void TouchEngineTableInput::resizeTableData()
+void DsQmlTouchEngineTableInput::resizeTableData()
 {
     // Ensure we have the right number of rows
     while (m_tableData.size() < m_rowCount) {
@@ -340,7 +340,7 @@ void TouchEngineTableInput::resizeTableData()
     }
 }
 
-QString TouchEngineTableInput::variantToString(const QVariant &value) const
+QString DsQmlTouchEngineTableInput::variantToString(const QVariant &value) const
 {
     if (value.isNull() || !value.isValid()) {
         return QString();

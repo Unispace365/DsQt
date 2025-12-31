@@ -49,15 +49,15 @@ find_package(Vulkan)
 
 # Source files
 set(SOURCES
-    src/touchenginemanager.cpp
-    src/touchenginetexturenode.cpp
-    src/touchengineoutputview.cpp
+    src/dsQmlTouchEngineManager.cpp
+    src/dsTouchEngineTextureNode.cpp
+    src/dsQmlTouchEngineOutputView.cpp
     src/OpenGLImage.cpp
     src/OpenGlRenderer.cpp
     src/OpenGLTexture.cpp
     src/Renderer.cpp
-    src/touchenginematerial.cpp
-    src/touchengineinstance.cpp
+    src/dsTouchEngineMaterial.cpp
+    src/dsQmlTouchEngineInstance.cpp
 )
 
 # D3D12 and Vulkan renderer sources (Windows only)
@@ -79,9 +79,9 @@ set(SOURCES_MAIN
 
 set(HEADERS
     #src/sharedd3dtexture.h
-    src/touchenginemanager.h
-    src/touchenginetexturenode.h
-    src/touchengineoutputview.h
+    src/dsQmlTouchEngineManager.h
+    src/dsTouchEngineTextureNode.h
+    src/dsQmlTouchEngineOutputView.h
     #src/rhitexturebridge.h
 
     src/platform_headers.h
@@ -89,8 +89,8 @@ set(HEADERS
     src/OpenGLRenderer.h
     src/OpenGLTexture.h
     src/Renderer.h
-    src/touchenginematerial.h
-    src/touchengineinstance.h
+    src/dsTouchEngineMaterial.h
+    src/dsQmlTouchEngineInstance.h
 )
 
 # D3D12 and Vulkan renderer headers (Windows only)
@@ -112,16 +112,16 @@ set(QML_FILES
 )
 
 set(TOUCHENGINE_INPUT_SOURCES
-    src/touchengineinputbase.h
-    src/touchengineinputbase.cpp
-    src/touchenginestringinput.h
-    src/touchenginestringinput.cpp
-    src/touchenginetableinput.h
-    src/touchenginetableinput.cpp
-    src/touchenginenumericinput.h
-    src/touchenginenumericinput.cpp
-    src/touchenginefloatbufferinput.h
-    src/touchenginefloatbufferinput.cpp
+    src/dsQmlTouchEngineInputBase.h
+    src/dsQmlTouchEngineInputBase.cpp
+    src/dsQmlTouchEngineStringInput.h
+    src/dsQmlTouchEngineStringInput.cpp
+    src/dsQmlTouchEngineTableInput.h
+    src/dsQmlTouchEngineTableInput.cpp
+    src/dsQmlTouchEngineNumericInput.h
+    src/dsQmlTouchEngineNumericInput.cpp
+    src/dsQmlTouchEngineFloatBufferInput.h
+    src/dsQmlTouchEngineFloatBufferInput.cpp
 )
 
 
@@ -133,7 +133,7 @@ qt_add_qml_module(TouchEngineQt
     SOURCES ${SOURCES} ${HEADERS} ${TOUCHENGINE_INPUT_SOURCES}
     DEPENDENCIES QtQuick TouchEngineQtplugin
     QML_FILES qml/SimpleMain.qml
-    SOURCES src/touchenginetextureinput.h src/touchenginetextureinput.cpp
+    SOURCES src/dsQmlTouchEngineTextureInput.h src/dsQmlTouchEngineTextureInput.cpp
 
 )
 

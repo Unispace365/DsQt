@@ -9,17 +9,17 @@ Item {
 
     //We create two properties for each instance. One is the instanceId in the manager and the other is the
     //actual instance. The instanceId should be empty ("") if the Manager isn't ready to create and instance.
-    property var instanceId: TouchEngineManager.createInstance()
-    property TouchEngineInstance engineInstance: TouchEngineManager.getInstance(instanceId)
+    property var instanceId: DsTouchEngineManager.createInstance()
+    property DsTouchEngineInstance engineInstance: DsTouchEngineManager.getInstance(instanceId)
 
     //Because the manager may not be ready when this object is created,
     //we connect to the managers initialization signal and if we don't have an instanceID
     //we call createInstance() to get a new instance.
     Connections {
-        target: TouchEngineManager
+        target: DsTouchEngineManager
         function onIsInitializedChanged() {
-            if(root.instanceId==="" && TouchEngineManager.isInitialized) {
-                root.instanceId = TouchEngineManager.createInstance();
+            if(root.instanceId==="" && DsTouchEngineManager.isInitialized) {
+                root.instanceId = DsTouchEngineManager.createInstance();
             }
         }
     }
@@ -28,9 +28,9 @@ Item {
     //this case we also load a tox.
     //The tox needs to be a file on disk, i.e. not a URL or in a qrc.
     onInstanceIdChanged: {
-        if(instanceId != "" && TouchEngineManager.isInitialized) {
+        if(instanceId != "" && DsTouchEngineManager.isInitialized) {
             //update the instance
-            root.engineInstance = TouchEngineManager.getInstance(instanceId);
+            root.engineInstance = DsTouchEngineManager.getInstance(instanceId);
             //load a tox.
             root.engineInstance.componentPath = Ds.env.expand("%APP%/data/tox/Testbed.tox")
             root.engineInstance.loadComponent();

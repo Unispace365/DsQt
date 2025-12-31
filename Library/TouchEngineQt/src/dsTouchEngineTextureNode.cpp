@@ -1,9 +1,9 @@
-#include "touchenginetexturenode.h"
-#include "touchenginematerial.h"
+#include "dsTouchEngineTextureNode.h"
+#include "dsTouchEngineMaterial.h"
 #include <QQuickWindow>
 #include <QSGRendererInterface>
 #include <rhi/qrhi.h>
-TouchEngineTextureNode::TouchEngineTextureNode(QQuickWindow* window,QString instanceId,QString linkName)
+DsTouchEngineTextureNode::DsTouchEngineTextureNode(QQuickWindow* window,QString instanceId,QString linkName)
     : m_window(window)
 {
 
@@ -26,7 +26,7 @@ TouchEngineTextureNode::TouchEngineTextureNode(QQuickWindow* window,QString inst
     setGeometry(m_geometry);
 
     // Create and set material
-    m_material = new TouchEngineMaterial();
+    m_material = new DsTouchEngineMaterial();
     setMaterial(m_material);
 
     // We own the geometry and material
@@ -36,7 +36,7 @@ TouchEngineTextureNode::TouchEngineTextureNode(QQuickWindow* window,QString inst
     setFlag(QSGNode::OwnedByParent, false);
 }
 
-TouchEngineTextureNode::~TouchEngineTextureNode()
+DsTouchEngineTextureNode::~DsTouchEngineTextureNode()
 {
     if (m_ownsTexture) {
         delete m_textureWrapper;
@@ -45,7 +45,7 @@ TouchEngineTextureNode::~TouchEngineTextureNode()
     // geometry and material are deleted automatically due to OwnsGeometry/OwnsMaterial flags
 }
 
-void TouchEngineTextureNode::setTexture(QSharedPointer<QRhiTexture> rhiTex, const QSize& size)
+void DsTouchEngineTextureNode::setTexture(QSharedPointer<QRhiTexture> rhiTex, const QSize& size)
 {
     if (!rhiTex) {
         return;
@@ -87,7 +87,7 @@ void TouchEngineTextureNode::setTexture(QSharedPointer<QRhiTexture> rhiTex, cons
 }
 
 // QSGImageNode interface implementation
-void TouchEngineTextureNode::setRect(const QRectF &rect)
+void DsTouchEngineTextureNode::setRect(const QRectF &rect)
 {
     if (m_rect != rect) {
         m_rect = rect;
@@ -96,12 +96,12 @@ void TouchEngineTextureNode::setRect(const QRectF &rect)
     }
 }
 
-QRectF TouchEngineTextureNode::rect() const
+QRectF DsTouchEngineTextureNode::rect() const
 {
     return m_rect;
 }
 
-void TouchEngineTextureNode::setSourceRect(const QRectF &rect)
+void DsTouchEngineTextureNode::setSourceRect(const QRectF &rect)
 {
     if (m_sourceRect != rect) {
         m_sourceRect = rect;
@@ -110,12 +110,12 @@ void TouchEngineTextureNode::setSourceRect(const QRectF &rect)
     }
 }
 
-QRectF TouchEngineTextureNode::sourceRect() const
+QRectF DsTouchEngineTextureNode::sourceRect() const
 {
     return m_sourceRect;
 }
 
-void TouchEngineTextureNode::setTexture(QSGTexture *texture)
+void DsTouchEngineTextureNode::setTexture(QSGTexture *texture)
 {
     if (m_textureWrapper != texture) {
         if (m_ownsTexture) {
@@ -131,12 +131,12 @@ void TouchEngineTextureNode::setTexture(QSGTexture *texture)
     }
 }
 
-QSGTexture* TouchEngineTextureNode::texture() const
+QSGTexture* DsTouchEngineTextureNode::texture() const
 {
     return m_textureWrapper;
 }
 
-void TouchEngineTextureNode::setFiltering(QSGTexture::Filtering filtering)
+void DsTouchEngineTextureNode::setFiltering(QSGTexture::Filtering filtering)
 {
     if (m_filtering != filtering) {
         m_filtering = filtering;
@@ -149,12 +149,12 @@ void TouchEngineTextureNode::setFiltering(QSGTexture::Filtering filtering)
     }
 }
 
-QSGTexture::Filtering TouchEngineTextureNode::filtering() const
+QSGTexture::Filtering DsTouchEngineTextureNode::filtering() const
 {
     return m_filtering;
 }
 
-void TouchEngineTextureNode::setMipmapFiltering(QSGTexture::Filtering filtering)
+void DsTouchEngineTextureNode::setMipmapFiltering(QSGTexture::Filtering filtering)
 {
     if (m_mipmapFiltering != filtering) {
         m_mipmapFiltering = filtering;
@@ -167,12 +167,12 @@ void TouchEngineTextureNode::setMipmapFiltering(QSGTexture::Filtering filtering)
     }
 }
 
-QSGTexture::Filtering TouchEngineTextureNode::mipmapFiltering() const
+QSGTexture::Filtering DsTouchEngineTextureNode::mipmapFiltering() const
 {
     return m_mipmapFiltering;
 }
 
-void TouchEngineTextureNode::setTextureCoordinatesTransform(TextureCoordinatesTransformMode mode)
+void DsTouchEngineTextureNode::setTextureCoordinatesTransform(TextureCoordinatesTransformMode mode)
 {
     if (m_transformMode != mode) {
         m_transformMode = mode;
@@ -180,12 +180,12 @@ void TouchEngineTextureNode::setTextureCoordinatesTransform(TextureCoordinatesTr
     }
 }
 
-TouchEngineTextureNode::TextureCoordinatesTransformMode TouchEngineTextureNode::textureCoordinatesTransform() const
+DsTouchEngineTextureNode::TextureCoordinatesTransformMode DsTouchEngineTextureNode::textureCoordinatesTransform() const
 {
     return m_transformMode;
 }
 
-void TouchEngineTextureNode::setAnisotropyLevel(QSGTexture::AnisotropyLevel level)
+void DsTouchEngineTextureNode::setAnisotropyLevel(QSGTexture::AnisotropyLevel level)
 {
     if (m_anisotropyLevel != level) {
         m_anisotropyLevel = level;
@@ -193,23 +193,23 @@ void TouchEngineTextureNode::setAnisotropyLevel(QSGTexture::AnisotropyLevel leve
     }
 }
 
-QSGTexture::AnisotropyLevel TouchEngineTextureNode::anisotropyLevel() const
+QSGTexture::AnisotropyLevel DsTouchEngineTextureNode::anisotropyLevel() const
 {
     return m_anisotropyLevel;
 }
 
-void TouchEngineTextureNode::setOwnsTexture(bool owns)
+void DsTouchEngineTextureNode::setOwnsTexture(bool owns)
 {
     m_ownsTexture = owns;
 }
 
-bool TouchEngineTextureNode::ownsTexture() const
+bool DsTouchEngineTextureNode::ownsTexture() const
 {
     return m_ownsTexture;
 }
 
 // RHITextureWrapper implementation
-TouchEngineTextureNode::RHITextureWrapper::RHITextureWrapper(QRhiTexture* rhiTexture)
+DsTouchEngineTextureNode::RHITextureWrapper::RHITextureWrapper(QRhiTexture* rhiTexture)
     : m_rhiTexture(rhiTexture)
 {
     if (rhiTexture) {
@@ -217,18 +217,18 @@ TouchEngineTextureNode::RHITextureWrapper::RHITextureWrapper(QRhiTexture* rhiTex
     }
 }
 
-qint64 TouchEngineTextureNode::RHITextureWrapper::comparisonKey() const
+qint64 DsTouchEngineTextureNode::RHITextureWrapper::comparisonKey() const
 {
     return qint64(m_rhiTexture);
 }
 
-QSize TouchEngineTextureNode::RHITextureWrapper::textureSize() const
+QSize DsTouchEngineTextureNode::RHITextureWrapper::textureSize() const
 {
     return m_size;
 }
 
 // Update geometry based on rect and sourceRect
-void TouchEngineTextureNode::updateGeometry()
+void DsTouchEngineTextureNode::updateGeometry()
 {
     if (!m_geometry) {
         return;

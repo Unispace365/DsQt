@@ -1,26 +1,26 @@
-#include "touchenginematerial.h"
+#include "dsTouchEngineMaterial.h"
 
-// TouchEngineMaterial implementation
-TouchEngineMaterial::TouchEngineMaterial()
+// DsTouchEngineMaterial implementation
+DsTouchEngineMaterial::DsTouchEngineMaterial()
 {
     setFlag(Blending);
 }
 
-QSGMaterialType* TouchEngineMaterial::type() const
+QSGMaterialType* DsTouchEngineMaterial::type() const
 {
     static QSGMaterialType type;
     return &type;
 }
 
-QSGMaterialShader* TouchEngineMaterial::createShader(QSGRendererInterface::RenderMode renderMode) const
+QSGMaterialShader* DsTouchEngineMaterial::createShader(QSGRendererInterface::RenderMode renderMode) const
 {
     Q_UNUSED(renderMode);
-    return new TouchEngineMaterialShader();
+    return new DsTouchEngineMaterialShader();
 }
 
-int TouchEngineMaterial::compare(const QSGMaterial *other) const
+int DsTouchEngineMaterial::compare(const QSGMaterial *other) const
 {
-    const TouchEngineMaterial* otherMaterial = static_cast<const TouchEngineMaterial*>(other);
+    const DsTouchEngineMaterial* otherMaterial = static_cast<const DsTouchEngineMaterial*>(other);
 
     if (m_texture == otherMaterial->m_texture)
         return 0;
@@ -28,12 +28,12 @@ int TouchEngineMaterial::compare(const QSGMaterial *other) const
     return (m_texture < otherMaterial->m_texture) ? -1 : 1;
 }
 
-void TouchEngineMaterial::setTexture(QSGTexture* texture)
+void DsTouchEngineMaterial::setTexture(QSGTexture* texture)
 {
     m_texture = texture;
 }
 
-void TouchEngineMaterial::setFiltering(QSGTexture::Filtering filtering)
+void DsTouchEngineMaterial::setFiltering(QSGTexture::Filtering filtering)
 {
     m_filtering = filtering;
     if (m_texture) {
@@ -41,7 +41,7 @@ void TouchEngineMaterial::setFiltering(QSGTexture::Filtering filtering)
     }
 }
 
-void TouchEngineMaterial::setMipmapFiltering(QSGTexture::Filtering filtering)
+void DsTouchEngineMaterial::setMipmapFiltering(QSGTexture::Filtering filtering)
 {
     m_mipmapFiltering = filtering;
     if (m_texture) {
@@ -49,15 +49,15 @@ void TouchEngineMaterial::setMipmapFiltering(QSGTexture::Filtering filtering)
     }
 }
 
-// TouchEngineMaterialShader implementation
-TouchEngineMaterialShader::TouchEngineMaterialShader()
+// DsTouchEngineMaterialShader implementation
+DsTouchEngineMaterialShader::DsTouchEngineMaterialShader()
 {
     // Load pre-compiled .qsb shader files
     setShaderFileName(VertexStage, QStringLiteral(":/resources/shaders/texture.vert.qsb"));
     setShaderFileName(FragmentStage, QStringLiteral(":/resources/shaders/texture.frag.qsb"));
 }
 
-bool TouchEngineMaterialShader::updateUniformData(RenderState& state,
+bool DsTouchEngineMaterialShader::updateUniformData(RenderState& state,
                                                   QSGMaterial* newMaterial,
                                                   QSGMaterial* oldMaterial)
 {
@@ -82,7 +82,7 @@ bool TouchEngineMaterialShader::updateUniformData(RenderState& state,
     return changed;
 }
 
-void TouchEngineMaterialShader::updateSampledImage(RenderState& state,
+void DsTouchEngineMaterialShader::updateSampledImage(RenderState& state,
                                                    int binding,
                                                    QSGTexture** texture,
                                                    QSGMaterial* newMaterial,
@@ -92,7 +92,7 @@ void TouchEngineMaterialShader::updateSampledImage(RenderState& state,
     Q_UNUSED(oldMaterial);
 
     if (binding == 1) {
-        TouchEngineMaterial* material = static_cast<TouchEngineMaterial*>(newMaterial);
+        DsTouchEngineMaterial* material = static_cast<DsTouchEngineMaterial*>(newMaterial);
         *texture = material->texture();
 
         if (*texture) {

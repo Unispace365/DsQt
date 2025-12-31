@@ -1,6 +1,6 @@
 #pragma once
 
-#include "touchengineinstance.h"
+#include "dsQmlTouchEngineInstance.h"
 #include <QObject>
 #include <QHash>
 #include <QUuid>
@@ -13,36 +13,36 @@
 
 
 /**
- * TouchEngineManager - Manages multiple TouchEngine instances
+ * DsQmlTouchEngineManager - Manages multiple TouchEngine instances
  * Singleton class that coordinates all TouchEngine instances in the application
  *
  * Note: QML API uses QString for instance IDs, internally uses QUuid
  */
-class TouchEngineManager : public QObject
+class DsQmlTouchEngineManager : public QObject
 {
     Q_OBJECT
-    QML_NAMED_ELEMENT(TouchEngineManager)
+    QML_NAMED_ELEMENT(DsTouchEngineManager)
     QML_SINGLETON
     Q_PROPERTY(int instanceCount READ instanceCount NOTIFY instanceCountChanged)
     Q_PROPERTY(QQuickWindow* window READ window WRITE setWindow NOTIFY windowChanged FINAL)
     Q_PROPERTY(bool isInitialized READ isInitialized WRITE setIsInitialized NOTIFY isInitializedChanged FINAL)
 public:
 
-    static TouchEngineManager *create(QQmlEngine *engine, QJSEngine *scriptEngine);
-    static TouchEngineManager* inst();
+    static DsQmlTouchEngineManager *create(QQmlEngine *engine, QJSEngine *scriptEngine);
+    static DsQmlTouchEngineManager* inst();
 
     // Create and manage instances - QML API uses QString
     Q_INVOKABLE QString createInstance();
     Q_INVOKABLE void destroyInstance(const QString& idString);
-    Q_INVOKABLE TouchEngineInstance* getInstance(const QString& idString);
-    Q_INVOKABLE TouchEngineInstance* getInstanceByName(const QString& nameString);
+    Q_INVOKABLE DsQmlTouchEngineInstance* getInstance(const QString& idString);
+    Q_INVOKABLE DsQmlTouchEngineInstance* getInstanceByName(const QString& nameString);
 
     // Get instance count
     int instanceCount() const { return m_instances.count(); }
 
     // Set graphics API type
-    void setGraphicsAPI(TouchEngineInstance::TEGraphicsAPI apiType) { m_graphicsAPI = apiType; }
-    TouchEngineInstance::TEGraphicsAPI graphicsAPI() const { return m_graphicsAPI; }
+    void setGraphicsAPI(DsQmlTouchEngineInstance::TEGraphicsAPI apiType) { m_graphicsAPI = apiType; }
+    DsQmlTouchEngineInstance::TEGraphicsAPI graphicsAPI() const { return m_graphicsAPI; }
 
     // Initialize graphics for all instances
     bool initializeGraphics(QRhi* rhi,void* nativeDevice = nullptr);
@@ -63,15 +63,15 @@ signals:
 
 private:
 
-    explicit TouchEngineManager(QObject* parent = nullptr);
-    ~TouchEngineManager() override;
-    static TouchEngineManager* s_instance;
+    explicit DsQmlTouchEngineManager(QObject* parent = nullptr);
+    ~DsQmlTouchEngineManager() override;
+    static DsQmlTouchEngineManager* s_instance;
 
     // Internal storage uses QUuid for type safety
-    QHash<QUuid, TouchEngineInstance*> m_instances;
+    QHash<QUuid, DsQmlTouchEngineInstance*> m_instances;
     void* m_nativeDevice = nullptr;
     QRhi* m_rhi = nullptr;
-    TouchEngineInstance::TEGraphicsAPI m_graphicsAPI = TouchEngineInstance::TEGraphicsAPI_D3D11;
+    DsQmlTouchEngineInstance::TEGraphicsAPI m_graphicsAPI = DsQmlTouchEngineInstance::TEGraphicsAPI_D3D11;
 
     // Conversion helper
     QUuid stringToUuid(const QString& str) const {

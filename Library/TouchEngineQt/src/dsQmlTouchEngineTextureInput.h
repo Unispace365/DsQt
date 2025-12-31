@@ -1,7 +1,7 @@
-#ifndef TOUCHENGINETEXTUREINPUT_H
-#define TOUCHENGINETEXTUREINPUT_H
+#ifndef DSQMLTOUCHENGINETEXTUREINPUT_H
+#define DSQMLTOUCHENGINETEXTUREINPUT_H
 
-#include "touchengineinputbase.h"
+#include "dsQmlTouchEngineInputBase.h"
 #include <QPointer>
 #include <QQuickItem>
 #include <rhi/qrhi.h>
@@ -10,39 +10,39 @@
 #include <TouchEngine/TEOpenGL.h>
 
 /**
- * TouchEngineTextureInput - QML component for feeding a QQuickItem's layer texture
+ * DsQmlTouchEngineTextureInput - QML component for feeding a QQuickItem's layer texture
  * into a TouchEngine texture link.
  *
  * Usage in QML:
- * TouchEngineTextureInput {
+ * DsTouchEngineTextureInput {
  *     instanceId: teInstance.instanceIdString
  *     linkName: "video_in"
  *     sourceItem: myItem   // must have layer.enabled: true
  * }
  */
 
-class TouchEngineTextureInput;
+class DsQmlTouchEngineTextureInput;
 struct TextureKeeper
 {
     TextureKeeper() {}
     ~TextureKeeper() {}
     TEOpenGLTexture* rawTexture;
     TouchObject<TEOpenGLTexture> teTexture;
-    TouchEngineTextureInput* owner;
+    DsQmlTouchEngineTextureInput* owner;
     GLuint texId;
 };
 
-class TouchEngineTextureInput : public TouchEngineInputBase
+class DsQmlTouchEngineTextureInput : public DsQmlTouchEngineInputBase
 {
     Q_OBJECT
-    QML_NAMED_ELEMENT(TouchEngineTextureInput)
+    QML_NAMED_ELEMENT(DsTouchEngineTextureInput)
 
     Q_PROPERTY(QQuickItem* sourceItem READ sourceItem WRITE setSourceItem NOTIFY sourceItemChanged)
 
 
 public:
-    explicit TouchEngineTextureInput(QObject *parent = nullptr);
-    ~TouchEngineTextureInput() override = default;
+    explicit DsQmlTouchEngineTextureInput(QObject *parent = nullptr);
+    ~DsQmlTouchEngineTextureInput() override = default;
 
     QQuickItem *sourceItem() const { return m_sourceItem; }
     void setSourceItem(QQuickItem *item);
@@ -79,4 +79,4 @@ private:
 
 };
 
-#endif // TOUCHENGINETEXTUREINPUT_H
+#endif // DSQMLTOUCHENGINETEXTUREINPUT_H

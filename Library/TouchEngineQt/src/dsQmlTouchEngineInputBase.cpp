@@ -1,19 +1,19 @@
-#include "touchengineinputbase.h"
-#include "touchengineinstance.h"
-#include "touchenginemanager.h"
+#include "dsQmlTouchEngineInputBase.h"
+#include "dsQmlTouchEngineInstance.h"
+#include "dsQmlTouchEngineManager.h"
 #include <QDebug>
 
-TouchEngineInputBase::TouchEngineInputBase(QObject *parent)
+DsQmlTouchEngineInputBase::DsQmlTouchEngineInputBase(QObject *parent)
     : QObject(parent)
 {
 }
 
-TouchEngineInputBase::~TouchEngineInputBase()
+DsQmlTouchEngineInputBase::~DsQmlTouchEngineInputBase()
 {
     disconnectFromInstance();
 }
 
-void TouchEngineInputBase::setInstanceId(const QString &id)
+void DsQmlTouchEngineInputBase::setInstanceId(const QString &id)
 {
     if (m_instanceId != id) {
         disconnectFromInstance();
@@ -23,19 +23,19 @@ void TouchEngineInputBase::setInstanceId(const QString &id)
     }
 }
 
-void TouchEngineInputBase::setLinkName(const QString &name)
+void DsQmlTouchEngineInputBase::setLinkName(const QString &name)
 {
     if (m_linkName != name) {
         m_linkName = name;
         emit linkNameChanged();
-        
+
         if (m_autoUpdate && m_instance) {
             updateValue();
         }
     }
 }
 
-void TouchEngineInputBase::setAutoUpdate(bool auto_update)
+void DsQmlTouchEngineInputBase::setAutoUpdate(bool auto_update)
 {
     if (m_autoUpdate != auto_update) {
         m_autoUpdate = auto_update;
@@ -44,7 +44,7 @@ void TouchEngineInputBase::setAutoUpdate(bool auto_update)
     }
 }
 
-void TouchEngineInputBase::updateValue()
+void DsQmlTouchEngineInputBase::updateValue()
 {
     if (!getInstance() || linkName().isEmpty()) {
         return;
@@ -53,7 +53,7 @@ void TouchEngineInputBase::updateValue()
     m_isDirty = true;
 }
 
-void TouchEngineInputBase::handleCanUpdateLinks(TEInstance *teInstance)
+void DsQmlTouchEngineInputBase::handleCanUpdateLinks(TEInstance *teInstance)
 {
     if(m_isDirty) {
         applyValue(teInstance);
@@ -61,25 +61,25 @@ void TouchEngineInputBase::handleCanUpdateLinks(TEInstance *teInstance)
     }
 }
 
-void TouchEngineInputBase::connectToInstance()
+void DsQmlTouchEngineInputBase::connectToInstance()
 {
     if (!m_instanceId.isEmpty()) {
-        m_instance = TouchEngineManager::inst()->getInstance(m_instanceId);
-        
+        m_instance = DsQmlTouchEngineManager::inst()->getInstance(m_instanceId);
+
         if (m_instance) {
             // Connect to instance signals if needed
-            connect(m_instance, &TouchEngineInstance::destroyed,
-                    this, &TouchEngineInputBase::disconnectFromInstance);
+            connect(m_instance, &DsQmlTouchEngineInstance::destroyed,
+                    this, &DsQmlTouchEngineInputBase::disconnectFromInstance);
 
-            connect(m_instance, &TouchEngineInstance::canUpdateLinks,
+            connect(m_instance, &DsQmlTouchEngineInstance::canUpdateLinks,
                     this, [this](TEInstance *teInstance) {
                         handleCanUpdateLinks(teInstance);
                     },Qt::QueuedConnection);
-            connect(m_instance, &TouchEngineInstance::linksChanged,this, [this]() {
+            connect(m_instance, &DsQmlTouchEngineInstance::linksChanged,this, [this]() {
                         m_isDirty = true;
                     });
             emit isConnectedChanged();
-            
+
             // Apply initial value if auto-update is enabled
             if (m_autoUpdate) {
                 updateValue();
@@ -91,7 +91,7 @@ void TouchEngineInputBase::connectToInstance()
     }
 }
 
-void TouchEngineInputBase::disconnectFromInstance()
+void DsQmlTouchEngineInputBase::disconnectFromInstance()
 {
     if (m_instance) {
         disconnect(m_instance, nullptr, this, nullptr);
