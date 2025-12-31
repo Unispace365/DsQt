@@ -1,9 +1,9 @@
 #include "touchengineinstance.h"
 //#include "DX11Renderer.h"
-//#include "DX12Renderer.h"
+#include "D3D12Renderer.h"
 #include "OpenGLRenderer.h"
 #include <QtCore>
-//#include "VulkanRenderer.h"
+#include "VulkanRenderer.h"
 
 TouchEngineInstance::TouchEngineInstance(QObject *parent,QQuickWindow* window)
     : QObject{parent}
@@ -55,7 +55,6 @@ TouchEngineInstance::eventCallback(TEInstance * instance,
         inst->endFrame(start_time_value, start_time_scale, result);
         break;
     case TEEventGeneral:
-        // TODO: check result here
         break;
     default:
         break;
@@ -246,49 +245,11 @@ void TouchEngineInstance::applyLayoutChange()
 
                         if (result == TEResultSuccess)
                         {
-
                             if(scope == TEScopeInput){
                                 lastInputLinks.append(QString::fromUtf8(info->identifier));
                             }
-                            qDebug()<<(scope==TEScopeOutput?"Output: ":"Input: ")<<info->identifier;
                             if (result == TEResultSuccess && info->type == TELinkTypeTexture)
                             {
-                                // if (0 && scope == TEScopeInput)
-                                // {
-                                //     std::vector<unsigned char> tex( ImageWidth * ImageHeight * 4 );
-
-                                //     std::array<Gradient, 4> gradients{
-                                //         Gradient{{0, 0, 0}, {255,0,255}},
-                                //         Gradient{{100, 100, 100}, {255, 255, 0}},
-                                //         Gradient{{40, 40, 40}, {255, 255, 255}},
-                                //         Gradient{{255, 0, 0}, {255, 0, 255}}
-                                //     };
-
-                                //     const auto &gradient = gradients[myRenderer->getInputImageCount() % gradients.size()];
-                                //     auto& start = gradient.start;
-                                //     auto& end = gradient.end;
-                                //     for (size_t y = 0; y < ImageHeight; y++)
-                                //     {
-                                //         for (size_t x = 0; x < ImageWidth; x++)
-                                //         {
-                                //             double xColor = static_cast<double>(x) / (ImageWidth-1);
-                                //             double yColor = static_cast<double>(y) / (ImageHeight-1);
-                                //             if (getAPI() == TEGraphicsAPI_OpenGL)
-                                //                 yColor = 1.0 - yColor;
-                                //             Color xColor1 = {
-                                //                 start.red + static_cast<int>(yColor * (static_cast<double>(end.red) - start.red)),
-                                //                 start.green + static_cast<int>(xColor * (static_cast<double>(end.green) - start.green)),
-                                //                 start.blue + static_cast<int>(xColor * (static_cast<double>(end.blue) - start.blue))
-                                //             };
-                                //             tex[(y * ImageWidth * 4) + (x * 4) + 0] = xColor1.blue;
-                                //             tex[(y * ImageWidth * 4) + (x * 4) + 1] = xColor1.green;
-                                //             tex[(y * ImageWidth * 4) + (x * 4) + 2] = xColor1.red;
-                                //             tex[(y * ImageWidth * 4) + (x * 4) + 3] = 255;
-                                //         }
-                                //     }
-                                //     myRenderer->addInputImage(tex.data(), ImageWidth * 4, ImageWidth, ImageHeight);
-                                // }
-                                //else
                                 if(scope == TEScopeOutput)
                                 {
                                     myRenderer->addOutputImage();
@@ -309,47 +270,51 @@ void TouchEngineInstance::applyLayoutChange()
 
 bool TouchEngineInstance::initialize(QRhi* rhi, TEGraphicsAPI apiType)
 {
-
     switch (apiType){
         case TEGraphicsAPI_OpenGL:
             myMode = TEGraphicsAPI_OpenGL;
-            myRenderer = static_cast<std::unique_ptr<Renderer>>(std::make_unique<OpenGLRenderer>());
+            myRenderer = std::make_unique<OpenGLRenderer>();
             break;
+#ifdef _WIN32
+        case TEGraphicsAPI_D3D12:
+            myMode = TEGraphicsAPI_D3D12;
+            myRenderer = std::make_unique<D3D12Renderer>();
+            break;
+        case TEGraphicsAPI_Vulkan:
+            myMode = TEGraphicsAPI_Vulkan;
+            myRenderer = std::make_unique<VulkanRenderer>();
+            break;
+#endif
         default:
             return false;
     }
 
     connect(m_window,&QQuickWindow::afterFrameEnd,this,&TouchEngineInstance::update,Qt::DirectConnection);
-    //connect(m_window,&QQuickWindow::afterRe,this,&TouchEngineInstance::startNewFrame,Qt::DirectConnection);
-    HRESULT result = S_OK;
-    if (SUCCEEDED(result))
+
+    // Connect to sceneGraphInvalidated to release textures before device is destroyed
+    connect(m_window,&QQuickWindow::sceneGraphInvalidated,this,&TouchEngineInstance::onSceneGraphInvalidated,Qt::DirectConnection);
+
+    if (!myRenderer->setup(m_window))
     {
-        result = myRenderer->setup(m_window) ? S_OK : EIO;
+        return false;
     }
 
-    if (SUCCEEDED(result))
+    TEResult teresult = TEInstanceCreate(eventCallback, linkEventCallback, this, myInstance.take());
+
+    if (teresult == TEResultSuccess)
     {
-
-
-        if (SUCCEEDED(result))
-        {
-            TEResult teresult = TEInstanceCreate(eventCallback, linkEventCallback, this, myInstance.take());
-            if (teresult == TEResultSuccess)
-            {
-                teresult = TEInstanceAssociateGraphicsContext(myInstance, myRenderer->getTEContext());
-            }
-            if (teresult == TEResultSuccess)
-            {
-                teresult = TEInstanceConfigure(myInstance, nullptr, TETimeExternal);
-            }
-
-            assert(teresult == TEResultSuccess);
-
-        }
-
-        // Draw once
-        //render(false);
+        teresult = TEInstanceAssociateGraphicsContext(myInstance, myRenderer->getTEContext());
     }
+    if (teresult == TEResultSuccess)
+    {
+        teresult = TEInstanceConfigure(myInstance, nullptr, TETimeExternal);
+    }
+
+    if (teresult != TEResultSuccess)
+    {
+        return false;
+    }
+
     setIsReady(true);
     return true;
 }
@@ -367,20 +332,14 @@ bool TouchEngineInstance::loadComponent()
     TEResult teresult = TEInstanceConfigure(myInstance, utf8.c_str(), TETimeExternal);
     if(teresult == TEResultSuccess){
         teresult = TEInstanceSetFrameRate(myInstance, m_frameRate, 1);
-    } else {
-        qDebug()<<"nope configure";
     }
     if (teresult == TEResultSuccess)
     {
         teresult = TEInstanceLoad(myInstance);
-    } else {
-        qDebug()<<"nope frameRate";
     }
     if (teresult == TEResultSuccess)
     {
         teresult = TEInstanceResume(myInstance);
-    } else {
-        qDebug()<<"nope load";
     }
     assert(teresult == TEResultSuccess);
     myDidLoad = true;
@@ -574,8 +533,6 @@ void TouchEngineInstance::setName(const QString &newName)
 
 QSharedPointer<QRhiTexture> TouchEngineInstance::getRhiTexture(QString &linkName)
 {
-
-
     if (myOutputLinkTextureMap.contains(linkName) )
     {
         if(m_useHeavyTextureGet){
@@ -636,4 +593,12 @@ const QOpenGLFunctions *TouchEngineInstance::getGLFunctions() const
         return oglRender->getGLFunctions();
     }
     return nullptr;
+}
+
+void TouchEngineInstance::onSceneGraphInvalidated()
+{
+    // Release Vulkan/D3D12 textures before the graphics device is destroyed
+    if (myRenderer) {
+        myRenderer->releaseTextures();
+    }
 }

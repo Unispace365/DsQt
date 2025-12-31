@@ -28,6 +28,10 @@ TE_ASSUME_NONNULL_BEGIN
 
 #ifdef _WIN32
 
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#include <windows.h>
 #include <dxgiformat.h>
 
 typedef TE_ENUM(TED3DHandleType, int32_t) 

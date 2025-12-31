@@ -44,6 +44,9 @@ set(TOUCHENGINE_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/TouchEngine/include" CA
 set(TOUCHENGINE_LIB_DIR "${CMAKE_CURRENT_SOURCE_DIR}/TouchEngine/lib" CACHE PATH "TouchEngine library directory")
 set(TOUCHENGINE_BIN_DIR "${CMAKE_CURRENT_SOURCE_DIR}/TouchEngine/bin" CACHE PATH "TouchEngine library directory")
 
+# Find Vulkan SDK
+find_package(Vulkan)
+
 # Source files
 set(SOURCES
     src/touchenginemanager.cpp
@@ -56,6 +59,18 @@ set(SOURCES
     src/touchenginematerial.cpp
     src/touchengineinstance.cpp
 )
+
+# D3D12 and Vulkan renderer sources (Windows only)
+if(WIN32)
+    list(APPEND SOURCES
+        src/D3D12Texture.cpp
+        src/D3D12Image.cpp
+        src/D3D12Renderer.cpp
+        src/VulkanTexture.cpp
+        src/VulkanImage.cpp
+        src/VulkanRenderer.cpp
+    )
+endif()
 
 set(SOURCES_MAIN
     #src/main.cpp
@@ -77,6 +92,18 @@ set(HEADERS
     src/touchenginematerial.h
     src/touchengineinstance.h
 )
+
+# D3D12 and Vulkan renderer headers (Windows only)
+if(WIN32)
+    list(APPEND HEADERS
+        src/D3D12Texture.h
+        src/D3D12Image.h
+        src/D3D12Renderer.h
+        src/VulkanTexture.h
+        src/VulkanImage.h
+        src/VulkanRenderer.h
+    )
+endif()
 
 set(QML_FILES
     #qml/Main.qml
@@ -120,11 +147,11 @@ qt6_add_shaders(TouchEngineQt "shaders"
         resources/shaders/texture.frag
 )
 
-qt_add_resources(TouchEngineQt "resources"
-    PREFIX "/"
-    FILES
-        resources/TD/Testbed.tox
-)
+#qt_add_resources(TouchEngineQt "resources"
+#    PREFIX "/"
+#    FILES
+#        resources/TD/Testbed.tox
+#)
 
 # Optional: Add shaders if they exist
 #if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/resources/shaders/texture.vert.qsb")
@@ -156,6 +183,18 @@ target_link_libraries(TouchEngineQt PRIVATE
     PUBLIC
     TouchEngine
 )
+
+# Link D3D12 and Vulkan libraries on Windows
+if(WIN32)
+    target_link_libraries(TouchEngineQt PRIVATE
+        d3d12
+        dxgi
+    )
+    if(Vulkan_FOUND)
+        target_link_libraries(TouchEngineQt PRIVATE Vulkan::Vulkan)
+        target_compile_definitions(TouchEngineQt PRIVATE TOUCHENGINE_VULKAN_ENABLED)
+    endif()
+endif()
 
 # Copy TouchEngine DLL to output directory on Windows
 if(WIN32)

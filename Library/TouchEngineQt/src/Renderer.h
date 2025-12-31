@@ -14,16 +14,28 @@
 
 #pragma once
 
+// Windows headers must be included before TouchEngine headers
+// to define HANDLE and other Windows types
+#ifdef _WIN32
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#include <d3dcommon.h>
+#include <d3d11.h>
+#include <d3d12.h>
+#include <dxgi1_6.h>
+#endif
+
 #include <TouchEngine/TouchEngine.h>
 #include <TouchEngine/TouchObject.h>
 #include <rhi/qrhi.h>
 #include <vector>
 #include <array>
 #include <memory>
-#include <d3dcommon.h>
-#include <d3d11.h>
-#include <d3d12.h>
-#include <dxgi1_6.h>
 #include <QQuickWindow>
 
 
@@ -61,6 +73,7 @@ public:
 	const TouchObject<TETexture>& getOutputImage(size_t index) const;
     virtual QSharedPointer<QRhiTexture>        getOutputRhiTexture(size_t index)=0;
 	virtual void		clearOutputImages(); // TODO: ?
+	virtual void		releaseTextures() {} // Release GPU resources before device is destroyed
 	virtual TEGraphicsContext* getTEContext() const = 0;
 protected:
 	bool				inputDidChange(size_t index) const;

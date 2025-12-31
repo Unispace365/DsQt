@@ -244,9 +244,9 @@ void TouchEngineTextureNode::updateGeometry()
 
     // Source rectangle (texture coordinates)
     float tx1 = m_sourceRect.x();
-    float ty2 = m_sourceRect.y();
+    float ty1 = m_sourceRect.y();
     float tx2 = m_sourceRect.x() + m_sourceRect.width();
-    float ty1 = m_sourceRect.y() + m_sourceRect.height();
+    float ty2 = m_sourceRect.y() + m_sourceRect.height();
 
     // Apply texture coordinate transform if needed
     if (m_transformMode == MirrorHorizontally) {

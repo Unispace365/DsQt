@@ -123,6 +123,7 @@ private:
     int64_t	getRenderTime();
     void startNewFrame();
     void update();
+    void onSceneGraphInvalidated();
 
 private:
     //start temp data

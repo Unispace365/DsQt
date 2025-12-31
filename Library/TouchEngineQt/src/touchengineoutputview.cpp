@@ -76,9 +76,15 @@ QSGNode* TouchEngineOutputView::updatePaintNode(QSGNode* oldNode, UpdatePaintNod
         return nullptr;
     }
 
+    // OpenGL needs vertical flip due to coordinate system differences
+    if (rhi->backend() == QRhi::OpenGLES2) {
+        node->setTextureCoordinatesTransform(TouchEngineTextureNode::MirrorVertically);
+    } else {
+        node->setTextureCoordinatesTransform(TouchEngineTextureNode::NoTransform);
+    }
+
     //auto rhiTexture = m_instance->getRhiTexture(m_outputLink);
     m_rhiTexture = m_instance->getRhiTexture(m_outputLink);
-
     QSGTexture* tex = node->texture();
     if(tex && m_rhiTexture && tex->rhiTexture()->nativeTexture().object == m_rhiTexture->nativeTexture().object){
         //    //no need to update

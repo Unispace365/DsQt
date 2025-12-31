@@ -30,6 +30,11 @@ TE_ASSUME_NONNULL_BEGIN
 
 #ifdef _WIN32
 
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#include <windows.h>
+
 typedef struct TEVulkanSemaphore_ TEVulkanSemaphore;
 
 typedef void (*TEVulkanSemaphoreCallback)(HANDLE semaphore, TEObjectEvent event, void * TE_NULLABLE info);

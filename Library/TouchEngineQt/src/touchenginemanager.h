@@ -7,6 +7,10 @@
 #include <QtQmlIntegration>
 #include <QQuickWindow>
 
+#ifdef _WIN32
+#include <QVulkanInstance>
+#endif
+
 
 /**
  * TouchEngineManager - Manages multiple TouchEngine instances
@@ -75,7 +79,15 @@ private:
         return uuid.isNull() ? QUuid() : uuid;
     }
     QQuickWindow *m_window = nullptr;
-    QOpenGLContext *m_glContextQt=nullptr;
-    QOpenGLContext *m_glShareContext=nullptr;
-    bool m_isInitialized=false;
+
+    // OpenGL context sharing
+    QOpenGLContext *m_glContextQt = nullptr;
+    QOpenGLContext *m_glShareContext = nullptr;
+
+    bool m_isInitialized = false;
+
+    // Helper methods for different graphics APIs
+    void initializeOpenGL();
+    void initializeD3D12();
+    void initializeVulkan();
 };

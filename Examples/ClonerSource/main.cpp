@@ -37,7 +37,7 @@ int main(int argc, char *argv[])
 {
 
     //Currently only works with OpenGL.
-    QQuickWindow::setGraphicsApi(QSGRendererInterface::OpenGL);
+    QQuickWindow::setGraphicsApi(QSGRendererInterface::VulkanRhi);
 
     //ensure the data.qrc is initialized
     Q_INIT_RESOURCE(data);
@@ -147,31 +147,31 @@ int main(int argc, char *argv[])
                 case QSGRendererInterface::Direct3D11: {
                     device = rif->getResource(window, QSGRendererInterface::DeviceResource);
                     apiType = TouchEngineInstance::TEGraphicsAPI_D3D11;
-                    qDebug() << "Using Direct3D 11";
+                    qDebug() << "Using Direct3D 11!";
                     break;
                 }
                 case QSGRendererInterface::Direct3D12: {
                     device = rif->getResource(window, QSGRendererInterface::DeviceResource);
                     apiType = TouchEngineInstance::TEGraphicsAPI_D3D12;
-                    qDebug() << "Using Direct3D 12";
+                    qDebug() << "Using Direct3D 12!";
                     break;
                 }
                 case QSGRendererInterface::Vulkan: {
                     device = rif->getResource(window, QSGRendererInterface::DeviceResource);
                     apiType = TouchEngineInstance::TEGraphicsAPI_Vulkan;
-                    qDebug() << "Using Vulkan";
+                    qDebug() << "Using Vulkan!";
                     break;
                 }
                 case QSGRendererInterface::OpenGL: {
                     // OpenGL context should be current
                     apiType = TouchEngineInstance::TEGraphicsAPI_OpenGL;
-                    qDebug() << "Using OpenGL";
+                    qDebug() << "Using OpenGL!";
                     break;
                 }
                 case QSGRendererInterface::Metal: {
                     device = rif->getResource(window, QSGRendererInterface::DeviceResource);
                     apiType = TouchEngineInstance::TEGraphicsAPI_Metal;
-                    qDebug() << "Using Metal";
+                    qDebug() << "Using Metal!";
                     break;
                 }
                 default:

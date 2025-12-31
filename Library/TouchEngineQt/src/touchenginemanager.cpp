@@ -1,6 +1,7 @@
 #include "touchenginemanager.h"
 #include <QDebug>
 #include <QOpenGLContext>
+#include <rhi/qrhi.h>
 
 TouchEngineManager* TouchEngineManager::s_instance = nullptr;
 
@@ -132,26 +133,117 @@ void TouchEngineManager::setWindow(QQuickWindow *newWindow)
     if(m_window) disconnect(m_window);
     m_window = newWindow;
     if(m_window) {
-        connect(m_window,&QQuickWindow::beforeSynchronizing,this,[this](){
-            // Initialize graphics if not already done
-            if (!m_glContextQt) {
-                qDebug() << "Setting up shared OpenGL context for TouchEngineManager";
-                const QRhiGles2NativeHandles* handles = static_cast<const QRhiGles2NativeHandles*>(m_window->rhi()->nativeHandles());
-                auto currentContext = handles->context;
-                m_glContextQt = currentContext;
-                m_glShareContext = new QOpenGLContext;
-                m_glShareContext->setFormat(m_glContextQt->format());
-                m_glShareContext->setShareContext(m_glContextQt);
-                QSurface *surface = m_glContextQt->surface();
-                m_glContextQt->doneCurrent();
-                if (!m_glShareContext->create())
-                    qWarning() << "Failed to create share context";
-                m_glContextQt->makeCurrent(surface);
-                setIsInitialized(true);
+        connect(m_window, &QQuickWindow::beforeSynchronizing, this, [this]() {
+            if (m_isInitialized)
+                return;
+
+            QRhi* rhi = m_window->rhi();
+            if (!rhi) {
+                qWarning() << "TouchEngineManager: No RHI available";
+                return;
             }
-        },Qt::DirectConnection);
+
+            // Detect graphics API from RHI backend
+            QRhi::Implementation backend = rhi->backend();
+            qDebug() << "TouchEngineManager: RHI backend is" << backend;
+
+            switch (backend) {
+                case QRhi::OpenGLES2:
+                    m_graphicsAPI = TouchEngineInstance::TEGraphicsAPI_OpenGL;
+                    initializeOpenGL();
+                    break;
+#ifdef _WIN32
+                case QRhi::D3D11:
+                    // D3D11 not fully implemented, fall through to D3D12 or use OpenGL
+                    qWarning() << "TouchEngineManager: D3D11 backend detected but not fully supported, using D3D12";
+                    m_graphicsAPI = TouchEngineInstance::TEGraphicsAPI_D3D12;
+                    initializeD3D12();
+                    break;
+                case QRhi::D3D12:
+                    m_graphicsAPI = TouchEngineInstance::TEGraphicsAPI_D3D12;
+                    initializeD3D12();
+                    break;
+                case QRhi::Vulkan:
+                    m_graphicsAPI = TouchEngineInstance::TEGraphicsAPI_Vulkan;
+                    initializeVulkan();
+                    break;
+#endif
+                default:
+                    qWarning() << "TouchEngineManager: Unsupported RHI backend:" << backend;
+                    break;
+            }
+        }, Qt::DirectConnection);
     }
     emit windowChanged();
+}
+
+void TouchEngineManager::initializeOpenGL()
+{
+    qDebug() << "TouchEngineManager: Initializing OpenGL";
+
+    if (m_glContextQt) {
+        // Already initialized
+        return;
+    }
+
+    QRhi* rhi = m_window->rhi();
+    const QRhiGles2NativeHandles* handles = static_cast<const QRhiGles2NativeHandles*>(rhi->nativeHandles());
+    if (!handles || !handles->context) {
+        qWarning() << "TouchEngineManager: Failed to get OpenGL context from RHI";
+        return;
+    }
+
+    m_glContextQt = handles->context;
+    m_glShareContext = new QOpenGLContext;
+    m_glShareContext->setFormat(m_glContextQt->format());
+    m_glShareContext->setShareContext(m_glContextQt);
+
+    QSurface* surface = m_glContextQt->surface();
+    m_glContextQt->doneCurrent();
+
+    if (!m_glShareContext->create()) {
+        qWarning() << "TouchEngineManager: Failed to create OpenGL share context";
+        delete m_glShareContext;
+        m_glShareContext = nullptr;
+        m_glContextQt->makeCurrent(surface);
+        return;
+    }
+
+    m_glContextQt->makeCurrent(surface);
+    qDebug() << "TouchEngineManager: OpenGL initialized successfully";
+    setIsInitialized(true);
+}
+
+void TouchEngineManager::initializeD3D12()
+{
+#ifdef _WIN32
+    qDebug() << "TouchEngineManager: Initializing D3D12";
+
+    // D3D12 doesn't require special context sharing like OpenGL
+    // Each TouchEngineInstance will create its own D3D12 device
+    // and communicate with TouchEngine via shared NT handles
+
+    qDebug() << "TouchEngineManager: D3D12 initialized successfully";
+    setIsInitialized(true);
+#else
+    qWarning() << "TouchEngineManager: D3D12 not available on this platform";
+#endif
+}
+
+void TouchEngineManager::initializeVulkan()
+{
+#ifdef _WIN32
+    qDebug() << "TouchEngineManager: Initializing Vulkan";
+
+    // Vulkan doesn't require special context sharing like OpenGL
+    // Each TouchEngineInstance will create its own Vulkan device
+    // and communicate with TouchEngine via external memory handles
+
+    qDebug() << "TouchEngineManager: Vulkan initialized successfully";
+    setIsInitialized(true);
+#else
+    qWarning() << "TouchEngineManager: Vulkan not available on this platform";
+#endif
 }
 
 bool TouchEngineManager::isInitialized() const
