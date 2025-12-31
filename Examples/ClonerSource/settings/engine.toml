@@ -21,6 +21,7 @@ engine = [
 ]
 
 [engine.reload]
+active = true
 paths = [
   {path = "%APP%/data/", recurse = true},
   {path = "%APP%/settings/", recurse = true},

@@ -16,6 +16,12 @@
 #include <dsQmlApplicationEngine.h>
 #include <dsReloadUrlInterceptor.h>
 
+#include <QQuickWindow>
+#include <QSGRendererInterface>
+#include "touchenginemanager.h"
+#include "touchengineinstance.h"
+#include "touchengineoutputview.h"
+
 //activate high performance graphics on windows laptops with dual graphics cards
 #ifdef Q_OS_WIN
 extern "C" {
@@ -29,6 +35,10 @@ __declspec(dllexport) int AmdPowerXpressRequestHighPerformance = 1;
 
 int main(int argc, char *argv[])
 {
+
+    //Currently only works with OpenGL.
+    QQuickWindow::setGraphicsApi(QSGRendererInterface::OpenGL);
+
     //ensure the data.qrc is initialized
     Q_INIT_RESOURCE(data);
 
@@ -55,6 +65,7 @@ int main(int argc, char *argv[])
     // Support for Windows Dark theme.
     QQuickStyle::setStyle("Fusion");
 
+
     //for debugging imports
 
     //QDirIterator qrc(":", QDirIterator::Subdirectories);
@@ -71,10 +82,14 @@ int main(int argc, char *argv[])
     // be QtQuick/VirtualKeyboard/Styles/<style name>/
     engine.addImportPath("qrc:/keyboard");
 
+    //for debugging imports
     //auto list = engine.importPathList();
     //for(auto path:list){
     //    qDebug()<<"Import path: "<<path;
     //};
+
+
+
 
     //create the query object
     //the query object will create the database connection and
@@ -113,6 +128,78 @@ int main(int argc, char *argv[])
 
     auto mainQml = engine.getAppSettings()->getOr<QString>("app.mainView","Main");
     engine.loadFromModule("ClonerSource", mainQml);
+
+    // Initialize graphics after window is created
+    QObject *rootObject = engine.rootObjects().first();
+
+
+    if (auto* window = qobject_cast<QQuickWindow*>(rootObject)) {
+        auto setApi = [window]() {
+            QSGRendererInterface* rif = window->rendererInterface();
+            QRhi* rhi = window->rhi();
+            rhi->nativeHandles();
+            if (rif) {
+                // Get native graphics device based on backend
+                void* device = nullptr;
+                TouchEngineInstance::TEGraphicsAPI apiType = TouchEngineInstance::TEGraphicsAPI_Unknown;
+
+                switch (rif->graphicsApi()) {
+                case QSGRendererInterface::Direct3D11: {
+                    device = rif->getResource(window, QSGRendererInterface::DeviceResource);
+                    apiType = TouchEngineInstance::TEGraphicsAPI_D3D11;
+                    qDebug() << "Using Direct3D 11";
+                    break;
+                }
+                case QSGRendererInterface::Direct3D12: {
+                    device = rif->getResource(window, QSGRendererInterface::DeviceResource);
+                    apiType = TouchEngineInstance::TEGraphicsAPI_D3D12;
+                    qDebug() << "Using Direct3D 12";
+                    break;
+                }
+                case QSGRendererInterface::Vulkan: {
+                    device = rif->getResource(window, QSGRendererInterface::DeviceResource);
+                    apiType = TouchEngineInstance::TEGraphicsAPI_Vulkan;
+                    qDebug() << "Using Vulkan";
+                    break;
+                }
+                case QSGRendererInterface::OpenGL: {
+                    // OpenGL context should be current
+                    apiType = TouchEngineInstance::TEGraphicsAPI_OpenGL;
+                    qDebug() << "Using OpenGL";
+                    break;
+                }
+                case QSGRendererInterface::Metal: {
+                    device = rif->getResource(window, QSGRendererInterface::DeviceResource);
+                    apiType = TouchEngineInstance::TEGraphicsAPI_Metal;
+                    qDebug() << "Using Metal";
+                    break;
+                }
+                default:
+                    qWarning() << "Unsupported graphics API";
+                    break;
+                }
+
+                if (apiType != TouchEngineInstance::TEGraphicsAPI_Unknown) {
+                    // Initialize TouchEngineManager with the detected API
+                    TouchEngineManager* manager = TouchEngineManager::inst();
+
+                           // Store API type in manager for future instances
+                    manager->setGraphicsAPI(apiType);
+                    manager->setWindow(window);
+                    if (device || apiType == TouchEngineInstance::TEGraphicsAPI_OpenGL) {
+                        manager->initializeGraphics(rhi,device);
+                    }
+                }
+            }
+        };
+        if(window->isSceneGraphInitialized()) {
+            setApi();
+        } else {
+            QObject::connect(window, &QQuickWindow::sceneGraphInitialized, rootObject, setApi, Qt::DirectConnection);
+        }
+
+    }
+
 
     auto retval = app.exec();
 

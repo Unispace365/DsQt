@@ -30,6 +30,7 @@ qt_standard_project_setup(REQUIRES 6.9)
 
 add_subdirectory("Dsqt")
 add_subdirectory("WafflesUx")
+add_subdirectory("TouchEngineQt")
 
 FetchContent_Declare(
     tomlplusplus
@@ -78,6 +79,7 @@ target_include_directories(Dsqt PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} ${imgui_base}
 cmake_path(NATIVE_PATH CMAKE_CURRENT_SOURCE_DIR DS_QMLLINT_ROOT)
 set_target_properties(Dsqt PROPERTIES FOLDER DsQt-Framework)
 set_target_properties(WafflesUx PROPERTIES FOLDER WafflesUx)
+set_target_properties(TouchEngineQt PROPERTIES FOLDER TouchEngineQt)
 
 if(PROJECT_IS_TOP_LEVEL)
   add_subdirectory(Tests/Settings)

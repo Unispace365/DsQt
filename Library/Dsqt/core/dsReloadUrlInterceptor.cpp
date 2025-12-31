@@ -19,7 +19,7 @@ void DsReloadUrlInterceptor::setPrefixes(QString proj_from, QString proj_to, QSt
 
 QUrl DsReloadUrlInterceptor::intercept(const QUrl &path, DataType type)
 {
-#ifdef _DEBUG //only for debug.
+//#ifdef _DEBUG //only for debug.
     if(type == QQmlAbstractUrlInterceptor::DataType::QmlFile){
         qCDebug(lgReloadUrl)<<"Got QML URL "<<path.toString();
         auto pathString = path.toString();
@@ -39,7 +39,7 @@ QUrl DsReloadUrlInterceptor::intercept(const QUrl &path, DataType type)
             return QUrl(pathString);
         }
     }
-#endif
+//#endif
     return path;
 }
 

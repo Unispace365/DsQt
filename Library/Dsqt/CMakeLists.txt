@@ -8,6 +8,7 @@ set(QML_IMPORT_PATH
  )
 
 find_package(Qt6 REQUIRED COMPONENTS Core Multimedia Quick Pdf WebEngineQuick)
+find_package(Qt6 REQUIRED COMPONENTS Core)
 
 qt_add_qml_module(Dsqt
     URI Dsqt
@@ -88,6 +89,8 @@ qt_add_qml_module(Dsqt
         res/data.qrc
         SOURCES model/dsContentModel.cpp
         SOURCES model/dsContentModel.h
+        QML_FILES qml/DsShortcut.qml
+        SOURCES ui/dsQmlShortcutManager.h ui/dsQmlShortcutManager.cpp
         SOURCES core/dsFontManager.h core/dsFontManager.cpp
 )
 

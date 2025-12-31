@@ -26,7 +26,7 @@ DsAppBase {
 
         Loader {
             id: main
-            source: "/qt/qml/ClonerSource/qml/MainView.qml"
+            source: "/qt/qml/ClonerSource/qml/TouchDesigner.qml"
             anchors.fill: parent
         }
 

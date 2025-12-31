@@ -16,7 +16,7 @@ set(CMAKE_INSTALL_PREFIX "${CMAKE_BINARY_DIR}/DEPLOY/")
 set(QT_FORCE_CMP0156_TO_VALUE NEW)
 set(QT_QML_GENERATE_QMLLS_INI ON)
 set(DS_QT_DLLS_SUBDIR ON CACHE BOOL "Set to ON to copy the Qt dlls to a subdirectory of the install directory. Default is ON.")
-find_package(Qt6 6.9 REQUIRED COMPONENTS Core Quick QuickControls2 Multimedia Gui ShaderTools Concurrent Sql Pdf WebEngineQuick)
+find_package(Qt6 6.9 REQUIRED COMPONENTS Core Quick QuickControls2 Multimedia Gui GuiPrivate ShaderTools Concurrent Sql Pdf WebEngineQuick)
 qt_standard_project_setup(REQUIRES 6.9)
 
 
@@ -58,13 +58,14 @@ qt_add_qml_module(${DS_EXE_NAME}
         Fnt.qml
         qml/MainView.qml
         qml/CustomClock.qml
+        qml/TouchDesigner.qml
 
     IMPORT_PATH "${CMAKE_BINARY_DIR}/Library"
     DEPENDENCIES
         Dsqt
         WafflesUx
+        TouchEngineQt
         QtQuick
-        QML_FILES
         #RESOURCES cmake/app.rc.in
 )
 
@@ -125,7 +126,7 @@ FetchContent_Declare(
 FetchContent_GetProperties(glm)
 FetchContent_MakeAvailable(glm)
 
-target_include_directories(${DS_EXE_NAME} PRIVATE ${Dsqt_INCLUDES})
+target_include_directories(${DS_EXE_NAME} PRIVATE ${Dsqt_INCLUDES} ${TouchEngineQt_INCLUDES})
 
 ##connect glm
 target_include_directories(${DS_EXE_NAME} PUBLIC ${glm_SOURCE_DIR})
@@ -141,7 +142,8 @@ target_link_libraries(${DS_EXE_NAME}
         Dsqt_resources_2 
         Dsqt_resources_3
         Dsqtplugin
-        Dsqtplugin_init 
+        Dsqtplugin_init
+        TouchEngineQt
         glm
         Qt6::Concurrent 
         Qt6::Core
@@ -150,6 +152,7 @@ target_link_libraries(${DS_EXE_NAME}
         Qt6::Quick
         Qt6::QuickControls2
         Qt6::ShaderTools
+        Qt6::GuiPrivate
         Qt6::Sql
 )
 

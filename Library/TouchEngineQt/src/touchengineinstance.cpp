@@ -1,0 +1,639 @@
+#include "touchengineinstance.h"
+//#include "DX11Renderer.h"
+//#include "DX12Renderer.h"
+#include "OpenGLRenderer.h"
+#include <QtCore>
+//#include "VulkanRenderer.h"
+
+TouchEngineInstance::TouchEngineInstance(QObject *parent,QQuickWindow* window)
+    : QObject{parent}
+{
+    m_frameTimer.start();
+    m_window = window;
+
+}
+
+void
+TouchEngineInstance::linkLayoutDidChange()
+{
+    QMutexLocker locker(&myMutex);
+    myPendingLayoutChange = true;
+}
+
+void TouchEngineInstance::didConfigure(TEResult result)
+{
+    if(result != TEResultCancelled) {
+        QMutexLocker locker(&myMutex);
+        myConfigureRenderer = true;
+        myConfigureResult = result;
+    }
+}
+
+void
+TouchEngineInstance::eventCallback(TEInstance * instance,
+                              TEEvent event,
+                              TEResult result,
+                              int64_t start_time_value,
+                              int32_t start_time_scale,
+                              int64_t end_time_value,
+                              int32_t end_time_scale,
+                              void * info)
+{
+    TouchEngineInstance *inst = static_cast<TouchEngineInstance *>(info);
+
+    switch (event)
+    {
+    case TEEventInstanceReady:
+        inst->didConfigure(result);
+        break;
+    case TEEventInstanceDidLoad:
+        inst->didLoad();
+        break;
+    case TEEventInstanceDidUnload:
+        break;
+    case TEEventFrameDidFinish:
+        inst->endFrame(start_time_value, start_time_scale, result);
+        break;
+    case TEEventGeneral:
+        // TODO: check result here
+        break;
+    default:
+        break;
+    }
+}
+
+void
+TouchEngineInstance::linkEventCallback(TEInstance * instance, TELinkEvent event, const char *identifier, void * info)
+{
+    TouchEngineInstance* inst = static_cast<TouchEngineInstance*>(info);
+    switch (event)
+    {
+    case TELinkEventAdded:
+        inst->linkLayoutDidChange();
+        break;
+    case TELinkEventValueChange:
+        inst->linkValueChange(identifier);
+        break;
+    default:
+        break;
+    }
+}
+
+void
+TouchEngineInstance::linkValueChange(const char* identifier)
+{
+    TouchObject<TELinkInfo> link;
+    TEResult result = TEInstanceLinkGetInfo(myInstance, identifier, link.take());
+    if (result == TEResultSuccess && link->scope == TEScopeOutput)
+    {
+        switch (link->type)
+        {
+        case TELinkTypeTexture:
+        {
+            // Stash the state, we don't do any actual renderer work from this thread
+            QMutexLocker locker(&myMutex);
+            myPendingOutputTextures.push_back(QString::fromUtf8(identifier));
+            break;
+        }
+        case TELinkTypeFloatBuffer:
+        {
+            TouchObject<TEFloatBuffer> buffer;
+            result = TEInstanceLinkGetFloatBufferValue(myInstance, identifier, TELinkValueCurrent, buffer.take());
+
+            if (result == TEResultSuccess)
+            {
+                uint32_t valueCount = TEFloatBufferGetValueCount(buffer);
+                int32_t channelCount = TEFloatBufferGetChannelCount(buffer);
+                if (buffer && channelCount > 0 && valueCount > 0)
+                {
+                    const float * const *data = TEFloatBufferGetValues(buffer);
+
+                    for (int channel = 0; channel < channelCount; channel++)
+                    {
+                        // Here we just grab the first sample in the channel
+                        float value = data[channel][0];
+                    }
+                }
+            }
+            break;
+        }
+        case TELinkTypeStringData:
+        {
+            TouchObject<TEObject> value;
+            result = TEInstanceLinkGetObjectValue(myInstance, identifier, TELinkValueCurrent, value.take());
+            // String data can be a TETable or TEString, so check the type
+            if (value && TEGetType(value) == TEObjectTypeTable)
+            {
+                TouchObject<TETable> table;
+                table.set(static_cast<TETable*>(value.get()));
+                // do something with the table
+            }
+            else if (value && TEGetType(value) == TEObjectTypeString)
+            {
+                TouchObject<TEString> string;
+                string.set(static_cast<TEString*>(value.get()));
+                // do something with the string
+            }
+            break;
+        }
+        default:
+            break;
+        }
+    }
+}
+
+void
+TouchEngineInstance::endFrame(int64_t time_value, int32_t time_scale, TEResult result)
+{
+    setInFrame(false);
+}
+
+void
+TouchEngineInstance::getState(bool& configured, bool& ready, bool& loaded, bool& linksChanged, bool& inFrame)
+{
+    QMutexLocker locker(&myMutex);
+    configured = myConfigureRenderer;
+    myConfigureRenderer = false;
+    loaded = myDidLoad;
+    ready = myIsReady;
+    if (myDidLoad)
+    {
+        // For this example, we are only interested in links after load has completed
+        linksChanged = myPendingLayoutChange;
+        inFrame = myInFrame;
+        myPendingLayoutChange = false;
+    }
+    else
+    {
+        linksChanged = false;
+        inFrame = false;
+    }
+}
+
+void
+TouchEngineInstance::setInFrame(bool inFrame)
+{
+    QMutexLocker locker(&myMutex);
+    myInFrame = inFrame;
+}
+
+bool
+TouchEngineInstance::applyOutputTextureChange()
+{
+    // Only hold the lock briefly
+    std::vector<QString> changes;
+    {
+        QMutexLocker locker(&myMutex);
+        std::swap(myPendingOutputTextures, changes);
+    }
+
+    //if we are going to updateTheOutputImage from the updatePaintNode of the
+    //view just return true here to indicate there are changes.
+    if(m_useHeavyTextureGet){
+        return !changes.empty();
+    }
+
+    for (const auto & identifier : changes)
+    {
+        size_t imageIndex = myOutputLinkTextureMap[identifier];
+        std::string idStr = std::string(identifier.toUtf8().constData());
+        myRenderer->updateOutputImage(myInstance, imageIndex, idStr);
+    }
+
+    return !changes.empty();
+}
+
+bool TouchEngineInstance::hasInputLink(QString identifier)
+{
+    return lastInputLinks.contains(identifier);
+}
+
+void TouchEngineInstance::applyLayoutChange()
+{
+    myRenderer->beginImageLayout();
+
+    myRenderer->clearInputImages();
+    myRenderer->clearOutputImages();
+    myOutputLinkTextureMap.clear();
+    lastInputLinks.clear();
+    for (auto scope : { TEScopeInput, TEScopeOutput })
+    {
+        TouchObject<TEStringArray> groups;
+        TEResult result = TEInstanceGetLinkGroups(myInstance, scope, groups.take());
+
+        if (result == TEResultSuccess)
+        {
+            for (int32_t i = 0; i < groups->count; i++)
+            {
+                TouchObject<TELinkInfo> group;
+                result = TEInstanceLinkGetInfo(myInstance, groups->strings[i], group.take());
+                if (result == TEResultSuccess)
+                {
+                    // Use group info here
+                }
+                TouchObject<TEStringArray> children;
+                if (result == TEResultSuccess)
+                {
+                    result = TEInstanceLinkGetChildren(myInstance, groups->strings[i], children.take());
+                }
+                if (result == TEResultSuccess)
+                {
+                    for (int32_t j = 0; j < children->count; j++)
+                    {
+                        TouchObject<TELinkInfo> info;
+
+                        result = TEInstanceLinkGetInfo(myInstance, children->strings[j], info.take());
+
+                        if (result == TEResultSuccess)
+                        {
+
+                            if(scope == TEScopeInput){
+                                lastInputLinks.append(QString::fromUtf8(info->identifier));
+                            }
+                            qDebug()<<(scope==TEScopeOutput?"Output: ":"Input: ")<<info->identifier;
+                            if (result == TEResultSuccess && info->type == TELinkTypeTexture)
+                            {
+                                // if (0 && scope == TEScopeInput)
+                                // {
+                                //     std::vector<unsigned char> tex( ImageWidth * ImageHeight * 4 );
+
+                                //     std::array<Gradient, 4> gradients{
+                                //         Gradient{{0, 0, 0}, {255,0,255}},
+                                //         Gradient{{100, 100, 100}, {255, 255, 0}},
+                                //         Gradient{{40, 40, 40}, {255, 255, 255}},
+                                //         Gradient{{255, 0, 0}, {255, 0, 255}}
+                                //     };
+
+                                //     const auto &gradient = gradients[myRenderer->getInputImageCount() % gradients.size()];
+                                //     auto& start = gradient.start;
+                                //     auto& end = gradient.end;
+                                //     for (size_t y = 0; y < ImageHeight; y++)
+                                //     {
+                                //         for (size_t x = 0; x < ImageWidth; x++)
+                                //         {
+                                //             double xColor = static_cast<double>(x) / (ImageWidth-1);
+                                //             double yColor = static_cast<double>(y) / (ImageHeight-1);
+                                //             if (getAPI() == TEGraphicsAPI_OpenGL)
+                                //                 yColor = 1.0 - yColor;
+                                //             Color xColor1 = {
+                                //                 start.red + static_cast<int>(yColor * (static_cast<double>(end.red) - start.red)),
+                                //                 start.green + static_cast<int>(xColor * (static_cast<double>(end.green) - start.green)),
+                                //                 start.blue + static_cast<int>(xColor * (static_cast<double>(end.blue) - start.blue))
+                                //             };
+                                //             tex[(y * ImageWidth * 4) + (x * 4) + 0] = xColor1.blue;
+                                //             tex[(y * ImageWidth * 4) + (x * 4) + 1] = xColor1.green;
+                                //             tex[(y * ImageWidth * 4) + (x * 4) + 2] = xColor1.red;
+                                //             tex[(y * ImageWidth * 4) + (x * 4) + 3] = 255;
+                                //         }
+                                //     }
+                                //     myRenderer->addInputImage(tex.data(), ImageWidth * 4, ImageWidth, ImageHeight);
+                                // }
+                                //else
+                                if(scope == TEScopeOutput)
+                                {
+                                    myRenderer->addOutputImage();
+                                    myOutputLinkTextureMap[info->identifier] = myRenderer->getRightSideImageCount() - 1;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            emit linksChanged();
+        }
+    }
+
+    myRenderer->endImageLayout();
+}
+
+
+bool TouchEngineInstance::initialize(QRhi* rhi, TEGraphicsAPI apiType)
+{
+
+    switch (apiType){
+        case TEGraphicsAPI_OpenGL:
+            myMode = TEGraphicsAPI_OpenGL;
+            myRenderer = static_cast<std::unique_ptr<Renderer>>(std::make_unique<OpenGLRenderer>());
+            break;
+        default:
+            return false;
+    }
+
+    connect(m_window,&QQuickWindow::afterFrameEnd,this,&TouchEngineInstance::update,Qt::DirectConnection);
+    //connect(m_window,&QQuickWindow::afterRe,this,&TouchEngineInstance::startNewFrame,Qt::DirectConnection);
+    HRESULT result = S_OK;
+    if (SUCCEEDED(result))
+    {
+        result = myRenderer->setup(m_window) ? S_OK : EIO;
+    }
+
+    if (SUCCEEDED(result))
+    {
+
+
+        if (SUCCEEDED(result))
+        {
+            TEResult teresult = TEInstanceCreate(eventCallback, linkEventCallback, this, myInstance.take());
+            if (teresult == TEResultSuccess)
+            {
+                teresult = TEInstanceAssociateGraphicsContext(myInstance, myRenderer->getTEContext());
+            }
+            if (teresult == TEResultSuccess)
+            {
+                teresult = TEInstanceConfigure(myInstance, nullptr, TETimeExternal);
+            }
+
+            assert(teresult == TEResultSuccess);
+
+        }
+
+        // Draw once
+        //render(false);
+    }
+    setIsReady(true);
+    return true;
+}
+
+bool TouchEngineInstance::loadComponent()
+{
+    std::string utf8 = std::string(m_componentPath.toUtf8().constData());
+
+    HRESULT result = S_OK;
+    if (utf8.empty())
+    {
+        return false;
+    }
+
+    TEResult teresult = TEInstanceConfigure(myInstance, utf8.c_str(), TETimeExternal);
+    if(teresult == TEResultSuccess){
+        teresult = TEInstanceSetFrameRate(myInstance, m_frameRate, 1);
+    } else {
+        qDebug()<<"nope configure";
+    }
+    if (teresult == TEResultSuccess)
+    {
+        teresult = TEInstanceLoad(myInstance);
+    } else {
+        qDebug()<<"nope frameRate";
+    }
+    if (teresult == TEResultSuccess)
+    {
+        teresult = TEInstanceResume(myInstance);
+    } else {
+        qDebug()<<"nope load";
+    }
+    assert(teresult == TEResultSuccess);
+    myDidLoad = true;
+    emit isLoadedChanged();
+    //const auto interval = static_cast<UINT>(std::ceil(1000. / m_frameRate / 2.));
+
+    //disconnect(&m_updateTimer,&QTimer::timeout,this,&TouchEngineInstance2::update);
+
+    //m_updateTimer.setInterval(interval);
+
+    //connect(&m_updateTimer,&QTimer::timeout,this,&TouchEngineInstance2::update);
+
+    //m_updateTimer.start();
+
+    //SetTimer(myWindow, UpdateTimerID, interval, nullptr);
+    return true;
+}
+
+void TouchEngineInstance::unloadComponent()
+{
+    if (myInstance.get()) {
+        TEInstanceSuspend(myInstance.get());
+
+        // Unlock all OpenGL textures before unloading
+        //for (auto it = m_lockedGLTextures.begin(); it != m_lockedGLTextures.end(); ++it) {
+          //  if (it.value().get()) {
+           //     TEOpenGLTexture* glTex = reinterpret_cast<TEOpenGLTexture*>(it.value().get());
+           //     TEOpenGLTextureUnlock(glTex);
+           // }
+        //}
+        //m_lockedGLTextures.clear();
+
+        TEInstanceUnload(myInstance.get());
+    }
+
+    myRenderer->stop();
+    myRenderer.reset();
+    myOutputLinkTextureMap.clear();
+    myPendingOutputTextures.clear();
+    myDidLoad = false;
+    myIsReady = false;
+
+    emit isLoadedChanged();
+    emit isReadyChanged();
+}
+
+void TouchEngineInstance::startNewFrame() {
+
+
+    if (myOtherDidLoad && !myOtherInFrame) {
+
+        emit frameFinished();
+        setInFrame(true);
+
+        int64_t time = getRenderTime();
+
+        qint64 currentTime = m_frameTimer.nsecsElapsed();
+
+        // Convert nanoseconds to TouchEngine time format
+        int64_t timeValue = currentTime;
+        int32_t timeScale = 1000000000; // nanoseconds
+        myLastResult = TEInstanceStartFrameAtTime(myInstance, time, TimeRate, false);
+
+        if (myLastResult == TEResultSuccess) {
+            myLastFloatValue += 1.0 / (60.0 * 8.0);
+        } else {
+            //qDebug() << "Error: " << std::string(TEResultGetDescription(myLastResult));
+            setInFrame(false);
+        }
+    }
+}
+
+void TouchEngineInstance::update() {
+    bool configured, ready, loaded, linksChanged, inFrame;
+    getState(configured, ready, loaded, linksChanged, inFrame);
+    myOtherDidLoad = loaded;
+    myOtherInFrame = inFrame;
+    if (configured) {
+        QString message;
+        if (TEResultGetSeverity(myConfigureResult) == TESeverityError) {
+            const char *description = TEResultGetDescription(myConfigureResult);
+
+            message = "There was an error configuring TouchEngine: ";
+            if (description) {
+                message += description;
+            } else {
+                message += std::to_string(myConfigureResult);
+            }
+
+            myConfigureError = true;
+        } else {
+            myConfigureError = !myRenderer->configure(myInstance, message);
+        }
+        if (myConfigureError) {
+            m_errorString = message;
+            emit errorStringChanged();
+        }
+    }
+
+    if (myConfigureError) {
+        return;
+    }
+
+    bool changed = linksChanged;
+
+    // Make any pending renderer state updates
+    if (linksChanged) {
+        applyLayoutChange();
+    }
+
+    if (loaded && !inFrame) {
+        changed = changed || applyOutputTextureChange();
+        emit canUpdateLinks(myInstance);
+
+        startNewFrame();
+    }
+    if (changed) {
+        // render(loaded);
+    }
+}
+
+QString TouchEngineInstance::componentPath() const
+{
+    QMutexLocker locker(&myMutex);
+    return m_componentPath;
+}
+
+void TouchEngineInstance::setComponentPath(const QString &newComponentPath)
+{
+    if (m_componentPath == newComponentPath)
+        return;
+    m_componentPath = newComponentPath;
+    emit componentPathChanged();
+}
+
+bool TouchEngineInstance::isLoaded() const
+{
+    QMutexLocker locker(&myMutex);
+    return myDidLoad;
+}
+
+bool TouchEngineInstance::isReady() const
+{
+    QMutexLocker locker(&myMutex);
+    return myIsReady;
+}
+
+void TouchEngineInstance::setIsReady(bool ready) {
+
+    QMutexLocker locker(&myMutex);
+    if(myIsReady == ready) return;
+    myIsReady = ready;
+    emit isReadyChanged();
+}
+
+QString TouchEngineInstance::errorString() const
+{
+    return m_errorString;
+}
+
+qreal TouchEngineInstance::frameRate() const
+{
+    return m_frameRate;
+}
+
+void TouchEngineInstance::setFrameRate(qreal newFrameRate)
+{
+    if (qFuzzyCompare(m_frameRate, newFrameRate))
+        return;
+    m_frameRate = newFrameRate;
+    emit frameRateChanged();
+}
+
+QString TouchEngineInstance::instanceIdString() const
+{
+    return m_instanceIdString;
+}
+
+QString TouchEngineInstance::name() const
+{
+    return m_name;
+}
+
+void TouchEngineInstance::setName(const QString &newName)
+{
+    if (m_name == newName)
+        return;
+    m_name = newName;
+    emit nameChanged();
+}
+
+QSharedPointer<QRhiTexture> TouchEngineInstance::getRhiTexture(QString &linkName)
+{
+
+
+    if (myOutputLinkTextureMap.contains(linkName) )
+    {
+        if(m_useHeavyTextureGet){
+            size_t imageIndex = myOutputLinkTextureMap[linkName];
+            std::string idStr = std::string(linkName.toUtf8().constData());
+            myRenderer->updateOutputImage(myInstance,imageIndex,idStr);
+        }
+        return myRenderer->getOutputRhiTexture(myOutputLinkTextureMap[linkName]);
+    } else {
+        return nullptr;
+    }
+    return nullptr;
+}
+
+// GLint TouchEngineInstance::getGLTexture(QString &linkName)
+// {
+//     if (myOutputLinkTextureMap.contains(linkName))
+//     {
+//         return TEOpen myRenderer->getOutputImage(myOutputLinkTextureMap[linkName]);
+//     }
+//     return 0;
+// }
+
+int64_t
+TouchEngineInstance::getRenderTime()
+{
+    LARGE_INTEGER now{ 0 };
+
+    if (myStartTime.QuadPart == 0)
+    {
+        QueryPerformanceFrequency(&myPerformanceCounterFrequency);
+        QueryPerformanceCounter(&myStartTime);
+        now.QuadPart = 0;
+    }
+    else
+    {
+        QueryPerformanceCounter(&now);
+        now.QuadPart -= myStartTime.QuadPart;
+    }
+
+    now.QuadPart *= TimeRate;
+    now.QuadPart /= myPerformanceCounterFrequency.QuadPart;
+
+    return now.QuadPart;
+}
+
+TEGraphicsContext *TouchEngineInstance::graphicsContext() const
+{
+    if (!myRenderer)
+        return nullptr;
+    return myRenderer->getTEContext();
+}
+
+const QOpenGLFunctions *TouchEngineInstance::getGLFunctions() const
+{
+    OpenGLRenderer* oglRender = dynamic_cast<OpenGLRenderer*>(myRenderer.get());
+    if(oglRender) {
+        return oglRender->getGLFunctions();
+    }
+    return nullptr;
+}

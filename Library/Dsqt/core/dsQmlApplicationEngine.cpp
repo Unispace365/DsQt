@@ -55,7 +55,7 @@ DsQmlApplicationEngine::DsQmlApplicationEngine(QObject* parent)
         [this]() {
             qCInfo(lgAppEngineVerbose) << "Triggered";
 
-            readSettings(true);
+            //readSettings(true);
             emit fileChanged("triggered");
         },
         Qt::QueuedConnection);
