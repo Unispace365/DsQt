@@ -37,8 +37,8 @@ Item {
         }
     }
 
-    //A TouchEngineView is the Qt connection to an outputLink
-    TouchEngineView {
+    //A DsTouchEngineView is the Qt connection to an outputLink
+    DsTouchEngineView {
         id: touchView
         enabled: true
         anchors.horizontalCenter: parent.horizontalCenter

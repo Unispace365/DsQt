@@ -39,6 +39,8 @@ public:
         TEGraphicsAPI_Metal = 5
     };
 
+    Q_ENUM(TEGraphicsAPI);
+
     explicit DsQmlTouchEngineInstance(QObject *parent = nullptr,QQuickWindow* window=nullptr);
 
     // C++ internal ID

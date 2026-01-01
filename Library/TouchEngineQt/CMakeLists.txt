@@ -107,7 +107,7 @@ endif()
 
 set(QML_FILES
     #qml/Main.qml
-    qml/TouchEngineView.qml
+    qml/DsTouchEngineView.qml
     qml/InstanceControl.qml
 )
 

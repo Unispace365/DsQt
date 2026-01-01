@@ -35,8 +35,7 @@ __declspec(dllexport) int AmdPowerXpressRequestHighPerformance = 1;
 
 int main(int argc, char *argv[])
 {
-
-    //Currently only works with OpenGL.
+    // Set Vulkan as the preferred graphics API
     QQuickWindow::setGraphicsApi(QSGRendererInterface::VulkanRhi);
 
     //ensure the data.qrc is initialized
@@ -57,6 +56,7 @@ int main(int argc, char *argv[])
     qputenv("QT_ENABLE_HIGHDPI_SCALING", QByteArray("0"));
 
     QtWebEngineQuick::initialize();
+
     DsGuiApplication app(argc, argv);
 
     //set the DS icon for the app

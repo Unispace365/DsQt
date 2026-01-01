@@ -101,8 +101,7 @@ DsQmlTouchEngineInstance *DsQmlTouchEngineManager::getInstanceByName(const QStri
 bool DsQmlTouchEngineManager::initializeGraphics(QRhi* rhi,void* nativeDevice)
 {
     m_nativeDevice = nativeDevice;
-
-    qDebug() << "Initializing graphics with API:" << m_graphicsAPI
+    qDebug() << "Initializing graphics with API:" <<m_graphicsAPI
              << "Device:" << nativeDevice;
 
     // Initialize all existing instances
