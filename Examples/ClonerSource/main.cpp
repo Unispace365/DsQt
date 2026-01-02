@@ -20,7 +20,7 @@
 #include <QSGRendererInterface>
 #include "dsQmlTouchEngineManager.h"
 #include "dsQmlTouchEngineInstance.h"
-#include "dsQmlTouchEngineOutputView.h"
+#include "dsQmlTouchEngineTextureOutputView.h"
 
 //activate high performance graphics on windows laptops with dual graphics cards
 #ifdef Q_OS_WIN

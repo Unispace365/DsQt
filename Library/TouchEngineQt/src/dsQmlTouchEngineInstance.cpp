@@ -85,54 +85,25 @@ DsQmlTouchEngineInstance::linkValueChange(const char* identifier)
     TEResult result = TEInstanceLinkGetInfo(myInstance, identifier, link.take());
     if (result == TEResultSuccess && link->scope == TEScopeOutput)
     {
+        QString linkId = QString::fromUtf8(identifier);
+
         switch (link->type)
         {
         case TELinkTypeTexture:
         {
             // Stash the state, we don't do any actual renderer work from this thread
             QMutexLocker locker(&myMutex);
-            myPendingOutputTextures.push_back(QString::fromUtf8(identifier));
+            myPendingOutputTextures.push_back(linkId);
             break;
         }
         case TELinkTypeFloatBuffer:
-        {
-            TouchObject<TEFloatBuffer> buffer;
-            result = TEInstanceLinkGetFloatBufferValue(myInstance, identifier, TELinkValueCurrent, buffer.take());
-
-            if (result == TEResultSuccess)
-            {
-                uint32_t valueCount = TEFloatBufferGetValueCount(buffer);
-                int32_t channelCount = TEFloatBufferGetChannelCount(buffer);
-                if (buffer && channelCount > 0 && valueCount > 0)
-                {
-                    const float * const *data = TEFloatBufferGetValues(buffer);
-
-                    for (int channel = 0; channel < channelCount; channel++)
-                    {
-                        // Here we just grab the first sample in the channel
-                        float value = data[channel][0];
-                    }
-                }
-            }
-            break;
-        }
         case TELinkTypeStringData:
+        case TELinkTypeDouble:
+        case TELinkTypeInt:
+        case TELinkTypeBoolean:
         {
-            TouchObject<TEObject> value;
-            result = TEInstanceLinkGetObjectValue(myInstance, identifier, TELinkValueCurrent, value.take());
-            // String data can be a TETable or TEString, so check the type
-            if (value && TEGetType(value) == TEObjectTypeTable)
-            {
-                TouchObject<TETable> table;
-                table.set(static_cast<TETable*>(value.get()));
-                // do something with the table
-            }
-            else if (value && TEGetType(value) == TEObjectTypeString)
-            {
-                TouchObject<TEString> string;
-                string.set(static_cast<TEString*>(value.get()));
-                // do something with the string
-            }
+            // Emit signal for output components to read the value
+            emit outputLinkValueChanged(linkId);
             break;
         }
         default:

@@ -69,7 +69,7 @@ Rectangle {
             border.color: "#404040"
             border.width: 1
             
-            DsTouchEngineOutputView {
+            DsTouchEngineTextureOutputView {
                 id: touchView
                 enabled: false
                 anchors.horizontalCenter: parent.horizontalCenter

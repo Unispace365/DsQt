@@ -30,7 +30,7 @@ ApplicationWindow {
 
 
 
-    DsTouchEngineOutputView {
+    DsTouchEngineTextureOutputView {
         id: touchView
         enabled: true
         anchors.horizontalCenter: parent.horizontalCenter

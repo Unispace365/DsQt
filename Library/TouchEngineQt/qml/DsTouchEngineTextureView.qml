@@ -2,28 +2,28 @@ import QtQuick
 import TouchEngineQt
 
 /*
- * TouchEngineView - QML wrapper component
- * This provides additional QML-friendly features on top of the C++ TouchEngineView
+ * DsTouchEngineTextureView - QML wrapper component for texture output
+ * This provides additional QML-friendly features on top of the C++ DsTouchEngineTextureOutputView
  */
 Item {
     id: root
-    
+
     // Re-expose properties with additional behaviors if needed
     property alias instanceId: view.instanceId
     property alias outputLink: view.outputLink
     property alias autoUpdate: view.autoUpdate
-    
+
     // Forward request frame method
     function requestFrame() {
         view.requestFrame()
     }
-    
+
     // The actual C++ backed view
-    DsTouchEngineOutputView {
+    DsTouchEngineTextureOutputView {
         id: view
         anchors.fill: parent
     }
-    
+
     // Optional: Add visual feedback
     Rectangle {
         anchors.fill: parent

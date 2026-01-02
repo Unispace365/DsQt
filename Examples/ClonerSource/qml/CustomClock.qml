@@ -40,7 +40,7 @@ Item {
             spacing: 10 //2160 * parent.height
 
             Text {
-                id: time
+                id: timeTxt
                 text: root.clock.timeHM
                 color: root.textColor
                 font.family: Fnt.bitcountClk.family
@@ -49,8 +49,8 @@ Item {
                 width: parent.width
                 height: contentHeight
                 horizontalAlignment: Text.AlignHCenter
-                onFontChanged: textMeasurer.fit(time)
-                onWidthChanged:  textMeasurer.fit(time)
+                onFontChanged: textMeasurer.fit(timeTxt)
+                onWidthChanged:  textMeasurer.fit(timeTxt)
             }
 
             Row {
@@ -62,7 +62,7 @@ Item {
                     color: root.textColor
                     font.family: Fnt.bitcountClk.family
                     font.weight: 500
-                    font.pixelSize: 0.25 * time.font.pixelSize
+                    font.pixelSize: 0.25 * timeTxt.font.pixelSize
                     width: contentWidth
                     height: contentHeight
                     horizontalAlignment: Text.AlignHCenter
@@ -75,7 +75,7 @@ Item {
                     color: root.textColor
                     font.family: Fnt.bitcountClk.family
                     font.weight: 200
-                    font.pixelSize: 0.25 * time.font.pixelSize
+                    font.pixelSize: 0.25 * timeTxt.font.pixelSize
                     width: contentWidth
                     height: contentHeight
                     horizontalAlignment: Text.AlignHCenter

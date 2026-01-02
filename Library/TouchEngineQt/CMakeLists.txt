@@ -24,9 +24,10 @@ find_package(Qt6 REQUIRED COMPONENTS
 qt_standard_project_setup(REQUIRES 6.9)
 
 #set qml import path. This is used by Qt Creator to find the QML files.
-set(QML_BIN_ROOT "${CMAKE_BINARY_DIR}/TouchEngineQt")
+set(QML_BIN_ROOT "${CMAKE_CURRENT_BINARY_DIR}")
+message("TOUCHE ENGINE PLACEMENT: ${QML_BIN_ROOT}")
 set(QML_TMP_PATH
-     "${CMAKE_SOURCE_DIR};${CMAKE_SOURCE_DIR}\\qml;${QML_BIN_ROOT};${QML_BIN_ROOT}\\qml;${QML_IMPORT_PATH}"
+     "${CMAKE_CURRENT_SOURCE_DIR};${CMAKE_CURRENT_SOURCE_DIR}\\qml;${QML_BIN_ROOT};${QML_BIN_ROOT}\\qml;${QML_IMPORT_PATH}"
 )
 
 #set(CMAKE_INSTALL_PREFIX "${CMAKE_BINARY_DIR}/DEPLOY/")
@@ -51,7 +52,7 @@ find_package(Vulkan)
 set(SOURCES
     src/dsQmlTouchEngineManager.cpp
     src/dsTouchEngineTextureNode.cpp
-    src/dsQmlTouchEngineOutputView.cpp
+    src/dsQmlTouchEngineTextureOutputView.cpp
     src/OpenGLImage.cpp
     src/OpenGlRenderer.cpp
     src/OpenGLTexture.cpp
@@ -81,7 +82,7 @@ set(HEADERS
     #src/sharedd3dtexture.h
     src/dsQmlTouchEngineManager.h
     src/dsTouchEngineTextureNode.h
-    src/dsQmlTouchEngineOutputView.h
+    src/dsQmlTouchEngineTextureOutputView.h
     #src/rhitexturebridge.h
 
     src/platform_headers.h
@@ -107,8 +108,10 @@ endif()
 
 set(QML_FILES
     #qml/Main.qml
-    qml/DsTouchEngineView.qml
+    qml/DsTouchEngineTextureView.qml
     qml/InstanceControl.qml
+    #qml/SimpleMain.qml
+    #qml/debug/DsTENumericInputView.qml
 )
 
 set(TOUCHENGINE_INPUT_SOURCES
@@ -122,19 +125,30 @@ set(TOUCHENGINE_INPUT_SOURCES
     src/dsQmlTouchEngineNumericInput.cpp
     src/dsQmlTouchEngineFloatBufferInput.h
     src/dsQmlTouchEngineFloatBufferInput.cpp
+    src/dsQmlTouchEngineTextureInput.h
+    src/dsQmlTouchEngineTextureInput.cpp
 )
 
+set(TOUCHENGINE_OUTPUT_SOURCES
+    src/dsQmlTouchEngineOutputBase.h
+    src/dsQmlTouchEngineOutputBase.cpp
+    src/dsQmlTouchEngineStringOutput.h
+    src/dsQmlTouchEngineStringOutput.cpp
+    src/dsQmlTouchEngineNumericOutput.h
+    src/dsQmlTouchEngineNumericOutput.cpp
+    src/dsQmlTouchEngineTableOutput.h
+    src/dsQmlTouchEngineTableOutput.cpp
+    src/dsQmlTouchEngineFloatBufferOutput.h
+    src/dsQmlTouchEngineFloatBufferOutput.cpp
+)
 
 qt_add_qml_module(TouchEngineQt
     URI TouchEngineQt
     STATIC
     VERSION 1.0
     QML_FILES ${QML_FILES}
-    SOURCES ${SOURCES} ${HEADERS} ${TOUCHENGINE_INPUT_SOURCES}
+    SOURCES ${SOURCES} ${HEADERS} ${TOUCHENGINE_INPUT_SOURCES} ${TOUCHENGINE_OUTPUT_SOURCES}
     DEPENDENCIES QtQuick TouchEngineQtplugin
-    QML_FILES qml/SimpleMain.qml
-    SOURCES src/dsQmlTouchEngineTextureInput.h src/dsQmlTouchEngineTextureInput.cpp
-
 )
 
 qt6_add_shaders(TouchEngineQt "shaders"

@@ -37,8 +37,8 @@ Item {
         }
     }
 
-    //A DsTouchEngineView is the Qt connection to an outputLink
-    DsTouchEngineView {
+    //A DsTouchEngineTextureView is the Qt connection to an TOP out operator
+    DsTouchEngineTextureView {
         id: touchView
         enabled: true
         anchors.horizontalCenter: parent.horizontalCenter

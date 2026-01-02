@@ -9,21 +9,21 @@ class DsTouchEngineTextureNode;
 class QRhiTexture;
 
 /**
- * DsQmlTouchEngineOutputView - QML item for displaying TouchEngine output
+ * DsQmlTouchEngineTextureOutputView - QML item for displaying TouchEngine texture output
  * Uses Qt Quick Scene Graph for efficient rendering with RHI
  */
-class DsQmlTouchEngineOutputView : public QQuickItem
+class DsQmlTouchEngineTextureOutputView : public QQuickItem
 {
     Q_OBJECT
-    QML_NAMED_ELEMENT(DsTouchEngineOutputView)
+    QML_NAMED_ELEMENT(DsTouchEngineTextureOutputView)
     Q_PROPERTY(QString instanceId READ instanceId WRITE setInstanceId NOTIFY instanceIdChanged)
     Q_PROPERTY(QString outputLink READ outputLink WRITE setOutputLink NOTIFY outputLinkChanged)
     Q_PROPERTY(bool autoUpdate READ autoUpdate WRITE setAutoUpdate NOTIFY autoUpdateChanged)
 
 
 public:
-    explicit DsQmlTouchEngineOutputView(QQuickItem* parent = nullptr);
-    ~DsQmlTouchEngineOutputView() override;
+    explicit DsQmlTouchEngineTextureOutputView(QQuickItem* parent = nullptr);
+    ~DsQmlTouchEngineTextureOutputView() override;
 
     QString instanceId() const { return m_instanceId; }
     void setInstanceId(const QString& id);

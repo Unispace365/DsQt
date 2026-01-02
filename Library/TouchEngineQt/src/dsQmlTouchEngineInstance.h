@@ -87,6 +87,10 @@ public:
     const QOpenGLFunctions* getGLFunctions() const;
     bool    hasInputLink(QString identifier);
     bool    doesInputTextureTransfer() { return myRenderer->doesInputTextureTransfer(); }
+
+    // Get the raw TEInstance pointer for output reading
+    TEInstance* teInstance() const { return myInstance.get(); }
+
 signals:
 
     void componentPathChanged();
@@ -104,6 +108,7 @@ signals:
     void frameFinished();
     void canUpdateLinks(TEInstance* teInstance);
     void linksChanged();
+    void outputLinkValueChanged(const QString& linkName);
 
 private:
     static void eventCallback(TEInstance* instance, TEEvent event,
