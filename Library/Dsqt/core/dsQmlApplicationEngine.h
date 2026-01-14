@@ -7,6 +7,7 @@
 #include "model/dsContentModel.h"
 #include "settings/dsSettings.h"
 
+#include <QElapsedTimer>
 #include <QFileSystemWatcher>
 #include <QObject>
 #include <QQmlApplicationEngine>

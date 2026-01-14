@@ -2,6 +2,7 @@
 #define DSQMLFPSMONITOR_H
 
 #include <QDateTime>
+#include <QElapsedTimer>
 #include <QObject>
 #include <QQmlEngine>
 #include <QQuickItem>
