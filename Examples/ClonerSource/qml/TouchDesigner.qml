@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Layouts
 import Dsqt
 import TouchEngineQt
 
@@ -32,23 +33,71 @@ Item {
             //update the instance
             root.engineInstance = DsTouchEngineManager.getInstance(instanceId);
             //load a tox.
-            root.engineInstance.componentPath = Ds.env.expand("%APP%/data/tox/Testbed.tox")
+            root.engineInstance.componentPath = Ds.env.expand("%APP%/data/tox/four_out.tox")
             root.engineInstance.loadComponent();
         }
     }
 
-    //A DsTouchEngineTextureView is the Qt connection to an TOP out operator
-    DsTouchEngineTextureView {
-        id: touchView
-        enabled: true
-        anchors.horizontalCenter: parent.horizontalCenter
-        anchors.verticalCenter: parent.verticalCenter
-        instanceId: root.instanceId
-        outputLink: "op/out1"
-        autoUpdate: true
-        width: 1920*(parent.height/1080);
-        height: parent.height
+    Rectangle {
+        anchors.fill: parent
+        color: "#202020"
+    }
 
+    GridLayout {
+        id: grid
+        anchors.fill: parent
+        rows: 2
+        columns: 2
+
+        //A DsTouchEngineTextureView is the Qt connection to an TOP out operator
+        DsTouchEngineTextureView {
+            id: touchView
+            enabled: true
+            Layout.row: 0
+            Layout.column: 0
+            instanceId: root.instanceId
+            outputLink: "op/out1"
+            autoUpdate: true
+            Layout.fillHeight: true
+            Layout.fillWidth: true
+
+        }
+        DsTouchEngineTextureView {
+            id: touchView2
+            enabled: true
+            Layout.row: 0
+            Layout.column: 1
+            instanceId: root.instanceId
+            outputLink: "op/out2"
+            autoUpdate: true
+            Layout.fillHeight: true
+            Layout.fillWidth: true
+
+        }
+        DsTouchEngineTextureView {
+            id: touchView3
+            enabled: true
+            Layout.row: 1
+            Layout.column: 0
+            instanceId: root.instanceId
+            outputLink: "op/out3"
+            autoUpdate: true
+            Layout.fillHeight: true
+            Layout.fillWidth: true
+
+        }
+        DsTouchEngineTextureView {
+            id: touchView4
+            enabled: true
+            Layout.row: 1
+            Layout.column: 1
+            instanceId: root.instanceId
+            outputLink: "op/out4"
+            autoUpdate: true
+            Layout.fillHeight: true
+            Layout.fillWidth: true
+
+        }
     }
 
 }

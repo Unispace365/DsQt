@@ -36,7 +36,7 @@ __declspec(dllexport) int AmdPowerXpressRequestHighPerformance = 1;
 int main(int argc, char *argv[])
 {
     // Set Vulkan as the preferred graphics API
-    QQuickWindow::setGraphicsApi(QSGRendererInterface::VulkanRhi);
+    QQuickWindow::setGraphicsApi(QSGRendererInterface::Direct3D12);
 
     //ensure the data.qrc is initialized
     Q_INIT_RESOURCE(data);
@@ -55,7 +55,7 @@ int main(int argc, char *argv[])
     qputenv("QT_IM_MODULE", QByteArray("qtvirtualkeyboard"));
     qputenv("QT_ENABLE_HIGHDPI_SCALING", QByteArray("0"));
 
-    QtWebEngineQuick::initialize();
+    //QtWebEngineQuick::initialize();
 
     DsGuiApplication app(argc, argv);
 

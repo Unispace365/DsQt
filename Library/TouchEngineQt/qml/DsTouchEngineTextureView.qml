@@ -18,18 +18,20 @@ Item {
         view.requestFrame()
     }
 
-    // The actual C++ backed view
-    DsTouchEngineTextureOutputView {
-        id: view
-        anchors.fill: parent
-    }
-
     // Optional: Add visual feedback
     Rectangle {
         anchors.fill: parent
         color: "transparent"
         border.color: view.autoUpdate ? "#4CAF50" : "#757575"
         border.width: 1
-        opacity: 0.3
+        opacity: 0.0
     }
+
+    // The actual C++ backed view
+    DsTouchEngineTextureOutputView {
+        id: view
+        anchors.fill: parent
+    }
+
+
 }
