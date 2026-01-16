@@ -168,7 +168,7 @@ void DsQmlTouchEngineTextureOutputView::connectInstance()
 void DsQmlTouchEngineTextureOutputView::disconnectInstance()
 {
     if (m_instance) {
-        disconnect(m_instance, nullptr, this, nullptr);
+        //disconnect(m_instance, nullptr, this, nullptr);
         m_instance = nullptr;
     }
 }

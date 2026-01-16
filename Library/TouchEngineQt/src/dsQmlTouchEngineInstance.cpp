@@ -216,6 +216,12 @@ void DsQmlTouchEngineInstance::applyLayoutChange()
 
                         if (result == TEResultSuccess)
                         {
+                            qDebug() << "Found"
+                                     << (scope == TEScopeInput ? "input" : "output")
+                                     << "link:"
+                                     << QString::fromUtf8(info->identifier)
+                                     << "type:"
+                                     << info->type;
                             if(scope == TEScopeInput){
                                 lastInputLinks.append(QString::fromUtf8(info->identifier));
                             }
