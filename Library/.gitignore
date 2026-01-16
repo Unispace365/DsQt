@@ -71,4 +71,4 @@ CMakeLists.txt.user*
 # --------
 *.dll
 *.exe
-
+!TouchEngineQt/TouchEngine/bin/TouchEngine.dll

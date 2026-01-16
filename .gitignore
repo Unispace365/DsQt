@@ -69,3 +69,6 @@ cmake/dsqtimportpath.h
 .vs/
 .qmlls.ini
 .qmllint.ini
+
+#include Touchengine.dll
+!Library/TouchEngineQt/TouchEngine/bin/TouchEngine.dll
