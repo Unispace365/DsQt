@@ -27,10 +27,4 @@ lJTiZqezZIhl="qrc:/qt/qml/ClonerSource/qml/templates/CustomLayoutTemplate.qml"
 [app]
 #set this to the main Qml file you want to load
 mainView = "Main" #default main view type
-#mainView = "Start" #the start qml view type. This uses the startView below
 
-#the application can use this setting
-#to load a different starting view.
-#the intent is that this is set to a resonable default
-#in the main app_settings.toml and changed in overrides
-startView = "/qt/qml/WhiteLabelWaffles/qml/PlaylistPlayground.qml"

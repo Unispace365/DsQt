@@ -51,6 +51,7 @@ void Cloner::clone()
             //Main.cpp
             bool success = true;
             success = success && replaceInFile(destDirectory.absoluteFilePath("main.cpp"),"ClonerSource",m_applicationName);
+            success = success && replaceInFile(destDirectory.absoluteFilePath("Main.qml"),"ClonerSource",m_applicationName);
             success = success && replaceInFile(destDirectory.absoluteFilePath("settings/app_settings.toml"),"ClonerSource",m_applicationName);
             success = success && replaceInFile(destDirectory.absoluteFilePath("settings/engine.toml"),"ClonerSource",m_applicationName);
             success = success && replaceInFile(destDirectory.absoluteFilePath("CMakeLists.txt"),"ClonerSource",m_applicationName);
@@ -58,6 +59,15 @@ void Cloner::clone()
             success = success && replaceInFile(destDirectory.absoluteFilePath("CMakeLists.txt"),"PROJECT_DESC_",m_description);
             success = success && replaceInFile(destDirectory.absoluteFilePath("README.md"),"PROJECT_NAME_",m_projectName);
             success = success && replaceInFile(destDirectory.absoluteFilePath("README.md"),"APP_NAME_",m_applicationName);
+
+            //get all the files in the qml/ directory and replace occurrences there too.
+            QDir qmlDir(destDirectory.absoluteFilePath("qml"));
+            auto qmlFiles = qmlDir.entryInfoList(QDir::Files | QDir::NoDotAndDotDot | QDir::AllDirs | QDir::AllEntries, QDir::Name);
+            for(const auto& fileInfo:qmlFiles){
+                success = success && replaceInFile(fileInfo.absoluteFilePath(),"ClonerSource",m_applicationName);
+                success = success && replaceInFile(fileInfo.absoluteFilePath(),"PROJECT_NAME_",m_projectName);
+            }
+
             if(!success) {
                 setStatus(Status::POSTCLONE);
                 return;

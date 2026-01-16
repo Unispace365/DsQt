@@ -3,7 +3,7 @@
 
 #headings create objects and below them key = value or key = [value,{metadata}]
 #doing it bothways allows for a simpler settings file but also allows to give hints on
-#conversions or visualization metadata. 
+#conversions or visualization metadata.
 [engine]
 project_path=["ClonerSource_dev",{type="string", test="", restart="full"}]
 #Seconds before idle happens. 300 = 5 minutes.
@@ -21,6 +21,7 @@ engine = [
 ]
 
 [engine.reload]
+active = true
 paths = [
   {path = "%APP%/data/", recurse = true},
   {path = "%APP%/settings/", recurse = true},
@@ -39,10 +40,10 @@ width = 3840
 height = 2160
 
 #need to fix the scaleLoader it is currently broken
-[engine.scaleLoader]
-world_dimensions=[{w=3840,h=2160},{type="size"}] #The size of the overall app space.
-source={x=0,y=0,w=3840,h=2160} #the rectangle of the world space to render.
-destination={x=0,y=100,w=3840,h=2160}#,{type="rect"}] #The output window size and position to render.
+#[engine.scaleLoader]
+#world_dimensions=[{w=3840,h=2160},{type="size"}] #The size of the overall app space.
+#source={x=0,y=0,w=3840,h=2160} #the rectangle of the world space to render.
+#destination={x=0,y=100,w=3840,h=2160}#,{type="rect"}] #The output window size and position to render.
 
 [engine.resource]
 location = "%LOCAL%/ds_waffles/"
