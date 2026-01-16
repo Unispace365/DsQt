@@ -11,6 +11,7 @@
 #include <QQmlApplicationEngine>
 #include <QTimer>
 #include <QElapsedTimer>
+#include "dsEnvironment.h"
 
 Q_DECLARE_LOGGING_CATEGORY(lgAppEngine)
 Q_DECLARE_LOGGING_CATEGORY(lgAppEngineVerbose)
@@ -72,6 +73,15 @@ class DsQmlApplicationEngine : public QQmlApplicationEngine {
      * @return DsSettingsRef containing the app settings.
      */
     DsSettingsRef getAppSettings();
+
+    /**
+     * @brief Retrieves the engine settings reference.
+     * calls DsEnvironment::engineSettings();
+     * @return DsSettingsRef containing the engine settings.
+     */
+    DsSettingsRef getEngineSettings(){
+        return dsqt::DsEnvironment::engineSettings();
+    }
 
     /**
      * @brief Sets this engine as the default engine.
