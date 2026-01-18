@@ -59,7 +59,7 @@ QString DsQmlTouchEngineManager::createInstance()
     emit instanceCountChanged();
     emit instanceCreated(idString);
 
-    qDebug() << "Created TouchEngine instance:" << idString << "with API:" << m_graphicsAPI;
+    qDebug() << "DsQmlTouchEngineManager: Created TouchEngine instance:" << idString << "with API:" << m_graphicsAPI;
 
     return idString;
 }
@@ -101,7 +101,7 @@ DsQmlTouchEngineInstance *DsQmlTouchEngineManager::getInstanceByName(const QStri
 bool DsQmlTouchEngineManager::initializeGraphics(QRhi* rhi,void* nativeDevice)
 {
     m_nativeDevice = nativeDevice;
-    qDebug() << "Initializing graphics with API:" <<m_graphicsAPI
+    qDebug() << "DsQmlTouchEngineManager: Initializing graphics with API:" <<m_graphicsAPI
              << "Device:" << nativeDevice;
 
     // Initialize all existing instances
@@ -114,7 +114,7 @@ bool DsQmlTouchEngineManager::initializeGraphics(QRhi* rhi,void* nativeDevice)
     }
 
     if (allSuccess) {
-        qDebug() << "Successfully initialized graphics for" << m_instances.count() << "instances";
+        qDebug() << "DsQmlTouchEngineManager: Successfully initialized graphics for" << m_instances.count() << "instances";
     }
 
     return allSuccess;

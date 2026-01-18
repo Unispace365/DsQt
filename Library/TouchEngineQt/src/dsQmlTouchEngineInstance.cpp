@@ -4,6 +4,12 @@
 #include "OpenGLRenderer.h"
 #include <QtCore>
 #include "VulkanRenderer.h"
+#include <chrono>
+
+// Chrono timing helpers
+using TimePoint = std::optional<std::chrono::steady_clock::time_point>;
+TimePoint touchStartupTime;
+
 
 DsQmlTouchEngineInstance::DsQmlTouchEngineInstance(QObject *parent,QQuickWindow* window)
     : QObject{parent}
@@ -29,6 +35,17 @@ void DsQmlTouchEngineInstance::didConfigure(TEResult result)
     }
 }
 
+void DsQmlTouchEngineInstance::didLoad(TEResult result)
+{
+    if (result == TEResultSuccess) {
+        QMutexLocker locker(&myMutex);
+        myDidLoad = true;
+    }
+    else {
+        qDebug() << "Touch designer load error: " << TEResultGetDescription(result);
+    }
+}
+
 void
 DsQmlTouchEngineInstance::eventCallback(TEInstance * instance,
                               TEEvent event,
@@ -44,10 +61,17 @@ DsQmlTouchEngineInstance::eventCallback(TEInstance * instance,
     switch (event)
     {
     case TEEventInstanceReady:
+        if (!touchStartupTime)
+            touchStartupTime = std::chrono::steady_clock::now();
         inst->didConfigure(result);
         break;
     case TEEventInstanceDidLoad:
-        inst->didLoad();
+        {
+            const auto touchReadyTime = std::chrono::steady_clock::now();
+            const auto touchStartupDuration = std::chrono::duration<float>(touchReadyTime - touchStartupTime.value()).count();
+            qDebug() << "TouchEngine took " << touchStartupDuration << " seconds to load...";
+        }
+        inst->didLoad(result);
         break;
     case TEEventInstanceDidUnload:
         break;

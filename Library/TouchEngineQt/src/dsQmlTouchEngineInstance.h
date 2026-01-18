@@ -51,10 +51,7 @@ public:
     }
 
     void didConfigure(TEResult result);
-    void didLoad() {
-        QMutexLocker locker(&myMutex);
-        myDidLoad = true;
-    }
+    void didLoad(TEResult result);
 
     bool initialize(QRhi *rhi = nullptr, TEGraphicsAPI apiType = TEGraphicsAPI_D3D11);
 
