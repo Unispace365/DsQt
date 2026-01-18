@@ -13,6 +13,8 @@
 #include <QOpenGLFunctions>
 #include <rhi/qrhi.h>
 
+Q_DECLARE_LOGGING_CATEGORY(lgTouchDesigner)
+
 Q_DECLARE_OPAQUE_POINTER(TEInstance*)
 
 class DsQmlTouchEngineInstance : public QObject

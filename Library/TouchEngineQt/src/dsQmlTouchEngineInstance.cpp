@@ -6,6 +6,8 @@
 #include "VulkanRenderer.h"
 #include <chrono>
 
+Q_LOGGING_CATEGORY(lgTouchDesigner, "DsQmlTouchDesigner", QtInfoMsg)
+
 // Chrono timing helpers
 using TimePoint = std::optional<std::chrono::steady_clock::time_point>;
 TimePoint touchStartupTime;
@@ -42,7 +44,7 @@ void DsQmlTouchEngineInstance::didLoad(TEResult result)
         myDidLoad = true;
     }
     else {
-        qDebug() << "Touch designer load error: " << TEResultGetDescription(result);
+        qCCritical(lgTouchDesigner) << "TouchEngine load error: " << TEResultGetDescription(result);
     }
 }
 
@@ -58,6 +60,7 @@ DsQmlTouchEngineInstance::eventCallback(TEInstance * instance,
 {
     DsQmlTouchEngineInstance *inst = static_cast<DsQmlTouchEngineInstance *>(info);
 
+    qCDebug(lgTouchDesigner) << "TouchEngine eventCallback(): event = " << event << " result = " << result;
     switch (event)
     {
     case TEEventInstanceReady:
@@ -69,7 +72,7 @@ DsQmlTouchEngineInstance::eventCallback(TEInstance * instance,
         {
             const auto touchReadyTime = std::chrono::steady_clock::now();
             const auto touchStartupDuration = std::chrono::duration<float>(touchReadyTime - touchStartupTime.value()).count();
-            qDebug() << "TouchEngine took " << touchStartupDuration << " seconds to load...";
+            qCInfo(lgTouchDesigner) << "TouchEngine took " << touchStartupDuration << " seconds to load...";
         }
         inst->didLoad(result);
         break;
@@ -240,7 +243,8 @@ void DsQmlTouchEngineInstance::applyLayoutChange()
 
                         if (result == TEResultSuccess)
                         {
-                            qDebug() << "Found"
+                            qCInfo(lgTouchDesigner)
+                                     << "TouchEngine layout change: Found"
                                      << (scope == TEScopeInput ? "input" : "output")
                                      << "link:"
                                      << QString::fromUtf8(info->identifier)
@@ -407,7 +411,7 @@ void DsQmlTouchEngineInstance::startNewFrame() {
         if (myLastResult == TEResultSuccess) {
             myLastFloatValue += 1.0 / (60.0 * 8.0);
         } else {
-            //qDebug() << "Error: " << std::string(TEResultGetDescription(myLastResult));
+            // qCDebug(lgTouchDesigner) << "Error: " << std::string(TEResultGetDescription(myLastResult));
             setInFrame(false);
         }
     }
