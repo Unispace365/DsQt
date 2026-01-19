@@ -244,4 +244,18 @@ D3D12Renderer::clearOutputImages()
     Renderer::clearOutputImages();
 }
 
+void
+D3D12Renderer::releaseTextures()
+{
+    // Release all D3D12 texture resources before the device is destroyed
+    for (auto& image : myOutputImages)
+    {
+        image.release();
+    }
+    for (auto& image : myInputImages)
+    {
+        image.release();
+    }
+}
+
 #endif // _WIN32

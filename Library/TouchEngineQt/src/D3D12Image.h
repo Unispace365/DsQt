@@ -37,6 +37,8 @@ public:
         return myTexture;
     }
 
+    void release();
+
 private:
     D3D12Texture myTexture;
     bool myDirty = true;

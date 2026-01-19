@@ -36,6 +36,9 @@ public:
 	{
 		return myTexture;
 	}
+
+	void release();
+
 private:
 	OpenGLTexture	myTexture;
 	bool			myDirty = true;

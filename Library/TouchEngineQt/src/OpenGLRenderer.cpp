@@ -234,6 +234,20 @@ OpenGLRenderer::clearOutputImages()
 }
 
 void
+OpenGLRenderer::releaseTextures()
+{
+	// Release all OpenGL texture resources before the device is destroyed
+	for (auto& image : myOutputImages)
+	{
+		image.release();
+	}
+	for (auto& image : myInputImages)
+	{
+		image.release();
+	}
+}
+
+void
 OpenGLRenderer::textureReleaseCallback(GLuint texture, TEObjectEvent event, void *info)
 {
 	// TODO: might come from another thread

@@ -56,6 +56,7 @@ QString DsQmlTouchEngineManager::createInstance()
     QUuid id = instance->instanceId();
     QString idString = id.toString(QUuid::WithoutBraces);
     m_instances[id] = instance;
+
     emit instanceCountChanged();
     emit instanceCreated(idString);
 

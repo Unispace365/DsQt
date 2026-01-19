@@ -247,6 +247,7 @@ void DsQmlTouchEngineInstance::applyLayoutChange()
 
 bool DsQmlTouchEngineInstance::initialize(QRhi* rhi, TEGraphicsAPI apiType)
 {
+
     switch (apiType){
         case TEGraphicsAPI_OpenGL:
             myMode = TEGraphicsAPI_OpenGL;

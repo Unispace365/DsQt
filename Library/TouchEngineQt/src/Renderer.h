@@ -74,6 +74,8 @@ public:
     virtual QSharedPointer<QRhiTexture>        getOutputRhiTexture(size_t index)=0;
 	virtual void		clearOutputImages(); // TODO: ?
 	virtual void		releaseTextures() {} // Release GPU resources before device is destroyed
+	virtual void		swapOutputBuffers() {} // Swap double-buffered output images (Vulkan only)
+	virtual void		clearRhi() { myRhi.reset(); } // Clear RHI reference when device is lost
 	virtual TEGraphicsContext* getTEContext() const = 0;
 protected:
 	bool				inputDidChange(size_t index) const;

@@ -53,4 +53,12 @@ OpenGLTexture::getName() const
 	return *myName;
 }
 
+void
+OpenGLTexture::release()
+{
+    myTexture.reset();
+    mySource = nullptr;
+    myName.reset();
+}
+
 

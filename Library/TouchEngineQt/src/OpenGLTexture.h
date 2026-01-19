@@ -41,6 +41,9 @@ public:
         }
         return 0;
     }
+
+    void release();
+
 private:
 	TouchObject<TEOpenGLTexture> mySource;
 	std::shared_ptr<GLuint> myName;

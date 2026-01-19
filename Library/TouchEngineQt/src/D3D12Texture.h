@@ -59,6 +59,8 @@ public:
     int getHeight() const { return myHeight; }
     bool isValid() const { return myResource != nullptr; }
 
+    void release();
+
 private:
     TouchObject<TED3DSharedTexture> mySource;
     ComPtr<ID3D12Resource> myResource;

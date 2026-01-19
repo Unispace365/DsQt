@@ -84,11 +84,15 @@ VulkanTexture::cleanup()
     }
 }
 
-VulkanTexture::VulkanTexture(QRhi* rhi, const TouchObject<TEVulkanTexture>& source, VkDevice device, VkPhysicalDevice physicalDevice)
+VulkanTexture::VulkanTexture(QRhi* rhi, const TouchObject<TEVulkanTexture>& source, VkDevice device, VkPhysicalDevice physicalDevice, VkQueue graphicsQueue, VkCommandPool commandPool)
     : mySource(source), myDevice(device)
 {
-    if (!source || !device || !physicalDevice || !rhi)
+    if (!source || !device || !physicalDevice || !rhi || !graphicsQueue || !commandPool)
         return;
+
+    // Wait for all GPU work on our device to complete before importing the texture
+    // This ensures proper synchronization when importing shared textures from TouchEngine
+    vkDeviceWaitIdle(device);
 
     HANDLE sharedHandle = TEVulkanTextureGetHandle(source);
     if (!sharedHandle)
@@ -185,6 +189,82 @@ VulkanTexture::VulkanTexture(QRhi* rhi, const TouchObject<TEVulkanTexture>& sour
         myImage = VK_NULL_HANDLE;
         myMemory = VK_NULL_HANDLE;
         return;
+    }
+
+    // Perform image layout transition from UNDEFINED to SHADER_READ_ONLY_OPTIMAL
+    // This also creates an implicit memory barrier for synchronization
+    {
+        VkCommandBufferAllocateInfo cmdBufAllocInfo = {};
+        cmdBufAllocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+        cmdBufAllocInfo.commandPool = commandPool;
+        cmdBufAllocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+        cmdBufAllocInfo.commandBufferCount = 1;
+
+        VkCommandBuffer cmdBuffer;
+        result = vkAllocateCommandBuffers(device, &cmdBufAllocInfo, &cmdBuffer);
+        if (result != VK_SUCCESS)
+        {
+            qDebug() << "VulkanTexture: Failed to allocate command buffer for layout transition";
+            vkFreeMemory(device, myMemory, nullptr);
+            vkDestroyImage(device, myImage, nullptr);
+            myImage = VK_NULL_HANDLE;
+            myMemory = VK_NULL_HANDLE;
+            return;
+        }
+
+        VkCommandBufferBeginInfo beginInfo = {};
+        beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+        beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+        vkBeginCommandBuffer(cmdBuffer, &beginInfo);
+
+        VkImageMemoryBarrier barrier = {};
+        barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+        barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_EXTERNAL;  // From external source (TouchEngine)
+        barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        barrier.image = myImage;
+        barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        barrier.subresourceRange.baseMipLevel = 0;
+        barrier.subresourceRange.levelCount = 1;
+        barrier.subresourceRange.baseArrayLayer = 0;
+        barrier.subresourceRange.layerCount = 1;
+        barrier.srcAccessMask = 0;  // Wait for all previous writes
+        barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+
+        vkCmdPipelineBarrier(
+            cmdBuffer,
+            VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+            VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+            0,
+            0, nullptr,
+            0, nullptr,
+            1, &barrier
+        );
+
+        vkEndCommandBuffer(cmdBuffer);
+
+        VkSubmitInfo submitInfo = {};
+        submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+        submitInfo.commandBufferCount = 1;
+        submitInfo.pCommandBuffers = &cmdBuffer;
+
+        result = vkQueueSubmit(graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
+        if (result != VK_SUCCESS)
+        {
+            qDebug() << "VulkanTexture: Failed to submit layout transition";
+            vkFreeCommandBuffers(device, commandPool, 1, &cmdBuffer);
+            vkFreeMemory(device, myMemory, nullptr);
+            vkDestroyImage(device, myImage, nullptr);
+            myImage = VK_NULL_HANDLE;
+            myMemory = VK_NULL_HANDLE;
+            return;
+        }
+
+        // Wait for the layout transition to complete
+        vkQueueWaitIdle(graphicsQueue);
+        vkFreeCommandBuffers(device, commandPool, 1, &cmdBuffer);
     }
 
     VkImageViewCreateInfo viewInfo = {};

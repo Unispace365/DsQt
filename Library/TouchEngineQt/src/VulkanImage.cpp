@@ -21,14 +21,20 @@ VulkanImage::VulkanImage()
 }
 
 VulkanImage::VulkanImage(VulkanImage&& o) noexcept
-    : myTexture(std::move(o.myTexture)), myDirty(o.myDirty)
+    : myFrontBuffer(std::move(o.myFrontBuffer))
+    , myBackBuffer(std::move(o.myBackBuffer))
+    , myHasNewFrame(o.myHasNewFrame.load())
+    , myDirty(o.myDirty)
 {
 }
 
 VulkanImage&
 VulkanImage::operator=(VulkanImage&& o) noexcept
 {
-    myTexture = std::move(o.myTexture);
+    std::lock_guard<std::mutex> lock(mySwapMutex);
+    myFrontBuffer = std::move(o.myFrontBuffer);
+    myBackBuffer = std::move(o.myBackBuffer);
+    myHasNewFrame.store(o.myHasNewFrame.load());
     myDirty = o.myDirty;
     return *this;
 }
@@ -44,16 +50,46 @@ VulkanImage::setup()
 }
 
 void
+VulkanImage::updateBackBuffer(VulkanTexture&& texture)
+{
+    std::lock_guard<std::mutex> lock(mySwapMutex);
+    myBackBuffer = std::move(texture);
+    myHasNewFrame.store(true);
+    myDirty = true;
+}
+
+void
+VulkanImage::swapBuffers()
+{
+    std::lock_guard<std::mutex> lock(mySwapMutex);
+    if (myHasNewFrame.load())
+    {
+        std::swap(myFrontBuffer, myBackBuffer);
+        myHasNewFrame.store(false);
+    }
+}
+
+const VulkanTexture&
+VulkanImage::getFrontBuffer() const
+{
+    std::lock_guard<std::mutex> lock(mySwapMutex);
+    return myFrontBuffer;
+}
+
+void
 VulkanImage::update(VulkanTexture&& texture)
 {
-    myTexture = std::move(texture);
-    myDirty = true;
+    // Legacy API - directly updates and swaps for backward compatibility
+    updateBackBuffer(std::move(texture));
+    swapBuffers();
 }
 
 void
 VulkanImage::release()
 {
-    myTexture.release();
+    std::lock_guard<std::mutex> lock(mySwapMutex);
+    myFrontBuffer.release();
+    myBackBuffer.release();
 }
 
 #endif // _WIN32

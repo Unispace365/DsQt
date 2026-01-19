@@ -52,3 +52,10 @@ OpenGLImage::update(const OpenGLTexture & texture)
 
 	myTexture = texture;
 }
+
+void
+OpenGLImage::release()
+{
+	myTexture.release();
+	myDirty = true;
+}

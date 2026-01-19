@@ -50,4 +50,11 @@ D3D12Image::update(D3D12Texture texture)
     myDirty = true;
 }
 
+void
+D3D12Image::release()
+{
+    myTexture.release();
+    myDirty = true;
+}
+
 #endif // _WIN32

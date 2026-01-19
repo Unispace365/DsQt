@@ -8,8 +8,6 @@ DsQmlTouchEngineTextureOutputView::DsQmlTouchEngineTextureOutputView(QQuickItem*
     : QQuickItem(parent)
 {
     setFlag(ItemHasContents, true);
-
-
 }
 
 DsQmlTouchEngineTextureOutputView::~DsQmlTouchEngineTextureOutputView()
@@ -23,6 +21,7 @@ void DsQmlTouchEngineTextureOutputView::setInstanceId(const QString& id)
         disconnectInstance();
         m_instanceId = id;
         connectInstance();
+        mResetNode = true;
         emit instanceIdChanged();
         //update();
     }
@@ -70,8 +69,9 @@ QSGNode* DsQmlTouchEngineTextureOutputView::updatePaintNode(QSGNode* oldNode, Up
     }
 
     auto rhi = window()->rhi();
-    if (!m_instance || !m_instance->isLoaded() || !rhi) {
+    if (!m_instance || !m_instance->isLoaded() || !rhi || mResetNode) {
         delete node;
+        mResetNode = false;
         QMetaObject::invokeMethod(this,callUpdate,Qt::QueuedConnection);
         return nullptr;
     }
@@ -157,8 +157,9 @@ void DsQmlTouchEngineTextureOutputView::connectInstance()
             m_updateTimer.start();
             //connect(m_instance, &DsQmlTouchEngineInstance::frameFinished,
             //        this, &DsQmlTouchEngineTextureOutputView::handleFrameFinished,Qt::QueuedConnection);
-            //connect(m_instance, &DsQmlTouchEngineInstance::textureUpdated,
-            //        this, &DsQmlTouchEngineTextureOutputView::handleTextureUpdated,Qt::DirectConnection);
+            // Connect to frame completion signal for Vulkan synchronization
+            connect(m_instance, &DsQmlTouchEngineInstance::frameCompletedWithTextures,
+                    this, &DsQmlTouchEngineTextureOutputView::handleFrameFinished,Qt::QueuedConnection);
             connect(m_instance, &DsQmlTouchEngineInstance::destroyed,
                     this, &DsQmlTouchEngineTextureOutputView::disconnectInstance,Qt::QueuedConnection);
         }

@@ -82,4 +82,13 @@ D3D12Texture::~D3D12Texture()
 {
 }
 
+void D3D12Texture::release()
+{
+    myRhiTexture.reset();
+    myResource.Reset();
+    mySource = nullptr;
+    myWidth = 0;
+    myHeight = 0;
+}
+
 #endif // _WIN32

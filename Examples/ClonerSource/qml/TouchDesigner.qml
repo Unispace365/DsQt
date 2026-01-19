@@ -25,6 +25,15 @@ Item {
         }
     }
 
+    Connections {
+        target: DsTouchEngineManager
+        function onInstanceRecreated(oldId,newId) {
+            if(DsTouchEngineManager.isInitialized) {
+                root.instanceId = newId;
+            }
+        }
+    }
+
     //when the instanceId changes update the reference to the engine and in
     //this case we also load a tox.
     //The tox needs to be a file on disk, i.e. not a URL or in a qrc.
@@ -32,9 +41,12 @@ Item {
         if(instanceId != "" && DsTouchEngineManager.isInitialized) {
             //update the instance
             root.engineInstance = DsTouchEngineManager.getInstance(instanceId);
+
             //load a tox.
-            root.engineInstance.componentPath = Ds.env.expand("%APP%/data/tox/four_out.tox")
-            root.engineInstance.loadComponent();
+            if(!root.engineInstance.isLoaded){
+                root.engineInstance.componentPath = Ds.env.expand("%APP%/data/tox/four_out.tox")
+                root.engineInstance.loadComponent();
+            }
         }
     }
 

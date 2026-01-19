@@ -58,6 +58,7 @@ public:
 	virtual void	addOutputImage() override;
 	virtual bool	updateOutputImage(const TouchObject<TEInstance>& instance, size_t index, const std::string& identifier) override;
 	virtual void	clearOutputImages() override;
+	virtual void	releaseTextures() override;
 
     virtual QSharedPointer<QRhiTexture>        getOutputRhiTexture(size_t index) override;
     GLuint getOutputName(size_t index) const;

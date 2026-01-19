@@ -58,4 +58,5 @@ private:
     void connectInstance();
     void disconnectInstance();
     QTimer  m_updateTimer;
+    bool mResetNode = false;
 };

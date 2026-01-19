@@ -55,11 +55,14 @@ public:
     virtual bool updateOutputImage(const TouchObject<TEInstance>& instance, size_t index, const std::string& identifier) override;
     virtual void clearOutputImages() override;
     virtual void releaseTextures() override;
+    virtual void swapOutputBuffers() override;
 
     virtual QSharedPointer<QRhiTexture> getOutputRhiTexture(size_t index) override;
 
     VkDevice getDevice() const { return myDevice; }
     VkPhysicalDevice getPhysicalDevice() const { return myPhysicalDevice; }
+    VkQueue getGraphicsQueue() const { return myGraphicsQueue; }
+    VkCommandPool getCommandPool() const { return myCommandPool; }
     const QString& getDeviceName() const { return myDeviceName; }
 
 private:
@@ -69,6 +72,9 @@ private:
     VkDevice myDevice = VK_NULL_HANDLE;
     VkQueue myGraphicsQueue = VK_NULL_HANDLE;
     uint32_t myGraphicsQueueFamily = 0;
+
+    // We own this command pool for layout transitions
+    VkCommandPool myCommandPool = VK_NULL_HANDLE;
 
     TouchObject<TEVulkanContext> myContext;
     std::vector<VulkanImage> myInputImages;

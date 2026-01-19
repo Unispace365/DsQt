@@ -12,6 +12,7 @@
 #include <qtimer.h>
 #include <QOpenGLFunctions>
 #include <rhi/qrhi.h>
+#include <atomic>
 
 Q_DECLARE_OPAQUE_POINTER(TEInstance*)
 
@@ -106,6 +107,7 @@ signals:
     void nameChanged();
 
     void frameFinished();
+    void frameCompletedWithTextures();  // Emitted when TouchEngine frame completes and textures are ready
     void canUpdateLinks(TEInstance* teInstance);
     void linksChanged();
     void outputLinkValueChanged(const QString& linkName);
@@ -126,6 +128,7 @@ private:
     void	setInFrame(bool inFrame);
     void	applyLayoutChange();
     bool	applyOutputTextureChange();
+    void	applyCompletedTextureChanges();  // Apply textures after frame completion
 
     int64_t	getRenderTime();
     void startNewFrame();
@@ -166,6 +169,8 @@ private:
     QMap<QString, size_t>	myOutputLinkTextureMap;
     QList<QString>		lastInputLinks;
     std::vector<QString>		myPendingOutputTextures;
+    std::vector<QString>		myCompletedOutputTextures;  // Textures ready after frame completion
+    std::atomic<bool>			myFrameComplete{false};     // Frame completion flag for Vulkan sync
     bool							myPendingLayoutChange{ false };
     TEResult						myConfigureResult{ TEResultSuccess };
     std::unique_ptr<Renderer>       myRenderer;

@@ -90,6 +90,19 @@ VulkanRenderer::setup(QQuickWindow* window)
     // Use the window's RHI directly
     myRhi = QSharedPointer<QRhi>(rhi, [](QRhi*) {});
 
+    // Create a command pool for image layout transitions
+    VkCommandPoolCreateInfo poolInfo = {};
+    poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+    poolInfo.queueFamilyIndex = myGraphicsQueueFamily;
+    poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+
+    VkResult vkResult = vkCreateCommandPool(myDevice, &poolInfo, nullptr, &myCommandPool);
+    if (vkResult != VK_SUCCESS)
+    {
+        qDebug() << "VulkanRenderer: Failed to create command pool";
+        return false;
+    }
+
     // Create TouchEngine Vulkan context
     TEResult result = TEVulkanContextCreate(
         myDeviceUUID,
@@ -144,9 +157,19 @@ VulkanRenderer::resize(int width, int height)
 void
 VulkanRenderer::stop()
 {
+    // Release textures first while device may still be valid
+    releaseTextures();
+
     myOutputImages.clear();
     myInputImages.clear();
     myContext = nullptr;
+
+    // Destroy command pool only if device is still valid
+    if (myCommandPool != VK_NULL_HANDLE && myDevice != VK_NULL_HANDLE)
+    {
+        vkDestroyCommandPool(myDevice, myCommandPool, nullptr);
+        myCommandPool = VK_NULL_HANDLE;
+    }
 
     // Don't destroy the Vulkan device - it's owned by Qt's RHI
     myDevice = VK_NULL_HANDLE;
@@ -168,9 +191,20 @@ VulkanRenderer::getOutputRhiTexture(size_t index)
 {
     if (index < myOutputImages.size())
     {
-        return myOutputImages[index].getTexture().getRhiTexture();
+        // Return the front buffer (safe to read while back buffer is being updated)
+        return myOutputImages[index].getFrontBuffer().getRhiTexture();
     }
     return QSharedPointer<QRhiTexture>();
+}
+
+void
+VulkanRenderer::swapOutputBuffers()
+{
+    // Swap all output image buffers - makes newly completed textures available for reading
+    for (auto& image : myOutputImages)
+    {
+        image.swapBuffers();
+    }
 }
 
 void
@@ -207,10 +241,11 @@ VulkanRenderer::updateOutputImage(const TouchObject<TEInstance>& instance, size_
             TouchObject<TEVulkanTexture> vkTexture;
             vkTexture.set(vulkanTexture);
 
-            VulkanTexture tex(myWindow->rhi(), vkTexture, myDevice, myPhysicalDevice);
+            VulkanTexture tex(myWindow->rhi(), vkTexture, myDevice, myPhysicalDevice, myGraphicsQueue, myCommandPool);
             if (tex.isValid())
             {
-                myOutputImages.at(index).update(std::move(tex));
+                // Update back buffer - will be swapped to front when swapOutputBuffers() is called
+                myOutputImages.at(index).updateBackBuffer(std::move(tex));
                 success = true;
             }
         }
@@ -222,7 +257,7 @@ VulkanRenderer::updateOutputImage(const TouchObject<TEInstance>& instance, size_
 
     if (!success)
     {
-        myOutputImages.at(index).update(VulkanTexture{});
+        myOutputImages.at(index).updateBackBuffer(VulkanTexture{});
         setOutputImage(index, nullptr);
     }
 

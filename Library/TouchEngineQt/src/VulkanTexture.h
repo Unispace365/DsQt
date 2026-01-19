@@ -38,7 +38,7 @@ class VulkanTexture
 {
 public:
     VulkanTexture();
-    VulkanTexture(QRhi* rhi, const TouchObject<TEVulkanTexture>& texture, VkDevice device, VkPhysicalDevice physicalDevice);
+    VulkanTexture(QRhi* rhi, const TouchObject<TEVulkanTexture>& texture, VkDevice device, VkPhysicalDevice physicalDevice, VkQueue graphicsQueue, VkCommandPool commandPool);
     VulkanTexture(const VulkanTexture& o) = delete;
     VulkanTexture(VulkanTexture&& o) noexcept;
     VulkanTexture& operator=(const VulkanTexture& o) = delete;
