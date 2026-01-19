@@ -45,7 +45,7 @@ class DsQmlApplicationEngine : public QQmlApplicationEngine {
     QML_ELEMENT
     QML_UNCREATABLE("Ya don't need to make an engine. get it from Ds.engine")
     Q_PROPERTY(DsQmlIdle* idle READ idle NOTIFY idleChanged FINAL)
-    Q_PROPERTY(model::ContentModel* bridge READ bridge WRITE setBridge NOTIFY bridgeChanged FINAL)
+    Q_PROPERTY(model::ContentModel* bridge READ bridge NOTIFY bridgeChanged FINAL)
 
   public:
     /**
