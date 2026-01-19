@@ -14,6 +14,8 @@
 #include <rhi/qrhi.h>
 #include <atomic>
 
+Q_DECLARE_LOGGING_CATEGORY(lgTouchDesigner)
+
 Q_DECLARE_OPAQUE_POINTER(TEInstance*)
 
 class DsQmlTouchEngineInstance : public QObject
@@ -52,10 +54,7 @@ public:
     }
 
     void didConfigure(TEResult result);
-    void didLoad() {
-        QMutexLocker locker(&myMutex);
-        myDidLoad = true;
-    }
+    void didLoad(TEResult result);
 
     bool initialize(QRhi *rhi = nullptr, TEGraphicsAPI apiType = TEGraphicsAPI_D3D11);
 
