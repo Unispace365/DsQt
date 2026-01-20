@@ -1,6 +1,8 @@
 pragma ComponentBehavior: Bound
+
 import QtQuick 2.15
-import Dsqt
+import Bridge
+
 Item {
     id: root
 

@@ -1,11 +1,10 @@
 pragma ComponentBehavior: Bound
+
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Shapes
 import QtMultimedia
 import QtWebEngine
 import QtQuick.Pdf
-import Dsqt
 import QtQuick.VectorImage
 
 // An element that can display images, videos, web content and PDFs.

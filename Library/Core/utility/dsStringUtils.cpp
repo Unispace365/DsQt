@@ -435,7 +435,7 @@ void to_uppercase(std::wstring& str) {
 	std::transform(str.begin(), str.end(), str.begin(), ::toupper);
 }
 
-#if DSQT_USE_GML
+#if DSQT_USE_GLM
 glm::vec3 parseVector(const std::string& s) {
 	auto	  tokens = dsqt::split(s, ", ", true);
 	glm::vec3 v;

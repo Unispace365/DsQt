@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.29)
 
 option(DSQT_WITH_TOML "Enable tomlplusplus support" ON)
-option(DSQT_WITH_GML "Enable GML math library support" OFF)
+option(DSQT_WITH_GLM "Enable GML math library support" OFF)
 
 set(QML_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
 set(QML_BIN_ROOT "${CMAKE_BINARY_DIR}/Library")
@@ -16,7 +16,7 @@ if(DSQT_WITH_TOML)
     FetchContent_MakeAvailable(tomlplusplus)
 endif()
 
-if(DSQT_WITH_GML)
+if(DSQT_WITH_GLM)
     FetchContent_Declare(
         glm
         GIT_REPOSITORY https://github.com/g-truc/glm.git
@@ -38,9 +38,11 @@ find_package(Qt6 6.9
 )
 qt_standard_project_setup(REQUIRES 6.9)
 
+add_library(Core)
+# add_library(DsQt::Core ALIAS Core)
+
 qt_add_qml_module(Core
-    URI Core
-    STATIC
+    URI DsQt.Core
     VERSION 1.0
     QML_FILES 
         qml/DsAppBase.qml
@@ -117,8 +119,6 @@ qt_add_qml_module(Core
         res/data.qrc
 )
 
-add_library(DsQt::Core ALIAS Core)
-
 target_link_libraries(Core
     PUBLIC
         Qt6::Concurrent
@@ -131,13 +131,9 @@ target_link_libraries(Core
 target_include_directories(Core 
     PUBLIC
         # During build: use source-tree headers
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/core>
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/network>
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/qml>
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/resources>
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/settings>
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/ui>
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/utility>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+        # $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/qml>
+        # $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/resources>
         # After installation: use installed location
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
@@ -147,14 +143,23 @@ if(DSQT_WITH_TOML)
     target_compile_definitions(Core PUBLIC DSQT_USE_TOML)
 endif()
 
-if(DSQT_WITH_GML)
+if(DSQT_WITH_GLM)
     target_include_directories(Core PUBLIC ${glm_SOURCE_DIR})
-    target_compile_definitions(Core PUBLIC DSQT_USE_GML)
+    target_compile_definitions(Core PUBLIC DSQT_USE_GLM)
 endif()
 
 # ----------------------------------------------------------------------
 # Installation rules
 # ----------------------------------------------------------------------
+
+include(GNUInstallDirs)
+
+install(TARGETS Core
+  EXPORT DsQtTargets
+  RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+)
 
 # Install public header files
 install(DIRECTORY .

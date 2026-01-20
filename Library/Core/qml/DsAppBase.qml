@@ -1,6 +1,6 @@
 import QtQuick
 import QtQuick.Controls
-import Dsqt
+import DsQt.Core
 
 /// \brief main window for DsQt QML applications.
 ApplicationWindow {

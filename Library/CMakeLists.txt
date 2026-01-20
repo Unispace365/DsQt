@@ -43,9 +43,19 @@ add_subdirectory("Core")
 add_subdirectory("Bridge")
 add_subdirectory("Waffles")
 
+add_library(DsQt INTERFACE)
+add_library(DsQt::DsQt ALIAS DsQt)
+
 set_target_properties(Core PROPERTIES FOLDER Core)
 set_target_properties(Bridge PROPERTIES FOLDER Bridge)
 set_target_properties(Waffles PROPERTIES FOLDER Waffles)
+
+target_link_libraries(DsQt
+  INTERFACE
+    DsQt::Core
+    DsQt::Bridge
+    DsQt::Waffles
+)
 
 # FetchContent_Declare(
 #     qtimgui
@@ -113,16 +123,16 @@ if(PROJECT_IS_TOP_LEVEL)
     # Install the built library targets and create an export set
     install(TARGETS
         tomlplusplus_tomlplusplus
-        Core
+        # Core
         Core_resources_1
         Core_resources_2
         Core_resources_3
         Core_resources_4
-        Bridge
+        # Bridge
         Bridge_resources_1
         Bridge_resources_2
         Bridge_resources_3
-        Waffles
+        # Waffles
         Waffles_resources_1
         Waffles_resources_2
         Waffles_resources_3
@@ -145,19 +155,19 @@ if(PROJECT_IS_TOP_LEVEL)
         DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/DsQt
     )
 
+    # Create the main Config.cmake file from our template
+    configure_package_config_file(
+        "${CMAKE_CURRENT_SOURCE_DIR}/cmake/DsQtConfig.cmake.in"
+        "${CMAKE_CURRENT_BINARY_DIR}/DsQtConfig.cmake"
+        INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/DsQt
+    )
+
     # Generate the version file that find_package() will check
     write_basic_package_version_file(
         "${CMAKE_CURRENT_BINARY_DIR}/DsQtConfigVersion.cmake"
         VERSION       ${PROJECT_VERSION}
         COMPATIBILITY SameMajorVersion      # Accept 1.x.y but not 2.0.0
         # COMPATIBILITY AnyNewerVersion     # ← more permissive alternative
-    )
-
-    # Create the main Config.cmake file from our template
-    configure_package_config_file(
-        "${CMAKE_CURRENT_SOURCE_DIR}/cmake/DsQtConfig.cmake.in"
-        "${CMAKE_CURRENT_BINARY_DIR}/DsQtConfig.cmake"
-        INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/DsQt
     )
 
     # Install the two generated configuration files

@@ -1,8 +1,9 @@
 pragma ComponentBehavior: Bound
+
 import QtQuick
 import QtQuick.Shapes
 import QtQuick.Effects
-import Dsqt
+import DsQt.Core
 
 Item {
     id: root

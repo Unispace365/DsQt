@@ -9,7 +9,7 @@
 #include <QtGui/qcolor.h>
 #include <qqml.h>
 
-#if DSQT_USE_GML
+#if DSQT_USE_GLM
 #include <glm/glm.hpp>
 #endif
 
@@ -107,7 +107,7 @@ class DsSettings : public QObject {
         std::is_same_v<T, QVector2D> ||                                                 //
         std::is_same_v<T, QVector3D> ||                                                 //
         std::is_same_v<T, QVector4D> ||                                                 //
-#if DSQT_USE_GML
+#if DSQT_USE_GLM
         std::is_same_v<T, glm::vec2> || //
         std::is_same_v<T, glm::vec3> || //
         std::is_same_v<T, glm::vec4> || //
@@ -341,7 +341,7 @@ class DsSettings : public QObject {
     template <>
     std::optional<ValueWMeta<QPointF>> getWithMeta(const std::string& key);
 
-#if DSQT_USE_GML
+#if DSQT_USE_GLM
     template <>
     std::optional<ValueWMeta<glm::vec2>> getWithMeta(const std::string& key);
     template <>

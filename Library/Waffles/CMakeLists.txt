@@ -1,8 +1,5 @@
 cmake_minimum_required(VERSION 3.29)
 
-option(DSQT_WITH_TOML "Enable tomlplusplus support" ON)
-option(DSQT_WITH_GML "Enable GML math library support" OFF)
-
 set(QML_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
 set(QML_BIN_ROOT "${CMAKE_BINARY_DIR}/Library")
 
@@ -15,13 +12,16 @@ find_package(Qt6 6.9
         # Quick
         Multimedia
         Pdf
+        Sql
         WebEngineQuick
 )
 qt_standard_project_setup(REQUIRES 6.9)
 
+add_library(Waffles)
+# add_library(DsQt::Waffles ALIAS Waffles)
+
 qt_add_qml_module(Waffles
-    URI Waffles
-    STATIC
+    URI DsQt.Waffles
     VERSION 1.0
     QML_FILES
         qml/BottomOuterControls.qml
@@ -45,15 +45,17 @@ qt_add_qml_module(Waffles
     RESOURCES
 )
 
-add_library(DsQt::Waffles ALIAS Waffles)
-
 target_link_libraries(Waffles
     PUBLIC
+        Bridge
+
         Qt6::Concurrent
         Qt6::Core
         Qt6::Gui
         Qt6::Qml
-        Qt6::Quick
+        Qt6::Quick        
+
+        Qt6::Sql
 
         Qt6::Multimedia
         Qt6::Pdf
@@ -63,9 +65,9 @@ target_link_libraries(Waffles
 target_include_directories(Waffles
     PUBLIC
         # During build: use source-tree headers
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/qml>
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/resources>
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/waffles>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+        # $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/qml>
+        # $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/resources>
         # After installation: use installed location
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
@@ -73,6 +75,15 @@ target_include_directories(Waffles
 # ----------------------------------------------------------------------
 # Installation rules
 # ----------------------------------------------------------------------
+
+include(GNUInstallDirs)
+
+install(TARGETS Waffles
+  EXPORT DsQtTargets
+  RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+)
 
 # Install public header files
 install(DIRECTORY .

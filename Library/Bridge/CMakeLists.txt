@@ -20,9 +20,11 @@ endif()
 
 qt_standard_project_setup(REQUIRES 6.9)
 
+add_library(Bridge)
+# add_library(DsQt::Bridge ALIAS Bridge)
+
 qt_add_qml_module(Bridge
     URI Bridge
-    STATIC
     VERSION 1.0
     QML_FILES 
         qml/bridge/DsBridgeQueryControls.qml
@@ -57,19 +59,19 @@ add_library(DsQt::Bridge ALIAS Bridge)
 
 target_link_libraries(Bridge
     PUBLIC
+        Core
+
         Qt6::Core
         Qt6::Qml
         Qt6::Sql
-        DsQt::Core
 )
 
 target_include_directories(Bridge 
     PUBLIC
         # During build: use source-tree headers
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/bridge>
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/model>
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/qml>
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/resources>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+        # $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/qml>
+        # $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/resources>
         # After installation: use installed location
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
@@ -77,6 +79,15 @@ target_include_directories(Bridge
 # ----------------------------------------------------------------------
 # Installation rules
 # ----------------------------------------------------------------------
+
+include(GNUInstallDirs)
+
+install(TARGETS Bridge
+  EXPORT DsQtTargets
+  RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+)
 
 # Install public header files
 install(DIRECTORY .

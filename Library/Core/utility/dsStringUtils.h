@@ -9,7 +9,7 @@
 #include <string>
 #include <vector>
 
-#if DSQT_USE_GML
+#if DSQT_USE_GLM
 #include <glm/glm.hpp>
 #endif
 
@@ -118,7 +118,7 @@ void to_lowercase(std::wstring& str);
 void to_uppercase(std::string& str);
 void to_uppercase(std::wstring& str);
 
-#if DSQT_USE_GML
+#if DSQT_USE_GLM
 /// Parses a string into a 3d vector. Example: size="400, 400, 0" the space after the comma is required to read the
 /// second and third token. Defaults parameters to 0 if they don't exist.
 glm::vec3 parseVector(const std::string& s);
