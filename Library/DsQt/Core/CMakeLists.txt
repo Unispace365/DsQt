@@ -128,12 +128,16 @@ target_link_libraries(Core
         Qt6::Quick
 )
 
-target_include_directories(Core 
+target_include_directories(Core
     PUBLIC
         # During build: use source-tree headers
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
-        # $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/qml>
-        # $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/resources>
+        # Subdirectories needed for Qt's metatype system to find headers
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/core>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/ui>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/settings>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/network>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/utility>
         # After installation: use installed location
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )

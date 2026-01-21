@@ -39,9 +39,9 @@ find_package(Qt6 6.9
 )
 # qt_standard_project_setup(REQUIRES 6.9)
 
-add_subdirectory("Core")
-add_subdirectory("Bridge")
-add_subdirectory("Waffles")
+add_subdirectory("DsQt/Core")
+add_subdirectory("DsQt/Bridge")
+add_subdirectory("DsQt/Waffles")
 
 add_library(DsQt INTERFACE)
 add_library(DsQt::DsQt ALIAS DsQt)
