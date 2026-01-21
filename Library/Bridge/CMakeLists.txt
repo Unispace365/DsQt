@@ -24,7 +24,7 @@ add_library(Bridge)
 # add_library(DsQt::Bridge ALIAS Bridge)
 
 qt_add_qml_module(Bridge
-    URI Bridge
+    URI DsQt.Bridge
     VERSION 1.0
     QML_FILES 
         qml/bridge/DsBridgeQueryControls.qml
