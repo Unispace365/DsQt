@@ -575,6 +575,7 @@ QVariantHash DsResource::toQml() const {
     qml.insert("width", mWidth);
     qml.insert("height", mHeight);
     qml.insert("crop", QVariantList{mCropX, mCropY, mCropW, mCropH});
+    qml.insert("type", getTypeName());
     return qml;
 }
 

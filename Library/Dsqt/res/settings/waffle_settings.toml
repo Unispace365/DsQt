@@ -1,0 +1,20 @@
+[waffles]
+primary0 = "#00ADF7"
+primary10 = "#4AB6F8"
+primary20 = "#6BBFF9"
+primary30 = "#85C8FA"
+primary40 = "#9CD1FB"
+primary50 = "#263238"
+
+tonal0 ="#191F25"
+tonal10 = "#2E3439"
+tonal20 = "#454A4F"
+tonal30 = "#5D6166"
+tonal40 = "#76797E"
+tonal50 = "#8F9396"
+
+titleOpacity = 0.8
+viewerPrimary = "primary0"
+secondaryLightColor = "#4f83cc"
+secondaryDarkColor = "#002f6c"
+textOnSecondaryColor = "#ffffff"

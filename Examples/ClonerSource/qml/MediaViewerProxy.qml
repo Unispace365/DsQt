@@ -1,6 +1,0 @@
-import QtQuick
-
-Item {
-    
-
-}

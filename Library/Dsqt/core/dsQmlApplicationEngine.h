@@ -4,9 +4,10 @@
 #include "bridge/dsBridgeDatabase.h"
 #include "core/dsQmlIdle.h"
 #include "core/dsQmlImguiItem.h"
-#include "rework/rwContentModel.h"
+#include "model/dsContentModel.h"
 #include "settings/dsSettings.h"
 
+#include <QElapsedTimer>
 #include <QFileSystemWatcher>
 #include <QObject>
 #include <QQmlApplicationEngine>
@@ -128,12 +129,29 @@ class DsQmlApplicationEngine : public QQmlApplicationEngine {
      */
     DsQmlIdle* idle() const;
 
+    /**
+     * @brief Returns the Bridge database content. NOT thread-safe! Call from the main thread only!
+     * @see database()
+     * @return Pointer to model::ContentModel.
+     */
     model::ContentModel* bridge() const;
 
+    /**
+     * @brief setBridge
+     * @param bridge
+     */
     void setBridge(model::ContentModel* bridge);
 
+    /**
+     * @brief Returns the Bridge database content in a thread-safe manner.
+     * @return Const reference to bridge::DatabaseContent.
+     */
     const bridge::DatabaseContent& database() const { return mDatabase; }
 
+    /**
+     * @brief setDatabase
+     * @param database
+     */
     void setDatabase(bridge::DatabaseContent&& database) {
         mDatabase = std::move(database);
         emit databaseChanged();
@@ -230,10 +248,13 @@ class DsQmlApplicationEngine : public QQmlApplicationEngine {
     void idleChanged();
 
     /**
-     * @brief Emitted when the root content is updated.
+     * @brief Emitted when the root content is updated. You should only listen to this on the main thread.
      */
     void bridgeChanged();
 
+    /**
+     * @brief Emitted when the root content is updated. Thread-safe version.
+     */
     void databaseChanged();
 
   protected:

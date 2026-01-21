@@ -5,38 +5,57 @@
 #doing it bothways allows for a simpler settings file but also allows to give hints on
 #conversions or visualization metadata. 
 [engine]
-project_path=["dsqt_development",{type="string", test="", restart="full"}]
+project_path=["ClonerSource_dev",{type="string", test="", restart="full"}]
+#Seconds before idle happens. 300 = 5 minutes.
+idle_timeout=600
+#extra settings files that will be added to app_settings or engine as appropriate.
+[engine.extra]
+app_settings = [
+  "content_settings.toml",
+  "menu.toml",
+]
+
+engine = [
+  "bridgesync.toml",
+]
 
 [engine.reload]
-paths=[
-{path="%APP%/data/", recurse=true},
-{path="%APP%/qml/", recurse=true}
+paths = [
+  {path = "%APP%/data/", recurse = true},
+  {path = "%APP%/settings/", recurse = true},
+  {path = "%APP%/qml/", recurse = true},
 ] #reload path to data
-
-
+prefixes = [
+  {from = "qrc:/qt/qml/ClonerSource/", to = "file:///%APP%/"},
+  {from = "qrc:/qt/qml/Dsqt/", to = "file:///%ENV%(DS_QT_PLATFORM_100)/Library/Dsqt"},
+]
 
 [engine.window]
-world_dimensions=[{w=4800,h=1620},{type="size"}] #The size of the overall app space.
-source={x=0,y=0,w=4800,h=1620} #the rectangle of the world space to render.
-destination={x=20,y=100,w=3800,h=1282.5}#,{type="rect"}] #The output window size and position to render.
-center=false
+mode = "window"
+displayIndex = 0
+width = 3840
+height = 2160
+
+[engine.scaleLoader]
+world_dimensions=[{w=3840,h=2160},{type="size"}] #The size of the overall app space.
+source={x=0,y=0,w=3840,h=2160} #the rectangle of the world space to render.
+destination={x=0,y=100,w=3840,h=2160}#,{type="rect"}] #The output window size and position to render.
 
 [engine.resource]
-location="%LOCAL%/dsdemo/"
-resource_db="db.sqlite"
+location = "%LOCAL%/ds_waffles/"
+resource_db = "db.sqlite"
 
 [engine.bridgesync]
 #whether to use the local path to the shared path to find bridgesync.
-launch_bridgesync=true
-app_path="c:/downstream/bridgesync/bridge_sync_console.exe"
+app_path = "c:/downstream/bridgesync/bridge_sync_console.exe"
+launch_bridgesync = true
 
-#unimplemented, but the idea is to allow these settings to live is seperate
-#toml files
+#unimplemented, but the idea is to allow these settings to live in seperate toml files
 #use_settings_file=false
 #settings_file="bridgesync.toml"
 
 [engine.bridgesync.connection]
-server = "http://localhost:7080"
+server = "http://api.waffles.localhost"
 #server = "https://app.hpi1.dev.bridge.downstream.com"
 #auth_server = "https://hpi1-api-userpool.auth.us-east-2.amazoncognito.com"
 #client_id = ""
@@ -44,4 +63,13 @@ server = "http://localhost:7080"
 directory="%LOCAL%/dsdemo/"
 interval = 5
 verbose = true
+
+[engine.logging]
+rules=[[
+    "*.verbose=false", #turn off all verbose
+    "reloadUrl.*=false",
+    "bridgeSync.app=true",
+]]
+
+
 
