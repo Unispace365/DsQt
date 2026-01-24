@@ -25,7 +25,19 @@ if(PROJECT_IS_TOP_LEVEL)
     endif()
 endif()
 
-find_package(Qt6 6.9 COMPONENTS Core Concurrent Quick Gui ShaderTools Sql REQUIRED COMPONENTS Test)
+find_package(Qt6 6.9 
+    COMPONENTS 
+        Core 
+        Concurrent 
+        Quick 
+        Gui 
+        GuiPrivate 
+        ShaderTools 
+        ShaderToolsPrivate 
+        Sql 
+    REQUIRED COMPONENTS 
+        Test
+)
 qt_standard_project_setup(REQUIRES 6.9)
 
 add_subdirectory("Dsqt")
@@ -74,7 +86,16 @@ set_target_properties(Dsqt PROPERTIES
 target_compile_definitions(Dsqt
     PRIVATE $<$<OR:$<CONFIG:Debug>,$<CONFIG:RelWithDebInfo>>:QT_QML_DEBUG>)
 target_link_libraries(Dsqt
-PRIVATE Qt6::Quick Qt6::Core Qt6::Concurrent Qt6::Gui Qt6::ShaderTools Qt6::Sql)
+    PRIVATE 
+        Qt6::Quick
+        Qt6::Core 
+        Qt6::Concurrent 
+        Qt6::Gui 
+        Qt6::GuiPrivate 
+        Qt6::ShaderTools 
+        Qt6::ShaderToolsPrivate 
+        Qt6::Sql
+)
 
 target_include_directories(Dsqt PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} ${imgui_base})
 
