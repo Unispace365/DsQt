@@ -2,6 +2,7 @@
 #include "core/dsQmlApplicationEngine.h"
 #include "core/dsQmlObj.h"
 #include "ui/dsQmlClock.h"
+#include "bridge/dsQmlBridge.h"
 
 #include <bitset>
 
@@ -298,10 +299,10 @@ void DsQmlEventSchedule::update(const QDateTime& localDateTime) {
         QList<DsQmlEvent*> result;
 
         // Obtain engine pointer.
-        auto engine = DsQmlApplicationEngine::DefEngine();
+        //auto engine = DsQmlApplicationEngine::DefEngine();
 
-        // Obtain all events from engine.
-        const auto& content = engine->database();
+        // Obtain all events from bridge.
+        const auto& content = bridge::DsQmlBridge::instance().database();
 
         auto events = content.events();
         if (!events.isEmpty()) {

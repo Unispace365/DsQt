@@ -266,20 +266,4 @@ DsQmlIdle* DsQmlApplicationEngine::idle() const {
     return mIdle;
 }
 
-model::ContentModel* DsQmlApplicationEngine::bridge() const {
-    // Should only be called from main thread! Use database() to obtain thread-safe data model.
-    bool isMainThread = QThread::currentThread() == QCoreApplication::instance()->thread();
-    Q_ASSERT(isMainThread);
-
-    // Create and return the content model.
-    if (!mBridge) mBridge = model::ContentModel::createNamed("Bridge");
-    return mBridge;
-}
-
-void DsQmlApplicationEngine::setBridge(model::ContentModel* bridge) {
-    // if (mBridge == bridge) return;
-    mBridge = bridge;
-    emit bridgeChanged();
-}
-
 } // namespace dsqt

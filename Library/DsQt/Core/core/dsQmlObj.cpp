@@ -14,8 +14,8 @@ DsQmlObj::DsQmlObj(QQmlEngine* qmlEngine, QJSEngine* jsEngine, QObject* parent)
     mEngine = dynamic_cast<DsQmlApplicationEngine*>(qmlEngine);
     if (mEngine == nullptr) {
         qWarning() << "Engine is not a DsQmlApplicationEngine or a subclass. $DS functionality will not be available";
-    } else {
-        connect(mEngine, &DsQmlApplicationEngine::bridgeChanged, this, &DsQmlObj::updatePlatform);
+    //} else {
+    //    connect(mEngine, &DsQmlApplicationEngine::bridgeChanged, this, &DsQmlObj::updatePlatform);
     }
 }
 

@@ -133,6 +133,6 @@ class DsQmlTextFileModel : public QAbstractListModel {
     qsizetype   m_max_line_count = 500;
 };
 
-} // namespace dsqt::bridge
+} // namespace dsqt::model
 
 #endif

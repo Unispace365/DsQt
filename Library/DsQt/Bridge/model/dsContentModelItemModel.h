@@ -2,7 +2,7 @@
 #define DSCONTENTMODELITEMMODEL_H
 
 #include "core/dsQmlApplicationEngine.h"
-#include "model/dsContentModel.h"
+#include <model/dsContentModel.h>
 #include <QAbstractItemModel>
 
 namespace dsqt::model {

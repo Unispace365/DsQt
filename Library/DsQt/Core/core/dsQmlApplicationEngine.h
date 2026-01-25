@@ -1,7 +1,7 @@
 #ifndef DSQMLAPPLICATIONENGINE_H
 #define DSQMLAPPLICATIONENGINE_H
 
-#include "bridge/dsBridgeDatabase.h"
+
 #include "core/dsQmlIdle.h"
 #include "model/dsContentModel.h"
 #include "settings/dsSettings.h"
@@ -46,7 +46,7 @@ class DsQmlApplicationEngine : public QQmlApplicationEngine {
     QML_ELEMENT
     QML_UNCREATABLE("Ya don't need to make an engine. get it from Ds.engine")
     Q_PROPERTY(DsQmlIdle* idle READ idle NOTIFY idleChanged FINAL)
-    Q_PROPERTY(model::ContentModel* bridge READ bridge NOTIFY bridgeChanged FINAL)
+
 
   public:
     /**
@@ -133,33 +133,6 @@ class DsQmlApplicationEngine : public QQmlApplicationEngine {
      */
     DsQmlIdle* idle() const;
 
-    /**
-     * @brief Returns the Bridge database content. NOT thread-safe! Call from the main thread only!
-     * @see database()
-     * @return Pointer to model::ContentModel.
-     */
-    model::ContentModel* bridge() const;
-
-    /**
-     * @brief setBridge
-     * @param bridge
-     */
-    void setBridge(model::ContentModel* bridge);
-
-    /**
-     * @brief Returns the Bridge database content in a thread-safe manner.
-     * @return Const reference to bridge::DatabaseContent.
-     */
-    const bridge::DatabaseContent& database() const { return mDatabase; }
-
-    /**
-     * @brief setDatabase
-     * @param database
-     */
-    void setDatabase(bridge::DatabaseContent&& database) {
-        mDatabase = std::move(database);
-        emit databaseChanged();
-    }
 
   private:
     /**
@@ -251,10 +224,7 @@ class DsQmlApplicationEngine : public QQmlApplicationEngine {
      */
     void idleChanged();
 
-    /**
-     * @brief Emitted when the root content is updated. You should only listen to this on the main thread.
-     */
-    void bridgeChanged();
+
 
     /**
      * @brief Emitted when the root content is updated. Thread-safe version.
@@ -286,11 +256,6 @@ class DsQmlApplicationEngine : public QQmlApplicationEngine {
     /// Pointer to the idle manager.
     DsQmlIdle* mIdle = nullptr;
 
-    /// Point to the content in Bridge CMS.
-    mutable model::ContentModel* mBridge = nullptr;
-
-    ///
-    bridge::DatabaseContent mDatabase;
 };
 
 } // namespace dsqt

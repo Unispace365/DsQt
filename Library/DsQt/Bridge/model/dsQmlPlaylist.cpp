@@ -2,7 +2,7 @@
 
 #include "core/dsEnvironment.h"
 #include "core/dsQmlApplicationEngine.h"
-
+#include "bridge/dsQmlBridge.h"
 #include <QFileInfo>
 #include <QQmlContext>
 
@@ -10,7 +10,7 @@ namespace dsqt::model {
 
 DsQmlPlaylist::DsQmlPlaylist(QObject* parent)
     : QObject(parent) {
-    auto engine = DsQmlApplicationEngine::DefEngine();
+    auto& bridge = bridge::DsQmlBridge::instance();
 
     m_timer = new QTimer(this);
     m_timer->setSingleShot(true);
@@ -18,7 +18,7 @@ DsQmlPlaylist::DsQmlPlaylist(QObject* parent)
     // Listen to timer.
     connect(m_timer, &QTimer::timeout, this, [this] { setIndex(m_playlist_index + 1); });
     // Listen to content updates.
-    connect(engine, &DsQmlApplicationEngine::bridgeChanged, this, &DsQmlPlaylist::updateNow);
+    connect(&bridge, &bridge::DsQmlBridge::contentChanged, this, &DsQmlPlaylist::updateNow);
     // Restart playlist if mode changes.
     connect(this, &DsQmlPlaylist::modeChanged, this, &DsQmlPlaylist::updateNow);
     // Restart playlist if event changes.

@@ -2,8 +2,9 @@
 
 #include <QPointerEvent>
 
-#include <glm/gtx/rotate_vector.hpp>
-#include <glm/gtx/scalar_multiplication.hpp>
+#include <glm/vec2.hpp>
+#include <glm/trigonometric.hpp>
+#include <glm/gtc/constants.hpp>
 
 namespace dsqt::ui {
 DsQmlClusterManager::DsQmlClusterManager(QQuickItem* parent):QQuickItem(parent) {
@@ -48,9 +49,9 @@ bool DsQmlClusterManager::event(QEvent *event)
             for(int i=0;i<m_minClusterTouchCount;i++){
                 TouchInfo ti;
 
-                glm::vec2 unit(0,1);
-                unit = glm::rotate(unit,angle*i);
-                unit = unit * 50;
+                float a = angle * i;
+                glm::vec2 unit(-glm::sin(a), glm::cos(a));
+                unit = unit * 50.0f;
                 auto nPoint = pos + unit;
 
                 ti.mPoint = QPointF(nPoint.x,nPoint.y);

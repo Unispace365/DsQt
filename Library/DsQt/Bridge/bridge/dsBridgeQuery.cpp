@@ -1,4 +1,5 @@
 ﻿#include "bridge/dsBridgeQuery.h"
+#include "bridge/dsQmlBridge.h"
 #include "core/dsEnvironment.h"
 #include "model/dsResource.h"
 #include "network/dsNodeWatcher.h"
@@ -401,7 +402,8 @@ void DsBridgeSqlQuery::onCleanContent() {
         Q_ASSERT(isMainThread);
 
         // Construct or update the content tree.
-        auto root = DsQmlApplicationEngine::DefEngine()->bridge();
+        auto& bridge = bridge::DsQmlBridge::instance();
+        auto  root   = bridge.content();
 
         auto content = root->getChildByName("Content");
         if (!content) content = ContentModel::createNamed("Content", root);
@@ -422,11 +424,11 @@ void DsBridgeSqlQuery::onCleanContent() {
         for (const auto& uid : std::as_const(mContent.m_platforms))
             ContentModel::find(uid)->setParent(platforms);
 
-        // Update root and emit bridgeChanged() signal.
-        DsQmlApplicationEngine::DefEngine()->setBridge(root);
+        // Update root and emit contentChanged() signal.
+        bridge.setContent(root);
 
         // Update thread-safe database and emit databaseChanged() signal.
-        DsQmlApplicationEngine::DefEngine()->setDatabase(std::move(mContent));
+        bridge.setDatabase(std::move(mContent));
     } else {
         // Clean next chunk later.
         QTimer::singleShot(1, this, &DsBridgeSqlQuery::onCleanContent);
