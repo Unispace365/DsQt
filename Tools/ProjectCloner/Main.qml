@@ -11,6 +11,22 @@ Window {
     height: 480
     visible: true
     title: qsTr("Project Cloner")
+
+    Window {
+        id:consoleOutputWindow
+        title: "Console Output"
+        width: 600
+        height: 400
+        visible: false
+        ConsoleOutputView {
+            id: consoleOutputView
+            anchors.fill: parent
+            anchors.margins: 30
+            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.verticalCenter: parent.verticalCenter
+        }
+    }
+
     Item {
         id: toplevel
         width: root.width
@@ -24,7 +40,7 @@ Window {
             Text {
                 Layout.alignment: Qt.AlignTop
                 id: title
-                text: "DsQt (DsCute) ProjectCloner"
+                text: "DsQt ProjectCloner"
             }
 
             RowLayout {
@@ -128,6 +144,7 @@ Window {
                     text: cloner.lastError=="" ? "Project cloned to "+projectRoot.text+"/"+appName.text : cloner.lastError
                     opacity: cloner.status==Cloner.POSTCLONE ? 1 : 0
                     Layout.alignment: Qt.AlignHCenter
+                    Layout.maximumWidth: toplevel.width * 0.8
                     Behavior on opacity {
                         NumberAnimation {
                             duration: 200
@@ -139,6 +156,19 @@ Window {
 
             RowLayout {
                 Layout.alignment: Qt.AlignRight | Qt.AlignBottom
+                Button {
+                    id: consoleBtn
+                    text:"Show Console"
+                    Layout.alignment: Qt.AlignLeft | Qt.AlignBottom
+                    onPressed: {
+                        if(consoleOutputWindow.visible) {
+                            consoleOutputWindow.hide();
+                        } else {
+                            consoleOutputWindow.showNormal();
+                        }
+                    }
+                }
+
                 Button {
                     id: acceptBtn
                     text:"Clone"
