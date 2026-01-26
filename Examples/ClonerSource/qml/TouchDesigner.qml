@@ -1,7 +1,7 @@
 import QtQuick
 import QtQuick.Layouts
-import Dsqt
-import TouchEngineQt
+import Dsqt.Core
+import Dsqt.TouchEngine
 
 Item {
 

@@ -1,5 +1,5 @@
 import QtQuick 2.15
-import Dsqt
+import Dsqt.Waffles
 
 Item {
 

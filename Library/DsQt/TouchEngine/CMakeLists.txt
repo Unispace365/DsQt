@@ -138,7 +138,7 @@ set(TOUCHENGINE_OUTPUT_SOURCES
 )
 
 qt_add_qml_module(TouchEngine
-    URI DsQt.TouchEngine
+    URI Dsqt.TouchEngine
     VERSION 1.0
     OUTPUT_TARGETS TouchEngineTargets
     QML_FILES ${QML_FILES}
@@ -181,8 +181,8 @@ set(TouchEngineTargets ${TouchEngineTargets} ${TouchEngineShaderTargets} PARENT_
 
 
 
-target_link_directories(TouchEngine PRIVATE
-    TouchEngineplugin PUBLIC $<BUILD_INTERFACE:${TOUCHENGINE_LIB_DIR}>
+target_link_directories(TouchEngine
+    PUBLIC $<BUILD_INTERFACE:${TOUCHENGINE_LIB_DIR}>
 )
 
 target_link_libraries(TouchEngine
@@ -193,14 +193,18 @@ target_link_libraries(TouchEngine
         Qt6::Gui
         Qt6::GuiPrivate
         Qt6::Concurrent
-        TouchEngineSDK
         TouchEngineplugin
+        # Link to TouchEngine SDK library file directly (not the imported target)
+        # The imported target TouchEngineSDK is only used for include directories
+        $<BUILD_INTERFACE:${TOUCHENGINE_LIB_DIR}/TouchEngine.lib>
 )
 
 target_include_directories(TouchEngine
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
+        # TouchEngine SDK include directory - needs to be on the target for proper export
+        $<BUILD_INTERFACE:${TOUCHENGINE_INCLUDE_DIR}>
 )
 
 # Link D3D12 and Vulkan libraries on Windows
@@ -236,7 +240,7 @@ set_target_properties(TouchEngine PROPERTIES
 # ----------------------------------------------------------------------
 
 install(TARGETS TouchEngine
-    EXPORT DsQtTargets
+    EXPORT DsqtTargets
     BUNDLE DESTINATION . # For macOS bundles
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}

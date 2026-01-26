@@ -3,7 +3,8 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import QtQuick.Effects
 import QtQuick.VectorImage
-import Dsqt
+import Dsqt.Core
+import Dsqt.Waffles
 
 Button {
     id: root

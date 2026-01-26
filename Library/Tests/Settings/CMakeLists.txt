@@ -98,7 +98,7 @@ target_include_directories(${DS_EXE_NAME} PUBLIC ${tomlplusplus_SOURCE_DIR}/incl
 
 target_include_directories(${DS_EXE_NAME} PUBLIC ${tomlplusplus_SOURCE_DIR}/include)
 
-## DsQt Includes
+## Dsqt Includes
 target_include_directories(${DS_EXE_NAME} PUBLIC ${DS_QT_PLATFORM_100_LIBRARY})
 
 target_link_libraries(${DS_EXE_NAME}

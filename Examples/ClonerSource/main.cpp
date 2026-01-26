@@ -1,13 +1,6 @@
-#ifdef _WIN32
-#ifdef DS_QT_DLLS_SUBDIR
-// Put a manifest dependency to the qt/ directory so we can keep qt dlls in their own directory
-#pragma comment(linker, "/manifestdependency:\"name='qt' version='1.0.0.0' type='win32'\"")
-#endif
-#endif
-
 #include <QQmlApplicationEngine>
 #include <QQuickStyle>
-#include <QtWebEngineQuick>
+// #include <QtWebEngineQuick/QtWebEngineQuick>  // Uncomment if QtWebEngineQuick::initialize() is needed
 #include <QIcon>
 #include <dsBridgeQuery.h>
 #include <dsEnvironment.h>
@@ -39,12 +32,8 @@ int main(int argc, char *argv[])
     QQuickWindow::setGraphicsApi(QSGRendererInterface::Direct3D12);
 
 
-    //ensure the data.qrc is initialized
-    Q_INIT_RESOURCE(data);
-
-    //(@NOTE:KEYBOARD)
-    //ensure the keyboard.qrc is initialized
-    Q_INIT_RESOURCE(keyboard);
+    // Note: Resources from Dsqt::Core (data.qrc, keyboard.qrc) are auto-initialized
+    // when the QML module is loaded. Explicit Q_INIT_RESOURCE is not needed.
     QLoggingCategory::setFilterRules("*.verbose=false\n"
                                      "reloadUrl.*=false\n"
                                      "bridgeSync.app=false\n"

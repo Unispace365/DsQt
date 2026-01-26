@@ -5,7 +5,7 @@ import QtQuick.Shapes
 import QtMultimedia
 import QtWebEngine
 import QtQuick.Pdf
-import Dsqt
+import Dsqt.Core
 import QtQuick.VectorImage
 
 // An element that can display images, videos, web content and PDFs.

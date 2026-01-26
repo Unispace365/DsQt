@@ -4,7 +4,7 @@ import QtQuick.Controls
 import QtQuick.Effects
 import QtQuick.Layouts
 import QtMultimedia
-import Dsqt
+import Dsqt.Core
 
 Window {
     width: 1500

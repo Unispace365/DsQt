@@ -35,7 +35,7 @@ qt_standard_project_setup(REQUIRES 6.9)
 add_library(Bridge)
 
 qt_add_qml_module(Bridge
-    URI DsQt.Bridge
+    URI Dsqt.Bridge
     OUTPUT_TARGETS BridgeTargets
     VERSION 1.0
     QML_FILES 
@@ -90,7 +90,7 @@ target_include_directories(Bridge
 include(GNUInstallDirs)
 
 install(TARGETS Bridge
-  EXPORT DsQtTargets
+  EXPORT DsqtTargets
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
   ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}

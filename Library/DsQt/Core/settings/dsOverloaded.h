@@ -2,6 +2,7 @@
 #define DSOVERLOADED_H
 
 #include <string>
+#include <sstream>
 #include <optional>
 #include <toml++/toml.h>
 

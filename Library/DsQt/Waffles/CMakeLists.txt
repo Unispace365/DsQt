@@ -25,7 +25,7 @@ qt_standard_project_setup(REQUIRES 6.9)
 add_library(Waffles)
 
 qt_add_qml_module(Waffles
-    URI DsQt.Waffles
+    URI Dsqt.Waffles
     VERSION 1.0
     OUTPUT_TARGETS WafflesTargets
     QML_FILES
@@ -71,7 +71,7 @@ target_include_directories(Waffles
 include(GNUInstallDirs)
 
 install(TARGETS Waffles
-  EXPORT DsQtTargets
+  EXPORT DsqtTargets
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
   ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}

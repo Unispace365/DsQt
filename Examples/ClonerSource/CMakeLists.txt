@@ -15,20 +15,16 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_INSTALL_PREFIX "${CMAKE_BINARY_DIR}/DEPLOY/")
 set(QT_FORCE_CMP0156_TO_VALUE NEW)
 set(QT_QML_GENERATE_QMLLS_INI ON)
-set(DS_QT_DLLS_SUBDIR ON CACHE BOOL "Set to ON to copy the Qt dlls to a subdirectory of the install directory. Default is ON.")
 find_package(Qt6 6.9 REQUIRED COMPONENTS Core Quick QuickControls2 Multimedia Gui GuiPrivate ShaderTools Concurrent Sql Pdf WebEngineQuick)
 qt_standard_project_setup(REQUIRES 6.9)
 
-
-
-list(APPEND CMAKE_MODULE_PATH
-    "$ENV{DS_QT_PLATFORM_100}/Library/cmake/")
-
-add_subdirectory("$ENV{DS_QT_PLATFORM_100}/Library" "${CMAKE_BINARY_DIR}/Library")
+# Find Dsqt from its build directory (Dsqt_DIR set via CMakePresets.json)
+# Note: Using build directory instead of installed package due to Qt QML module export complexity
+find_package(Dsqt REQUIRED COMPONENTS Core Bridge Waffles TouchEngine)
 
 #set qml import path. This is used by Qt Creator to find the QML files.
 set(QML_TMP_PATH
-     "${CMAKE_SOURCE_DIR};${CMAKE_SOURCE_DIR}\\qml;${QML_IMPORT_PATH}"
+     "${CMAKE_SOURCE_DIR};${CMAKE_SOURCE_DIR}/qml;${QML_IMPORT_PATH}"
 )
 list(REMOVE_DUPLICATES QML_TMP_PATH)
 set(QML_IMPORT_PATH
@@ -50,6 +46,15 @@ qt_add_resources(${DS_EXE_NAME} "icon" FILES newds.ico)
 #make Fnt.qml a singleton
 set_source_files_properties(Fnt.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
 
+# Get Dsqt QML import path
+# Use DS_QT_PLATFORM_100 environment variable which points to Dsqt root
+file(TO_CMAKE_PATH "$ENV{DS_QT_PLATFORM_100}" _dsqt_root)
+
+# DSQT_QML_DIR: Path to Dsqt's built QML modules (set this to your Dsqt build directory)
+# Example: C:/dev/DsQt/Library/build/vs2022-6.10.1
+set(DSQT_QML_DIR "${_dsqt_root}/Library/build/vs2022-6.10.1" CACHE PATH "Path to Dsqt QML modules build directory")
+message(STATUS "DSQT_QML_DIR: ${DSQT_QML_DIR}")
+
 qt_add_qml_module(${DS_EXE_NAME}
     URI ${DS_APP_NAME}
     VERSION 1.0
@@ -60,11 +65,12 @@ qt_add_qml_module(${DS_EXE_NAME}
         qml/CustomClock.qml
         qml/TouchDesigner.qml
 
-    IMPORT_PATH "${CMAKE_BINARY_DIR}/Library"
+    IMPORT_PATH "${DSQT_QML_DIR}"
     DEPENDENCIES
-        Dsqt
-        WafflesUx
-        TouchEngineQt
+        Dsqt::Core
+        Dsqt::Bridge
+        Dsqt::TouchEngine
+        Dsqt::Waffles
         QtQuick
         #RESOURCES cmake/app.rc.in
 )
@@ -103,61 +109,49 @@ set_target_properties(${DS_EXE_NAME} PROPERTIES
     WIN32_EXECUTABLE TRUE
 )
 
-##Fetch toml++
-FetchContent_Declare(
-    tomlplusplus
-    GIT_REPOSITORY https://github.com/marzer/tomlplusplus.git
-    GIT_TAG        v3.4.0
-    #PREFIX ${CMAKE_DIR_LOCATION}/_deps
-)
-FetchContent_GetProperties(tomlplusplus)
-FetchContent_MakeAvailable(tomlplusplus)
-
-##Fetch GLM from the g-truc glm repo.
-##https://glm.g-truc.net/0.9.9/index.html
-FetchContent_Declare(
-    glm
-    GIT_REPOSITORY https://github.com/g-truc/glm.git
-    GIT_TAG        1.0.3
-    CONFIGURE_COMMAND ""
-    BUILD_COMMAND ""
-    #PREFIX ${CMAKE_DIR_LOCATION}/_deps
-)
-FetchContent_GetProperties(glm)
-FetchContent_MakeAvailable(glm)
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(tomlplusplus REQUIRED IMPORTED_TARGET tomlplusplus)
+find_package(glm CONFIG REQUIRED)
 
 target_include_directories(${DS_EXE_NAME} PRIVATE ${Dsqt_INCLUDES} ${TouchEngineQt_INCLUDES})
 
-##connect glm
-target_include_directories(${DS_EXE_NAME} PUBLIC ${glm_SOURCE_DIR})
-
-##connect toml++
-target_include_directories(${DS_EXE_NAME} PUBLIC ${tomlplusplus_SOURCE_DIR}/include)
-
 
 target_link_libraries(${DS_EXE_NAME}
-    PRIVATE 
-        Dsqt 
-        Dsqt_resources_1 
-        Dsqt_resources_2 
-        Dsqt_resources_3
-        Dsqtplugin
-        Dsqtplugin_init
-        TouchEngineQt
-        glm
-        Qt6::Concurrent 
+    PRIVATE
+        Dsqt::Core
+        Dsqt::Bridge
+        Dsqt::TouchEngine
+        Dsqt::Waffles
+
+        Qt6::Concurrent
         Qt6::Core
-        Qt6::Gui 
-        Qt6::Multimedia 
+        Qt6::Gui
+        Qt6::Multimedia
         Qt6::Quick
         Qt6::QuickControls2
         Qt6::ShaderTools
         Qt6::GuiPrivate
         Qt6::Sql
+
+        PkgConfig::tomlplusplus
+        glm::glm
 )
 
 message("HEADERS ${Dsqt_INCLUDES}")
 include(GNUInstallDirs)
+
+# TouchEngine SDK DLL location
+set(TOUCHENGINE_DLL "${_dsqt_root}/Library/Dsqt/TouchEngine/TouchEngine/bin/TouchEngine.dll")
+
+# Copy TouchEngine.dll next to the executable during build
+if(WIN32 AND EXISTS "${TOUCHENGINE_DLL}")
+    add_custom_command(TARGET ${DS_EXE_NAME} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${TOUCHENGINE_DLL}"
+            $<TARGET_FILE_DIR:${DS_EXE_NAME}>
+        COMMENT "Copying TouchEngine.dll to output directory"
+    )
+endif()
 
 install(TARGETS ${DS_EXE_NAME}
     BUNDLE DESTINATION .
@@ -168,6 +162,11 @@ install(TARGETS ${DS_EXE_NAME}
 install(DIRECTORY "settings/" DESTINATION ${CMAKE_INSTALL_BINDIR}/settings OPTIONAL)
 install(DIRECTORY "data/" DESTINATION ${CMAKE_INSTALL_BINDIR}/data OPTIONAL)
 
+# Install TouchEngine.dll to the deploy directory
+if(WIN32 AND EXISTS "${TOUCHENGINE_DLL}")
+    install(FILES "${TOUCHENGINE_DLL}" DESTINATION ${CMAKE_INSTALL_BINDIR})
+endif()
+
 qt_generate_deploy_qml_app_script(
     TARGET ${DS_EXE_NAME}
     OUTPUT_SCRIPT deploy_script
@@ -176,40 +175,3 @@ qt_generate_deploy_qml_app_script(
 )
 
 install(SCRIPT ${deploy_script})
-
-IF (WIN32 AND DS_QT_DLLS_SUBDIR)
-
-add_definitions(-DDS_QT_DLLS_SUBDIR)
-# set the path to the dlls in the install directory
-set(nativeDllPath "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}")
-# convert to a cmake path
-cmake_path(CONVERT "${nativeDllPath}" TO_CMAKE_PATH_LIST cmakeDllPath)
-file(MAKE_DIRECTORY "${cmakeDllPath}/qt")
-
-#make an empty qt manifest for running the app inside Qt Creator 
-configure_file("${CMAKE_SOURCE_DIR}/cmake/qt.manifest.in" "${CMAKE_BINARY_DIR}/qt/qt.manifest")
-
-# process the dlls
-install(CODE "
-# grab all the dlls in the install directory
-file(GLOB xdlls \"${cmakeDllPath}/*.dll\")\n
-
-#loop through the dlls\n
-foreach(dll \${xdlls})\n
-
-    #get the name of the dll sans the path\n
-    file(RELATIVE_PATH rDll \"${cmakeDllPath}\" \"\${dll}\" )
-    
-    #add it to the list of <file> elements to add to the manifest\n
-    set(DLL_LIST \"\${DLL_LIST}\n<file name=\\\"\${rDll}\\\"/>\")\n
-    
-    #move the dll to the qt directory\n
-    file(RENAME \"\${dll}\" \"${cmakeDllPath}/qt/\${rDll}\")\n
-
-endforeach()\n
-
-#use the list to create the manifest\n
-configure_file(\"${CMAKE_SOURCE_DIR}/cmake/qt.manifest.in\" \"${cmakeDllPath}/qt/qt.manifest\")
-")
-
-ENDIF()

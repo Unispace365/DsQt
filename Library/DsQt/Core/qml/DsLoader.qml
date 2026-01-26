@@ -1,6 +1,6 @@
 // DsLoader.qml
 import QtQuick 2.15
-import Dsqt
+import Dsqt.Core
 
 Loader {
     property alias url: editable.source

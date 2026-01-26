@@ -1,8 +1,8 @@
-# DsQtConfig.cmake.in
+# DsqtConfig.cmake.in
 # ────────────────────────────────────────────────────────────────
 # Template file used by configure_package_config_file() in the main
-# CMakeLists.txt to generate the final DsQtConfig.cmake that gets
-# installed and used by find_package(DsQt).
+# CMakeLists.txt to generate the final DsqtConfig.cmake that gets
+# installed and used by find_package(Dsqt).
 #
 # @PACKAGE_INIT@ gets replaced with initialization code (sets PACKAGE_*
 # variables like PACKAGE_PREFIX_DIR, etc.)
@@ -13,7 +13,7 @@
 # ----------------------------------------------------------------------
 include(CMakeFindDependencyMacro)
 
-# Example: if DsQt depends on Qt6 (very common case)
+# Example: if Dsqt depends on Qt6 (very common case)
 # Uncomment/adapt as needed:
 find_dependency(Qt6
     REQUIRED COMPONENTS
@@ -25,58 +25,58 @@ find_dependency(Qt6
 )
 
 # ----------------------------------------------------------------------
-# Pull in the exported targets (DsQt::Core, DsQt::Bridge, etc.)
-# This file was created by install(EXPORT DsQtTargets ...)
+# Pull in the exported targets (Dsqt::Core, Dsqt::Bridge, etc.)
+# This file was created by install(EXPORT DsqtTargets ...)
 # ----------------------------------------------------------------------
-include("${CMAKE_CURRENT_LIST_DIR}/DsQtTargets.cmake")
+include("${CMAKE_CURRENT_LIST_DIR}/DsqtTargets.cmake")
 
 # ----------------------------------------------------------------------
 # Define the set of known/valid component names
 # These should match the library names
 # ----------------------------------------------------------------------
-set(_DsQt_known_components Core Bridge Waffles)
+set(_Dsqt_known_components Core Bridge Waffles TouchEngine)
 
 # ----------------------------------------------------------------------
-# Check requested components (from find_package(DsQt COMPONENTS ...))
+# Check requested components (from find_package(Dsqt COMPONENTS ...))
 # ----------------------------------------------------------------------
-set(_DsQt_missing "")   # We'll collect missing ones here
+set(_Dsqt_missing "")   # We'll collect missing ones here
 
-foreach(_comp IN LISTS DsQt_FIND_COMPONENTS)
+foreach(_comp IN LISTS Dsqt_FIND_COMPONENTS)
     # Unknown component → mark as not found
-    if(NOT _comp IN_LIST _DsQt_known_components)
-        set(DsQt_${_comp}_FOUND FALSE)
-        string(APPEND _DsQt_missing " ${_comp}")
+    if(NOT _comp IN_LIST _Dsqt_known_components)
+        set(Dsqt_${_comp}_FOUND FALSE)
+        string(APPEND _Dsqt_missing " ${_comp}")
         continue()
     endif()
 
     # Check if the corresponding imported target actually exists
     # (it won't if that library wasn't built/installed)
-    if(TARGET DsQt::${_comp})
-        set(DsQt_${_comp}_FOUND TRUE)
+    if(TARGET Dsqt::${_comp})
+        set(Dsqt_${_comp}_FOUND TRUE)
     else()
-        set(DsQt_${_comp}_FOUND FALSE)
-        string(APPEND _DsQt_missing " ${_comp}")
+        set(Dsqt_${_comp}_FOUND FALSE)
+        string(APPEND _Dsqt_missing " ${_comp}")
     endif()
 endforeach()
 
 # ----------------------------------------------------------------------
-# Standard CMake helper that sets DsQt_FOUND / DsQt_<comp>_FOUND
+# Standard CMake helper that sets Dsqt_FOUND / Dsqt_<comp>_FOUND
 # and prints nice messages when components are missing
 # ----------------------------------------------------------------------
 include(FindPackageHandleStandardArgs)
 
-find_package_handle_standard_args(DsQt
+find_package_handle_standard_args(Dsqt
     REQUIRED_VARS
         # No single required variable here — we rely on component checks
-    VERSION_VAR DsQt_VERSION
+    VERSION_VAR Dsqt_VERSION
     HANDLE_COMPONENTS           # ← this enables component support
 )
 
 # Optional: more visible feedback when required components are missing
 # (CMake already prints something, but this can be customized)
-if(_DsQt_missing AND DsQt_FIND_REQUIRED)
-    message(STATUS "DsQt missing required component(s):${_DsQt_missing}")
+if(_Dsqt_missing AND Dsqt_FIND_REQUIRED)
+    message(STATUS "Dsqt missing required component(s):${_Dsqt_missing}")
     # You could also message(FATAL_ERROR ...) here if you want to fail harder
 endif()
 
-# End of DsQtConfig.cmake.in
+# End of DsqtConfig.cmake.in

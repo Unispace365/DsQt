@@ -13,25 +13,12 @@ set(QML_BIN_ROOT "${CMAKE_BINARY_DIR}/Library")
 #  )
 
 if(DSQT_WITH_TOML)
-    FetchContent_Declare(
-        tomlplusplus
-        GIT_REPOSITORY https://github.com/marzer/tomlplusplus.git
-        GIT_TAG        v3.2.0
-    )
-    FetchContent_GetProperties(tomlplusplus)
-    FetchContent_MakeAvailable(tomlplusplus)
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(tomlplusplus REQUIRED IMPORTED_TARGET tomlplusplus)
 endif()
 
 if(DSQT_WITH_GLM)
-    FetchContent_Declare(
-        glm
-        GIT_REPOSITORY https://github.com/g-truc/glm.git
-        GIT_TAG        0.9.9.8
-        CONFIGURE_COMMAND ""
-        BUILD_COMMAND ""
-    )
-    FetchContent_GetProperties(glm)
-    FetchContent_MakeAvailable(glm)
+    find_package(glm CONFIG REQUIRED)
 endif()
 
 #find_package(Qt6 REQUIRED COMPONENTS Core Multimedia Quick Pdf WebEngineQuick)
@@ -40,7 +27,7 @@ qt_standard_project_setup(REQUIRES 6.9)
 add_library(Core)
 
 qt_add_qml_module(Core
-    URI DsQt.Core
+    URI Dsqt.Core
     VERSION 1.0
     OUTPUT_TARGETS CoreTargets
     QML_FILES 
@@ -111,7 +98,7 @@ qt_add_qml_module(Core
 
 set(CoreTargets ${CoreTargets} PARENT_SCOPE)
 
-target_link_libraries(Core PUBLIC Qt6::Core Qt6::Quick Qt6::Gui Qt6::Qml CorePlugin)
+target_link_libraries(Core PUBLIC Qt6::Core Qt6::Quick Qt6::Gui Qt6::Qml Coreplugin)
 #target_include_directories(Core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} bridge core model network qml resources settings ui utility)
 
 target_include_directories(Core
@@ -130,13 +117,12 @@ target_include_directories(Core
 )
 
 if(DSQT_WITH_TOML)
-    target_link_libraries(Core PUBLIC tomlplusplus::tomlplusplus)
+    target_link_libraries(Core PUBLIC PkgConfig::tomlplusplus)
     target_compile_definitions(Core PUBLIC DSQT_USE_TOML)
 endif()
 
 if(DSQT_WITH_GLM)
-
-    target_include_directories(Core PUBLIC ${glm_SOURCE_DIR})
+    target_link_libraries(Core PUBLIC glm::glm)
     target_compile_definitions(Core PUBLIC DSQT_USE_GLM GLM_ENABLE_EXPERIMENTAL)
 endif()
 
@@ -147,7 +133,7 @@ endif()
 include(GNUInstallDirs)
 
 install(TARGETS Core
-  EXPORT DsQtTargets
+  EXPORT DsqtTargets
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
   ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}

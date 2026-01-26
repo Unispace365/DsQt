@@ -13,7 +13,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(QT_FORCE_CMP0156_TO_VALUE NEW)
 
 
-#set(QML_ROOT ${CMAKE_BINARY_DIR}\\Dsqt)
+#set(QML_ROOT ${CMAKE_BINARY_DIR}\\DsQt)
 
 if(PROJECT_IS_TOP_LEVEL)
     find_package(Doxygen COMPONENTS dot)
@@ -44,19 +44,19 @@ find_package(Qt6 6.9
 
 #qt_standard_project_setup(REQUIRES 6.9)
 
-add_subdirectory("DsQt/Core")
-add_subdirectory("DsQt/Bridge")
-add_subdirectory("DsQt/Waffles")
-add_subdirectory("DsQt/TouchEngine")
+add_subdirectory("Dsqt/Core")
+add_subdirectory("Dsqt/Bridge")
+add_subdirectory("Dsqt/Waffles")
+add_subdirectory("Dsqt/TouchEngine")
 
-if(DsQt::Core::DSQT_USE_GLM)
-    message(STATUS "DsQt: GLM support enabled")
+if(Dsqt::Core::DSQT_USE_GLM)
+    message(STATUS "Dsqt: GLM support enabled")
 else()
-    message(STATUS "DsQt: GLM support disabled")
+    message(STATUS "Dsqt: GLM support disabled")
 endif()
 
-add_library(DsQt INTERFACE)
-add_library(DsQt::DsQt ALIAS DsQt)
+add_library(Dsqt INTERFACE)
+add_library(Dsqt::Dsqt ALIAS Dsqt)
 
 # target_compile_definitions(Dsqt PRIVATE GLM_ENABLE_EXPERIMENTAL)
 
@@ -64,12 +64,12 @@ add_library(DsQt::DsQt ALIAS DsQt)
 #set_target_properties(Bridge PROPERTIES FOLDER Bridge)
 #set_target_properties(Waffles PROPERTIES FOLDER Waffles)
 
-target_link_libraries(DsQt
+target_link_libraries(Dsqt
   INTERFACE
-    DsQt::Core
-    DsQt::Bridge
-    DsQt::Waffles
-    DsQt::TouchEngine
+    Dsqt::Core
+    Dsqt::Bridge
+    Dsqt::Waffles
+    Dsqt::TouchEngine
 )
 
 # FetchContent_Declare(
@@ -95,13 +95,13 @@ target_link_libraries(DsQt
 # FetchContent_MakeAvailable(glm)
 
 # ##connect glm
-# target_include_directories(Dsqt PUBLIC ${glm_SOURCE_DIR})
+# target_include_directories(DsQt PUBLIC ${glm_SOURCE_DIR})
 
 # ##connect toml++
-# target_include_directories(Dsqt PUBLIC ${tomlplusplus_SOURCE_DIR}/include)
+# target_include_directories(DsQt PUBLIC ${tomlplusplus_SOURCE_DIR}/include)
 
 
-# set_target_properties(Dsqt PROPERTIES
+# set_target_properties(DsQt PROPERTIES
 #     MACOSX_BUNDLE_GUI_IDENTIFIER my.example.com
 #     MACOSX_BUNDLE_BUNDLE_VERSION ${PROJECT_VERSION}
 #     MACOSX_BUNDLE_SHORT_VERSION_STRING ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}
@@ -109,9 +109,9 @@ target_link_libraries(DsQt
 #     WIN32_EXECUTABLE TRUE
 # )
 
-# target_compile_definitions(Dsqt
+# target_compile_definitions(DsQt
 #     PRIVATE $<$<OR:$<CONFIG:Debug>,$<CONFIG:RelWithDebInfo>>:QT_QML_DEBUG>)
-# target_link_libraries(Dsqt
+# target_link_libraries(DsQt
 #     PRIVATE
 #         Qt6::Quick
 #         Qt6::Core
@@ -123,10 +123,10 @@ target_link_libraries(DsQt
 #         Qt6::Sql
 # )
 
-# target_include_directories(Dsqt PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} ${imgui_base})
+# target_include_directories(DsQt PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} ${imgui_base})
 
 cmake_path(NATIVE_PATH CMAKE_CURRENT_SOURCE_DIR DS_QMLLINT_ROOT)
-# set_target_properties(Dsqt PROPERTIES FOLDER DsQt-Framework)
+# set_target_properties(DsQt PROPERTIES FOLDER DsQt-Framework)
 # set_target_properties(WafflesUx PROPERTIES FOLDER WafflesUx)
 # set_target_properties(TouchEngineQt PROPERTIES FOLDER TouchEngineQt)
 
@@ -147,7 +147,6 @@ if(PROJECT_IS_TOP_LEVEL)
 
     # Install the built library targets and create an export set
     install(TARGETS
-        tomlplusplus_tomlplusplus
         # Core
         ${CoreTargets}
         Coreplugin
@@ -164,8 +163,8 @@ if(PROJECT_IS_TOP_LEVEL)
         #Waffles_resources_2
         #Waffles_resources_3
 
-        # Create an export set named DsQtTargets that other projects can import
-        EXPORT DsQtTargets
+        # Create an export set named DsqtTargets that other projects can import
+        EXPORT DsqtTargets
 
         # Where to put the different kinds of files
         LIBRARY    DESTINATION ${CMAKE_INSTALL_LIBDIR}      # .so / .dylib
@@ -175,23 +174,29 @@ if(PROJECT_IS_TOP_LEVEL)
         INCLUDES   DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
     )
 
-    # Export the targets so other CMake projects can use find_package(DsQt)
-    install(EXPORT DsQtTargets
-        FILE DsQtTargets.cmake
-        NAMESPACE DsQt::                # Results in DsQt::Core, DsQt::Bridge, DsQt::Waffles, etc.
-        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/DsQt
+    # Export targets for build-tree consumption (allows find_package from build dir)
+    export(EXPORT DsqtTargets
+        FILE "${CMAKE_CURRENT_BINARY_DIR}/DsqtTargets.cmake"
+        NAMESPACE Dsqt::
+    )
+
+    # Export the targets so other CMake projects can use find_package(Dsqt) after install
+    install(EXPORT DsqtTargets
+        FILE DsqtTargets.cmake
+        NAMESPACE Dsqt::                # Results in Dsqt::Core, Dsqt::Bridge, Dsqt::Waffles, etc.
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/Dsqt
     )
 
     # Create the main Config.cmake file from our template
     configure_package_config_file(
-        "${CMAKE_CURRENT_SOURCE_DIR}/cmake/DsQtConfig.cmake.in"
-        "${CMAKE_CURRENT_BINARY_DIR}/DsQtConfig.cmake"
-        INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/DsQt
+        "${CMAKE_CURRENT_SOURCE_DIR}/cmake/DsqtConfig.cmake.in"
+        "${CMAKE_CURRENT_BINARY_DIR}/DsqtConfig.cmake"
+        INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/Dsqt
     )
 
     # Generate the version file that find_package() will check
     write_basic_package_version_file(
-        "${CMAKE_CURRENT_BINARY_DIR}/DsQtConfigVersion.cmake"
+        "${CMAKE_CURRENT_BINARY_DIR}/DsqtConfigVersion.cmake"
         VERSION       ${PROJECT_VERSION}
         COMPATIBILITY SameMajorVersion      # Accept 1.x.y but not 2.0.0
         # COMPATIBILITY AnyNewerVersion     # ← more permissive alternative
@@ -199,9 +204,9 @@ if(PROJECT_IS_TOP_LEVEL)
 
     # Install the two generated configuration files
     install(FILES
-        "${CMAKE_CURRENT_BINARY_DIR}/DsQtConfig.cmake"
-        "${CMAKE_CURRENT_BINARY_DIR}/DsQtConfigVersion.cmake"
-        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/DsQt
+        "${CMAKE_CURRENT_BINARY_DIR}/DsqtConfig.cmake"
+        "${CMAKE_CURRENT_BINARY_DIR}/DsqtConfigVersion.cmake"
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/Dsqt
     )
 
     # ----------------------------------------------------------------------
@@ -211,26 +216,26 @@ if(PROJECT_IS_TOP_LEVEL)
     if(WIN32)
         # Windows: Write to registry
         install(CODE [[
-            set(_config_dir "${CMAKE_INSTALL_PREFIX}/lib/cmake/DsQt")
+            set(_config_dir "${CMAKE_INSTALL_PREFIX}/lib/cmake/Dsqt")
             string(MD5 _hash "${_config_dir}")
             execute_process(
-                COMMAND reg add "HKEY_CURRENT_USER\\Software\\Kitware\\CMake\\Packages\\DsQt"
+                COMMAND reg add "HKEY_CURRENT_USER\\Software\\Kitware\\CMake\\Packages\\Dsqt"
                         /v "${_hash}" /t REG_SZ
                         /d "${_config_dir}"
                         /f
                 OUTPUT_QUIET ERROR_QUIET
             )
-            message(STATUS "Registered DsQt in CMake package registry: ${_config_dir}")
+            message(STATUS "Registered Dsqt in CMake package registry: ${_config_dir}")
         ]])
     else()
-        # Linux/macOS: Write file to ~/.cmake/packages/DsQt/
+        # Linux/macOS: Write file to ~/.cmake/packages/Dsqt/
         install(CODE [[
-            set(_config_dir "${CMAKE_INSTALL_PREFIX}/lib/cmake/DsQt")
-            set(_reg_dir "$ENV{HOME}/.cmake/packages/DsQt")
+            set(_config_dir "${CMAKE_INSTALL_PREFIX}/lib/cmake/Dsqt")
+            set(_reg_dir "$ENV{HOME}/.cmake/packages/Dsqt")
             file(MAKE_DIRECTORY "${_reg_dir}")
             string(MD5 _hash "${_config_dir}")
             file(WRITE "${_reg_dir}/${_hash}" "${_config_dir}")
-            message(STATUS "Registered DsQt in CMake package registry: ${_config_dir}")
+            message(STATUS "Registered Dsqt in CMake package registry: ${_config_dir}")
         ]])
     endif()
 endif()
