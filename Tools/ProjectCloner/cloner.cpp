@@ -62,10 +62,12 @@ void Cloner::clone()
 
             //get all the files in the qml/ directory and replace occurrences there too.
             QDir qmlDir(destDirectory.absoluteFilePath("qml"));
+            qDebug()<<"Processing QML files in "<<qmlDir.absolutePath();
             auto qmlFiles = qmlDir.entryInfoList(QDir::Files | QDir::NoDotAndDotDot | QDir::AllDirs | QDir::AllEntries, QDir::Name);
             for(const auto& fileInfo:qmlFiles){
                 success = success && replaceInFile(fileInfo.absoluteFilePath(),"ClonerSource",m_applicationName);
                 success = success && replaceInFile(fileInfo.absoluteFilePath(),"PROJECT_NAME_",m_projectName);
+                qDebug()<<"Processed "<<fileInfo.absoluteFilePath();
             }
 
             if(!success) {

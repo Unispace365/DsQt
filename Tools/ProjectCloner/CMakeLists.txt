@@ -22,11 +22,14 @@ qt_add_qml_module(appProjectCloner
     VERSION 1.0
     QML_FILES
         Main.qml
-        SOURCES cloner.h cloner.cpp
-        SOURCES git_ignore_checker.h git_ignore_checker.cpp
-        RESOURCES skip.txt
-        DEPENDENCIES QtQuick
-        RESOURCES images/clone1.gif images/clone2.gif images/clone3.gif images/clone4.gif images/error.gif
+        ConsoleOutputView.qml
+    SOURCES
+        cloner.h cloner.cpp
+        git_ignore_checker.h git_ignore_checker.cpp
+        consoleoutput.h consoleoutput.cpp
+    RESOURCES skip.txt
+    DEPENDENCIES QtQuick
+    RESOURCES images/clone1.gif images/clone2.gif images/clone3.gif images/clone4.gif images/error.gif
 )
 
 configure_file("${CMAKE_SOURCE_DIR}/skip.txt" "${CMAKE_BINARY_DIR}/skip.txt" COPYONLY)

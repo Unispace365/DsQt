@@ -26,5 +26,6 @@ int main(int argc, char *argv[])
     engine.loadFromModule("ProjectCloner", "Main");
 
     QObject::connect(&engine, &QQmlApplicationEngine::quit, &QGuiApplication::quit);
+    qInfo()<<"Started Cloaner Tool";
     return app.exec();
 }
