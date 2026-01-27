@@ -236,28 +236,16 @@ set_target_properties(TouchEngine PROPERTIES
 )
 
 # ----------------------------------------------------------------------
-# Installation rules
+# Installation rules (headers and SDK DLL only - target install is in main CMakeLists.txt)
 # ----------------------------------------------------------------------
 
-install(TARGETS TouchEngine
-    EXPORT DsqtTargets
-    BUNDLE DESTINATION . # For macOS bundles
-    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-) # For other platforms
-
-# qt_generate_deploy_qml_app_script(
-#     TARGET TouchEngine
-#     OUTPUT_SCRIPT deploy_script
-#     NO_UNSUPPORTED_PLATFORM_ERROR
-#     DEPLOY_USER_QML_MODULES_ON_UNSUPPORTED_PLATFORM
-# )
-
-# install(SCRIPT ${deploy_script})
-
+# Install TouchEngine SDK files (DLL and import lib)
 install(FILES "${TOUCHENGINE_BIN_DIR}/TouchEngine.dll"
     DESTINATION ${CMAKE_INSTALL_BINDIR}
+)
+install(FILES "${TOUCHENGINE_LIB_DIR}/TouchEngine.lib"
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    RENAME TouchEngineSDK.lib
 )
 
 # Install public header files

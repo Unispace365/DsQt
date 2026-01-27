@@ -12,8 +12,8 @@
       "inherits": "vcpkg-base",
       "cacheVariables": {
         "CMAKE_PREFIX_PATH": "C:/Qt/6.10.0/msvc2022_64",
-        "Dsqt_DIR": "$env{DS_QT_PLATFORM_100}/Library/build/vs2022-6.10.0",
-        "DSQT_QML_DIR": "$env{DS_QT_PLATFORM_100}/Library/build/vs2022-6.10.0"
+        "Dsqt_DIRx": "$env{DS_QT_PLATFORM_100}/Library/build/vs2022-6.10.0",
+        "DSQT_QML_DIRx": "$env{DS_QT_PLATFORM_100}/Library/build/vs2022-6.10.0"
       }
     },
     {
@@ -22,8 +22,8 @@
       "inherits": "vcpkg-base",
       "cacheVariables": {
         "CMAKE_PREFIX_PATH": "C:/Qt/6.10.1/msvc2022_64",
-        "Dsqt_DIR": "$env{DS_QT_PLATFORM_100}/Library/build/vs2022-6.10.1",
-        "DSQT_QML_DIR": "$env{DS_QT_PLATFORM_100}/Library/build/vs2022-6.10.1"
+        "Dsqt_DIRx": "$env{DS_QT_PLATFORM_100}/Library/build/vs2022-6.10.1",
+        "DSQT_QML_DIRx": "$env{DS_QT_PLATFORM_100}/Library/build/vs2022-6.10.1"
       }
     },
     {

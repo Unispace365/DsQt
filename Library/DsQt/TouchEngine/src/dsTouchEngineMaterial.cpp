@@ -52,9 +52,14 @@ void DsTouchEngineMaterial::setMipmapFiltering(QSGTexture::Filtering filtering)
 // DsTouchEngineMaterialShader implementation
 DsTouchEngineMaterialShader::DsTouchEngineMaterialShader()
 {
-    // Load pre-compiled .qsb shader files
-    setShaderFileName(VertexStage, QStringLiteral(":/resources/shaders/texture.vert.qsb"));
-    setShaderFileName(FragmentStage, QStringLiteral(":/resources/shaders/texture.frag.qsb"));
+    // Ensure shader resources are initialized (needed for static library linking)
+    Q_INIT_RESOURCE(shaders);
+
+    // Load pre-compiled .qsb shader files from the QML module's resource namespace
+    setShaderFileName(VertexStage,
+                      QStringLiteral(":/resources/shaders/texture.vert.qsb"));
+    setShaderFileName(FragmentStage,
+                      QStringLiteral(":/resources/shaders/texture.frag.qsb"));
 }
 
 bool DsTouchEngineMaterialShader::updateUniformData(RenderState& state,

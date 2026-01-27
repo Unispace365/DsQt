@@ -1,5 +1,5 @@
 import QtQuick
-import Dsqt
+import Dsqt.Waffles
 import QtQuick.Layouts
 import QtQuick.Effects
 import QtQuick.VectorImage

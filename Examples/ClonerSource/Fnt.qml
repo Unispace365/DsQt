@@ -1,6 +1,6 @@
 pragma Singleton
 import QtQuick
-import Dsqt
+import Dsqt.Core
 
 Item {
 

@@ -2,7 +2,9 @@
 #include <QQuickStyle>
 // #include <QtWebEngineQuick/QtWebEngineQuick>  // Uncomment if QtWebEngineQuick::initialize() is needed
 #include <QIcon>
+#include <QtQml/qqmlextensionplugin.h>
 #include <dsBridgeQuery.h>
+
 #include <dsEnvironment.h>
 #include <dsGuiApplication.h>
 #include <dsNodeWatcher.h>
@@ -14,6 +16,12 @@
 #include "dsQmlTouchEngineManager.h"
 #include "dsQmlTouchEngineInstance.h"
 #include "dsQmlTouchEngineTextureOutputView.h"
+
+// Import statically linked Dsqt QML plugins
+Q_IMPORT_QML_PLUGIN(Dsqt_CorePlugin)
+Q_IMPORT_QML_PLUGIN(Dsqt_BridgePlugin)
+Q_IMPORT_QML_PLUGIN(Dsqt_TouchEnginePlugin)
+Q_IMPORT_QML_PLUGIN(Dsqt_WafflesPlugin)
 
 //activate high performance graphics on windows laptops with dual graphics cards
 #ifdef Q_OS_WIN

@@ -22,6 +22,8 @@ qt_standard_project_setup(REQUIRES 6.9)
 # Note: Using build directory instead of installed package due to Qt QML module export complexity
 find_package(Dsqt REQUIRED COMPONENTS Core Bridge Waffles TouchEngine)
 
+message("DSQT is at ${Dsqt_DIR}")
+
 #set qml import path. This is used by Qt Creator to find the QML files.
 set(QML_TMP_PATH
      "${CMAKE_SOURCE_DIR};${CMAKE_SOURCE_DIR}/qml;${QML_IMPORT_PATH}"
@@ -46,14 +48,12 @@ qt_add_resources(${DS_EXE_NAME} "icon" FILES newds.ico)
 #make Fnt.qml a singleton
 set_source_files_properties(Fnt.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
 
-# Get Dsqt QML import path
-# Use DS_QT_PLATFORM_100 environment variable which points to Dsqt root
-file(TO_CMAKE_PATH "$ENV{DS_QT_PLATFORM_100}" _dsqt_root)
+# Get Dsqt QML import path from the installed package
+# DSQT_QML_IMPORT_PATH is set by DsqtConfig.cmake
+message(STATUS "DSQT_QML_IMPORT_PATH: ${DSQT_QML_IMPORT_PATH}")
 
-# DSQT_QML_DIR: Path to Dsqt's built QML modules (set this to your Dsqt build directory)
-# Example: C:/dev/DsQt/Library/build/vs2022-6.10.1
-set(DSQT_QML_DIR "${_dsqt_root}/Library/build/vs2022-6.10.1" CACHE PATH "Path to Dsqt QML modules build directory")
-message(STATUS "DSQT_QML_DIR: ${DSQT_QML_DIR}")
+# Also get _dsqt_root for TouchEngine SDK DLL
+file(TO_CMAKE_PATH "$ENV{DS_QT_PLATFORM_100}" _dsqt_root)
 
 qt_add_qml_module(${DS_EXE_NAME}
     URI ${DS_APP_NAME}
@@ -65,7 +65,7 @@ qt_add_qml_module(${DS_EXE_NAME}
         qml/CustomClock.qml
         qml/TouchDesigner.qml
 
-    IMPORT_PATH "${DSQT_QML_DIR}"
+    IMPORT_PATH "${DSQT_QML_IMPORT_PATH}"
     DEPENDENCIES
         Dsqt::Core
         Dsqt::Bridge
@@ -165,6 +165,16 @@ install(DIRECTORY "data/" DESTINATION ${CMAKE_INSTALL_BINDIR}/data OPTIONAL)
 # Install TouchEngine.dll to the deploy directory
 if(WIN32 AND EXISTS "${TOUCHENGINE_DLL}")
     install(FILES "${TOUCHENGINE_DLL}" DESTINATION ${CMAKE_INSTALL_BINDIR})
+endif()
+
+# Install vcpkg runtime dependencies (tomlplusplus, etc.)
+# vcpkg in manifest mode installs DLLs to vcpkg_installed/x64-windows/bin
+if(WIN32)
+    # Install all DLLs from vcpkg manifest installation
+    file(GLOB VCPKG_RUNTIME_DLLS "${CMAKE_BINARY_DIR}/vcpkg_installed/x64-windows/bin/*.dll")
+    if(VCPKG_RUNTIME_DLLS)
+        install(FILES ${VCPKG_RUNTIME_DLLS} DESTINATION ${CMAKE_INSTALL_BINDIR})
+    endif()
 endif()
 
 qt_generate_deploy_qml_app_script(

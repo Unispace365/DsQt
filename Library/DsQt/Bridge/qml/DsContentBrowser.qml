@@ -5,6 +5,7 @@ import QtQuick.Effects
 import QtQuick.Layouts
 import QtMultimedia
 import Dsqt.Core
+import Dsqt.Bridge
 
 Window {
     width: 1500

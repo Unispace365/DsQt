@@ -4,14 +4,6 @@ cmake_minimum_required(VERSION 3.29)
 option(DSQT_WITH_TOML "Enable tomlplusplus support" ON)
 option(DSQT_WITH_GLM "Enable GML math library support" OFF)
 
-set(QML_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
-set(QML_BIN_ROOT "${CMAKE_BINARY_DIR}/Library")
-# set(QML_IMPORT_PATH
-
-#      "${QML_ROOT};${QML_ROOT}/qml;${QML_ROOT}/qml/waffles;${QML_ROOT}/qml/bridge;${QML_BIN_ROOT};${QML_BIN_ROOT}/qml;${QML_BIN_ROOT}/qml/waffles;${QML_BIN_ROOT}/qml/bridge"
-#      CACHE PATH "QT creator qml import path" FORCE
-#  )
-
 find_package(Qt6 6.9
     REQUIRED COMPONENTS 
         Concurrent
@@ -38,8 +30,8 @@ qt_add_qml_module(Bridge
     URI Dsqt.Bridge
     OUTPUT_TARGETS BridgeTargets
     VERSION 1.0
-    QML_FILES 
-        #currently no qml files
+    QML_FILES
+        qml/DsContentBrowser.qml
 
     SOURCES
         bridge/dsQmlBridge.h bridge/dsQmlBridge.cpp
@@ -84,17 +76,10 @@ target_include_directories(Bridge
 
 
 # ----------------------------------------------------------------------
-# Installation rules
+# Installation rules (headers only - target install is in main CMakeLists.txt)
 # ----------------------------------
 
 include(GNUInstallDirs)
-
-install(TARGETS Bridge
-  EXPORT DsqtTargets
-  RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-  ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-)
 
 # Install public header files
 install(DIRECTORY .

@@ -1,5 +1,5 @@
 import QtQuick
-import TouchEngineQt
+import Dsqt.TouchEngine
 
 /*
  * DsTouchEngineTextureView - QML wrapper component for texture output

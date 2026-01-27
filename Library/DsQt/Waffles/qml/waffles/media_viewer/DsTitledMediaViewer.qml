@@ -1,6 +1,7 @@
 import QtQuick 2.15
 import QtMultimedia
-import Dsqt
+import Dsqt.Core
+import Dsqt.Waffles
 
 DsViewer {
     id: root

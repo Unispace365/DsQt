@@ -1,16 +1,6 @@
 
 cmake_minimum_required(VERSION 3.29)
 
-
-
-set(QML_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
-set(QML_BIN_ROOT "${CMAKE_BINARY_DIR}/Library")
-# set(QML_IMPORT_PATH
-
-#      "${QML_ROOT};${QML_ROOT}/qml;${QML_ROOT}/qml/waffles;${QML_ROOT}/qml/bridge;${QML_BIN_ROOT};${QML_BIN_ROOT}/qml;${QML_BIN_ROOT}/qml/waffles;${QML_BIN_ROOT}/qml/bridge"
-#      CACHE PATH "QT creator qml import path" FORCE
-#  )
-
 #find_package(Qt6 REQUIRED COMPONENTS Core Multimedia Quick Pdf WebEngineQuick)
 find_package(Qt6 6.9
     REQUIRED COMPONENTS
@@ -65,17 +55,10 @@ target_include_directories(Waffles
 )
 
 # ----------------------------------------------------------------------
-# Installation rules
+# Installation rules (headers only - target install is in main CMakeLists.txt)
 # ----------------------------------
 
 include(GNUInstallDirs)
-
-install(TARGETS Waffles
-  EXPORT DsqtTargets
-  RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-  ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-)
 
 # Install public header files
 install(DIRECTORY .

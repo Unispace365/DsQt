@@ -1,6 +1,6 @@
 import QtQuick
 import QtQuick.Controls
-import Dsqt
+import Dsqt.Core
 
 Window {
     property alias file: log.file

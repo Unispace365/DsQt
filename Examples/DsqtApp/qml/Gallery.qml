@@ -3,7 +3,7 @@ import QtQuick
 import QtQuick.VectorImage
 import QtQuick.Controls
 import QtQuick.Layouts
-import Dsqt
+import Dsqt.Core
 
 Item {
     id:root

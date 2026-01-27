@@ -11,7 +11,8 @@
       "hidden": true,
       "inherits": "vcpkg-base",
       "cacheVariables": {
-        "CMAKE_PREFIX_PATH": "C:/Qt/6.10.0/msvc2022_64"
+        "CMAKE_PREFIX_PATH": "C:/Qt/6.10.0/msvc2022_64",
+        "CMAKE_INSTALL_PREFIX": "$env{USERPROFILE}/Documents/DsQt"
       }
     },
     {
@@ -19,7 +20,8 @@
       "hidden": true,
       "inherits": "vcpkg-base",
       "cacheVariables": {
-        "CMAKE_PREFIX_PATH": "C:/Qt/6.10.1/msvc2022_64"
+        "CMAKE_PREFIX_PATH": "C:/Qt/6.10.1/msvc2022_64",
+        "CMAKE_INSTALL_PREFIX": "$env{USERPROFILE}/Documents/DsQt"
       }
     },
     {

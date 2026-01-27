@@ -148,6 +148,13 @@ ApplicationWindow {
 
     /// Setup the window after construction.
     Component.onCompleted: {
+        // Load content browser component dynamically from Bridge module.
+        contentViewerComponent = Qt.createComponent("qrc:/qt/qml/Dsqt/Bridge/qml/DsContentBrowser.qml")
+        if (contentViewerComponent.status === Component.Error) {
+            console.warn("DsAppBase: Bridge module not available - content browser disabled")
+            contentViewerComponent = null
+        }
+
         // Adjust position and size based on specified mode.
         if(_.mode === "desktop") { spanDesktop() }
         else if(_.mode === "display") { spanDisplay() }
@@ -183,7 +190,7 @@ ApplicationWindow {
         visible: false
 
         property DsTextFileViewer bridgeSyncLogWindow: null
-        property DsContentBrowser contentBrowser: null
+        property var contentBrowser: null
         onLogsBridgeSyncTriggered: (isChecked) => {
                                        if(bridgeSyncLogWindow === null) {
                                            bridgeSyncLogWindow = bridgeSyncLog.createObject(window)
@@ -192,8 +199,12 @@ ApplicationWindow {
                                        bridgeSyncLogWindow.visible = isChecked
                                    }
         onContentBrowseToggled: (isChecked) => {
+                                    if (contentViewerComponent === null) {
+                                        console.warn("Content browser not available")
+                                        return
+                                    }
                                     if(contentBrowser === null) {
-                                        contentBrowser = contentViewer.createObject(window)
+                                        contentBrowser = contentViewerComponent.createObject(window)
                                         contentBrowser.closing.connect( () => { windowMenuBar.contentBrowseChecked = false } )
                                     }
                                     contentBrowser.visible = isChecked
@@ -212,12 +223,8 @@ ApplicationWindow {
         }
     }
 
-    /// Content browser.
-    Component {
-        id: contentViewer
-        DsContentBrowser {
-        }
-    }
+    /// Content browser component (loaded dynamically from Bridge module)
+    property Component contentViewerComponent: null
 
     /// TODO AppHost log viewer.
 }

@@ -12,8 +12,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(QT_FORCE_CMP0156_TO_VALUE NEW)
 
-
-#set(QML_ROOT ${CMAKE_BINARY_DIR}\\DsQt)
+# Consolidate all QML module output into a single directory structure
+set(QT_QML_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/qml")
 
 if(PROJECT_IS_TOP_LEVEL)
     find_package(Doxygen COMPONENTS dot)
@@ -145,49 +145,80 @@ if(PROJECT_IS_TOP_LEVEL)
     include(GNUInstallDirs)
     include(CMakePackageConfigHelpers)
 
-    # Install the built library targets and create an export set
+    # Install the built library targets
+    # Note: Qt's qt_add_qml_module creates internal OBJECT library targets that
+    # cannot be exported. We install the libraries without export and create
+    # imported targets manually in DsqtConfig.cmake.
     install(TARGETS
-        # Core
-        ${CoreTargets}
+        Core
         Coreplugin
-        # Bridge
-        ${BridgeTargets}
+        Bridge
         Bridgeplugin
-        # Waffles
-        ${WafflesTargets}
+        Waffles
         Wafflesplugin
-        # TouchEngine
-        ${TouchEngineTargets}
+        TouchEngine
         TouchEngineplugin
-        #Waffles_resources_1
-        #Waffles_resources_2
-        #Waffles_resources_3
-
-        # Create an export set named DsqtTargets that other projects can import
-        EXPORT DsqtTargets
 
         # Where to put the different kinds of files
         LIBRARY    DESTINATION ${CMAKE_INSTALL_LIBDIR}      # .so / .dylib
         ARCHIVE    DESTINATION ${CMAKE_INSTALL_LIBDIR}      # .a / .lib
         RUNTIME    DESTINATION ${CMAKE_INSTALL_BINDIR}      # .dll / executables
-        # Tell consumers where to find the headers
-        INCLUDES   DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
     )
 
-    # Export targets for build-tree consumption (allows find_package from build dir)
-    export(EXPORT DsqtTargets
-        FILE "${CMAKE_CURRENT_BINARY_DIR}/DsqtTargets.cmake"
-        NAMESPACE Dsqt::
+    # ----------------------------------------------------------------------
+    # Install QML modules (qmldir, qmltypes, plugins)
+    # Standard Qt location: ${prefix}/qml/Module/Name/
+    # ----------------------------------------------------------------------
+
+    # Install QML module metadata files (qmldir and qmltypes) for each module
+    install(FILES
+        "${QT_QML_OUTPUT_DIRECTORY}/Dsqt/Core/qmldir"
+        "${QT_QML_OUTPUT_DIRECTORY}/Dsqt/Core/Core.qmltypes"
+        DESTINATION "qml/Dsqt/Core"
+    )
+    install(FILES
+        "${QT_QML_OUTPUT_DIRECTORY}/Dsqt/Bridge/qmldir"
+        "${QT_QML_OUTPUT_DIRECTORY}/Dsqt/Bridge/Bridge.qmltypes"
+        DESTINATION "qml/Dsqt/Bridge"
+    )
+    install(FILES
+        "${QT_QML_OUTPUT_DIRECTORY}/Dsqt/Waffles/qmldir"
+        "${QT_QML_OUTPUT_DIRECTORY}/Dsqt/Waffles/Waffles.qmltypes"
+        DESTINATION "qml/Dsqt/Waffles"
+    )
+    install(FILES
+        "${QT_QML_OUTPUT_DIRECTORY}/Dsqt/TouchEngine/qmldir"
+        "${QT_QML_OUTPUT_DIRECTORY}/Dsqt/TouchEngine/TouchEngine.qmltypes"
+        DESTINATION "qml/Dsqt/TouchEngine"
     )
 
-    # Export the targets so other CMake projects can use find_package(Dsqt) after install
-    install(EXPORT DsqtTargets
-        FILE DsqtTargets.cmake
-        NAMESPACE Dsqt::                # Results in Dsqt::Core, Dsqt::Bridge, Dsqt::Waffles, etc.
-        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/Dsqt
+    # Install QML source files for each module
+    # These are needed by qmlimportscanner which looks for files referenced in qmldir
+    install(DIRECTORY "${QT_QML_OUTPUT_DIRECTORY}/Dsqt/Core/qml"
+        DESTINATION "qml/Dsqt/Core"
+        OPTIONAL
+        FILES_MATCHING PATTERN "*.qml"
+    )
+    install(DIRECTORY "${QT_QML_OUTPUT_DIRECTORY}/Dsqt/Bridge/qml"
+        DESTINATION "qml/Dsqt/Bridge"
+        OPTIONAL
+        FILES_MATCHING PATTERN "*.qml"
+    )
+    install(DIRECTORY "${QT_QML_OUTPUT_DIRECTORY}/Dsqt/Waffles/qml"
+        DESTINATION "qml/Dsqt/Waffles"
+        OPTIONAL
+        FILES_MATCHING PATTERN "*.qml"
+    )
+    install(DIRECTORY "${QT_QML_OUTPUT_DIRECTORY}/Dsqt/TouchEngine/qml"
+        DESTINATION "qml/Dsqt/TouchEngine"
+        OPTIONAL
+        FILES_MATCHING PATTERN "*.qml"
     )
 
     # Create the main Config.cmake file from our template
+    # Note: We don't use CMake's export() mechanism because Qt's qt_add_qml_module
+    # creates internal OBJECT library dependencies that can't be exported.
+    # Instead, DsqtConfig.cmake.in creates imported targets manually.
     configure_package_config_file(
         "${CMAKE_CURRENT_SOURCE_DIR}/cmake/DsqtConfig.cmake.in"
         "${CMAKE_CURRENT_BINARY_DIR}/DsqtConfig.cmake"

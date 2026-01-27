@@ -2,7 +2,7 @@ pragma ComponentBehavior: Bound
 import QtQuick 2.15
 import QtQuick.Controls
 import QtQuick.Layouts
-import Dsqt
+import Dsqt.Waffles
 
 DsViewer {
     id: root
