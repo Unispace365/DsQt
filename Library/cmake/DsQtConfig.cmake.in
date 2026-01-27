@@ -25,17 +25,24 @@ find_dependency(Qt6
 )
 
 # ----------------------------------------------------------------------
-# Compute installation paths
+# Compute installation paths (public variables for consumers)
 # ----------------------------------------------------------------------
-get_filename_component(_DSQT_INSTALL_PREFIX "${CMAKE_CURRENT_LIST_DIR}/../../.." ABSOLUTE)
-set(_DSQT_LIB_DIR "${_DSQT_INSTALL_PREFIX}/lib")
-set(_DSQT_INCLUDE_DIR "${_DSQT_INSTALL_PREFIX}/include")
-set(_DSQT_BIN_DIR "${_DSQT_INSTALL_PREFIX}/bin")
+get_filename_component(DSQT_INSTALL_PREFIX "${CMAKE_CURRENT_LIST_DIR}/../../.." ABSOLUTE)
+set(DSQT_LIB_DIR "${DSQT_INSTALL_PREFIX}/lib")
+set(DSQT_INCLUDE_DIR "${DSQT_INSTALL_PREFIX}/include")
+set(DSQT_BIN_DIR "${DSQT_INSTALL_PREFIX}/bin")
+set(DSQT_QML_DIR "${DSQT_INSTALL_PREFIX}/qml")
+
+# Legacy internal names (for backwards compatibility within this file)
+set(_DSQT_INSTALL_PREFIX "${DSQT_INSTALL_PREFIX}")
+set(_DSQT_LIB_DIR "${DSQT_LIB_DIR}")
+set(_DSQT_INCLUDE_DIR "${DSQT_INCLUDE_DIR}")
+set(_DSQT_BIN_DIR "${DSQT_BIN_DIR}")
 
 # ----------------------------------------------------------------------
 # Set QML import path for consumers
 # ----------------------------------------------------------------------
-set(DSQT_QML_IMPORT_PATH "${_DSQT_INSTALL_PREFIX}/qml" CACHE PATH "Dsqt QML import path")
+set(DSQT_QML_IMPORT_PATH "${DSQT_QML_DIR}" CACHE PATH "Dsqt QML import path")
 
 if(NOT "${DSQT_QML_IMPORT_PATH}" IN_LIST QML_IMPORT_PATH)
     list(APPEND QML_IMPORT_PATH "${DSQT_QML_IMPORT_PATH}")

@@ -30,7 +30,8 @@ paths = [
 #reload path to data. this is disabled for now.
 prefixes = [
   {from = "qrc:/qt/qml/ClonerSource/", to = "file:///%APP%/"},
-  {from = "qrc:/qt/qml/Dsqt/", to = "file:///%ENV%(DS_QT_PLATFORM_100)/Library/Dsqt"},
+  # Dsqt QML hot-reload: only needed if developing Dsqt itself
+  # {from = "qrc:/qt/qml/Dsqt/", to = "file:///%DSQT_QML_DIR%"},
 ]
 
 [engine.window]

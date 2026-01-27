@@ -18,8 +18,7 @@ set(QT_QML_GENERATE_QMLLS_INI ON)
 find_package(Qt6 6.9 REQUIRED COMPONENTS Core Quick QuickControls2 Multimedia Gui GuiPrivate ShaderTools Concurrent Sql Pdf WebEngineQuick)
 qt_standard_project_setup(REQUIRES 6.9)
 
-# Find Dsqt from its build directory (Dsqt_DIR set via CMakePresets.json)
-# Note: Using build directory instead of installed package due to Qt QML module export complexity
+# Find Dsqt from installed package (CMAKE_PREFIX_PATH set via CMakePresets.json)
 find_package(Dsqt REQUIRED COMPONENTS Core Bridge Waffles TouchEngine)
 
 message("DSQT is at ${Dsqt_DIR}")
@@ -48,12 +47,9 @@ qt_add_resources(${DS_EXE_NAME} "icon" FILES newds.ico)
 #make Fnt.qml a singleton
 set_source_files_properties(Fnt.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
 
-# Get Dsqt QML import path from the installed package
-# DSQT_QML_IMPORT_PATH is set by DsqtConfig.cmake
+# Get Dsqt paths from the installed package (set by DsqtConfig.cmake)
+message(STATUS "DSQT_INSTALL_PREFIX: ${DSQT_INSTALL_PREFIX}")
 message(STATUS "DSQT_QML_IMPORT_PATH: ${DSQT_QML_IMPORT_PATH}")
-
-# Also get _dsqt_root for TouchEngine SDK DLL
-file(TO_CMAKE_PATH "$ENV{DS_QT_PLATFORM_100}" _dsqt_root)
 
 qt_add_qml_module(${DS_EXE_NAME}
     URI ${DS_APP_NAME}
@@ -140,8 +136,8 @@ target_link_libraries(${DS_EXE_NAME}
 message("HEADERS ${Dsqt_INCLUDES}")
 include(GNUInstallDirs)
 
-# TouchEngine SDK DLL location
-set(TOUCHENGINE_DLL "${_dsqt_root}/Library/Dsqt/TouchEngine/TouchEngine/bin/TouchEngine.dll")
+# TouchEngine SDK DLL location (from installed package)
+set(TOUCHENGINE_DLL "${DSQT_BIN_DIR}/TouchEngine.dll")
 
 # Copy TouchEngine.dll next to the executable during build
 if(WIN32 AND EXISTS "${TOUCHENGINE_DLL}")

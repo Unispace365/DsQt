@@ -1,0 +1,63 @@
+{
+  "version": 6,
+  "configurePresets": [
+    {
+      "name": "qt-6.10.0",
+      "hidden": true,
+      "cacheVariables": {
+        "CMAKE_PREFIX_PATH": "C:/Qt/6.10.0/msvc2022_64",
+        "CMAKE_INSTALL_PREFIX": "$env{DS_QT_PLATFORM_100}/Tools/deploy/ProjectCloner"
+      }
+    },
+    {
+      "name": "qt-6.10.1",
+      "hidden": true,
+      "cacheVariables": {
+        "CMAKE_PREFIX_PATH": "C:/Qt/6.10.1/msvc2022_64",
+        "CMAKE_INSTALL_PREFIX": "$env{DS_QT_PLATFORM_100}/Tools/deploy/ProjectCloner"
+      }
+    },
+    {
+      "name": "vs2022-6.10.0",
+      "displayName": "VS2022 x64 - Qt 6.10.0",
+      "inherits": "qt-6.10.0",
+      "generator": "Visual Studio 17 2022",
+      "architecture": "x64",
+      "binaryDir": "${sourceDir}/build/vs2022-6.10.0"
+    },
+    {
+      "name": "vs2022-6.10.1",
+      "displayName": "VS2022 x64 - Qt 6.10.1",
+      "inherits": "qt-6.10.1",
+      "generator": "Visual Studio 17 2022",
+      "architecture": "x64",
+      "binaryDir": "${sourceDir}/build/vs2022-6.10.1"
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "vs2022-6.10.0-debug",
+      "displayName": "Debug",
+      "configurePreset": "vs2022-6.10.0",
+      "configuration": "Debug"
+    },
+    {
+      "name": "vs2022-6.10.0-release",
+      "displayName": "Release",
+      "configurePreset": "vs2022-6.10.0",
+      "configuration": "Release"
+    },
+    {
+      "name": "vs2022-6.10.1-debug",
+      "displayName": "Debug",
+      "configurePreset": "vs2022-6.10.1",
+      "configuration": "Debug"
+    },
+    {
+      "name": "vs2022-6.10.1-release",
+      "displayName": "Release",
+      "configurePreset": "vs2022-6.10.1",
+      "configuration": "Release"
+    }
+  ]
+}
