@@ -54,17 +54,21 @@ endif()
 # (We can't use CMake's export mechanism due to Qt's internal OBJECT libraries)
 # ----------------------------------------------------------------------
 
-# Helper macro to create an imported static library
+# Helper macro to create an imported static library with per-config locations.
+# Libraries are installed under lib/Debug/, lib/Release/, etc.
 macro(_dsqt_create_imported_target _name)
     if(NOT TARGET Dsqt::${_name})
         add_library(Dsqt::${_name} STATIC IMPORTED)
         set_target_properties(Dsqt::${_name} PROPERTIES
-            IMPORTED_LOCATION "${_DSQT_LIB_DIR}/${_name}.lib"
+            IMPORTED_LOCATION_DEBUG          "${_DSQT_LIB_DIR}/Debug/${_name}.lib"
+            IMPORTED_LOCATION_RELEASE        "${_DSQT_LIB_DIR}/Release/${_name}.lib"
+            IMPORTED_LOCATION_RELWITHDEBINFO "${_DSQT_LIB_DIR}/RelWithDebInfo/${_name}.lib"
+            MAP_IMPORTED_CONFIG_MINSIZEREL   Release
         )
     endif()
 endmacro()
 
-# Helper macro to create an imported plugin target
+# Helper macro to create an imported plugin target with per-config locations.
 # Creates both namespaced (Dsqt::Coreplugin) and non-namespaced (Coreplugin) targets.
 # The non-namespaced target is needed because Qt's qt6_import_qml_plugins() looks for
 # the linktarget name from qmldir without namespace prefix.
@@ -73,14 +77,20 @@ macro(_dsqt_create_plugin_target _name)
     if(NOT TARGET Dsqt::${_name}plugin)
         add_library(Dsqt::${_name}plugin STATIC IMPORTED)
         set_target_properties(Dsqt::${_name}plugin PROPERTIES
-            IMPORTED_LOCATION "${_DSQT_LIB_DIR}/${_name}plugin.lib"
+            IMPORTED_LOCATION_DEBUG          "${_DSQT_LIB_DIR}/Debug/${_name}plugin.lib"
+            IMPORTED_LOCATION_RELEASE        "${_DSQT_LIB_DIR}/Release/${_name}plugin.lib"
+            IMPORTED_LOCATION_RELWITHDEBINFO "${_DSQT_LIB_DIR}/RelWithDebInfo/${_name}plugin.lib"
+            MAP_IMPORTED_CONFIG_MINSIZEREL   Release
         )
     endif()
     # Create non-namespaced target (Coreplugin) for Qt's qmlimportscanner
     if(NOT TARGET ${_name}plugin)
         add_library(${_name}plugin STATIC IMPORTED)
         set_target_properties(${_name}plugin PROPERTIES
-            IMPORTED_LOCATION "${_DSQT_LIB_DIR}/${_name}plugin.lib"
+            IMPORTED_LOCATION_DEBUG          "${_DSQT_LIB_DIR}/Debug/${_name}plugin.lib"
+            IMPORTED_LOCATION_RELEASE        "${_DSQT_LIB_DIR}/Release/${_name}plugin.lib"
+            IMPORTED_LOCATION_RELWITHDEBINFO "${_DSQT_LIB_DIR}/RelWithDebInfo/${_name}plugin.lib"
+            MAP_IMPORTED_CONFIG_MINSIZEREL   Release
         )
     endif()
 endmacro()
@@ -116,8 +126,13 @@ _dsqt_create_plugin_target(TouchEngine)
 if(NOT TARGET Dsqt::TouchEngineSDK)
     add_library(Dsqt::TouchEngineSDK SHARED IMPORTED)
     set_target_properties(Dsqt::TouchEngineSDK PROPERTIES
-        IMPORTED_LOCATION "${_DSQT_BIN_DIR}/TouchEngine.dll"
-        IMPORTED_IMPLIB "${_DSQT_LIB_DIR}/TouchEngineSDK.lib"
+        IMPORTED_LOCATION_DEBUG          "${_DSQT_BIN_DIR}/Debug/TouchEngine.dll"
+        IMPORTED_IMPLIB_DEBUG            "${_DSQT_LIB_DIR}/Debug/TouchEngineSDK.lib"
+        IMPORTED_LOCATION_RELEASE        "${_DSQT_BIN_DIR}/Release/TouchEngine.dll"
+        IMPORTED_IMPLIB_RELEASE          "${_DSQT_LIB_DIR}/Release/TouchEngineSDK.lib"
+        IMPORTED_LOCATION_RELWITHDEBINFO "${_DSQT_BIN_DIR}/RelWithDebInfo/TouchEngine.dll"
+        IMPORTED_IMPLIB_RELWITHDEBINFO   "${_DSQT_LIB_DIR}/RelWithDebInfo/TouchEngineSDK.lib"
+        MAP_IMPORTED_CONFIG_MINSIZEREL   Release
     )
 endif()
 

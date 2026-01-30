@@ -4,12 +4,16 @@ include(FetchContent)
 #project info
 set(DS_APP_NAME ClonerSource)
 set(DS_EXE_NAME app${DS_APP_NAME})
-set(DS_APP_VERSION "1.0.0.0")
 set(DS_PROJECT_NAME "PROJECT_NAME_")
 set(DS_PROJECT_DESC "PROJECT_DESC_")
 
+# Read version from VERSION.txt (source of truth)
+file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/VERSION.txt" DS_VERSION_STRING LIMIT_COUNT 1)
+string(STRIP "${DS_VERSION_STRING}" DS_VERSION_STRING)
+set(DS_APP_VERSION "${DS_VERSION_STRING}.0")
+
 #define the project
-project(${DS_APP_NAME} VERSION 0.1 LANGUAGES CXX)
+project(${DS_APP_NAME} VERSION ${DS_VERSION_STRING} LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_INSTALL_PREFIX "${CMAKE_BINARY_DIR}/DEPLOY/")
@@ -136,11 +140,11 @@ target_link_libraries(${DS_EXE_NAME}
 message("HEADERS ${Dsqt_INCLUDES}")
 include(GNUInstallDirs)
 
-# TouchEngine SDK DLL location (from installed package)
-set(TOUCHENGINE_DLL "${DSQT_BIN_DIR}/TouchEngine.dll")
+# TouchEngine SDK DLL location (from installed package, config-specific subdirectory)
+set(TOUCHENGINE_DLL "${DSQT_BIN_DIR}/$<CONFIG>/TouchEngine.dll")
 
 # Copy TouchEngine.dll next to the executable during build
-if(WIN32 AND EXISTS "${TOUCHENGINE_DLL}")
+if(WIN32)
     add_custom_command(TARGET ${DS_EXE_NAME} POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
             "${TOUCHENGINE_DLL}"
@@ -159,8 +163,8 @@ install(DIRECTORY "settings/" DESTINATION ${CMAKE_INSTALL_BINDIR}/settings OPTIO
 install(DIRECTORY "data/" DESTINATION ${CMAKE_INSTALL_BINDIR}/data OPTIONAL)
 
 # Install TouchEngine.dll to the deploy directory
-if(WIN32 AND EXISTS "${TOUCHENGINE_DLL}")
-    install(FILES "${TOUCHENGINE_DLL}" DESTINATION ${CMAKE_INSTALL_BINDIR})
+if(WIN32)
+    install(FILES "${DSQT_BIN_DIR}/$<CONFIG>/TouchEngine.dll" DESTINATION ${CMAKE_INSTALL_BINDIR} OPTIONAL)
 endif()
 
 # Install vcpkg runtime dependencies (tomlplusplus, etc.)

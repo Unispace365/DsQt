@@ -1,0 +1,98 @@
+name: Build Library
+
+on:
+  push:
+    paths:
+      - 'Library/**'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    # Off by default. Set the repository variable BUILD_LIBRARY_ENABLED to 'true' to enable.
+    if: vars.BUILD_LIBRARY_ENABLED == 'true' && (github.ref_name == 'main' || github.ref_name == vars.BUILD_LIBRARY_TEST_BRANCH)
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Read version
+      id: version
+      shell: bash
+      run: |
+        VERSION=$(cat Library/VERSION.txt | tr -d '[:space:]')
+        FULL_VERSION="${VERSION}.${{ github.run_number }}"
+        echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+        echo "full_version=$FULL_VERSION" >> "$GITHUB_OUTPUT"
+        echo "Building Dsqt v${FULL_VERSION}"
+
+    - name: Setup MSVC
+      uses: ilammy/msvc-dev-cmd@v1
+      with:
+        arch: x64
+
+    - name: Setup Qt
+      uses: jurplel/install-qt-action@v4
+      with:
+        version: '6.10.*'
+        arch: win64_msvc2022_64
+        modules: 'qtshadertools'
+
+    - name: Setup vcpkg
+      uses: lukka/run-vcpkg@v11
+      with:
+        vcpkgDirectory: '${{ github.workspace }}/vcpkg'
+        vcpkgGitCommitId: 'a7b6122f6b6504d16d96117336a0562693579933'
+
+    - name: Configure
+      shell: cmd
+      run: >
+        cmake -S Library -B Library/build/ci
+        -G "Visual Studio 17 2022" -A x64
+        -DCMAKE_TOOLCHAIN_FILE="${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake"
+        -DCMAKE_INSTALL_PREFIX="${{ github.workspace }}/install"
+
+    - name: Build Release
+      shell: cmd
+      run: cmake --build Library/build/ci --config Release
+
+    - name: Build Debug
+      shell: cmd
+      run: cmake --build Library/build/ci --config Debug
+
+    - name: Install Release
+      shell: cmd
+      run: cmake --install Library/build/ci --config Release
+
+    - name: Install Debug
+      shell: cmd
+      run: cmake --install Library/build/ci --config Debug
+
+    - name: Package artifacts
+      shell: bash
+      run: |
+        cd "${{ github.workspace }}/install"
+        7z a "${{ github.workspace }}/dsqt-${{ steps.version.outputs.full_version }}.zip" .
+
+    - name: Create tag
+      if: github.ref_name == 'main' || vars.BRANCH_LIBRARY_RELEASE == 'true'
+      shell: bash
+      run: |
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+        git tag "library/v${{ steps.version.outputs.full_version }}"
+        git push origin "library/v${{ steps.version.outputs.full_version }}"
+
+    - name: Create GitHub Release
+      if: github.ref_name == 'main' || vars.BRANCH_LIBRARY_RELEASE == 'true'
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: "library/v${{ steps.version.outputs.full_version }}"
+        name: "Dsqt Library v${{ steps.version.outputs.full_version }}"
+        body: |
+          Automated build of Dsqt Library.
+          Version: ${{ steps.version.outputs.full_version }}
+          Commit: ${{ github.sha }}
+        files: dsqt-${{ steps.version.outputs.full_version }}.zip

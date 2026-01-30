@@ -2,7 +2,11 @@ cmake_minimum_required(VERSION 3.29)
 
 include(FetchContent)
 
-project(Dsqt VERSION 0.1 LANGUAGES CXX)
+# Read version from VERSION.txt (source of truth)
+file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/VERSION.txt" DSQT_VERSION_STRING LIMIT_COUNT 1)
+string(STRIP "${DSQT_VERSION_STRING}" DSQT_VERSION_STRING)
+
+project(Dsqt VERSION ${DSQT_VERSION_STRING} LANGUAGES CXX)
 
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
@@ -160,9 +164,11 @@ if(PROJECT_IS_TOP_LEVEL)
         TouchEngineplugin
 
         # Where to put the different kinds of files
-        LIBRARY    DESTINATION ${CMAKE_INSTALL_LIBDIR}      # .so / .dylib
-        ARCHIVE    DESTINATION ${CMAKE_INSTALL_LIBDIR}      # .a / .lib
-        RUNTIME    DESTINATION ${CMAKE_INSTALL_BINDIR}      # .dll / executables
+        # Install into config-specific subdirectories so Debug and Release
+        # libraries can coexist in the same install prefix.
+        LIBRARY    DESTINATION ${CMAKE_INSTALL_LIBDIR}/$<CONFIG>      # .so / .dylib
+        ARCHIVE    DESTINATION ${CMAKE_INSTALL_LIBDIR}/$<CONFIG>      # .a / .lib
+        RUNTIME    DESTINATION ${CMAKE_INSTALL_BINDIR}/$<CONFIG>      # .dll / executables
     )
 
     # ----------------------------------------------------------------------
