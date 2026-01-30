@@ -40,6 +40,11 @@ jobs:
         arch: win64_msvc2022_64
         modules: 'qtshadertools'
 
+    - name: Dump vcpkg binary sources
+      shell: bash
+      run: |
+        echo "VCPKG_BINARY_SOURCES=$VCPKG_BINARY_SOURCES"
+        
     - name: Setup vcpkg
       uses: lukka/run-vcpkg@v11
       with:
