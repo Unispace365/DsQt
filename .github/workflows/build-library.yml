@@ -46,7 +46,7 @@ jobs:
         VCPKG_BINARY_SOURCES: default,rw
       with:
         vcpkgDirectory: '${{ github.workspace }}/vcpkg'
-        vcpkgGitCommitId: 'a7b6122f6b6504d16d96117336a0562693579933'
+        vcpkgGitCommitId: 'b87383e8bc37cc68c758b34f7997a37012fa1fb8'
       
 
     - name: Set up binary cache
