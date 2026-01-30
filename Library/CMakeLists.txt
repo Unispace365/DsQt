@@ -44,6 +44,7 @@ find_package(Qt6 6.9
         Quick
     #REQUIRED COMPONENTS
     #Test
+    
 )
 
 #qt_standard_project_setup(REQUIRES 6.9)
