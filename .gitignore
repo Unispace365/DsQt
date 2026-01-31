@@ -71,7 +71,7 @@ cmake/dsqtimportpath.h
 .qmllint.ini
 
 #include Touchengine.dll
-!Library/TouchEngineQt/TouchEngine/bin/TouchEngine.dll
+!Library/Dsqt/TouchEngine/TouchEngine/bin/TouchEngine.dll
 .claude/settings.local.json
 Examples/ClonerSource/.qtcreator
 /**/.claude
