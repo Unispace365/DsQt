@@ -7,7 +7,7 @@ set(QML_IMPORT_PATH
      CACHE PATH "QT creator qml import path" FORCE
  )
 
-find_package(Qt6 REQUIRED COMPONENTS Core Multimedia Quick Pdf WebEngineQuick)
+find_package(Qt6 REQUIRED COMPONENTS Core Gui Multimedia Quick Pdf WebEngineQuick)
 
 qt_add_qml_module(Dsqt
     URI Dsqt
@@ -91,6 +91,6 @@ qt_add_qml_module(Dsqt
         SOURCES model/dsContentModel.h
 )
 
-target_link_libraries(Dsqtplugin PRIVATE Qt6::Core Qt6::Multimedia Qt6::Quick Qt6::Pdf PUBLIC Qt6::WebEngineQuick)
+target_link_libraries(Dsqtplugin PRIVATE Qt6::Core Qt6::Gui Qt6::Multimedia Qt6::Quick Qt6::Pdf PUBLIC Qt6::WebEngineQuick)
 
 target_include_directories(Dsqt PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} bridge core model network qml resources settings ui utility)

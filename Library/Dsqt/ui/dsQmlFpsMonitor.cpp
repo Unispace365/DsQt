@@ -1,5 +1,7 @@
 #include "ui/dsQmlFpsMonitor.h"
 
+#include <QThread>
+
 namespace dsqt::ui {
 
 DsQmlFpsMonitor::DsQmlFpsMonitor(QQuickItem* parent)
