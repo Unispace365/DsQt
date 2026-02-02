@@ -1,8 +1,8 @@
 #ifndef DSBRIDGEQUERY_H
 #define DSBRIDGEQUERY_H
 
-#include "bridge/dsBridgeWatcher.h"
 #include "bridge/dsBridgeDatabase.h"
+#include "bridge/dsBridgeWatcher.h"
 #include "core/dsQmlApplicationEngine.h"
 
 #include <QFutureWatcher>
@@ -124,8 +124,10 @@ class DatabaseQuery {
 
   public:
     DatabaseQuery(const QSqlDatabase& database, const QString& query, const QString& label = {})
-        : mQuery(query, database) {
+        : mQuery(database)
+        , mLabel(label) {
         mQuery.setForwardOnly(true);
+        mQuery.prepare(query);
     }
 
     bool execute();
@@ -201,8 +203,6 @@ class DsBridgeSqlQuery : public QObject {
     void onCleanContent();
 
   private:
-
-
     /**
      * @brief Retrieves the BridgeSync settings from configuration.
      * @return The DsBridgeSyncSettings struct.

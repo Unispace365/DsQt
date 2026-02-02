@@ -1,8 +1,8 @@
 ﻿#include "bridge/dsBridgeQuery.h"
 #include "core/dsEnvironment.h"
+#include "model/dsContentModel.h"
 #include "model/dsResource.h"
 #include "network/dsNodeWatcher.h"
-#include "model/dsContentModel.h"
 #include "settings/dsQmlSettingsProxy.h"
 #include "settings/dsSettings.h"
 
@@ -269,13 +269,19 @@ bool DsBridgeSqlQuery::isBridgeSyncRunning() {
 
 void DsBridgeSqlQuery::onUpdated() {
     // This runs in the main thread when the background task completes.
-    mContent = mFutures.result();
-    if (mContent.m_queue.isEmpty()) {
+    try {
+        mContent = mFutures.result();
+        if (mContent.m_queue.isEmpty()) {
+            // Nothing to process.
+            bool success = mIsRunning.testAndSetRelaxed(true, false);
+        } else {
+            // We're going to process all content in chunks, so that we do not affect the main thread too much.
+            QTimer::singleShot(1, this, &DsBridgeSqlQuery::onProcessContent);
+        }
+    } catch (...) {
+        qWarning() << "Bridge content could not be parsed!";
         // Nothing to process.
         bool success = mIsRunning.testAndSetRelaxed(true, false);
-    } else {
-        // We're going to process all content in chunks, so that we do not affect the main thread too much.
-        QTimer::singleShot(1, this, &DsBridgeSqlQuery::onProcessContent);
     }
 }
 
@@ -594,11 +600,11 @@ DatabaseContent DsBridgeSqlQuery::queryTables() {
             .arg(datetimeSelect.join(", "));
 
     // Create data structures.
-    DatabaseQuery slotQuery(mDatabase, sSlotQuery);
-    DatabaseQuery recordQuery(mDatabase, sRecordQuery);
-    DatabaseQuery selectQuery(mDatabase, sSelectQuery);
-    DatabaseQuery defaultsQuery(mDatabase, sDefaultsQuery);
-    DatabaseQuery valueQuery(mDatabase, sValueQuery);
+    DatabaseQuery slotQuery(mDatabase, sSlotQuery, "Slot Query");
+    DatabaseQuery recordQuery(mDatabase, sRecordQuery, "Record Query");
+    DatabaseQuery selectQuery(mDatabase, sSelectQuery, "Select Query");
+    DatabaseQuery defaultsQuery(mDatabase, sDefaultsQuery, "Defaults Query");
+    DatabaseQuery valueQuery(mDatabase, sValueQuery, "Value Query");
 
     // Perform queries inside a transaction. This is very important,
     // because it effectively takes a snapshot of the current database,
@@ -612,11 +618,11 @@ DatabaseContent DsBridgeSqlQuery::queryTables() {
     // leaving data processing for after the transaction has finished.
     // This way, we don't block access to the database unnecessarily.
     try {
-        slotQuery.execute();
-        recordQuery.execute();
-        selectQuery.execute();
-        defaultsQuery.execute();
-        valueQuery.execute();
+        if (!slotQuery.execute()) throw std::exception();
+        if (!recordQuery.execute()) throw std::exception();
+        if (!selectQuery.execute()) throw std::exception();
+        if (!defaultsQuery.execute()) throw std::exception();
+        if (!valueQuery.execute()) throw std::exception();
 
         // Commit the transaction (see above).
         if (!mDatabase.commit()) {
@@ -714,10 +720,12 @@ DatabaseContent DsBridgeSqlQuery::queryTables() {
         } else if (type == "NUMBER") {
             record.insertOrAssign(field_uid, result.value("number").toFloat());
         } else if (type == "OPTIONS") {
-            const auto  key   = result.value("option_value").toString();
-            const auto& value = selectMap.at(key);
-            record.insertOrAssign(field_uid, value);
-            record.insertOrAssign(field_uid + "_value_uid", key);
+            const auto key = result.value("option_value").toString();
+            if (selectMap.count(key)) {
+                const auto& value = selectMap.at(key);
+                record.insertOrAssign(field_uid, value);
+                record.insertOrAssign(field_uid + "_value_uid", key);
+            }
         } else if (type == "CHECKBOX") {
             record.insertOrAssign(field_uid, result.value("checked").toBool());
         }
@@ -881,11 +889,13 @@ DatabaseContent DsBridgeSqlQuery::queryTables() {
     // Determine processing order.
     content.m_queue.clear();
 
-    DatabaseTree roots(content, DatabaseTree::Traversal::Roots);
-    for (const auto& root : roots) {
-        DatabaseTree tree(content.m_records, root.value("uid").toString());
-        for (const auto& record : tree) {
-            content.m_queue.append(record.value("uid").toString());
+    if (!content.m_content.empty()) {
+        DatabaseTree roots(content, DatabaseTree::Traversal::Roots);
+        for (const auto& root : roots) {
+            DatabaseTree tree(content.m_records, root.value("uid").toString());
+            for (const auto& record : tree) {
+                content.m_queue.append(record.value("uid").toString());
+            }
         }
     }
 
@@ -1025,7 +1035,7 @@ bool DatabaseQuery::execute() {
     Timer t("Executing " + mLabel);
     mQuery.exec();
     if (mQuery.lastError().isValid()) {
-        qCCritical(lgBridgeSyncQuery) << "Error:" << mQuery.lastError().text();
+        qCCritical(lgBridgeSyncQuery) << mLabel << "Error:" << mQuery.lastError().text();
         return false;
     }
     return true;
