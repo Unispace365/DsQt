@@ -38,8 +38,8 @@ Window {
                 id: data
                 model: myModel
                 SplitView.maximumHeight: sview.height
-                SplitView.minimumWidth: contentWidth
-                SplitView.maximumWidth: sview.width / 5 * 2
+                SplitView.minimumWidth: Math.min(contentWidth, sview.width)
+                SplitView.maximumWidth: sview.width
                 alternatingRows: false
                 selectionBehavior: TreeView.SingleSelection
                 selectionModel: ItemSelectionModel {}
