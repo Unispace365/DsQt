@@ -215,9 +215,7 @@ ApplicationWindow {
         DsTextFileViewer {
             title: "BridgeSync Log"
             file: Ds.env.expand(bridgeProxy.getString("directory", "%LOCAL%") + "logs/bridgesync.log")
-            //file: Ds.env.expand("%LOCAL%/ds_waffles/logs/bridgesync.log")
             onVisibleChanged: (isVisible) => { windowMenuBar.logsBridgeSyncChecked = isVisible }
-            Component.onCompleted: console.log(file)
         }
     }
 
