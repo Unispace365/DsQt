@@ -48,7 +48,7 @@ QString DsEnvironment::expandq(QString path) {
     path.replace("%LOCAL%", sDocumentsDownstream);
     path.replace("%CFG_FOLDER%", sConfigFolder);
     path.replace("%DOCUMENTS%", sDocuments);
-    path.replace("%SHARE%", sSharedFolder);
+    path.replace("%SHARED%", sSharedFolder);
     path.replace("%RES%",sResourceFolder);
 
            //        return Poco::Path(p).toString();
@@ -69,7 +69,7 @@ QString DsEnvironment::contract(QString path) {
     p.replace(sDocumentsDownstream,"%LOCAL%");
     p.replace(sConfigFolder,"%CFG_FOLDER%");
     p.replace(sDocuments, "%DOCUMENTS%");
-    p.replace(sSharedFolder, "%SHARE%");
+    p.replace(sSharedFolder, "%SHARED%");
 
     p = QDir::cleanPath(p);
     return p;
