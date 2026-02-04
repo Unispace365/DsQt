@@ -48,7 +48,12 @@ DsQmlPathHelper* DsQmlObj::path() const {
 
 model::ContentModel* DsQmlObj::getRecordById(const QString& id) const {
     auto& lookup = model::ContentLookup::get();
-    return lookup.find(id).value();
+    auto itr = lookup.find(id);
+    if(itr!=lookup.end()){
+        return lookup.find(id).value();
+    } else {
+        return nullptr;
+    }
 }
 
 void DsQmlObj::updatePlatform() {
