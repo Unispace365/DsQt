@@ -22,6 +22,7 @@ QString            DsEnvironment::sProjectPath         = "%PP%";
 QString            DsEnvironment::sAppRootFolder       = "";
 QString            DsEnvironment::sConfigFolder        = "%CFG_FOLDER%";
 QString            DsEnvironment::sSharedFolder        = "%SHARED%";
+QString            DsEnvironment::sResourceFolder      = "%RES%";
 QRegularExpression DsEnvironment::sEnvRe               = QRegularExpression(R"((.*?)(\%ENV\%)\((.*?)\)(.*))");
 
 
@@ -42,7 +43,16 @@ QString DsEnvironment::expandq(QString path) {
         match = sEnvRe.match(path);
     }
     //            std::string tempP = p;
-    return contract(path);
+    path.replace("%APP%", sAppRootFolder);
+    path.replace("%PP%", sProjectPath);
+    path.replace("%LOCAL%", sDocumentsDownstream);
+    path.replace("%CFG_FOLDER%", sConfigFolder);
+    path.replace("%DOCUMENTS%", sDocuments);
+    path.replace("%SHARE%", sSharedFolder);
+    path.replace("%RES%",sResourceFolder);
+
+           //        return Poco::Path(p).toString();
+    return QDir::cleanPath(path);
 }
 
 std::string DsEnvironment::contract(const std::string& path) {
@@ -51,32 +61,35 @@ std::string DsEnvironment::contract(const std::string& path) {
 
 QString DsEnvironment::contract(QString path) {
     DsEnvironment::initialize();
+
+    QString p = path;
     //        // This can result in double path separators, so flatten
-    path.replace("%APP%", sAppRootFolder);
-    path.replace("%PP%", sProjectPath);
-    path.replace("%LOCAL%", sDocumentsDownstream);
-    path.replace("%CFG_FOLDER%", sConfigFolder);
-    path.replace("%DOCUMENTS%", sDocuments);
-    path.replace("%SHARE%", sSharedFolder);
-    //        return Poco::Path(p).toString();
-    return QDir::cleanPath(path);
+    p.replace(sAppRootFolder, "%APP%");
+    p.replace(sProjectPath, "%PP%");
+    p.replace(sDocumentsDownstream,"%LOCAL%");
+    p.replace(sConfigFolder,"%CFG_FOLDER%");
+    p.replace(sDocuments, "%DOCUMENTS%");
+    p.replace(sSharedFolder, "%SHARE%");
+
+    p = QDir::cleanPath(p);
+    return p;
 }
 
 bool DsEnvironment::loadEngineSettings() {
 
     auto [settingsFound, settings] = DsSettings::getSettingsOrCreate("engine", nullptr);
 
-    // boost::replace_all(p, ds::App::envAppDataPath(), "%APP%");
+    //temporary load of first level engine.toml
     auto loaded = settings->loadSettingFile(expand("%APP%/settings/engine.toml"));
     if (loaded) {
-        // boost::replace_all(p, EngineSettings::envProjectPath(), "%PP%");
+        //setup the project path (%PP%)
         std::optional<std::string> projectPath = settings->get<std::string>(std::string("engine.project_path"));
         if (projectPath.has_value()) {
             sProjectPath = QString::fromStdString(projectPath.value());
             qCDebug(lgEnv) << "Project Path:" << sProjectPath;
         }
-        // boost::replace_all(p, getDownstreamDocumentsFolder(), "%LOCAL%");
-        // boost::replace_all(p, EngineSettings::getConfigurationFolder(), "%CFG_FOLDER%");
+
+        //setup config folder path (%CFG_FOLDER%)
         auto [configFound, config] = DsSettings::getSettingsOrCreate("config", nullptr);
         config->loadSettingFile(expand("%APP%/settings/configuration.toml"));
         // boost::replace_all(p, DOCUMENTS, "%DOCUMENTS%");
@@ -92,6 +105,8 @@ bool DsEnvironment::loadEngineSettings() {
 
 
         loadSettings("engine", "engine.toml");
+
+        sResourceFolder = expandq(settings->getOr<QString>("engine.resource.location", ""));
         return true;
     }
     return false;
@@ -122,6 +137,7 @@ DsSettingsRef DsEnvironment::loadSettings(const QString& settingsName, const QSt
 void DsEnvironment::initialize() {
     static std::once_flag initFlag;
     std::call_once(initFlag, []() {
+
         // documents
         sDocuments = QStandardPaths::locate(QStandardPaths::HomeLocation, "Documents", QStandardPaths::LocateDirectory);
 
