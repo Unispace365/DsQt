@@ -147,6 +147,8 @@ qt_add_qml_module(TouchEngineQt
     STATIC
     VERSION 1.0
     QML_FILES ${QML_FILES}
+    OUTPUT_TARGETS
+            touchqt_targets
     SOURCES ${SOURCES} ${HEADERS} ${TOUCHENGINE_INPUT_SOURCES} ${TOUCHENGINE_OUTPUT_SOURCES}
     DEPENDENCIES QtQuick TouchEngineQtplugin
 )
@@ -196,6 +198,8 @@ target_link_libraries(TouchEngineQt PRIVATE
     Qt6::Concurrent
     PUBLIC
     TouchEngine
+    TouchEngineQtplugin
+    ${touchqt_targets}
 )
 
 # Link D3D12 and Vulkan libraries on Windows
@@ -226,22 +230,6 @@ set_target_properties(TouchEngineQt PROPERTIES
     MACOSX_BUNDLE TRUE
 )
 
-
-
-install(TARGETS TouchEngineQt
-            BUNDLE DESTINATION . # For macOS bundles
-            LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-            RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-        ) # For other platforms
-
-qt_generate_deploy_qml_app_script(
-    TARGET TouchEngineQt
-    OUTPUT_SCRIPT deploy_script
-    NO_UNSUPPORTED_PLATFORM_ERROR
-    DEPLOY_USER_QML_MODULES_ON_UNSUPPORTED_PLATFORM
-)
-
-install(SCRIPT ${deploy_script})
 
 install(CODE "
     #move the dll to the qt directory\n
