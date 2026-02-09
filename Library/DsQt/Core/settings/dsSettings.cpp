@@ -8,7 +8,10 @@
 #include <filesystem>
 #include <qtimezone.h>
 #include <string>
+
+#if defined(DSQT_USE_TOML)
 #include <toml++/toml.h>
+#endif
 
 Q_LOGGING_CATEGORY(lgSettingsParser, "settings.parser")
 Q_LOGGING_CATEGORY(lgSPVerbose, "settings.parser.verbose")

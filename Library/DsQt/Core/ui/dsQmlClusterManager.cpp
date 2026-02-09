@@ -2,10 +2,6 @@
 
 #include <QPointerEvent>
 
-#include <glm/vec2.hpp>
-#include <glm/trigonometric.hpp>
-#include <glm/gtc/constants.hpp>
-
 namespace dsqt::ui {
 DsQmlClusterManager::DsQmlClusterManager(QQuickItem* parent):QQuickItem(parent) {
     this->setAcceptTouchEvents(true);
@@ -43,20 +39,16 @@ bool DsQmlClusterManager::event(QEvent *event)
             mouseState = QEventPoint::Released;
         }
 
-        if((mouseevent->modifiers() & Qt::ShiftModifier) || (mouseReleased&&mClusters->rowCount()>0)){
-            float angle = 2*glm::pi<float>()/m_minClusterTouchCount;
-            glm::vec2 pos(mouseevent->pos().x(),mouseevent->pos().y());
-            for(int i=0;i<m_minClusterTouchCount;i++){
+        if ((mouseevent->modifiers() & Qt::ShiftModifier) || (mouseReleased && mClusters->rowCount() > 0)) {
+            QTransform rotate = QTransform().rotate(360.0f / m_minClusterTouchCount);
+
+            for (int i = 0; i < m_minClusterTouchCount; i++) {
                 TouchInfo ti;
 
-                float a = angle * i;
-                glm::vec2 unit(-glm::sin(a), glm::cos(a));
-                unit = unit * 50.0f;
-                auto nPoint = pos + unit;
-
-                ti.mPoint = QPointF(nPoint.x,nPoint.y);
+                constexpr QPointF unit(0, 1);
+                ti.mPoint    = mouseevent->pos() + 50 * rotate.map(unit);
                 ti.mFingerId = i + 100;
-                ti.mState = mouseState;
+                ti.mState    = mouseState;
                 parseTouch(ti);
             }
         }

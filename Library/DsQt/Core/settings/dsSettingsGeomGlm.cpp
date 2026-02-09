@@ -1,3 +1,4 @@
+#if defined(DSQT_USE_GLM)
 #include "settings/dsSettings.h"
 
 #include <string>
@@ -68,3 +69,4 @@ MaybeVec2Meta DsSettings::getWithMeta(const std::string& key) {
 }
 
 }  // namespace dsqt
+#endif

@@ -435,6 +435,7 @@ void to_uppercase(std::wstring& str) {
 	std::transform(str.begin(), str.end(), str.begin(), ::toupper);
 }
 
+#if defined(DSQT_USE_GLM)
 glm::vec3 parseVector(const std::string& s) {
 	auto	  tokens = dsqt::split(s, ", ", true);
 	glm::vec3 v;
@@ -455,6 +456,7 @@ glm::vec4 parseVector4(const std::string& s) {
 
 	return v;
 }
+#endif
 
 QRectF parseRect(const std::string& s) {
 	auto	  tokens = dsqt::split(s, ", ", true);
@@ -476,6 +478,7 @@ std::string unparseRect(const QRectF& v) {
 	return ss.str();
 }
 
+#if defined(DSQT_USE_GLM)
 std::string unparseVector(const glm::vec2& v) {
 	std::stringstream ss;
 	ss << v.x << ", " << v.y;
@@ -493,6 +496,7 @@ std::string unparseVector(const glm::vec4& v) {
 	ss << v.x << ", " << v.y << ", " << v.z << ", " << v.w;
 	return ss.str();
 }
+#endif
 
 bool parseBoolean(const std::string& s) {
 	return (s == "true" || s == "TRUE" || s == "yes" || s == "YES" || s == "on" || s == "ON" || s == "1") ? true

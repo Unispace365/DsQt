@@ -7,9 +7,15 @@
 #include <QQmlPropertyMap>
 #include <QtGui/QVector4D>
 #include <QtGui/qcolor.h>
-#include <glm/glm.hpp>
 #include <qqml.h>
+
+#if defined(DSQT_USE_GLM)
+#include <glm/glm.hpp>
+#endif
+
+#if defined (DSQT_USE_TOML)
 #include <toml++/toml.h>
+#endif
 
 #include <type_traits>
 
@@ -75,9 +81,11 @@ using MaybeQPointMeta           = MaybeMeta<QPoint>;
 using MaybeQSizeFMeta           = MaybeMeta<QSizeF>;
 using MaybeQSizeMeta            = MaybeMeta<QSize>;
 
+#if defined(DSQT_USE_GLM)
 using MaybeVec4Meta             = MaybeMeta<glm::vec4>;
 using MaybeVec3Meta             = MaybeMeta<glm::vec3>;
 using MaybeVec2Meta             = MaybeMeta<glm::vec2>;
+#endif
 
 
 ///\brief The DSSettings class
@@ -142,9 +150,11 @@ class DsSettings : public QObject {
 												  std::is_same_v<T, QVector2D> ||	 //
 												  std::is_same_v<T, QVector3D> ||	 //
 												  std::is_same_v<T, QVector4D> ||	 //
+#if defined(DSQT_USE_GLM)
 												  std::is_same_v<T, glm::vec2> ||	 //
 												  std::is_same_v<T, glm::vec3> ||	 //
 												  std::is_same_v<T, glm::vec4> ||	 //
+#endif
 												  std::is_same_v<T, QColor>;		 //
 
 	/// Get a DSSettingsRef by name.

@@ -817,9 +817,9 @@ DatabaseContent DsBridgeSqlQuery::queryTables() {
                                      float(result.value("height").toInt()), linkUrl, linkUrl, -1, linkUrl);
 
                 // Assumes app settings are not changed concurrently on another thread.
-                auto webSize = appsettings->getOr<glm::vec2>("web:default_size", glm::vec2(1920.f, 1080.f));
-                res.setWidth(webSize.x);
-                res.setHeight(webSize.y);
+                auto webSize = appsettings->getOr<QPointF>("web:default_size", QPointF(1920.f, 1080.f));
+                res.setWidth(webSize.x());
+                res.setHeight(webSize.y());
                 res.setType(dsqt::DsResource::WEB_TYPE);
                 record.insertOrAssign(field_uid, res.toQml());
 

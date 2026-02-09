@@ -7,7 +7,6 @@
 #include <QPointerEvent>
 #include <QQmlEngine>
 #include <QQuickItem>
-#include <glm/vec2.hpp>
 #include <qproperty.h>
 
 namespace dsqt::ui {
