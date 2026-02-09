@@ -5,8 +5,14 @@ option(DSQT_WITH_TOML "Enable tomlplusplus support" ON)
 option(DSQT_WITH_GLM "Enable GML math library support" OFF)
 
 if(DSQT_WITH_TOML)
-    find_package(PkgConfig REQUIRED)
-    pkg_check_modules(tomlplusplus REQUIRED IMPORTED_TARGET tomlplusplus)
+    include(FetchContent)
+    FetchContent_Declare(
+        tomlplusplus
+        GIT_REPOSITORY https://github.com/marzer/tomlplusplus.git
+        GIT_TAG v3.4.0
+        GIT_SHALLOW TRUE
+    )
+    FetchContent_MakeAvailable(tomlplusplus)
 endif()
 
 if(DSQT_WITH_GLM)
@@ -109,7 +115,7 @@ target_include_directories(Core
 )
 
 if(DSQT_WITH_TOML)
-    target_link_libraries(Core PUBLIC PkgConfig::tomlplusplus)
+    target_link_libraries(Core PUBLIC tomlplusplus::tomlplusplus)
     target_compile_definitions(Core PUBLIC DSQT_USE_TOML)
 endif()
 
