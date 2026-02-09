@@ -35,10 +35,10 @@ if(PROJECT_IS_TOP_LEVEL)
     endif()
 endif()
 
-find_package(Qt6 6.9 
-    COMPONENTS 
+find_package(Qt6 6.9
+    REQUIRED COMPONENTS 
         Core 
-        Concurrent  
+        Concurrent
         Gui 
         Qml
         Quick
