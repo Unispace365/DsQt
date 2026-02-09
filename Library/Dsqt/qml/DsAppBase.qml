@@ -214,12 +214,20 @@ ApplicationWindow {
     /// TODO Application log viewer.
 
     /// BridgeSync log viewer.
+    DsSettingsProxy {
+        id: bridgeProxy
+        target: "engine"
+        prefix: "engine.bridgesync.connection"
+    }
+
     Component {
         id: bridgeSyncLog
         DsTextFileViewer {
             title: "BridgeSync Log"
-            file: Ds.env.expand("%LOCAL%/ds_waffles/logs/bridgesync.log")
+            file: Ds.env.expand(bridgeProxy.getString("directory","%LOCAL%") + "logs/bridgesync.log")
             onVisibleChanged: (isVisible) => { windowMenuBar.logsBridgeSyncChecked = isVisible }
+
+            Component.onCompleted: console.log(file)
         }
     }
 
