@@ -111,11 +111,12 @@ Documentation is compiled by Doxygen and can be found here:
 4. Click "Clone"
 
 The tool creates a complete project from the ClonerSource template with:
-- CMakeLists.txt configured for DsQt
-- CMakePresets.json for easy building
-- QML application structure
-- Settings files (TOML configuration)
-- Sample assets and fonts
+
+* CMakeLists.txt configured for DsQt
+* CMakePresets.json for easy building
+* QML application structure
+* Settings files (TOML configuration)
+* Sample assets and fonts
 
 ### Building Your New Project
 
