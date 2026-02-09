@@ -25,6 +25,7 @@ endif()
 qt_standard_project_setup(REQUIRES 6.9)
 
 add_library(Bridge)
+add_library(Dsqt::Bridge ALIAS Bridge)
 
 qt_add_qml_module(Bridge
     URI Dsqt.Bridge

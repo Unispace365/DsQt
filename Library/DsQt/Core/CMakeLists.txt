@@ -17,6 +17,7 @@ endif()
 qt_standard_project_setup(REQUIRES 6.9)
 
 add_library(Core)
+add_library(Dsqt::Core ALIAS Core)
 
 qt_add_qml_module(Core
     URI Dsqt.Core

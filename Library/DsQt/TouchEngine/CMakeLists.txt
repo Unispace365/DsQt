@@ -17,6 +17,8 @@ find_package(Qt6 REQUIRED COMPONENTS
 qt_standard_project_setup(REQUIRES 6.9)
 
 add_library(TouchEngine)
+add_library(Dsqt::TouchEngine ALIAS TouchEngine)
+
 #set qml import path. This is used by Qt Creator to find the QML files.
 # set(QML_BIN_ROOT "${CMAKE_CURRENT_BINARY_DIR}")
 # message("TOUCHE ENGINE PLACEMENT: ${QML_BIN_ROOT}")

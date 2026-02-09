@@ -13,6 +13,7 @@ find_package(Qt6 6.9
 qt_standard_project_setup(REQUIRES 6.9)
 
 add_library(Waffles)
+add_library(Dsqt::Waffles ALIAS Waffles)
 
 qt_add_qml_module(Waffles
     URI Dsqt.Waffles
