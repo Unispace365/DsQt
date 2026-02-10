@@ -144,6 +144,8 @@ qt_add_qml_module(TouchEngine
     VERSION 1.0
     OUTPUT_TARGETS TouchEngineTargets
     QML_FILES ${QML_FILES}
+    OUTPUT_TARGETS
+            touchqt_targets
     SOURCES ${SOURCES} ${HEADERS} ${TOUCHENGINE_INPUT_SOURCES} ${TOUCHENGINE_OUTPUT_SOURCES}
     DEPENDENCIES QtQuick
 )
