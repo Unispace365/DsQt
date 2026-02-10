@@ -115,6 +115,10 @@ find_package(glm CONFIG REQUIRED)
 
 target_include_directories(${DS_EXE_NAME} PRIVATE ${Dsqt_INCLUDES} ${TouchEngineQt_INCLUDES})
 
+if(Dsqt_TouchEngine_FOUND)
+    target_compile_definitions(${DS_EXE_NAME} PRIVATE DSQT_HAS_TOUCHENGINE)
+endif()
+
 
 target_link_libraries(${DS_EXE_NAME}
     PRIVATE

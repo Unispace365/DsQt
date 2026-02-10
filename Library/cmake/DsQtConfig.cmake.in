@@ -144,6 +144,9 @@ set_target_properties(Dsqt::TouchEngine PROPERTIES
     INTERFACE_LINK_LIBRARIES "Qt6::Core;Qt6::Quick;Qt6::Gui;Qt6::Concurrent;Qt6::QuickControls2;Dsqt::TouchEngineplugin;Dsqt::TouchEngineSDK;d3d12;dxgi;$<$<BOOL:${Vulkan_FOUND}>:Vulkan::Vulkan>"
 )
 
+# Provide a compile definition consumers can use to conditionally include TouchEngine code
+set(DSQT_HAS_TOUCHENGINE TRUE)
+
 # Create umbrella target
 if(NOT TARGET Dsqt::Dsqt)
     add_library(Dsqt::Dsqt INTERFACE IMPORTED)

@@ -13,6 +13,7 @@ Options:
     --dsqt-root <path>   Path to DsQt repo root (default: derived from script location)
     --dry-run            Show what would change without modifying files
     --no-backup          Skip the git backup prompt
+    --reset              Reset project to the pre-migration backup branch
 """
 
 import argparse
@@ -694,7 +695,9 @@ def generate_cmake_presets(qt_versions):
                 "generator": "Ninja",
                 "binaryDir": f"${{sourceDir}}/build/{ninja_name}",
                 "cacheVariables": {
-                    "CMAKE_BUILD_TYPE": config
+                    "CMAKE_BUILD_TYPE": config,
+                    "CMAKE_C_COMPILER": "cl.exe",
+                    "CMAKE_CXX_COMPILER": "cl.exe"
                 }
             })
             build_presets.append({
@@ -806,6 +809,57 @@ def patch_main_cpp(content):
     return new_content, changes
 
 
+# ── QML import rewriting ───────────────────────────────────────────────────
+
+# Map of old QML import names to new modular names
+QML_IMPORT_MAP = {
+    "Dsqt": "Dsqt.Core",
+    "WafflesUx": "Dsqt.Waffles",
+    "TouchEngineQt": "Dsqt.TouchEngine",
+}
+
+
+def rewrite_qml_imports(project_dir, dry_run=False):
+    """Scan all .qml files and rewrite old DsQt import names to new modular names.
+    Returns list of (filepath, changes) tuples."""
+    results = []
+    for root, dirs, files in os.walk(project_dir):
+        # Skip build directories
+        basename = os.path.basename(root)
+        if basename in ('build', 'Generated', '.git', 'node_modules'):
+            dirs.clear()
+            continue
+        for filename in files:
+            if not filename.endswith('.qml'):
+                continue
+            filepath = os.path.join(root, filename)
+            with open(filepath, 'r', encoding='utf-8', errors='replace') as f:
+                content = f.read()
+
+            new_content = content
+            changes = []
+            for old_import, new_import in QML_IMPORT_MAP.items():
+                # Match "import OldName" but not "import OldName.Something" (already migrated)
+                pattern = rf'^(\s*import\s+){re.escape(old_import)}(\s*)$'
+                if re.search(pattern, new_content, re.MULTILINE):
+                    new_content = re.sub(
+                        pattern,
+                        rf'\g<1>{new_import}\2',
+                        new_content,
+                        flags=re.MULTILINE
+                    )
+                    changes.append(f"import {old_import} -> import {new_import}")
+
+            if changes:
+                rel_path = os.path.relpath(filepath, project_dir)
+                if not dry_run:
+                    with open(filepath, 'w', encoding='utf-8') as f:
+                        f.write(new_content)
+                results.append((rel_path, changes))
+
+    return results
+
+
 # ── .gitignore merging ─────────────────────────────────────────────────────
 
 def merge_gitignore(existing_content, reference_content):
@@ -854,14 +908,14 @@ def git_backup(project_dir):
         has_changes = bool(result.stdout.strip())
 
         if has_changes:
-            backup_branch = "pre-migration-backup"
+            backup_branch = BACKUP_BRANCH
             print(f"  Creating backup branch '{backup_branch}' with current state...")
             subprocess.run(['git', 'stash', 'push', '-m', 'pre-migration-backup'], cwd=project_dir, check=True)
             subprocess.run(['git', 'branch', '-f', backup_branch], cwd=project_dir, check=True)
             subprocess.run(['git', 'stash', 'pop'], cwd=project_dir, check=True)
             print(f"  Backup branch '{backup_branch}' created from current HEAD.")
         else:
-            backup_branch = "pre-migration-backup"
+            backup_branch = BACKUP_BRANCH
             subprocess.run(['git', 'branch', '-f', backup_branch], cwd=project_dir, check=True)
             print(f"  Backup branch '{backup_branch}' created at current HEAD (no uncommitted changes).")
 
@@ -870,6 +924,123 @@ def git_backup(project_dir):
     except subprocess.CalledProcessError as e:
         print(f"  Git backup failed: {e}")
         return False
+
+
+BACKUP_BRANCH = "pre-migration-backup"
+
+
+def reset_to_backup(project_dir):
+    """Reset the project to the pre-migration backup branch."""
+    project_dir = os.path.abspath(project_dir)
+
+    print("=" * 60)
+    print("DsQt Migration: Reset to backup")
+    print("=" * 60)
+    print(f"  Project: {project_dir}")
+    print()
+
+    # Check if it's a git repo
+    result = subprocess.run(
+        ['git', 'rev-parse', '--is-inside-work-tree'],
+        capture_output=True, text=True, cwd=project_dir
+    )
+    if result.returncode != 0:
+        print("ERROR: Not a git repository.")
+        sys.exit(1)
+
+    # Check if backup branch exists
+    result = subprocess.run(
+        ['git', 'rev-parse', '--verify', BACKUP_BRANCH],
+        capture_output=True, text=True, cwd=project_dir
+    )
+    if result.returncode != 0:
+        print(f"ERROR: Backup branch '{BACKUP_BRANCH}' not found.")
+        print("  No migration backup exists to reset to.")
+        sys.exit(1)
+
+    # Show what the backup branch points to
+    result = subprocess.run(
+        ['git', 'log', '--oneline', '-1', BACKUP_BRANCH],
+        capture_output=True, text=True, cwd=project_dir
+    )
+    print(f"  Backup branch: {result.stdout.strip()}")
+
+    # Show current branch
+    result = subprocess.run(
+        ['git', 'branch', '--show-current'],
+        capture_output=True, text=True, cwd=project_dir
+    )
+    current_branch = result.stdout.strip()
+    print(f"  Current branch: {current_branch}")
+    print()
+
+    # Warn about uncommitted changes
+    result = subprocess.run(
+        ['git', 'status', '--porcelain'],
+        capture_output=True, text=True, cwd=project_dir
+    )
+    if result.stdout.strip():
+        print("  WARNING: You have uncommitted changes that will be discarded:")
+        for line in result.stdout.strip().splitlines()[:10]:
+            print(f"    {line}")
+        if len(result.stdout.strip().splitlines()) > 10:
+            print(f"    ... and {len(result.stdout.strip().splitlines()) - 10} more")
+        print()
+
+    try:
+        response = input("  Reset working tree to pre-migration state? [y/N]: ").strip().lower()
+    except (EOFError, KeyboardInterrupt):
+        response = 'n'
+
+    if response != 'y':
+        print("  Aborted.")
+        return
+
+    # Reset: restore all tracked files to the backup branch state
+    # and remove any untracked files that were added by the migration
+    try:
+        # Restore tracked files from the backup branch
+        subprocess.run(
+            ['git', 'checkout', BACKUP_BRANCH, '--', '.'],
+            cwd=project_dir, check=True
+        )
+
+        # Find files that exist now but don't exist in the backup branch
+        # (i.e., files added by the migration)
+        result = subprocess.run(
+            ['git', 'diff', '--name-only', '--diff-filter=A', BACKUP_BRANCH, 'HEAD'],
+            capture_output=True, text=True, cwd=project_dir
+        )
+        added_files = [f for f in result.stdout.strip().splitlines() if f]
+
+        # Also check for untracked files that match known migration outputs
+        migration_files = ['CMakePresets.json', 'vcpkg.json', 'VERSION.txt', 'project-ci.yml']
+        result = subprocess.run(
+            ['git', 'status', '--porcelain'],
+            capture_output=True, text=True, cwd=project_dir
+        )
+        for line in result.stdout.strip().splitlines():
+            status = line[:2].strip()
+            filepath = line[3:]
+            if status == '??' and filepath in migration_files:
+                full_path = os.path.join(project_dir, filepath)
+                if os.path.isfile(full_path):
+                    os.remove(full_path)
+                    print(f"  Removed: {filepath} (added by migration)")
+
+        # Unstage everything so the working tree is clean but uncommitted
+        subprocess.run(
+            ['git', 'reset', 'HEAD', '.'],
+            capture_output=True, cwd=project_dir, check=True
+        )
+
+        print()
+        print("  Reset complete. Working tree restored to pre-migration state.")
+        print(f"  The backup branch '{BACKUP_BRANCH}' is still available.")
+
+    except subprocess.CalledProcessError as e:
+        print(f"  ERROR: Reset failed: {e}")
+        sys.exit(1)
 
 
 # ── Main migration ─────────────────────────────────────────────────────────
@@ -1146,8 +1317,20 @@ def migrate(project_dir, dsqt_root, dry_run=False, no_backup=False):
         print("  WARNING: main.cpp not found!")
     print()
 
-    # ── Step 8: Copy scaffolding files ──────────────────────────────────
-    print("Step 8: Scaffolding files from ClonerSource...")
+    # ── Step 8: Rewrite QML imports ────────────────────────────────────
+    print("Step 8: Rewriting QML imports...")
+    qml_results = rewrite_qml_imports(project_dir, dry_run=dry_run)
+    if qml_results:
+        for rel_path, changes in qml_results:
+            prefix = "[DRY RUN] " if dry_run else ""
+            for change in changes:
+                print(f"  {prefix}{rel_path}: {change}")
+    else:
+        print("  No QML import changes needed.")
+    print()
+
+    # ── Step 9: Copy scaffolding files ──────────────────────────────────
+    print("Step 9: Scaffolding files from ClonerSource...")
 
     files_to_copy = [
         ("cmake/app.rc.in", "cmake/app.rc.in"),
@@ -1248,6 +1431,7 @@ Examples:
   python migrate_to_library.py C:\\dev\\MyProject
   python migrate_to_library.py C:\\dev\\MyProject --dry-run
   python migrate_to_library.py C:\\dev\\MyProject --dsqt-root C:\\dev\\DsQt --no-backup
+  python migrate_to_library.py C:\\dev\\MyProject --reset
         """
     )
     parser.add_argument(
@@ -1269,6 +1453,11 @@ Examples:
         action='store_true',
         help='Skip the git backup prompt'
     )
+    parser.add_argument(
+        '--reset',
+        action='store_true',
+        help='Reset the project to the pre-migration backup branch'
+    )
 
     args = parser.parse_args()
 
@@ -1288,7 +1477,10 @@ Examples:
         print(f"ERROR: Project directory not found: {args.project_dir}")
         sys.exit(1)
 
-    migrate(args.project_dir, dsqt_root, dry_run=args.dry_run, no_backup=args.no_backup)
+    if args.reset:
+        reset_to_backup(args.project_dir)
+    else:
+        migrate(args.project_dir, dsqt_root, dry_run=args.dry_run, no_backup=args.no_backup)
 
 
 if __name__ == '__main__':

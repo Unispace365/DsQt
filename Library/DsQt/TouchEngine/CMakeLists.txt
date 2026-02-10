@@ -242,11 +242,12 @@ set_target_properties(TouchEngine PROPERTIES
 # ----------------------------------------------------------------------
 
 # Install TouchEngine SDK files (DLL and import lib)
+# Use $<CONFIG> subdirectories to match the target install layout
 install(FILES "${TOUCHENGINE_BIN_DIR}/TouchEngine.dll"
-    DESTINATION ${CMAKE_INSTALL_BINDIR}
+    DESTINATION ${CMAKE_INSTALL_BINDIR}/$<CONFIG>
 )
 install(FILES "${TOUCHENGINE_LIB_DIR}/TouchEngine.lib"
-    DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/$<CONFIG>
     RENAME TouchEngineSDK.lib
 )
 

@@ -31,6 +31,11 @@ public:
     static DsQmlTouchEngineManager *create(QQmlEngine *engine, QJSEngine *scriptEngine);
     static DsQmlTouchEngineManager* inst();
 
+    /// One-call helper: detects the graphics API from the window's scene graph
+    /// and fully initialises the singleton manager.  Safe to call before or
+    /// after the scene graph is ready (will defer via sceneGraphInitialized).
+    static void initializeFromWindow(QQuickWindow* window);
+
     // Create and manage instances - QML API uses QString
     Q_INVOKABLE QString createInstance();
     Q_INVOKABLE void destroyInstance(const QString& idString);

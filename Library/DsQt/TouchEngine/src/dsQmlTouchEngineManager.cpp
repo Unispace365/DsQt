@@ -1,6 +1,7 @@
 #include "dsQmlTouchEngineManager.h"
 #include <QDebug>
 #include <QOpenGLContext>
+#include <QSGRendererInterface>
 #include <rhi/qrhi.h>
 
 DsQmlTouchEngineManager* DsQmlTouchEngineManager::s_instance = nullptr;
@@ -18,6 +19,69 @@ DsQmlTouchEngineManager* DsQmlTouchEngineManager::inst()
         s_instance = new DsQmlTouchEngineManager();
     }
     return s_instance;
+}
+
+void DsQmlTouchEngineManager::initializeFromWindow(QQuickWindow* window)
+{
+    if (!window) return;
+
+    auto doInit = [window]() {
+        QSGRendererInterface* rif = window->rendererInterface();
+        QRhi* rhi = window->rhi();
+        if (!rhi) {
+            qWarning() << "No QRhi available from window!";
+            return;
+        }
+        if (!rif) return;
+
+        void* device = nullptr;
+        DsQmlTouchEngineInstance::TEGraphicsAPI apiType = DsQmlTouchEngineInstance::TEGraphicsAPI_Unknown;
+
+        switch (rif->graphicsApi()) {
+        case QSGRendererInterface::Direct3D11:
+            device = rif->getResource(window, QSGRendererInterface::DeviceResource);
+            apiType = DsQmlTouchEngineInstance::TEGraphicsAPI_D3D11;
+            qDebug() << "Using Direct3D 11!";
+            break;
+        case QSGRendererInterface::Direct3D12:
+            device = rif->getResource(window, QSGRendererInterface::DeviceResource);
+            apiType = DsQmlTouchEngineInstance::TEGraphicsAPI_D3D12;
+            qDebug() << "Using Direct3D 12!";
+            break;
+        case QSGRendererInterface::Vulkan:
+            device = rif->getResource(window, QSGRendererInterface::DeviceResource);
+            apiType = DsQmlTouchEngineInstance::TEGraphicsAPI_Vulkan;
+            qDebug() << "Using Vulkan!";
+            break;
+        case QSGRendererInterface::OpenGL:
+            apiType = DsQmlTouchEngineInstance::TEGraphicsAPI_OpenGL;
+            qDebug() << "Using OpenGL!";
+            break;
+        case QSGRendererInterface::Metal:
+            device = rif->getResource(window, QSGRendererInterface::DeviceResource);
+            apiType = DsQmlTouchEngineInstance::TEGraphicsAPI_Metal;
+            qDebug() << "Using Metal!";
+            break;
+        default:
+            qWarning() << "Unsupported graphics API";
+            break;
+        }
+
+        if (apiType != DsQmlTouchEngineInstance::TEGraphicsAPI_Unknown) {
+            DsQmlTouchEngineManager* manager = DsQmlTouchEngineManager::inst();
+            manager->setGraphicsAPI(apiType);
+            manager->setWindow(window);
+            if (device || apiType == DsQmlTouchEngineInstance::TEGraphicsAPI_OpenGL) {
+                manager->initializeGraphics(rhi, device);
+            }
+        }
+    };
+
+    if (window->isSceneGraphInitialized()) {
+        doInit();
+    } else {
+        QObject::connect(window, &QQuickWindow::sceneGraphInitialized, window, doInit, Qt::DirectConnection);
+    }
 }
 
 DsQmlTouchEngineManager::DsQmlTouchEngineManager(QObject* parent)

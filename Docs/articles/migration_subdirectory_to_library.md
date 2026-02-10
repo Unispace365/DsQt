@@ -2,6 +2,61 @@
 
 This guide walks through converting a project that uses DsQt via `add_subdirectory()` to one that consumes DsQt as a pre-built, installed library via `find_package()`.
 
+## Automated Migration (Recommended)
+
+A Python script automates most of the migration steps described below. It parses your existing `CMakeLists.txt`, generates updated build files, patches `main.cpp`, rewrites QML imports, and copies scaffolding from `ClonerSource`.
+
+### Usage
+
+```bash
+python Tools/migrate_to_library.py <project_directory> [options]
+```
+
+### Options
+
+| Option | Description |
+|---|---|
+| `<project_directory>` | Path to the project to migrate (required) |
+| `--dsqt-root <path>` | Path to DsQt repo root. Default: derived from script location |
+| `--dry-run` | Show what would change without modifying any files |
+| `--no-backup` | Skip the git backup prompt |
+| `--reset` | Reset the project to the pre-migration backup branch |
+
+### Examples
+
+```bash
+# Preview changes without modifying files
+python Tools/migrate_to_library.py C:\dev\MyProject --dry-run
+
+# Run the migration
+python Tools/migrate_to_library.py C:\dev\MyProject
+
+# Run without the git backup prompt
+python Tools/migrate_to_library.py C:\dev\MyProject --no-backup
+
+# Undo a migration (restores the pre-migration-backup branch)
+python Tools/migrate_to_library.py C:\dev\MyProject --reset
+```
+
+### What the script does
+
+1. Parses your existing `CMakeLists.txt` to extract project metadata, Qt components, QML files, link targets, and local subdirectories
+2. Optionally creates a git backup branch (`pre-migration-backup`)
+3. Generates a new `CMakeLists.txt` using `find_package(Dsqt)` instead of `add_subdirectory()`
+4. Generates or patches `CMakePresets.json` with detected Qt installations and the DsQt install path
+5. Creates `vcpkg.json` and `VERSION.txt` if missing
+6. Patches `main.cpp` with `Q_IMPORT_QML_PLUGIN` macros
+7. Rewrites QML imports (`import Dsqt` → `import Dsqt.Core`, etc.)
+8. Copies missing scaffolding files from `Examples/ClonerSource/`
+
+After running the script, do a clean rebuild (delete `build/`, re-configure, build). See the manual steps below for details on what each change does and for troubleshooting.
+
+---
+
+## Manual Migration Steps
+
+The following sections describe each migration step in detail. If you used the automated script above, these serve as a reference for understanding and troubleshooting the changes.
+
 ## Prerequisites
 
 - Visual Studio 2022
@@ -210,7 +265,40 @@ engine.loadFromModule("YourAppName", "Main");
 
 Where `"YourAppName"` matches the `URI` in your `qt_add_qml_module` call.
 
-## Step 5: Update CMakePresets.json
+## Step 5: Update QML Imports
+
+The library approach uses modular QML import names. Update all `import` statements in your `.qml` files:
+
+| Old Import | New Import |
+|---|---|
+| `import Dsqt` | `import Dsqt.Core` |
+| `import WafflesUx` | `import Dsqt.Waffles` |
+| `import TouchEngineQt` | `import Dsqt.TouchEngine` |
+
+For example, a file that had:
+
+```qml
+import Dsqt
+import TouchEngineQt
+```
+
+Should become:
+
+```qml
+import Dsqt.Core
+import Dsqt.TouchEngine
+```
+
+Only the bare module names need updating. If a QML file uses components from multiple DsQt modules (e.g. both Core and Bridge), add separate imports for each:
+
+```qml
+import Dsqt.Core
+import Dsqt.Bridge
+```
+
+> **Tip:** The migration script (`Tools/migrate_to_library.py`) handles this automatically.
+
+## Step 6: Update CMakePresets.json
 
 Your `CMakePresets.json` must include the DsQt install location in `CMAKE_PREFIX_PATH`. Add it alongside your Qt path:
 
@@ -227,11 +315,11 @@ Your `CMakePresets.json` must include the DsQt install location in `CMAKE_PREFIX
 
 The key addition is `;$env{USERPROFILE}/Documents/DsQt` appended to the `CMAKE_PREFIX_PATH`.
 
-## Step 6: Remove the DS_QT_PLATFORM_100 Environment Variable
+## Step 7: Remove the DS_QT_PLATFORM_100 Environment Variable
 
 The subdirectory approach relied on the `DS_QT_PLATFORM_100` environment variable to locate the DsQt source tree. This is no longer needed. You can remove it from your system environment variables.
 
-## Step 7: Clean and Rebuild
+## Step 8: Clean and Rebuild
 
 1. Delete your existing `build/` directory.
 2. Re-configure the project using your CMake preset.
@@ -247,6 +335,14 @@ The subdirectory approach relied on the `DS_QT_PLATFORM_100` environment variabl
 | N/A (monolithic) | `Dsqt::Bridge` |
 | N/A (monolithic) | `Dsqt::Waffles` |
 | N/A (monolithic) | `Dsqt::TouchEngine` |
+
+## Quick Reference: Old vs New QML Imports
+
+| Old Import | New Import |
+|---|---|
+| `import Dsqt` | `import Dsqt.Core` |
+| `import WafflesUx` | `import Dsqt.Waffles` |
+| `import TouchEngineQt` | `import Dsqt.TouchEngine` |
 
 ## Quick Reference: CMake Variables Set by find_package(Dsqt)
 
