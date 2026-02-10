@@ -76,3 +76,4 @@ cmake/dsqtimportpath.h
 Examples/ClonerSource/.qtcreator
 /**/.claude
 /**/.qtcreator
+Tools/__pycache__

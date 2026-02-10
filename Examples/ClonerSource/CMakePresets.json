@@ -45,7 +45,9 @@
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/build/ninja-6.10.0-debug",
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Debug"
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_C_COMPILER": "cl.exe",
+        "CMAKE_CXX_COMPILER": "cl.exe"
       }
     },
     {
@@ -55,7 +57,9 @@
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/build/ninja-6.10.0-release",
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Release"
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_C_COMPILER": "cl.exe",
+        "CMAKE_CXX_COMPILER": "cl.exe"
       }
     },
     {
@@ -65,7 +69,9 @@
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/build/ninja-6.10.0-relwithdebinfo",
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "RelWithDebInfo"
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "CMAKE_C_COMPILER": "cl.exe",
+        "CMAKE_CXX_COMPILER": "cl.exe"
       }
     },
     {
@@ -75,7 +81,9 @@
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/build/ninja-6.10.1-debug",
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Debug"
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_C_COMPILER": "cl.exe",
+        "CMAKE_CXX_COMPILER": "cl.exe"
       }
     },
     {
@@ -85,7 +93,9 @@
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/build/ninja-6.10.1-release",
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Release"
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_C_COMPILER": "cl.exe",
+        "CMAKE_CXX_COMPILER": "cl.exe"
       }
     },
     {
@@ -95,7 +105,9 @@
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/build/ninja-6.10.1-relwithdebinfo",
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "RelWithDebInfo"
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "CMAKE_C_COMPILER": "cl.exe",
+        "CMAKE_CXX_COMPILER": "cl.exe"
       }
     }
   ],
