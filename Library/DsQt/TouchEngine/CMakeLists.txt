@@ -1,18 +1,15 @@
 cmake_minimum_required(VERSION  3.29)
 
-
 SET(QT_NO_PRIVATE_MODULE_WARNING ON)
 
 # Find Qt6 components
 find_package(Qt6 REQUIRED COMPONENTS
-    # Concurrent
-    # Core
-    # Gui
-    # Qml
-    # Quick
+    Concurrent
+    Core
+    Quick
+    QuickControls2
     GuiPrivate 
     ShaderTools
-    QuickControls2
 )
 qt_standard_project_setup(REQUIRES 6.9)
 
@@ -150,8 +147,6 @@ qt_add_qml_module(TouchEngine
     DEPENDENCIES QtQuick
 )
 
-
-
 qt6_add_shaders(TouchEngine "shaders"
     PREFIX "/"
     HLSL 50
@@ -191,12 +186,13 @@ target_link_directories(TouchEngine
 
 target_link_libraries(TouchEngine
     PUBLIC
+        Qt6::Concurrent
         Qt6::Core
         Qt6::Quick
         Qt6::QuickControls2
         Qt6::Gui
         Qt6::GuiPrivate
-        Qt6::Concurrent
+        Qt6::ShaderTools
         TouchEngineplugin
         # Link to TouchEngine SDK library file directly (not the imported target)
         # The imported target TouchEngineSDK is only used for include directories

@@ -1,14 +1,13 @@
 
 cmake_minimum_required(VERSION 3.29)
 
-#find_package(Qt6 REQUIRED COMPONENTS Core Multimedia Quick Pdf WebEngineQuick)
 find_package(Qt6 6.9
     REQUIRED COMPONENTS
-        # Concurrent
-        # Core
-        # Gui
-        # Qml
-        # Quick
+        Core
+        Gui
+        Multimedia
+        Qml
+        Quick
 )
 qt_standard_project_setup(REQUIRES 6.9)
 
@@ -36,13 +35,18 @@ qt_add_qml_module(Waffles
         qml/waffles/menu_launcher/DsContentLauncher.qml
         qml/waffles/menu_launcher/DsSection.qml
         qml/waffles/menu_launcher/DsTestLauncher.qml
-
 )
 
 set(WafflesTargets ${WafflesTargets} PARENT_SCOPE)
 
-target_link_libraries(Waffles PUBLIC Qt6::Core Qt6::Quick Qt6::Gui Qt6::Qml Wafflesplugin)
-#target_include_directories(Waffles PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} bridge core model network qml resources settings ui utility)
+target_link_libraries(Waffles PUBLIC
+    Qt6::Core 
+    Qt6::Quick 
+    Qt6::Gui 
+    Qt6::Qml 
+    Qt6::Multimedia
+    Wafflesplugin
+)
 
 target_include_directories(Waffles
     PUBLIC
