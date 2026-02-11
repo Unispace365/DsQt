@@ -52,6 +52,7 @@ add_subdirectory("Dsqt/Core")
 add_subdirectory("Dsqt/Bridge")
 add_subdirectory("Dsqt/Waffles")
 add_subdirectory("Dsqt/TouchEngine")
+add_subdirectory("Dsqt/Spout")
 
 if(Dsqt::Core::DSQT_USE_GLM)
     message(STATUS "Dsqt: GLM support enabled")
@@ -75,6 +76,10 @@ target_link_libraries(Dsqt
     Dsqt::Waffles
     Dsqt::TouchEngine
 )
+
+if(WIN32 AND TARGET Dsqt::Spout)
+    target_link_libraries(Dsqt INTERFACE Dsqt::Spout)
+endif()
 
 # FetchContent_Declare(
 #     tomlplusplus
@@ -171,6 +176,17 @@ if(PROJECT_IS_TOP_LEVEL)
         RUNTIME    DESTINATION ${CMAKE_INSTALL_BINDIR}/$<CONFIG>      # .dll / executables
     )
 
+    # Spout module (Windows only)
+    if(WIN32 AND TARGET DsSpout)
+        install(TARGETS
+            DsSpout
+            DsSpoutplugin
+            LIBRARY    DESTINATION ${CMAKE_INSTALL_LIBDIR}/$<CONFIG>
+            ARCHIVE    DESTINATION ${CMAKE_INSTALL_LIBDIR}/$<CONFIG>
+            RUNTIME    DESTINATION ${CMAKE_INSTALL_BINDIR}/$<CONFIG>
+        )
+    endif()
+
     # ----------------------------------------------------------------------
     # Install QML modules (qmldir, qmltypes, plugins)
     # Standard Qt location: ${prefix}/qml/Module/Name/
@@ -198,6 +214,15 @@ if(PROJECT_IS_TOP_LEVEL)
         DESTINATION "qml/Dsqt/TouchEngine"
     )
 
+    # Spout QML module metadata (Windows only)
+    if(WIN32 AND TARGET DsSpout)
+        install(FILES
+            "${QT_QML_OUTPUT_DIRECTORY}/Dsqt/Spout/qmldir"
+            "${QT_QML_OUTPUT_DIRECTORY}/Dsqt/Spout/DsSpout.qmltypes"
+            DESTINATION "qml/Dsqt/Spout"
+        )
+    endif()
+
     # Install QML source files for each module
     # These are needed by qmlimportscanner which looks for files referenced in qmldir
     install(DIRECTORY "${QT_QML_OUTPUT_DIRECTORY}/Dsqt/Core/qml"
@@ -220,6 +245,15 @@ if(PROJECT_IS_TOP_LEVEL)
         OPTIONAL
         FILES_MATCHING PATTERN "*.qml"
     )
+
+    # Spout QML files (Windows only)
+    if(WIN32 AND TARGET DsSpout)
+        install(DIRECTORY "${QT_QML_OUTPUT_DIRECTORY}/Dsqt/Spout/qml"
+            DESTINATION "qml/Dsqt/Spout"
+            OPTIONAL
+            FILES_MATCHING PATTERN "*.qml"
+        )
+    endif()
 
     # Create the main Config.cmake file from our template
     # Note: We don't use CMake's export() mechanism because Qt's qt_add_qml_module
