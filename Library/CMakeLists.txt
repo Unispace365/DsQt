@@ -151,6 +151,15 @@ cmake_path(NATIVE_PATH CMAKE_CURRENT_SOURCE_DIR DS_QMLLINT_ROOT)
 
 
 if(PROJECT_IS_TOP_LEVEL)
+    option(DSQT_BUILD_TOOLS "Build and install DsQt tools (ProjectCloner)" OFF)
+
+    if(DSQT_BUILD_TOOLS)
+        add_subdirectory(
+            "${CMAKE_CURRENT_SOURCE_DIR}/../Tools/ProjectCloner"
+            "${CMAKE_BINARY_DIR}/Tools/ProjectCloner"
+        )
+    endif()
+
     include(GNUInstallDirs)
     include(CMakePackageConfigHelpers)
 
@@ -308,5 +317,17 @@ if(PROJECT_IS_TOP_LEVEL)
             file(WRITE "${_reg_dir}/${_hash}" "${_config_dir}")
             message(STATUS "Registered Dsqt in CMake package registry: ${_config_dir}")
         ]])
+    endif()
+
+    # ----------------------------------------------------------------------
+    # Install ClonerSource example template
+    # ----------------------------------------------------------------------
+    if(DSQT_BUILD_TOOLS)
+        install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/../Examples/ClonerSource/"
+            DESTINATION "Examples/ClonerSource"
+            PATTERN "build" EXCLUDE
+            PATTERN ".qtcreator" EXCLUDE
+            PATTERN "CMakeLists.txt.user" EXCLUDE
+        )
     endif()
 endif()

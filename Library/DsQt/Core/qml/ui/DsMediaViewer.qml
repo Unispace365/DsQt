@@ -2,11 +2,14 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Shapes
+import QtQuick.VectorImage
+import Dsqt.Core
+
+// Core elements should not import multimedia or web modules directly, as these may not be needed on all platforms.
+// Please consider creating separate components for video, web and pdf content that can be loaded by this viewer when needed, rather than importing those modules here.
 import QtMultimedia
 import QtWebEngine
 import QtQuick.Pdf
-import Dsqt.Core
-import QtQuick.VectorImage
 
 // An element that can display images, videos, web content and PDFs.
 Item {

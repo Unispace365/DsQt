@@ -1,16 +1,11 @@
 
 cmake_minimum_required(VERSION 3.29)
 
-option(DSQT_WITH_TOML "Enable tomlplusplus support" ON)
-option(DSQT_WITH_GLM "Enable GML math library support" OFF)
-
 find_package(Qt6 6.9
     REQUIRED COMPONENTS 
         Concurrent
-        # Core
-        # Gui
-        # Qml
-        # Quick
+        Core
+        Qml
         Sql
 )
 
@@ -19,9 +14,6 @@ if (NOT TARGET Qt6::Sql)
   return()
 endif()
 
-
-
-#find_package(Qt6 REQUIRED COMPONENTS Core Multimedia Quick Pdf WebEngineQuick)
 qt_standard_project_setup(REQUIRES 6.9)
 
 add_library(Bridge)
@@ -56,9 +48,8 @@ target_link_libraries(Bridge
         Qt6::Core 
         Qt6::Qml
         Qt6::Sql
-
         
-        Core 
+        Core
         Bridgeplugin
 )
 

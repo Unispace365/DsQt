@@ -3,8 +3,6 @@
 
 #include <QQuickItem>
 #include <QDir>
-#include <QtEnvironmentVariables>
-
 #include "git_ignore_checker.h"
 
 class Cloner : public QQuickItem
@@ -75,7 +73,7 @@ private:
     QString m_applicationName="";
     QString m_projectName="";
     QString m_cloneToDirectory="";
-    QString m_cloneFromDirectory=qEnvironmentVariable("DS_QT_PLATFORM_100")+"\\Examples\\ClonerSource";
+    QString m_cloneFromDirectory;
     QList<QString> m_excludeList;
     QList<QString> m_permanentExcludeList = {"CMakeLists.txt.user","build\\"};
     QString m_lastError;

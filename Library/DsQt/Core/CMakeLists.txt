@@ -1,4 +1,3 @@
-#CORE
 cmake_minimum_required(VERSION 3.29)
 
 option(DSQT_WITH_TOML "Enable tomlplusplus support" ON)
@@ -19,7 +18,14 @@ if(DSQT_WITH_GLM)
     find_package(glm CONFIG REQUIRED)
 endif()
 
-#find_package(Qt6 REQUIRED COMPONENTS Core Multimedia Quick Pdf WebEngineQuick)
+find_package(Qt6 6.9
+    REQUIRED COMPONENTS
+        Core
+        Gui
+        Qml
+        Quick
+)
+
 qt_standard_project_setup(REQUIRES 6.9)
 
 add_library(Core)
@@ -55,7 +61,7 @@ qt_add_qml_module(Core
         core/dsQmlIdle.h core/dsQmlIdle.cpp
         core/dsQmlIdlePreventer.h core/dsQmlIdlePreventer.cpp
         core/dsQmlObj.h core/dsQmlObj.cpp
-        core/dsQmlPathHelper.cpp core/dsQmlPathHelper.h
+        core/dsQmlPathHelper.h
         core/dsQmlTextMeasurer.h
         core/dsReloadUrlInterceptor.h core/dsReloadUrlInterceptor.cpp
         model/dsContentModel.cpp model/dsContentModel.h
@@ -96,8 +102,13 @@ qt_add_qml_module(Core
 
 set(CoreTargets ${CoreTargets} PARENT_SCOPE)
 
-target_link_libraries(Core PUBLIC Qt6::Core Qt6::Quick Qt6::Gui Qt6::Qml Coreplugin)
-#target_include_directories(Core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} bridge core model network qml resources settings ui utility)
+target_link_libraries(Core PUBLIC 
+    Qt6::Core 
+    Qt6::Quick 
+    Qt6::Gui 
+    Qt6::Qml 
+    Coreplugin
+)
 
 target_include_directories(Core
     PUBLIC
