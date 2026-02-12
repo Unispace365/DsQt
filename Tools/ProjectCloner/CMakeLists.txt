@@ -30,9 +30,15 @@ qt_add_qml_module(appProjectCloner
     RESOURCES skip.txt
     DEPENDENCIES QtQuick
     RESOURCES images/clone1.gif images/clone2.gif images/clone3.gif images/clone4.gif images/error.gif
+    QML_FILES MainView.qml
 )
 
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/skip.txt" "${CMAKE_BINARY_DIR}/skip.txt" COPYONLY)
+#add_custom_command(TARGET appProjectCloner POST_BUILD
+#    COMMAND ${CMAKE_COMMAND} -E copy_directory
+#        "${CMAKE_CURRENT_SOURCE_DIR}/ProjectSource"
+#        "$<TARGET_FILE_DIR:appProjectCloner>/ProjectSource"
+#)
 
 # Qt for iOS sets MACOSX_BUNDLE_GUI_IDENTIFIER automatically since Qt 6.1.
 # If you are developing for iOS or macOS you should consider setting an
@@ -67,6 +73,8 @@ install(TARGETS appProjectCloner
     LIBRARY DESTINATION ${PC_INSTALL_PREFIX}${CMAKE_INSTALL_LIBDIR}
     RUNTIME DESTINATION ${PC_INSTALL_PREFIX}${CMAKE_INSTALL_BINDIR}
 )
+
+install(FILES skip.txt DESTINATION ${PC_INSTALL_PREFIX}${CMAKE_INSTALL_BINDIR})
 
 qt_generate_deploy_qml_app_script(
     TARGET appProjectCloner

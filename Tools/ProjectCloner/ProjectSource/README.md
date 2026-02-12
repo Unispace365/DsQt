@@ -1,4 +1,4 @@
-# Downstream | APP_NAME_
+# Downstream | PROJECT_NAME_
 
 > "PROJECT_NAME_" for SuperClient.com 2024 Customer Experience Center in Anytown, OR
 
@@ -12,22 +12,14 @@
 * **Production CMS**: TBD
 * **Schema Repo**: [GitHub Link to Schema](https://github.com/Unispace365/)
 
-## Compiling / Running
 
-* Get [DsQt](https://github.com/Unispace365/DsQt) main branch
-* Follow the [DsQt getting started guide](https://github.com/Downstream/DsQt/)
-* Use [Bridge Sync](https://github.com/Unispace365/bridge-sync)
 
-### Hardware
+### Platforms
 
-* Single touch screen at 3840x1440
+[PLATFORMS]:# (This may be modified by additional runs of the Project Cloner)
 
-### Features
 
-* Waffles
-* Custom layouts
-* Ambient fun
-* General kooky-ness
+[END_PLATFORMS]:# (--)
 
 ---
 
@@ -39,6 +31,4 @@
 * **Install Site(s):** Anytown, OR, USA
 * **PM / Designer name:** ???
 * **Github Name:** TBD
-* **Name in project file:** APP_NAME_
 
-[//]: # (This is a comment)

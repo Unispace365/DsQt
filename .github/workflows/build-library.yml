@@ -4,6 +4,8 @@ on:
   push:
     paths:
       - 'Library/**'
+      - 'Tools/ProjectCloner/**'
+      - 'Examples/ClonerSource/**'
 
 permissions:
   contents: write
@@ -80,6 +82,26 @@ jobs:
     - name: Install Debug
       shell: cmd
       run: cmake --install Library/build/ci --config Debug
+
+    - name: Configure ProjectCloner
+      shell: cmd
+      run: >
+        cmake -S Tools/ProjectCloner -B Tools/ProjectCloner/build/ci
+        -G "Visual Studio 17 2022" -A x64
+        -DCMAKE_INSTALL_PREFIX="${{ github.workspace }}/install/Tools/ProjectCloner"
+
+    - name: Build ProjectCloner
+      shell: cmd
+      run: cmake --build Tools/ProjectCloner/build/ci --config Release
+
+    - name: Install ProjectCloner
+      shell: cmd
+      run: cmake --install Tools/ProjectCloner/build/ci --config Release
+
+    - name: Copy ClonerSource template
+      shell: bash
+      run: |
+        cp -r "${{ github.workspace }}/Examples/ClonerSource" "${{ github.workspace }}/install/Tools/ClonerSource"
 
     - name: Package artifacts
       shell: bash
