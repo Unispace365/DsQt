@@ -1,10 +1,20 @@
 #include "cloner.h"
+#include <QCoreApplication>
 #include <QFileInfo>
 #include <QThread>
 #include <QString>
 
 Cloner::Cloner() {
     checker = new GitIgnoreChecker("skip.txt");
+
+    // Resolve ClonerSource location: prefer installed layout relative to exe,
+    // fall back to compile-time source tree path for development builds.
+    QString installedPath = QCoreApplication::applicationDirPath() + "/../../Examples/ClonerSource";
+    if (QDir(installedPath).exists()) {
+        m_cloneFromDirectory = QDir(installedPath).canonicalPath();
+    } else {
+        m_cloneFromDirectory = QStringLiteral(CLONER_SOURCE_DIR);
+    }
 }
 
 void Cloner::clone()
