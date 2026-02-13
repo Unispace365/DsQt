@@ -190,6 +190,7 @@ if(PROJECT_IS_TOP_LEVEL)
         install(TARGETS
             DsSpout
             DsSpoutplugin
+            SpoutDX_static
             LIBRARY    DESTINATION ${CMAKE_INSTALL_LIBDIR}/$<CONFIG>
             ARCHIVE    DESTINATION ${CMAKE_INSTALL_LIBDIR}/$<CONFIG>
             RUNTIME    DESTINATION ${CMAKE_INSTALL_BINDIR}/$<CONFIG>

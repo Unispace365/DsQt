@@ -13,19 +13,28 @@
 
 #include <QQuickWindow>
 #include <QSGRendererInterface>
-#ifdef DSQT_HAS_TOUCHENGINE
+#ifdef DSQT_HAS_TouchEngine
 #include "dsQmlTouchEngineManager.h"
 #include "dsQmlTouchEngineInstance.h"
 #include "dsQmlTouchEngineTextureOutputView.h"
 #endif
 
 // Import statically linked Dsqt QML plugins
+#ifdef DSQT_HAS_Core
 Q_IMPORT_QML_PLUGIN(Dsqt_CorePlugin)
+#endif
+#ifdef DSQT_HAS_Bridge
 Q_IMPORT_QML_PLUGIN(Dsqt_BridgePlugin)
-#ifdef DSQT_HAS_TOUCHENGINE
+#endif
+#ifdef DSQT_HAS_TouchEngine
 Q_IMPORT_QML_PLUGIN(Dsqt_TouchEnginePlugin)
 #endif
+#ifdef DSQT_HAS_Waffles
 Q_IMPORT_QML_PLUGIN(Dsqt_WafflesPlugin)
+#endif
+#ifdef DSQT_HAS_Spout
+Q_IMPORT_QML_PLUGIN(Dsqt_SpoutPlugin)
+#endif
 
 //activate high performance graphics on windows laptops with dual graphics cards
 #ifdef Q_OS_WIN
@@ -138,7 +147,7 @@ int main(int argc, char *argv[])
         }
 
         // Initialize TouchEngine graphics after window is created
-#ifdef DSQT_HAS_TOUCHENGINE
+#ifdef DSQT_HAS_TouchEngine
         if (auto* window = qobject_cast<QQuickWindow*>(obj)) {
             DsQmlTouchEngineManager::initializeFromWindow(window);
         }

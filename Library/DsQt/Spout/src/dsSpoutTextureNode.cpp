@@ -25,6 +25,7 @@ DsSpoutTextureNode::DsSpoutTextureNode(QQuickWindow* window)
 
 DsSpoutTextureNode::~DsSpoutTextureNode()
 {
+    m_currentRhiTexture.reset();
     if (m_ownsTexture) {
         delete m_textureWrapper;
     }

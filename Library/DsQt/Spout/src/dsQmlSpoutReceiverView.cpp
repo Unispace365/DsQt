@@ -13,6 +13,17 @@ DsQmlSpoutReceiverView::DsQmlSpoutReceiverView(QQuickItem* parent)
     : QQuickItem(parent)
 {
     setFlag(ItemHasContents, true);
+
+    // Release GPU resources before QRhi is destroyed
+    auto connectInvalidated = [this](QQuickWindow* win) {
+        if (win) {
+            connect(win, &QQuickWindow::sceneGraphInvalidated,
+                    this, &DsQmlSpoutReceiverView::releaseResources,
+                    Qt::DirectConnection);
+        }
+    };
+    connectInvalidated(window());
+    connect(this, &QQuickItem::windowChanged, this, connectInvalidated);
 }
 
 DsQmlSpoutReceiverView::~DsQmlSpoutReceiverView()
@@ -165,9 +176,27 @@ QSGNode* DsQmlSpoutReceiverView::updatePaintNode(QSGNode* oldNode, UpdatePaintNo
             return node;
         }
 
+        // Query the actual texture format from the shared resource
+        D3D11_TEXTURE2D_DESC desc;
+        sharedTexture->GetDesc(&desc);
+
+        QRhiTexture::Format rhiFormat;
+        switch (desc.Format) {
+        case DXGI_FORMAT_B8G8R8A8_UNORM:
+            rhiFormat = QRhiTexture::BGRA8;
+            break;
+        case DXGI_FORMAT_R8G8B8A8_UNORM:
+            rhiFormat = QRhiTexture::RGBA8;
+            break;
+        default:
+            qWarning() << "DsQmlSpoutReceiverView: Unsupported DXGI format" << desc.Format;
+            sharedTexture->Release();
+            return node;
+        }
+
         // Create a QRhiTexture wrapping the shared DX11 texture
         QRhiTexture* rhiTex = rhi->newTexture(
-            QRhiTexture::RGBA8,
+            rhiFormat,
             senderSize,
             1,
             {});

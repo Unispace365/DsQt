@@ -240,14 +240,35 @@ At the top of `main.cpp`, add static QML plugin imports for each Dsqt module you
 ```cpp
 #include <QtQml/qqmlextensionplugin.h>
 
-// Import statically linked Dsqt QML plugins
+// Import statically linked Dsqt QML plugins (guarded by CMake compile definitions)
+#ifdef DSQT_HAS_Core
 Q_IMPORT_QML_PLUGIN(Dsqt_CorePlugin)
+#endif
+#ifdef DSQT_HAS_Bridge
 Q_IMPORT_QML_PLUGIN(Dsqt_BridgePlugin)
+#endif
+#ifdef DSQT_HAS_TouchEngine
 Q_IMPORT_QML_PLUGIN(Dsqt_TouchEnginePlugin)
+#endif
+#ifdef DSQT_HAS_Waffles
 Q_IMPORT_QML_PLUGIN(Dsqt_WafflesPlugin)
+#endif
+#ifdef DSQT_HAS_Spout
+Q_IMPORT_QML_PLUGIN(Dsqt_SpoutPlugin)
+#endif
 ```
 
-Only include the plugins for modules you are actually using.
+Each `DSQT_HAS_<Module>` definition is set automatically when the corresponding component is found by `find_package(Dsqt)`. In your `CMakeLists.txt`, add this pattern after `find_package`:
+
+```cmake
+foreach(_comp Core Bridge Waffles TouchEngine Spout)
+    if(Dsqt_${_comp}_FOUND)
+        target_compile_definitions(${DS_EXE_NAME} PRIVATE DSQT_HAS_${_comp})
+    endif()
+endforeach()
+```
+
+This makes each module truly optional — if a component isn't found (or isn't requested), the corresponding plugin import is simply skipped.
 
 ### Update: Module loading
 
@@ -335,6 +356,7 @@ The subdirectory approach relied on the `DS_QT_PLATFORM_100` environment variabl
 | N/A (monolithic) | `Dsqt::Bridge` |
 | N/A (monolithic) | `Dsqt::Waffles` |
 | N/A (monolithic) | `Dsqt::TouchEngine` |
+| N/A (monolithic) | `Dsqt::Spout` |
 
 ## Quick Reference: Old vs New QML Imports
 
@@ -343,6 +365,7 @@ The subdirectory approach relied on the `DS_QT_PLATFORM_100` environment variabl
 | `import Dsqt` | `import Dsqt.Core` |
 | `import WafflesUx` | `import Dsqt.Waffles` |
 | `import TouchEngineQt` | `import Dsqt.TouchEngine` |
+| N/A | `import Dsqt.Spout` |
 
 ## Quick Reference: CMake Variables Set by find_package(Dsqt)
 

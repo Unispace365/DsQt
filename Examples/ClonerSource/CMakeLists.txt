@@ -23,7 +23,7 @@ find_package(Qt6 6.9 REQUIRED COMPONENTS Core Quick QuickControls2 Multimedia Gu
 qt_standard_project_setup(REQUIRES 6.9)
 
 # Find Dsqt from installed package (CMAKE_PREFIX_PATH set via CMakePresets.json)
-find_package(Dsqt REQUIRED COMPONENTS Core Bridge Waffles TouchEngine)
+find_package(Dsqt REQUIRED COMPONENTS Core Bridge Waffles OPTIONAL_COMPONENTS TouchEngine Spout)
 
 message("DSQT is at ${Dsqt_DIR}")
 
@@ -69,7 +69,6 @@ qt_add_qml_module(${DS_EXE_NAME}
     DEPENDENCIES
         Dsqt::Core
         Dsqt::Bridge
-        Dsqt::TouchEngine
         Dsqt::Waffles
         QtQuick
         #RESOURCES cmake/app.rc.in
@@ -113,19 +112,26 @@ find_package(PkgConfig REQUIRED)
 pkg_check_modules(tomlplusplus REQUIRED IMPORTED_TARGET tomlplusplus)
 find_package(glm CONFIG REQUIRED)
 
-target_include_directories(${DS_EXE_NAME} PRIVATE ${Dsqt_INCLUDES} ${TouchEngineQt_INCLUDES})
+target_include_directories(${DS_EXE_NAME} PRIVATE
+    ${Dsqt_INCLUDES}
+    $<$<BOOL:${Dsqt_TouchEngine_FOUND}>:${TouchEngineQt_INCLUDES}>
+)
 
-if(Dsqt_TouchEngine_FOUND)
-    target_compile_definitions(${DS_EXE_NAME} PRIVATE DSQT_HAS_TOUCHENGINE)
-endif()
+# Provide DSQT_HAS_<MODULE> compile definitions for optional plugin imports
+foreach(_comp Core Bridge Waffles TouchEngine Spout)
+    if(Dsqt_${_comp}_FOUND)
+        target_compile_definitions(${DS_EXE_NAME} PRIVATE DSQT_HAS_${_comp})
+    endif()
+endforeach()
 
 
 target_link_libraries(${DS_EXE_NAME}
     PRIVATE
         Dsqt::Core
         Dsqt::Bridge
-        Dsqt::TouchEngine
+        $<$<BOOL:${Dsqt_TouchEngine_FOUND}>:Dsqt::TouchEngine>
         Dsqt::Waffles
+        $<$<BOOL:${Dsqt_Spout_FOUND}>:Dsqt::Spout>
 
         Qt6::Concurrent
         Qt6::Core
@@ -144,17 +150,19 @@ target_link_libraries(${DS_EXE_NAME}
 message("HEADERS ${Dsqt_INCLUDES}")
 include(GNUInstallDirs)
 
-# TouchEngine SDK DLL location (from installed package, config-specific subdirectory)
-set(TOUCHENGINE_DLL "${DSQT_BIN_DIR}/$<CONFIG>/TouchEngine.dll")
+if(Dsqt_TouchEngine_FOUND)
+    # TouchEngine SDK DLL location (from installed package, config-specific subdirectory)
+    set(TOUCHENGINE_DLL "${DSQT_BIN_DIR}/$<CONFIG>/TouchEngine.dll")
 
-# Copy TouchEngine.dll next to the executable during build
-if(WIN32)
-    add_custom_command(TARGET ${DS_EXE_NAME} POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            "${TOUCHENGINE_DLL}"
-            $<TARGET_FILE_DIR:${DS_EXE_NAME}>
-        COMMENT "Copying TouchEngine.dll to output directory"
-    )
+    # Copy TouchEngine.dll next to the executable during build
+    if(WIN32)
+        add_custom_command(TARGET ${DS_EXE_NAME} POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "${TOUCHENGINE_DLL}"
+                $<TARGET_FILE_DIR:${DS_EXE_NAME}>
+            COMMENT "Copying TouchEngine.dll to output directory"
+        )
+    endif()
 endif()
 
 install(TARGETS ${DS_EXE_NAME}
@@ -167,7 +175,7 @@ install(DIRECTORY "settings/" DESTINATION ${CMAKE_INSTALL_BINDIR}/settings OPTIO
 install(DIRECTORY "data/" DESTINATION ${CMAKE_INSTALL_BINDIR}/data OPTIONAL)
 
 # Install TouchEngine.dll to the deploy directory
-if(WIN32)
+if(WIN32 AND Dsqt_TouchEngine_FOUND)
     install(FILES "${DSQT_BIN_DIR}/$<CONFIG>/TouchEngine.dll" DESTINATION ${CMAKE_INSTALL_BINDIR} OPTIONAL)
 endif()
 

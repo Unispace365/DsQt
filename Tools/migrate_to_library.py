@@ -46,6 +46,7 @@ DSQT_LIBRARY_LINK_TARGETS = [
     "Dsqt::Bridge",
     "Dsqt::TouchEngine",
     "Dsqt::Waffles",
+    "Dsqt::Spout",
 ]
 
 DSQT_QML_DEPENDENCY_MAP = {
@@ -55,10 +56,11 @@ DSQT_QML_DEPENDENCY_MAP = {
 }
 
 DSQT_PLUGIN_MACROS = [
-    ("Dsqt_CorePlugin", "Dsqt::Core"),
-    ("Dsqt_BridgePlugin", "Dsqt::Bridge"),
-    ("Dsqt_TouchEnginePlugin", "Dsqt::TouchEngine"),
-    ("Dsqt_WafflesPlugin", "Dsqt::Waffles"),
+    ("Dsqt_CorePlugin",        "Dsqt::Core",        "DSQT_HAS_Core"),
+    ("Dsqt_BridgePlugin",      "Dsqt::Bridge",      "DSQT_HAS_Bridge"),
+    ("Dsqt_TouchEnginePlugin", "Dsqt::TouchEngine",  "DSQT_HAS_TouchEngine"),
+    ("Dsqt_WafflesPlugin",     "Dsqt::Waffles",      "DSQT_HAS_Waffles"),
+    ("Dsqt_SpoutPlugin",       "Dsqt::Spout",        "DSQT_HAS_Spout"),
 ]
 
 
@@ -281,7 +283,7 @@ def generate_cmakelists(
         extra_link_block = "\n".join(f"        {lib}" for lib in extra_link_libs)
 
     # Build QML dependencies
-    all_qml_deps = ["Dsqt::Core", "Dsqt::Bridge", "Dsqt::TouchEngine", "Dsqt::Waffles", "QtQuick"]
+    all_qml_deps = ["Dsqt::Core", "Dsqt::Bridge", "Dsqt::Waffles", "QtQuick"]
     for dep in extra_qml_deps:
         if dep not in all_qml_deps:
             all_qml_deps.append(dep)
@@ -335,7 +337,7 @@ find_package(Qt6 6.9 REQUIRED COMPONENTS {qt_comps_str})
 qt_standard_project_setup(REQUIRES 6.9)
 
 # Find Dsqt from installed package (CMAKE_PREFIX_PATH set via CMakePresets.json)
-find_package(Dsqt REQUIRED COMPONENTS Core Bridge Waffles TouchEngine)
+find_package(Dsqt REQUIRED COMPONENTS Core Bridge Waffles OPTIONAL_COMPONENTS TouchEngine Spout)
 
 message("DSQT is at ${{Dsqt_DIR}}")
 """
@@ -416,14 +418,25 @@ set_target_properties(${{DS_EXE_NAME}} PROPERTIES
 {fetchcontent_block}
 find_package(glm CONFIG REQUIRED)
 
-target_include_directories(${{DS_EXE_NAME}} PRIVATE ${{Dsqt_INCLUDES}} ${{TouchEngineQt_INCLUDES}})
+target_include_directories(${{DS_EXE_NAME}} PRIVATE
+    ${{Dsqt_INCLUDES}}
+    $<$<BOOL:${{Dsqt_TouchEngine_FOUND}}>:${{TouchEngineQt_INCLUDES}}>
+)
+
+# Provide DSQT_HAS_<MODULE> compile definitions for optional plugin imports
+foreach(_comp Core Bridge Waffles TouchEngine Spout)
+    if(Dsqt_${{_comp}}_FOUND)
+        target_compile_definitions(${{DS_EXE_NAME}} PRIVATE DSQT_HAS_${{_comp}})
+    endif()
+endforeach()
 
 target_link_libraries(${{DS_EXE_NAME}}
     PRIVATE
         Dsqt::Core
         Dsqt::Bridge
-        Dsqt::TouchEngine
+        $<$<BOOL:${{Dsqt_TouchEngine_FOUND}}>:Dsqt::TouchEngine>
         Dsqt::Waffles
+        $<$<BOOL:${{Dsqt_Spout_FOUND}}>:Dsqt::Spout>
 
 {extra_link_block}
 
@@ -444,17 +457,19 @@ target_link_libraries(${{DS_EXE_NAME}}
 message("HEADERS ${{Dsqt_INCLUDES}}")
 include(GNUInstallDirs)
 
-# TouchEngine SDK DLL location (from installed package, config-specific subdirectory)
-set(TOUCHENGINE_DLL "${{DSQT_BIN_DIR}}/$<CONFIG>/TouchEngine.dll")
+if(Dsqt_TouchEngine_FOUND)
+    # TouchEngine SDK DLL location (from installed package, config-specific subdirectory)
+    set(TOUCHENGINE_DLL "${{DSQT_BIN_DIR}}/$<CONFIG>/TouchEngine.dll")
 
-# Copy TouchEngine.dll next to the executable during build
-if(WIN32)
-    add_custom_command(TARGET ${{DS_EXE_NAME}} POST_BUILD
-        COMMAND ${{CMAKE_COMMAND}} -E copy_if_different
-            "${{TOUCHENGINE_DLL}}"
-            $<TARGET_FILE_DIR:${{DS_EXE_NAME}}>
-        COMMENT "Copying TouchEngine.dll to output directory"
-    )
+    # Copy TouchEngine.dll next to the executable during build
+    if(WIN32)
+        add_custom_command(TARGET ${{DS_EXE_NAME}} POST_BUILD
+            COMMAND ${{CMAKE_COMMAND}} -E copy_if_different
+                "${{TOUCHENGINE_DLL}}"
+                $<TARGET_FILE_DIR:${{DS_EXE_NAME}}>
+            COMMENT "Copying TouchEngine.dll to output directory"
+        )
+    endif()
 endif()
 
 install(TARGETS ${{DS_EXE_NAME}}
@@ -467,7 +482,7 @@ install(DIRECTORY "settings/" DESTINATION ${{CMAKE_INSTALL_BINDIR}}/settings OPT
 install(DIRECTORY "data/" DESTINATION ${{CMAKE_INSTALL_BINDIR}}/data OPTIONAL)
 
 # Install TouchEngine.dll to the deploy directory
-if(WIN32)
+if(WIN32 AND Dsqt_TouchEngine_FOUND)
     install(FILES "${{DSQT_BIN_DIR}}/$<CONFIG>/TouchEngine.dll" DESTINATION ${{CMAKE_INSTALL_BINDIR}} OPTIONAL)
 endif()
 
@@ -787,7 +802,8 @@ def patch_main_cpp(content):
     # Add Q_IMPORT_QML_PLUGIN macros if not present
     if 'Q_IMPORT_QML_PLUGIN' not in new_content:
         plugin_lines = "\n".join(
-            f"Q_IMPORT_QML_PLUGIN({name})" for name, _ in DSQT_PLUGIN_MACROS
+            f"#ifdef {guard}\nQ_IMPORT_QML_PLUGIN({name})\n#endif"
+            for name, _, guard in DSQT_PLUGIN_MACROS
         )
         plugin_block = f"\n// Import statically linked Dsqt QML plugins\n{plugin_lines}\n"
 
