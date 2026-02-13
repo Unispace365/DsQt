@@ -5,12 +5,6 @@ import QtQuick.Shapes
 import QtQuick.VectorImage
 import Dsqt.Core
 
-// Core elements should not import multimedia or web modules directly, as these may not be needed on all platforms.
-// Please consider creating separate components for video, web and pdf content that can be loaded by this viewer when needed, rather than importing those modules here.
-import QtMultimedia
-import QtWebEngine
-import QtQuick.Pdf
-
 // An element that can display images, videos, web content and PDFs.
 Item {
     id: root
@@ -48,6 +42,25 @@ Item {
     property Component pdfController: null
     property Component vectorController: null
 
+    // Lazy-loaded components from Dsqt.Waffles (resolved at runtime)
+    property Component _videoComponent: null
+    property Component _webComponent: null
+    property Component _pdfComponent: null
+
+    function _lazyLoad(prop, typeName) {
+        if (root[prop] === null) {
+            let c = Qt.createComponent("Dsqt.Waffles", typeName)
+            if (c && c.status === Component.Ready) {
+                root[prop] = c
+            } else {
+                console.warn("DsMediaViewer: Could not load", typeName, "from Dsqt.Waffles.",
+                             c ? c.errorString() : "Module not available")
+                return null
+            }
+        }
+        return root[prop]
+    }
+
     onSourceChanged: {
         contentLoader.sourceComponent = root.getComponentForContent();
     }
@@ -68,15 +81,15 @@ Item {
         if(source) {
             var ext = source.toLowerCase().split('.').pop();
             if (['mp4', 'avi', 'mov', 'mkv','webm'].indexOf(ext) !== -1) {
-                return videoComponent;
+                return _lazyLoad("_videoComponent", "DsVideoViewer");
             } else if (['jpg', 'jpeg', 'png', 'gif', 'bmp','webp'].indexOf(ext) !== -1) {
                 return isCropped ? imageComponent : animatedImageComponent;
             } else if (['svg', 'lottie'].indexOf(ext) !== -1) {
                 return vectorComponent;
             } else if (['html', 'htm'].indexOf(ext) !== -1 || source.startsWith("http")) {
-                return webViewComponent;
+                return _lazyLoad("_webComponent", "DsWebViewer");
             } else if (['pdf'].indexOf(ext) !== -1) {
-                return pdfViewComponent;
+                return _lazyLoad("_pdfComponent", "DsPdfViewer");
             } else {
                 console.log("Unsupported file extension: " + ext);
             }
@@ -91,7 +104,7 @@ Item {
         }
 
         if(ctype === "video" || ctype === "video stream" ) {
-            return videoComponent;
+            return _lazyLoad("_videoComponent", "DsVideoViewer");
         } else if(ctype === "image") {
             return isCropped ? imageComponent : animatedImageComponent;
         } else if(ctype === "image sequence") {
@@ -99,9 +112,9 @@ Item {
         } else if(ctype === "vector" || ctype === "vector sequence") {
             return vectorComponent;
         } else if(ctype === "web" || ctype === "youtube") {
-            return webViewComponent;
+            return _lazyLoad("_webComponent", "DsWebViewer");
         } else if(ctype === "pdf") {
-            return pdfViewComponent;
+            return _lazyLoad("_pdfComponent", "DsPdfViewer");
         } else {
             return getComponentForExtension();
         }
@@ -137,6 +150,17 @@ Item {
         anchors.fill: parent
         sourceComponent: root.getComponentForContent()
         asynchronous: true
+        onLoaded: {
+            if (item) {
+                if ('source' in item) item.source = Qt.binding(() => root.source)
+                if ('fillMode' in item) item.fillMode = Qt.binding(() => root.fillMode)
+                if ('loops' in item) item.loops = Qt.binding(() => root.loops)
+                if ('autoPlay' in item) item.autoPlay = Qt.binding(() => root.autoPlay)
+                if ('page' in item) item.page = Qt.binding(() => root.page)
+                if ('mediaLoaded' in item) item.mediaLoaded.connect(root.mediaLoaded)
+                if ('videoFinished' in item) item.videoFinished.connect(root.videoFinished)
+            }
+        }
     }
 
     // Crop indicator. TODO maybe use a component, so we only construct this if needed?
@@ -184,35 +208,6 @@ Item {
                     path: "M"+cx+","+cy+"v"+ch+"h"+cw+"v"+(-ch)+"z"
                 }
             }
-        }
-    }
-
-    // Component for Video
-    Component {
-        id: videoComponent
-        Video {
-            id: video
-            anchors.fill: parent
-            source: root.source
-            fillMode: root.fillMode
-            autoPlay: root.autoPlay
-            loops: root.loops
-
-            property bool loading: true
-            onBufferProgressChanged: {
-                if(loading && video.bufferProgress >= 1) {
-                    loading = false
-                    root.mediaLoaded()
-                    console.log("Video loaded: ", video.source)
-                }
-            }
-
-            onStopped: root.videoFinished()
-
-            readonly property real renderedOffsetX: (width - renderedWidth) / 2
-            readonly property real renderedOffsetY: (height - renderedHeight) / 2
-            readonly property real renderedWidth: root.getRenderedWidth(video)
-            readonly property real renderedHeight: root.getRenderedHeight(video)
         }
     }
 
@@ -314,79 +309,6 @@ Item {
             readonly property real renderedOffsetY: (height - renderedHeight) / 2
             readonly property real renderedWidth: root.getRenderedWidth(vectorImage)
             readonly property real renderedHeight: root.getRenderedHeight(vectorImage)
-        }
-    }
-
-    // Component for WebEngine
-    Component {
-        id: webViewComponent
-        WebEngineView  {
-            id: webView
-            anchors.fill: parent
-            url: root.source
-            onLoadingChanged: (loadingInfo) => {
-                if (loadingInfo.status === WebEngineView.LoadFailedStatus) {
-                    console.log("WebView loading error: " + loadingInfo.errorString)
-                } else if(loadingInfo.status === WebEngineView.LoadSucceededStatus) {
-                    root.mediaLoaded()
-                }
-            }
-
-            // Note: root.fillMode is ignored.
-
-            readonly property real renderedOffsetX: (width - renderedWidth) / 2
-            readonly property real renderedOffsetY: (height - renderedHeight) / 2
-            readonly property real renderedWidth: root.getRenderedWidth(webView)
-            readonly property real renderedHeight: root.getRenderedHeight(webView)
-        }
-    }
-
-    Component {
-        id: pdfViewComponent
-        Item {
-            id: pdfContainer
-            anchors.fill: parent
-
-            PdfDocument {
-                id: pdfDoc
-                source: root.source
-            }
-
-            PdfMultiPageView {
-                id: pdfView
-                anchors.fill: parent
-                document: pdfDoc
-
-                property bool loading: true
-                Component.onCompleted: {
-                    if (pdfDoc.pageCount > 0) {
-                        pdfView.goToPage(root.page-1);
-
-                        fitToView()
-
-                        if(loading) {
-                            loading = false
-                            root.mediaLoaded()
-                        }
-                    }
-                }
-
-                onCurrentPageChanged: fitToView()
-
-                function fitToView() {
-                    if(root.fillMode === Image.PreserveAspectFit) {
-                        pdfView.scaleToPage(pdfContainer.width,pdfContainer.height)
-                    }
-                    else if(root.fillMode === Image.PreserveAspectCrop) {
-                        pdfView.scaleToWidth(pdfContainer.width, pdfContainer.height)
-                    }
-                }
-            }
-
-            readonly property real renderedOffsetX: (width - renderedWidth) / 2
-            readonly property real renderedOffsetY: (height - renderedHeight) / 2
-            readonly property real renderedWidth: root.getRenderedWidth(pdfView)
-            readonly property real renderedHeight: root.getRenderedHeight(pdfView)
         }
     }
 }

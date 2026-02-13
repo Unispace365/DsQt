@@ -8,6 +8,9 @@ find_package(Qt6 6.9
         Multimedia
         Qml
         Quick
+    OPTIONAL_COMPONENTS
+        WebEngineQuick
+        Pdf
 )
 qt_standard_project_setup(REQUIRES 6.9)
 
@@ -35,6 +38,10 @@ qt_add_qml_module(Waffles
         qml/waffles/menu_launcher/DsContentLauncher.qml
         qml/waffles/menu_launcher/DsSection.qml
         qml/waffles/menu_launcher/DsTestLauncher.qml
+
+        qml/ui/DsVideoViewer.qml
+        qml/ui/DsWebViewer.qml
+        qml/ui/DsPdfViewer.qml
 )
 
 set(WafflesTargets ${WafflesTargets} PARENT_SCOPE)
@@ -45,6 +52,8 @@ target_link_libraries(Waffles PUBLIC
     Qt6::Gui 
     Qt6::Qml 
     Qt6::Multimedia
+    $<TARGET_NAME_IF_EXISTS:Qt6::WebEngineQuick>
+    $<TARGET_NAME_IF_EXISTS:Qt6::Pdf>
     Wafflesplugin
 )
 
