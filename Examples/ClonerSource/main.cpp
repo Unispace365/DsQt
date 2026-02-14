@@ -12,7 +12,6 @@
 #include <dsReloadUrlInterceptor.h>
 
 #include <QQuickWindow>
-#include <QSGRendererInterface>
 #ifdef DSQT_HAS_TouchEngine
 #include "dsQmlTouchEngineManager.h"
 #include "dsQmlTouchEngineInstance.h"
@@ -49,8 +48,10 @@ __declspec(dllexport) int AmdPowerXpressRequestHighPerformance = 1;
 
 int main(int argc, char *argv[])
 {
-    // Set Vulkan as the preferred graphics API
-    QQuickWindow::setGraphicsApi(QSGRendererInterface::Direct3D12);
+    DsGuiApplication::configureGraphics({
+        .graphicsApi = QSGRendererInterface::Direct3D12,
+        .colorDepth = 10,
+    });
 
 
     // Note: Resources from Dsqt::Core (data.qrc, keyboard.qrc) are auto-initialized
