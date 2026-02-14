@@ -34,6 +34,11 @@ set(SKIP_INSTALL_ALL    ON  CACHE BOOL "" FORCE)   # Don't install Spout2 target
 FetchContent_MakeAvailable(Spout2)
 
 # ----------------------------------------------------------------------
+# Vulkan (optional — enables Vulkan backend for Spout texture import)
+# ----------------------------------------------------------------------
+find_package(Vulkan QUIET)
+
+# ----------------------------------------------------------------------
 # Spout module target
 # Named DsSpout to avoid collision with Spout2's own "Spout" target.
 # The ALIAS Dsqt::Spout provides the canonical namespace.
@@ -46,6 +51,10 @@ set(SOURCES
     src/dsQmlSpoutReceiverView.cpp
     src/dsSpoutTextureNode.cpp
     src/dsSpoutMaterial.cpp
+    src/dsSpoutTextureImporter.cpp
+    src/dsSpoutD3D11Importer.cpp
+    src/dsSpoutD3D12Importer.cpp
+    src/dsSpoutOpenGLImporter.cpp
 )
 
 set(HEADERS
@@ -53,7 +62,16 @@ set(HEADERS
     src/dsQmlSpoutReceiverView.h
     src/dsSpoutTextureNode.h
     src/dsSpoutMaterial.h
+    src/dsSpoutTextureImporter.h
+    src/dsSpoutD3D11Importer.h
+    src/dsSpoutD3D12Importer.h
+    src/dsSpoutOpenGLImporter.h
 )
+
+if(Vulkan_FOUND)
+    list(APPEND SOURCES src/dsSpoutVulkanImporter.cpp)
+    list(APPEND HEADERS src/dsSpoutVulkanImporter.h)
+endif()
 
 qt_add_qml_module(DsSpout
     URI Dsqt.Spout
@@ -85,8 +103,15 @@ target_link_libraries(DsSpout
         DsSpoutplugin
         SpoutDX_static
         d3d11
+        d3d12
         dxgi
+        opengl32
 )
+
+if(Vulkan_FOUND)
+    target_link_libraries(DsSpout PUBLIC Vulkan::Vulkan)
+    target_compile_definitions(DsSpout PRIVATE DSSPOUT_VULKAN_ENABLED)
+endif()
 
 target_include_directories(DsSpout
     PUBLIC

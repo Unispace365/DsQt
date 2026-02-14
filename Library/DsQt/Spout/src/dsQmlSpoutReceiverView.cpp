@@ -1,13 +1,11 @@
 #include "dsQmlSpoutReceiverView.h"
 #include "dsSpoutReceiver.h"
 #include "dsSpoutTextureNode.h"
+#include "dsSpoutTextureImporter.h"
 
 #include <QQuickWindow>
 #include <QSGRendererInterface>
 #include <rhi/qrhi.h>
-
-#include <d3d11.h>
-#include <d3d11_1.h>
 
 DsQmlSpoutReceiverView::DsQmlSpoutReceiverView(QQuickItem* parent)
     : QQuickItem(parent)
@@ -41,8 +39,8 @@ void DsQmlSpoutReceiverView::setReceiver(DsSpoutReceiver* receiver)
     connectReceiver();
 
     m_resetNode = true;
-    m_currentNativeHandle = nullptr;
-    m_rhiTexture.reset();
+    if (m_importer)
+        m_importer->releaseResources();
 
     emit receiverChanged();
     update();
@@ -59,8 +57,8 @@ void DsQmlSpoutReceiverView::connectReceiver()
     connect(m_receiver, &DsSpoutReceiver::connectedChanged,
             this, [this]() {
         m_resetNode = true;
-        m_currentNativeHandle = nullptr;
-        m_rhiTexture.reset();
+        if (m_importer)
+            m_importer->releaseResources();
         update();
     });
 
@@ -82,6 +80,7 @@ void DsQmlSpoutReceiverView::disconnectReceiver()
     if (!m_receiver)
         return;
 
+
     disconnect(m_receiver, nullptr, this, nullptr);
     m_receiver = nullptr;
 }
@@ -93,8 +92,8 @@ void DsQmlSpoutReceiverView::onFrameReceived()
 
 void DsQmlSpoutReceiverView::releaseResources()
 {
-    m_rhiTexture.reset();
-    m_currentNativeHandle = nullptr;
+    if (m_importer)
+        m_importer->releaseResources();
 }
 
 QSGNode* DsQmlSpoutReceiverView::updatePaintNode(QSGNode* oldNode, UpdatePaintNodeData* data)
@@ -129,95 +128,48 @@ QSGNode* DsQmlSpoutReceiverView::updatePaintNode(QSGNode* oldNode, UpdatePaintNo
     // Determine texture coordinate transform based on RHI backend
     QSGRendererInterface* rif = window()->rendererInterface();
     QSGRendererInterface::GraphicsApi api = rif ? rif->graphicsApi() : QSGRendererInterface::Unknown;
-    if (api == QSGRendererInterface::OpenGL || api == QSGRendererInterface::OpenGLRhi) {
+    if (api == QSGRendererInterface::OpenGL) {
         node->setTextureCoordinatesTransform(DsSpoutTextureNode::MirrorVertically);
     } else {
         node->setTextureCoordinatesTransform(DsSpoutTextureNode::NoTransform);
     }
 
-    // Check if we need to (re)create the RHI texture from the shared handle
-    if (sharedHandle != m_currentNativeHandle || !m_rhiTexture) {
-        m_currentNativeHandle = sharedHandle;
-
-        // Get Qt's RHI instance
-        QRhi* rhi = static_cast<QRhi*>(
-            rif->getResource(window(), QSGRendererInterface::RhiResource));
-
-        if (!rhi) {
-            qWarning() << "DsQmlSpoutReceiverView: Could not get QRhi instance";
-            return node;
+    // Lazily create the importer for the detected backend
+    if (!m_importer) {
+        m_importer = DsSpoutTextureImporter::create(api);
+        if (!m_importer) {
+            qWarning() << "DsQmlSpoutReceiverView: No importer for graphics API" << api;
+            delete node;
+            return nullptr;
         }
-
-        // Open the shared DX11 texture on Qt's RHI device
-        ID3D11Device* device = nullptr;
-
-        if (api == QSGRendererInterface::Direct3D11) {
-            auto nativeHandles = static_cast<const QRhiD3D11NativeHandles*>(rhi->nativeHandles());
-            if (nativeHandles) {
-                device = static_cast<ID3D11Device*>(nativeHandles->dev);
-            }
-        }
-
-        if (!device) {
-            qWarning() << "DsQmlSpoutReceiverView: Could not get D3D11 device from RHI";
-            return node;
-        }
-
-        // Open the Spout shared texture handle
-        ID3D11Texture2D* sharedTexture = nullptr;
-        HRESULT hr = device->OpenSharedResource(
-            sharedHandle,
-            __uuidof(ID3D11Texture2D),
-            reinterpret_cast<void**>(&sharedTexture));
-
-        if (FAILED(hr) || !sharedTexture) {
-            qWarning() << "DsQmlSpoutReceiverView: Failed to open shared resource, hr ="
-                       << Qt::hex << hr;
-            return node;
-        }
-
-        // Query the actual texture format from the shared resource
-        D3D11_TEXTURE2D_DESC desc;
-        sharedTexture->GetDesc(&desc);
-
-        QRhiTexture::Format rhiFormat;
-        switch (desc.Format) {
-        case DXGI_FORMAT_B8G8R8A8_UNORM:
-            rhiFormat = QRhiTexture::BGRA8;
-            break;
-        case DXGI_FORMAT_R8G8B8A8_UNORM:
-            rhiFormat = QRhiTexture::RGBA8;
-            break;
-        default:
-            qWarning() << "DsQmlSpoutReceiverView: Unsupported DXGI format" << desc.Format;
-            sharedTexture->Release();
-            return node;
-        }
-
-        // Create a QRhiTexture wrapping the shared DX11 texture
-        QRhiTexture* rhiTex = rhi->newTexture(
-            rhiFormat,
-            senderSize,
-            1,
-            {});
-
-        if (!rhiTex->createFrom({quint64(sharedTexture), 0})) {
-            qWarning() << "DsQmlSpoutReceiverView: Failed to create QRhiTexture from shared texture";
-            sharedTexture->Release();
-            delete rhiTex;
-            return node;
-        }
-
-        // The QRhiTexture now holds a reference; release our local ref
-        sharedTexture->Release();
-
-        m_rhiTexture = QSharedPointer<QRhiTexture>(rhiTex);
     }
 
-    if (m_rhiTexture) {
-        node->setTexture(m_rhiTexture, senderSize);
-        node->setRect(boundingRect());
+    // Get RHI instance
+    QRhi* rhi = static_cast<QRhi*>(
+        rif->getResource(window(), QSGRendererInterface::RhiResource));
+    if (!rhi) {
+        qWarning() << "DsQmlSpoutReceiverView: Could not get QRhi instance";
+        delete node;
+        return nullptr;
     }
 
+    // Import the texture via the backend-specific importer
+    DXGI_FORMAT senderFormat = m_receiver->senderFormat();
+
+    // Only fetch the CPU fallback QImage for OpenGL (other backends don't need it)
+    QImage cpuFallback;
+    if (api == QSGRendererInterface::OpenGL)
+        cpuFallback = m_receiver->lastFrame();
+
+    QSharedPointer<QRhiTexture> rhiTexture = m_importer->import(
+        rhi, sharedHandle, senderSize, senderFormat, cpuFallback);
+
+    if (!rhiTexture) {
+        delete node;
+        return nullptr;
+    }
+
+    node->setTexture(rhiTexture, senderSize);
+    node->setRect(boundingRect());
     return node;
 }

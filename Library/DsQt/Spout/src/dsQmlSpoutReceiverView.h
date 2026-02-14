@@ -1,15 +1,22 @@
 #pragma once
 
 #include <QQuickItem>
+#include <QPointer>
 #include <QtQml/qqml.h>
 #include <rhi/qrhi.h>
+
+#include <memory>
 
 #include "dsSpoutReceiver.h"
 
 class DsSpoutTextureNode;
+class DsSpoutTextureImporter;
 
 /**
  * DsQmlSpoutReceiverView - QML item that displays received Spout frames.
+ *
+ * Automatically detects the RHI backend (D3D11, D3D12, Vulkan, OpenGL) and
+ * creates the appropriate texture importer for zero-copy display.
  *
  * QML usage:
  *   DsSpoutReceiverView {
@@ -42,9 +49,8 @@ private slots:
     void onFrameReceived();
 
 private:
-    DsSpoutReceiver* m_receiver = nullptr;
-    QSharedPointer<QRhiTexture> m_rhiTexture;
-    void* m_currentNativeHandle = nullptr;
+    QPointer<DsSpoutReceiver> m_receiver;
+    std::unique_ptr<DsSpoutTextureImporter> m_importer;
     bool m_resetNode = false;
 
     void connectReceiver();

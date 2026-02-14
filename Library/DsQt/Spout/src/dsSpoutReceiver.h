@@ -9,6 +9,7 @@
 #include <QtQml/qqml.h>
 
 #include <windows.h>
+#include <dxgi.h>
 
 /**
  * DsSpoutReceiver - Receives Spout2 video frames from other applications.
@@ -59,6 +60,12 @@ public:
     HANDLE sharedTextureHandle() const;
 
     /**
+     * Returns the DXGI_FORMAT of the sender's shared texture.
+     * Only valid when connected() is true.
+     */
+    DXGI_FORMAT senderFormat() const;
+
+    /**
      * Returns the most recent frame as a QImage (GPU→CPU copy).
      * Only valid when connected() is true.
      */
@@ -84,7 +91,7 @@ private:
     void stopWorker();
 
     // Called by worker on its thread, forwarded via queued connections
-    void onWorkerFrameReceived(HANDLE handle, int width, int height, double fps);
+    void onWorkerFrameReceived(HANDLE handle, int width, int height, double fps, DXGI_FORMAT format);
     void onWorkerImageReady(const QImage& image);
     void onWorkerConnectionChanged(bool connected);
 
@@ -98,6 +105,7 @@ private:
     int m_senderHeight = 0;
     double m_senderFps = 0.0;
     HANDLE m_sharedHandle = nullptr;
+    DXGI_FORMAT m_senderFormat = DXGI_FORMAT_UNKNOWN;
     QImage m_lastFrame;
 
     QThread* m_workerThread = nullptr;

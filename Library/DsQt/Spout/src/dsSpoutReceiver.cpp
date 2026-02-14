@@ -84,7 +84,7 @@ public slots:
     }
 
 signals:
-    void frameReceived(HANDLE handle, int width, int height, double fps);
+    void frameReceived(HANDLE handle, int width, int height, double fps, DXGI_FORMAT format);
     void imageReady(const QImage& image);
     void connectionChanged(bool connected);
 
@@ -107,8 +107,9 @@ private slots:
                 int h = static_cast<int>(m_spout.GetSenderHeight());
                 double fps = m_spout.GetSenderFps();
                 HANDLE handle = m_spout.GetSenderHandle();
+                DXGI_FORMAT format = static_cast<DXGI_FORMAT>(m_spout.GetSenderFormat());
 
-                emit frameReceived(handle, w, h, fps);
+                emit frameReceived(handle, w, h, fps, format);
 
                 // Only do GPU→CPU copy when someone is listening
                 if (receivers(SIGNAL(imageReady(QImage))) > 0) {
@@ -143,6 +144,7 @@ DsSpoutReceiver::DsSpoutReceiver(QObject* parent)
     : QObject(parent)
 {
     qRegisterMetaType<HANDLE>("HANDLE");
+    qRegisterMetaType<DXGI_FORMAT>("DXGI_FORMAT");
 }
 
 DsSpoutReceiver::~DsSpoutReceiver()
@@ -223,6 +225,12 @@ HANDLE DsSpoutReceiver::sharedTextureHandle() const
     return m_sharedHandle;
 }
 
+DXGI_FORMAT DsSpoutReceiver::senderFormat() const
+{
+    QMutexLocker lock(&m_mutex);
+    return m_senderFormat;
+}
+
 QImage DsSpoutReceiver::lastFrame() const
 {
     QMutexLocker lock(&m_mutex);
@@ -276,6 +284,7 @@ void DsSpoutReceiver::stopWorker()
         QMutexLocker lock(&m_mutex);
         m_connected = false;
         m_sharedHandle = nullptr;
+        m_senderFormat = DXGI_FORMAT_UNKNOWN;
         m_senderWidth = 0;
         m_senderHeight = 0;
         m_senderFps = 0.0;
@@ -285,7 +294,7 @@ void DsSpoutReceiver::stopWorker()
     emit connectedChanged();
 }
 
-void DsSpoutReceiver::onWorkerFrameReceived(HANDLE handle, int width, int height, double fps)
+void DsSpoutReceiver::onWorkerFrameReceived(HANDLE handle, int width, int height, double fps, DXGI_FORMAT format)
 {
     bool sizeChanged = false;
     bool fpsChanged = false;
@@ -293,6 +302,7 @@ void DsSpoutReceiver::onWorkerFrameReceived(HANDLE handle, int width, int height
     {
         QMutexLocker lock(&m_mutex);
         m_sharedHandle = handle;
+        m_senderFormat = format;
 
         if (m_senderWidth != width || m_senderHeight != height) {
             m_senderWidth = width;
