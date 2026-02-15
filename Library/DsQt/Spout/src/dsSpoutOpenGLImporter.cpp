@@ -8,6 +8,12 @@
 #ifndef GL_TEXTURE_2D
 #define GL_TEXTURE_2D 0x0DE1
 #endif
+#ifndef GL_RGBA
+#define GL_RGBA 0x1908
+#endif
+#ifndef GL_UNSIGNED_BYTE
+#define GL_UNSIGNED_BYTE 0x1401
+#endif
 #ifndef WGL_ACCESS_READ_ONLY_NV
 #define WGL_ACCESS_READ_ONLY_NV 0x0000
 #endif
@@ -112,6 +118,12 @@ bool DsSpoutOpenGLImporter::initInterop()
 
 void DsSpoutOpenGLImporter::cleanupInterop()
 {
+    // Unlock if still locked from last render pass
+    if (m_locked && m_interopObject && m_interopDevice) {
+        m_wglDXUnlockObjectsNV(m_interopDevice, 1, &m_interopObject);
+        m_locked = false;
+    }
+
     if (m_interopObject && m_interopDevice) {
         m_wglDXUnregisterObjectNV(m_interopDevice, m_interopObject);
         m_interopObject = nullptr;
@@ -138,6 +150,13 @@ QSharedPointer<QRhiTexture> DsSpoutOpenGLImporter::importViaInterop(
 {
     if (!initInterop())
         return {};
+
+    // Unlock from previous render pass — the lock was held so GL could
+    // sample the texture during the scene-graph draw calls.
+    if (m_locked && m_interopObject) {
+        m_wglDXUnlockObjectsNV(m_interopDevice, 1, &m_interopObject);
+        m_locked = false;
+    }
 
     // If handle or size changed, re-register
     if (handle != m_currentHandle || size != m_currentSize) {
@@ -205,10 +224,13 @@ QSharedPointer<QRhiTexture> DsSpoutOpenGLImporter::importViaInterop(
         m_currentSize = size;
     }
 
-    // Lock for reading, unlock after use
+    // Lock for the upcoming render pass — the lock stays held so the GL
+    // texture is valid when the scene graph issues its draw calls.
+    // It will be unlocked at the start of the next import() call.
     if (m_interopObject) {
-        m_wglDXLockObjectsNV(m_interopDevice, 1, &m_interopObject);
-        m_wglDXUnlockObjectsNV(m_interopDevice, 1, &m_interopObject);
+        if (m_wglDXLockObjectsNV(m_interopDevice, 1, &m_interopObject)) {
+            m_locked = true;
+        }
     }
 
     return m_rhiTexture;
@@ -218,6 +240,10 @@ QSharedPointer<QRhiTexture> DsSpoutOpenGLImporter::importViaCpu(
     QRhi* rhi, const QSize& size, const QImage& image)
 {
     if (image.isNull() || size.isEmpty())
+        return {};
+
+    auto ctx = QOpenGLContext::currentContext();
+    if (!ctx)
         return {};
 
     // Create or recreate the texture if size changed
@@ -233,20 +259,16 @@ QSharedPointer<QRhiTexture> DsSpoutOpenGLImporter::importViaCpu(
         m_currentSize = size;
     }
 
-    // Upload via an offscreen frame so the texture data is available immediately
-    QRhiCommandBuffer* cb = nullptr;
-    if (rhi->beginOffscreenFrame(&cb) != QRhi::FrameOpSuccess) {
-        qWarning() << "DsSpoutOpenGLImporter: Failed to begin offscreen frame for CPU upload";
-        return m_rhiTexture;
-    }
-
-    QRhiResourceUpdateBatch* batch = rhi->nextResourceUpdateBatch();
-    QRhiTextureSubresourceUploadDescription subresDesc(image);
-    QRhiTextureUploadDescription uploadDesc({0, 0, subresDesc});
-    batch->uploadTexture(m_rhiTexture.get(), uploadDesc);
-    cb->resourceUpdate(batch);
-
-    rhi->endOffscreenFrame();
+    // Upload directly via GL — we're in the OpenGL backend with a valid
+    // context, so this is simpler and more reliable than beginOffscreenFrame
+    // (which can conflict with the active render loop).
+    QImage rgba = image.convertToFormat(QImage::Format_RGBA8888);
+    auto f = ctx->functions();
+    GLuint glTex = GLuint(m_rhiTexture->nativeTexture().object);
+    f->glBindTexture(GL_TEXTURE_2D, glTex);
+    f->glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, rgba.width(), rgba.height(),
+                       GL_RGBA, GL_UNSIGNED_BYTE, rgba.constBits());
+    f->glBindTexture(GL_TEXTURE_2D, 0);
 
     return m_rhiTexture;
 }

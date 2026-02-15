@@ -49,6 +49,7 @@ private:
     HANDLE m_interopDevice  = nullptr;    // wglDXOpenDeviceNV handle
     HANDLE m_interopObject  = nullptr;    // wglDXRegisterObjectNV handle
     unsigned int m_glTexture = 0;
+    bool m_locked           = false;      // true while interop object is locked for GL
     HANDLE m_currentHandle  = nullptr;
     QSize  m_currentSize;
 

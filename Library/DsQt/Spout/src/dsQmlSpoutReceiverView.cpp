@@ -13,15 +13,17 @@ DsQmlSpoutReceiverView::DsQmlSpoutReceiverView(QQuickItem* parent)
     setFlag(ItemHasContents, true);
 
     // Release GPU resources before QRhi is destroyed
-    auto connectInvalidated = [this](QQuickWindow* win) {
+    auto connectWindow = [this](QQuickWindow* win) {
         if (win) {
             connect(win, &QQuickWindow::sceneGraphInvalidated,
                     this, &DsQmlSpoutReceiverView::releaseResources,
                     Qt::DirectConnection);
+
+
         }
     };
-    connectInvalidated(window());
-    connect(this, &QQuickItem::windowChanged, this, connectInvalidated);
+    connectWindow(window());
+    connect(this, &QQuickItem::windowChanged, this, connectWindow);
 }
 
 DsQmlSpoutReceiverView::~DsQmlSpoutReceiverView()
@@ -125,14 +127,9 @@ QSGNode* DsQmlSpoutReceiverView::updatePaintNode(QSGNode* oldNode, UpdatePaintNo
         m_resetNode = false;
     }
 
-    // Determine texture coordinate transform based on RHI backend
     QSGRendererInterface* rif = window()->rendererInterface();
     QSGRendererInterface::GraphicsApi api = rif ? rif->graphicsApi() : QSGRendererInterface::Unknown;
-    if (api == QSGRendererInterface::OpenGL) {
-        node->setTextureCoordinatesTransform(DsSpoutTextureNode::MirrorVertically);
-    } else {
-        node->setTextureCoordinatesTransform(DsSpoutTextureNode::NoTransform);
-    }
+    node->setTextureCoordinatesTransform(DsSpoutTextureNode::NoTransform);
 
     // Lazily create the importer for the detected backend
     if (!m_importer) {
