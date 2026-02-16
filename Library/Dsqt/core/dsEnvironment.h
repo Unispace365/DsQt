@@ -175,6 +175,7 @@ class DsEnvironment {
     static QString            sProjectPath;
     static QString            sConfigFolder;
     static QString            sSharedFolder;
+    static QString            sResourceFolder;
     static QRegularExpression sEnvRe;
 };
 
