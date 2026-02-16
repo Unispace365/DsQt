@@ -1,8 +1,8 @@
 import QtQuick
 import QtQuick.Controls
-import Dsqt.Core
 
 MenuBar {
+    id: menuBar
     width: parent.width
 
     signal fileInfoTriggered()
@@ -25,7 +25,7 @@ MenuBar {
         Action {
             text: "Info"
             shortcut: "CTRL+I"
-            onTriggered: fileInfoTriggered()
+            onTriggered: menuBar.fileInfoTriggered()
         }
         MenuSeparator {}
         Action {
@@ -44,21 +44,21 @@ MenuBar {
             text: "Application"
             shortcut: "CTRL+L,CTRL+A"
             checkable: true
-            onTriggered: logsApplicationTriggered(checked)
+            onTriggered: menuBar.logsApplicationTriggered(checked)
         }
         Action {
             id: logsBridgeSyncAction
             text: "BridgeSync"
             shortcut: "CTRL+L,CTRL+B"
             checkable: true
-            onTriggered: logsBridgeSyncTriggered(checked)
+            onTriggered: menuBar.logsBridgeSyncTriggered(checked)
         }
         Action {
             id: logsAppHostAction
             text: "AppHost"
             shortcut: "CTRL+L,CTRL+H"
             checkable: true
-            onTriggered: logsAppHostTriggered(checked)
+            onTriggered: menuBar.logsAppHostTriggered(checked)
         }
 
         //delegate: DsAppMenuItem {}
@@ -68,11 +68,11 @@ MenuBar {
         width: 200
         Action {
             text: "Engine"
-            onTriggered: settingsEngineTriggered()
+            onTriggered: menuBar.settingsEngineTriggered()
         }
         Action {
             text: "Application"
-            onTriggered: settingsApplicationTriggered()
+            onTriggered: menuBar.settingsApplicationTriggered()
         }
 
         //delegate: DsAppMenuItem {}
@@ -84,7 +84,7 @@ MenuBar {
             id: contentBrowseAction
             text: "Browse"
             checkable: true
-            onTriggered: contentBrowseToggled(checked)
+            onTriggered: menuBar.contentBrowseToggled(checked)
         }
 
         //delegate: DsAppMenuItem {}
@@ -94,7 +94,7 @@ MenuBar {
         width: 200
         Action {
             text: "Shortcuts"
-            onTriggered: helpShortcutsTriggered()
+            onTriggered: menuBar.helpShortcutsTriggered()
         }
 
         //delegate: DsAppMenuItem {}

@@ -199,12 +199,12 @@ ApplicationWindow {
                                        bridgeSyncLogWindow.visible = isChecked
                                    }
         onContentBrowseToggled: (isChecked) => {
-                                    if (contentViewerComponent === null) {
+                                    if (window.contentViewerComponent === null) {
                                         console.warn("Content browser not available")
                                         return
                                     }
                                     if(contentBrowser === null) {
-                                        contentBrowser = contentViewerComponent.createObject(window)
+                                        contentBrowser = window.contentViewerComponent.createObject(window)
                                         contentBrowser.closing.connect( () => { windowMenuBar.contentBrowseChecked = false } )
                                     }
                                     contentBrowser.visible = isChecked
