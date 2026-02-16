@@ -43,7 +43,7 @@ python Tools/migrate_to_library.py C:\dev\MyProject --reset
 1. Parses your existing `CMakeLists.txt` to extract project metadata, Qt components, QML files, link targets, and local subdirectories
 2. Optionally creates a git backup branch (`pre-migration-backup`)
 3. Generates a new `CMakeLists.txt` using `find_package(Dsqt)` instead of `add_subdirectory()`
-4. Generates or patches `CMakePresets.json` with detected Qt installations and the DsQt install path
+4. Generates or patches `CMakePresets.json` with detected Qt installations and the DsQt install path (use `CMakeUserPresets.json` for local overrides — see Step 6)
 5. Creates `vcpkg.json` and `VERSION.txt` if missing
 6. Patches `main.cpp` with `Q_IMPORT_QML_PLUGIN` macros
 7. Rewrites QML imports (`import Dsqt` → `import Dsqt.Core`, etc.)
@@ -87,7 +87,7 @@ Several files in the `Examples/ClonerSource` directory serve as the reference te
 | Source (from `Examples/ClonerSource/`) | Destination (your project root) | Notes |
 |---|---|---|
 | `CMakeLists.txt` | `CMakeLists.txt` | **Replace entirely.** This is the most important change. See Step 3 for details. |
-| `CMakePresets.json` | `CMakePresets.json` | **Replace entirely.** Adds the DsQt install path to `CMAKE_PREFIX_PATH`. |
+| `CMakePresets.json` | `CMakePresets.json` | **Replace entirely.** Adds the DsQt install path to `CMAKE_PREFIX_PATH`. Do not edit directly — use `CMakeUserPresets.json` for local overrides (see Step 6). |
 | `vcpkg.json` | `vcpkg.json` | **Replace or merge.** Provides `tomlplusplus`, `glm`, and `pkgconf` dependencies. |
 | `main.cpp` | `main.cpp` | **Replace or use as reference.** Contains the new `Q_IMPORT_QML_PLUGIN` macros and module-based loading. |
 | `cmake/app.rc.in` | `cmake/app.rc.in` | Windows resource file template. Copy if you don't already have one. |
@@ -319,9 +319,13 @@ import Dsqt.Bridge
 
 > **Tip:** The migration script (`Tools/migrate_to_library.py`) handles this automatically.
 
-## Step 6: Update CMakePresets.json
+## Step 6: Update CMake Presets
 
-Your `CMakePresets.json` must include the DsQt install location in `CMAKE_PREFIX_PATH`. Add it alongside your Qt path:
+Your project needs the DsQt install location in `CMAKE_PREFIX_PATH`. The generated `CMakePresets.json` already includes this. **Do not edit `CMakePresets.json` directly** — it is managed by the migration script and may be regenerated. Instead, use `CMakeUserPresets.json` for any local overrides.
+
+### CMakePresets.json (generated, checked into source control)
+
+The migration script generates a `CMakePresets.json` with sensible defaults, including the DsQt install path:
 
 ```json
 {
@@ -334,7 +338,56 @@ Your `CMakePresets.json` must include the DsQt install location in `CMAKE_PREFIX
 }
 ```
 
-The key addition is `;$env{USERPROFILE}/Documents/DsQt` appended to the `CMAKE_PREFIX_PATH`.
+This file should be committed to version control so all team members share the same base configuration.
+
+### CMakeUserPresets.json (local overrides, not checked in)
+
+To customize paths, add Qt versions, or override variables for your local environment, create a `CMakeUserPresets.json` in your project root. CMake automatically merges it with `CMakePresets.json`. This file should be listed in `.gitignore`.
+
+**Example — override the DsQt install path and add a custom Qt location:**
+
+```json
+{
+  "version": 6,
+  "configurePresets": [
+    {
+      "name": "my-local",
+      "inherits": "vs2022-6.10.1-debug",
+      "cacheVariables": {
+        "CMAKE_PREFIX_PATH": "D:/Qt/6.10.1/msvc2022_64;D:/libs/DsQt"
+      }
+    }
+  ]
+}
+```
+
+**Example — add a Qt version not in the base presets:**
+
+```json
+{
+  "version": 6,
+  "configurePresets": [
+    {
+      "name": "qt-6.11.0",
+      "hidden": true,
+      "inherits": "vcpkg-base",
+      "cacheVariables": {
+        "CMAKE_PREFIX_PATH": "C:/Qt/6.11.0/msvc2022_64;$env{USERPROFILE}/Documents/DsQt"
+      }
+    },
+    {
+      "name": "vs2022-6.11.0-debug",
+      "displayName": "VS2022 x64 Debug - Qt 6.11.0",
+      "inherits": ["qt-6.11.0", "vs2022-base"],
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    }
+  ]
+}
+```
+
+> **Tip:** Make sure your `.gitignore` includes `CMakeUserPresets.json`. The migration script and ClonerSource `.gitignore` already include it.
 
 ## Step 7: Remove the DS_QT_PLATFORM_100 Environment Variable
 
@@ -389,3 +442,5 @@ The subdirectory approach relied on the `DS_QT_PLATFORM_100` environment variabl
 **QML module not found at runtime:** Check that `IMPORT_PATH "${DSQT_QML_IMPORT_PATH}"` is set in your `qt_add_qml_module` call.
 
 **TouchEngine.dll not found:** Ensure the post-build copy command is in your CMakeLists.txt and that the DsQt library was installed with TouchEngine support.
+
+**Need to customize paths or add Qt versions:** Don't edit `CMakePresets.json` — create a `CMakeUserPresets.json` in your project root with local overrides. CMake merges both files automatically. See Step 6 for examples.
