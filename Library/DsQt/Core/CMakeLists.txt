@@ -126,6 +126,10 @@ target_include_directories(Core
 )
 
 if(DSQT_WITH_TOML)
+    target_include_directories(Core PUBLIC
+            $<BUILD_INTERFACE:${tomlplusplus_SOURCE_DIR}/include>
+            $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+    )
     target_link_libraries(Core PUBLIC tomlplusplus::tomlplusplus)
     target_compile_definitions(Core PUBLIC DSQT_USE_TOML)
 endif()
@@ -150,3 +154,11 @@ install(DIRECTORY .
     # Optional: exclude internal/private headers if needed
     # PATTERN "internal/*" EXCLUDE
 )
+
+if(DSQT_WITH_TOML)
+    install(
+        DIRECTORY   ${tomlplusplus_SOURCE_DIR}/include/
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+        FILES_MATCHING PATTERN "*.h" PATTERN "*.hpp" PATTERN "*.inl"
+    )
+endif()
