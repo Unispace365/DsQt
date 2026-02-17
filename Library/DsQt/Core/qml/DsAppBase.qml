@@ -189,8 +189,16 @@ ApplicationWindow {
         palette: window.palette
         visible: false
 
+        property DsTextFileViewer appLogWindow: null
+        onLogsApplicationTriggered: (isChecked) => {
+                                        if(appLogWindow === null) {
+                                            appLogWindow = appLog.createObject(window)
+                                            appLogWindow.closing.connect( () => { windowMenuBar.logsApplicationChecked = false } )
+                                        }
+                                        appLogWindow.visible = isChecked
+                                    }
+
         property DsTextFileViewer bridgeSyncLogWindow: null
-        property var contentBrowser: null
         onLogsBridgeSyncTriggered: (isChecked) => {
                                        if(bridgeSyncLogWindow === null) {
                                            bridgeSyncLogWindow = bridgeSyncLog.createObject(window)
@@ -198,6 +206,8 @@ ApplicationWindow {
                                        }
                                        bridgeSyncLogWindow.visible = isChecked
                                    }
+
+        property var contentBrowser: null
         onContentBrowseToggled: (isChecked) => {
                                     if (window.contentViewerComponent === null) {
                                         console.warn("Content browser not available")
@@ -211,7 +221,27 @@ ApplicationWindow {
                                 }
     }
 
-    /// TODO Application log viewer.
+    /// Provides access to the window settings.
+    DsSettingsProxy {
+        id: engineProxy
+        target: "engine"
+    }
+
+    /// Application log viewer.
+    Component {
+        id: appLog
+        DsTextFileViewer {
+            title: "Application Log"
+            file: {
+                var id = engineProxy.getString("engine.project_path","application_dev")
+                var base = Ds.env.expand(engineProxy.getString("engine.logging.directory","%DOCUMENTS%/downstream/logs/"))
+                if(!base.endsWith("/")) base += "/"
+                var todayStr = Qt.formatDate(new Date(), "yyyy-MM-dd")
+                return base + id + "/" + id + "_" + todayStr + ".log.txt"
+            }
+            onVisibleChanged: (isVisible) => { windowMenuBar.logsApplicationChecked = isVisible }
+        }
+    }
 
     /// BridgeSync log viewer.
     /// Provides access to the bridge settings.
