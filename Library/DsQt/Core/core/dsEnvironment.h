@@ -113,7 +113,7 @@ class DsEnvironment {
      * @return A shared pointer to the loaded DsSettings, or nullptr on failure.
      */
     static DsSettingsRef loadSettings(const QString& settingsName, const QString& fileName,
-                                      bool lookForOverrides = true);
+                                      bool lookForOverrides = true,bool forceOverrides = false);
 
     /**
      * @brief Loads the engine settings.

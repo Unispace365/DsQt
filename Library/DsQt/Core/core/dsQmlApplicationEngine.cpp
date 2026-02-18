@@ -111,8 +111,8 @@ void dsqt::DsQmlApplicationEngine::readSettings(bool reset) {
         auto& extra_paths = *extra_engine_settings->as_array();
         for (auto&& path_node : extra_paths) {
             auto path = path_node.as_string()->value_or<std::string>("");
-            qCInfo(lgAppEngine) << "Loading engine file " << path;
-            dsqt::DsEnvironment::loadSettings("engine", QString::fromStdString(path));
+            qCInfo(lgAppEngine) << "Loading extra engine file " << path;
+            dsqt::DsEnvironment::loadSettings("engine", QString::fromStdString(path),true,true);
         }
     }
 
@@ -154,8 +154,8 @@ void dsqt::DsQmlApplicationEngine::readSettings(bool reset) {
         auto& extra_paths = *extra_app_settings->as_array();
         for (auto&& path_node : extra_paths) {
             auto path = path_node.as_string()->value_or<std::string>("");
-            qCInfo(lgAppEngine) << "Loading app_settings file " << path;
-            dsqt::DsEnvironment::loadSettings("app_settings", QString::fromStdString(path));
+            qCInfo(lgAppEngine) << "Loading extra app_settings file " << path;
+            dsqt::DsEnvironment::loadSettings("app_settings", QString::fromStdString(path),true,true);
         }
     }
     qCInfo(lgAppEngine) << ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n";

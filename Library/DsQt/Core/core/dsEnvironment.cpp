@@ -121,11 +121,11 @@ DsSettingsRef DsEnvironment::engineSettings() {
 }
 
 DsSettingsRef DsEnvironment::loadSettings(const QString& settingsName, const QString& filename,
-                                          const bool lookForOverrides) {
+                                          const bool lookForOverrides,const bool forceOverrides) {
     auto [found, setting] = DsSettings::getSettingsOrCreate(settingsName.toStdString(), nullptr);
 
     auto loaded = setting->loadSettingFile(expandq("%APP%/settings/" + filename).toStdString());
-    if (loaded && lookForOverrides) {
+    if ((loaded || forceOverrides) && lookForOverrides) {
         setting->loadSettingFile(expandq("%APP%/settings/%CFG_FOLDER%/" + filename).toStdString());
         setting->loadSettingFile(expandq("%LOCAL%/settings/%PP%/" + filename).toStdString());
         setting->loadSettingFile(expandq("%LOCAL%/settings/%PP%/%CFG_FOLDER%/" + filename).toStdString());
