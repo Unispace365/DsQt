@@ -59,6 +59,7 @@ Documentation is compiled by Doxygen and can be found here:
 #### Install vcpkg
 
 1. Clone vcpkg: `git clone https://github.com/microsoft/vcpkg.git C:\vcpkg`
+⚠️ Note that if vcpkg is/was already on your machine you may need to do a `git pull` before running the bootstrap script ⚠️
 2. Run bootstrap: `cd C:\vcpkg && .\bootstrap-vcpkg.bat`
 3. Add environment variable `VCPKG_ROOT` pointing to `C:\vcpkg`:
     1. Open the Start menu and type "Advanced System Settings"
