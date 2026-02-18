@@ -1,3 +1,5 @@
+pragma ComponentBehavior: Bound
+
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Window
@@ -80,7 +82,7 @@ ApplicationWindow {
         }
 
         // Span the full desktop.
-        for(i=0; i<screens.length; ++i) {
+        for(let i=0; i<screens.length; ++i) {
             width = Math.max(width, screens[i].width + (screens[i].virtualX - x))
             height = Math.max(height, screens[i].height + (screens[i].virtualY - y))
         }
@@ -221,13 +223,13 @@ ApplicationWindow {
                                 }
     }
 
-    /// Provides access to the window settings.
+    /// Application log viewer.
+    /// Provides access to the settings.
     DsSettingsProxy {
         id: engineProxy
         target: "engine"
     }
 
-    /// Application log viewer.
     Component {
         id: appLog
         DsTextFileViewer {
