@@ -33,7 +33,7 @@ DsQmlEventSchedule::DsQmlEventSchedule(const QString& type_name, QObject* parent
     auto engine = DsQmlApplicationEngine::DefEngine();
 
     // Listen to content updates.
-    connect(engine, &DsQmlApplicationEngine::databaseChanged, this, &DsQmlEventSchedule::updateNow);
+    connect(&bridge::DsQmlBridge::instance(), &bridge::DsQmlBridge::databaseChanged, this, &DsQmlEventSchedule::updateNow);
 
     // Connect the watcher to handle task completion.
     connect(&m_watcher, &QFutureWatcher<QList<DsQmlEvent*>>::finished, this, &DsQmlEventSchedule::onUpdated);
