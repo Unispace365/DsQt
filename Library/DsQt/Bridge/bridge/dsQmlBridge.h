@@ -56,9 +56,9 @@ class DsQmlBridge : public QObject {
      * @return Pointer to ContentModel if found, nullptr otherwise.
      */
     Q_INVOKABLE model::ContentModel* getRecordById(const QString& id) const {
-        auto record = m_database.find(id);
-        if (record.isEmpty()) return nullptr;
-        return model::ContentModel::create(record);
+        auto record = model::ContentModel::find(id);
+        if (!record) return nullptr;
+        else return record;
     }
 
     /**
@@ -72,7 +72,7 @@ class DsQmlBridge : public QObject {
             return "";
         }
         for (const auto& platform : m_database.platforms()) {
-            if (platform.value("id").toString() == platformId) {
+            if (platform.value("uid").toString() == platformId) {
                 return platform.value("uid").toString();
             }
         }
@@ -97,18 +97,7 @@ class DsQmlBridge : public QObject {
      * @return Pointer to ContentModel if found, nullptr otherwise.
      */
     Q_INVOKABLE model::ContentModel* getPlatformRecord() const {
-        auto platformId = DsSettings::getSettings("app_settings")->getOr<QString>("platform.id", "");
-        if (platformId.isEmpty()) {
-            qDebug()<<"Attempting to get platform record but platform.id is not set in app_settings";
-            return nullptr;
-        }
-        for (const auto& platform : m_database.platforms()) {
-            if (platform.value("id").toString() == platformId) {
-                return model::ContentModel::create(platform);
-            }
-        }
-        qDebug()<<"Attempting to get platform record but no platform with id "<<platformId<<" found in database";
-        return nullptr;
+        return getRecordById(getPlatformUid());
     }
 
 

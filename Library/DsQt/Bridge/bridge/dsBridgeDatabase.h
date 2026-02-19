@@ -40,7 +40,9 @@ class DatabaseContent {
     /// Returns all event records.
     DatabaseRecordList events() const { return find(m_events); }
     /// Returns all platform records.
-    DatabaseRecordList platforms() const { return find(m_platforms); }
+    DatabaseRecordList platforms() const {
+        return find(m_platforms);
+    }
 
   private:
     friend class DatabaseIterator;
@@ -149,7 +151,7 @@ class DatabaseTree {
     }
 
     DatabaseTree(DatabaseContent& content, Traversal order = Traversal::PostOrder)
-        : DatabaseTree(content.m_records, content.m_content.front(), order) {}
+        : DatabaseTree(content.m_records, content.m_content.isEmpty() ?QString(): content.m_content.front(), order) {}
 
     // Begin iterator
     DatabaseIterator begin() const { return DatabaseIterator(m_nodes, m_order, 0); }
