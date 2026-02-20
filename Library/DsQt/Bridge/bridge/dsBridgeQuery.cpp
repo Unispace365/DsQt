@@ -415,12 +415,24 @@ void DsBridgeSqlQuery::onCleanContent() {
         root->setProperty("event_uid", mContent.m_events);
         root->setProperty("platform_uid", mContent.m_platforms);
 
-        for (const auto& uid : std::as_const(mContent.m_content))
-            ContentModel::find(uid)->setParent(content);
-        for (const auto& uid : std::as_const(mContent.m_events))
-            ContentModel::find(uid)->setParent(events);
-        for (const auto& uid : std::as_const(mContent.m_platforms))
-            ContentModel::find(uid)->setParent(platforms);
+        for (const auto& uid : std::as_const(mContent.m_content)){
+            auto val = ContentModel::find(uid);
+            if(val){
+                val->setParent(content);
+            }
+        }
+        for (const auto& uid : std::as_const(mContent.m_events)){
+            auto val = ContentModel::find(uid);
+            if(val){
+                val->setParent(events);
+            }
+        }
+        for (const auto& uid : std::as_const(mContent.m_platforms)){
+            auto val = ContentModel::find(uid);
+            if(val){
+                val->setParent(platforms);
+            }
+        }
 
         // Update root and emit contentChanged() signal.
         bridge.setContent(root);

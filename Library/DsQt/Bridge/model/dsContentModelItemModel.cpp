@@ -6,7 +6,7 @@ namespace dsqt::model {
 DsContentModelItemModel::DsContentModelItemModel(QObject* parent)
     : QAbstractItemModel{parent} {
     auto& bridge = bridge::DsQmlBridge::instance();
-    connect(&bridge, &bridge::DsQmlBridge::contentChanged, this, &DsContentModelItemModel::update);
+    connect(&bridge, &bridge::DsQmlBridge::bridgeUpdated, this, &DsContentModelItemModel::update);
     update();
 }
 
@@ -98,13 +98,13 @@ void DsContentModelItemModel::updateModelData(const ContentModel* model, std::sh
 void DsContentModelItemModel::update() {
     auto root = bridge::DsQmlBridge::instance().content();
     
-    if (!m_rootItem || m_rootItem->model() != root ) {
+    //if (!m_rootItem || m_rootItem->model() != root ) {
         beginResetModel();
         m_rootItem = createModelItem(root);
         endResetModel();
-    } else {
-        updateModelData(root, m_rootItem, QModelIndex());
-    }
+    //} else {
+    //    updateModelData(root, m_rootItem, QModelIndex());
+    //}
     setIsDirty(false);
 }
 
