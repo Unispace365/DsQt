@@ -23,7 +23,16 @@
       }
     },
     {
+      "name": "qt-6.10.2",
+      "hidden": true,
+      "inherits": "vcpkg-base",
+      "cacheVariables": {
+        "CMAKE_PREFIX_PATH": "C:/Qt/6.10.2/msvc2022_64;$env{USERPROFILE}/Documents/DsQt"
+      }
+    },
+    {
       "name": "vs2022-6.10.0",
+      "hidden": true,
       "displayName": "VS2022 x64 - Qt 6.10.0",
       "inherits": "qt-6.10.0",
       "generator": "Visual Studio 17 2022",
@@ -32,6 +41,7 @@
     },
     {
       "name": "vs2022-6.10.1",
+      "hidden": true,
       "displayName": "VS2022 x64 - Qt 6.10.1",
       "inherits": "qt-6.10.1",
       "generator": "Visual Studio 17 2022",
@@ -39,138 +49,166 @@
       "binaryDir": "${sourceDir}/build/vs2022-6.10.1"
     },
     {
-      "name": "ninja-6.10.0-debug",
-      "displayName": "Ninja Debug - Qt 6.10.0",
-      "inherits": "qt-6.10.0",
-      "generator": "Ninja",
-      "binaryDir": "${sourceDir}/build/ninja-6.10.0-debug",
+      "name": "vs2022-6.10.2",
+      "hidden": true,
+      "displayName": "VS2022 x64 - Qt 6.10.2",
+      "inherits": "qt-6.10.2",
+      "generator": "Visual Studio 17 2022",
+      "architecture": "x64",
+      "binaryDir": "${sourceDir}/build/vs2022-6.10.2"
+    },
+    {
+      "name": "ninja-base",
+      "hidden": true,
+      "generator": "Ninja Multi-Config",
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Debug",
         "CMAKE_C_COMPILER": "cl.exe",
-        "CMAKE_CXX_COMPILER": "cl.exe"
+        "CMAKE_CXX_COMPILER": "cl.exe",
+        "CMAKE_CXX_FLAGS_INIT": "/EHsc",
+        "CMAKE_CONFIGURATION_TYPES": "Debug;Release;RelWithDebInfo"
       }
     },
     {
-      "name": "ninja-6.10.0-release",
-      "displayName": "Ninja Release - Qt 6.10.0",
-      "inherits": "qt-6.10.0",
-      "generator": "Ninja",
-      "binaryDir": "${sourceDir}/build/ninja-6.10.0-release",
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Release",
-        "CMAKE_C_COMPILER": "cl.exe",
-        "CMAKE_CXX_COMPILER": "cl.exe"
-      }
+      "name": "ninja-6.10.0",
+      "hidden": true,
+      "displayName": "Ninja - Qt 6.10.0",
+      "inherits": ["qt-6.10.0", "ninja-base"],
+      "binaryDir": "${sourceDir}/build/ninja-6.10.0"
     },
     {
-      "name": "ninja-6.10.0-relwithdebinfo",
-      "displayName": "Ninja RelWithDebInfo - Qt 6.10.0",
-      "inherits": "qt-6.10.0",
-      "generator": "Ninja",
-      "binaryDir": "${sourceDir}/build/ninja-6.10.0-relwithdebinfo",
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
-        "CMAKE_C_COMPILER": "cl.exe",
-        "CMAKE_CXX_COMPILER": "cl.exe"
-      }
+      "name": "ninja-6.10.1",
+      "hidden": true,
+      "displayName": "Ninja - Qt 6.10.1",
+      "inherits": ["qt-6.10.1", "ninja-base"],
+      "binaryDir": "${sourceDir}/build/ninja-6.10.1"
     },
     {
-      "name": "ninja-6.10.1-debug",
-      "displayName": "Ninja Debug - Qt 6.10.1",
-      "inherits": "qt-6.10.1",
-      "generator": "Ninja",
-      "binaryDir": "${sourceDir}/build/ninja-6.10.1-debug",
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Debug",
-        "CMAKE_C_COMPILER": "cl.exe",
-        "CMAKE_CXX_COMPILER": "cl.exe"
-      }
-    },
-    {
-      "name": "ninja-6.10.1-release",
-      "displayName": "Ninja Release - Qt 6.10.1",
-      "inherits": "qt-6.10.1",
-      "generator": "Ninja",
-      "binaryDir": "${sourceDir}/build/ninja-6.10.1-release",
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Release",
-        "CMAKE_C_COMPILER": "cl.exe",
-        "CMAKE_CXX_COMPILER": "cl.exe"
-      }
-    },
-    {
-      "name": "ninja-6.10.1-relwithdebinfo",
-      "displayName": "Ninja RelWithDebInfo - Qt 6.10.1",
-      "inherits": "qt-6.10.1",
-      "generator": "Ninja",
-      "binaryDir": "${sourceDir}/build/ninja-6.10.1-relwithdebinfo",
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
-        "CMAKE_C_COMPILER": "cl.exe",
-        "CMAKE_CXX_COMPILER": "cl.exe"
-      }
+      "name": "ninja-6.10.2",
+      "displayName": "Ninja - Qt 6.10.2",
+      "inherits": ["qt-6.10.2", "ninja-base"],
+      "binaryDir": "${sourceDir}/build/ninja-6.10.2"
     }
   ],
   "buildPresets": [
     {
       "name": "vs2022-6.10.0-debug",
+      "hidden": true,
       "displayName": "Debug",
       "configurePreset": "vs2022-6.10.0",
       "configuration": "Debug"
     },
     {
       "name": "vs2022-6.10.0-release",
+      "hidden": true,
       "displayName": "Release",
       "configurePreset": "vs2022-6.10.0",
       "configuration": "Release"
     },
     {
       "name": "vs2022-6.10.0-relwithdebinfo",
+      "hidden": true,
       "displayName": "RelWithDebInfo",
       "configurePreset": "vs2022-6.10.0",
       "configuration": "RelWithDebInfo"
     },
     {
       "name": "vs2022-6.10.1-debug",
+      "hidden": true,
       "displayName": "Debug",
       "configurePreset": "vs2022-6.10.1",
       "configuration": "Debug"
     },
     {
       "name": "vs2022-6.10.1-release",
+      "hidden": true,
       "displayName": "Release",
       "configurePreset": "vs2022-6.10.1",
       "configuration": "Release"
     },
     {
       "name": "vs2022-6.10.1-relwithdebinfo",
+      "hidden": true,
       "displayName": "RelWithDebInfo",
       "configurePreset": "vs2022-6.10.1",
       "configuration": "RelWithDebInfo"
     },
     {
+      "name": "vs2022-6.10.2-debug",
+      "displayName": "Debug",
+      "configurePreset": "vs2022-6.10.2",
+      "configuration": "Debug"
+    },
+    {
+      "name": "vs2022-6.10.2-release",
+      "displayName": "Release",
+      "configurePreset": "vs2022-6.10.2",
+      "configuration": "Release"
+    },
+    {
+      "name": "vs2022-6.10.2-relwithdebinfo",
+      "displayName": "RelWithDebInfo",
+      "configurePreset": "vs2022-6.10.2",
+      "configuration": "RelWithDebInfo"
+    },
+    {
       "name": "ninja-6.10.0-debug",
-      "configurePreset": "ninja-6.10.0-debug"
+      "hidden": true,
+      "displayName": "Debug",
+      "configurePreset": "ninja-6.10.0",
+      "configuration": "Debug"
     },
     {
       "name": "ninja-6.10.0-release",
-      "configurePreset": "ninja-6.10.0-release"
+      "hidden": true,
+      "displayName": "Release",
+      "configurePreset": "ninja-6.10.0",
+      "configuration": "Release"
     },
     {
       "name": "ninja-6.10.0-relwithdebinfo",
-      "configurePreset": "ninja-6.10.0-relwithdebinfo"
+      "hidden": true,
+      "displayName": "RelWithDebInfo",
+      "configurePreset": "ninja-6.10.0",
+      "configuration": "RelWithDebInfo"
     },
     {
       "name": "ninja-6.10.1-debug",
-      "configurePreset": "ninja-6.10.1-debug"
+      "hidden": true,
+      "displayName": "Debug",
+      "configurePreset": "ninja-6.10.1",
+      "configuration": "Debug"
     },
     {
       "name": "ninja-6.10.1-release",
-      "configurePreset": "ninja-6.10.1-release"
+      "hidden": true,
+      "displayName": "Release",
+      "configurePreset": "ninja-6.10.1",
+      "configuration": "Release"
     },
     {
       "name": "ninja-6.10.1-relwithdebinfo",
-      "configurePreset": "ninja-6.10.1-relwithdebinfo"
+      "hidden": true,
+      "displayName": "RelWithDebInfo",
+      "configurePreset": "ninja-6.10.1",
+      "configuration": "RelWithDebInfo"
+    },
+    {
+      "name": "ninja-6.10.2-debug",
+      "displayName": "Debug",
+      "configurePreset": "ninja-6.10.2",
+      "configuration": "Debug"
+    },
+    {
+      "name": "ninja-6.10.2-release",
+      "displayName": "Release",
+      "configurePreset": "ninja-6.10.2",
+      "configuration": "Release"
+    },
+    {
+      "name": "ninja-6.10.2-relwithdebinfo",
+      "displayName": "RelWithDebInfo",
+      "configurePreset": "ninja-6.10.2",
+      "configuration": "RelWithDebInfo"
     }
   ]
 }

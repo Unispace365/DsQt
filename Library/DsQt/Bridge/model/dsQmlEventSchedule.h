@@ -13,6 +13,7 @@
 #include <QQmlListProperty>
 #include <QQmlPropertyMap>
 #include <QtConcurrentRun>
+#include <QTimer>
 // #include <qloggingcategory.h>
 
 // Q_DECLARE_LOGGING_CATEGORY(lgEventSchedule)
@@ -32,11 +33,16 @@ class DsQmlEvent : public QObject {
     Q_PROPERTY(qsizetype order READ order WRITE setOrder NOTIFY orderChanged)
     Q_PROPERTY(double secondsSinceMidnight READ secondsSinceMidnight CONSTANT)
     Q_PROPERTY(double durationInSeconds READ durationInSeconds CONSTANT)
+    Q_PROPERTY(dsqt::model::ContentModel* model READ model CONSTANT)
 
   public:
     explicit DsQmlEvent(QObject* parent = nullptr)
         : QObject(parent) {}
 
+    DsQmlEvent(const DsQmlEvent&)            = delete;
+    DsQmlEvent(DsQmlEvent&&)                 = delete;
+    DsQmlEvent& operator=(const DsQmlEvent&) = delete;
+    DsQmlEvent& operator=(DsQmlEvent&&)      = delete;
     DsQmlEvent(const bridge::DatabaseRecord& record, qsizetype order, QObject* parent = nullptr);
 
     DsQmlEvent* duplicate() const { return new DsQmlEvent(m_record, m_order, parent()); }
@@ -67,6 +73,7 @@ class DsQmlEvent : public QObject {
     }
 
     int days() const;
+    ContentModel* model() const { return m_model; }
 
     qsizetype order() const { return m_order; }
     void      setOrder(qsizetype order) {
@@ -135,16 +142,20 @@ class DsQmlEvent : public QObject {
     QDateTime              m_start;
     QDateTime              m_end;
     qsizetype              m_order;
+    dsqt::model::ContentModel *m_model = nullptr;
 };
+
+
 
 // Provides a list of scheduled events, optionally filtered by type, and exposes it to QML.
 class DsQmlEventSchedule : public QObject {
     Q_OBJECT
     QML_NAMED_ELEMENT(DsEventSchedule)
     Q_PROPERTY(QString type READ type WRITE setType NOTIFY typeChanged)
-    Q_PROPERTY(QList<DsQmlEvent*> events READ events NOTIFY eventsChanged)
-    Q_PROPERTY(QList<DsQmlEvent*> timeline READ timeline NOTIFY eventsChanged)
+    Q_PROPERTY(QList<dsqt::model::DsQmlEvent*> events READ events NOTIFY eventsChanged)
+    Q_PROPERTY(QList<dsqt::model::DsQmlEvent*> timeline READ timeline NOTIFY eventsChanged)
     Q_PROPERTY(DsQmlEvent* current READ current NOTIFY eventsChanged)
+    Q_PROPERTY(int tickSpan READ tickSpan WRITE setTickSpan NOTIFY tickSpanChanged FINAL)
     Q_PROPERTY(ui::DsQmlClock* clock READ clock WRITE setClock NOTIFY clockChanged)
 
   public:
@@ -220,10 +231,16 @@ class DsQmlEventSchedule : public QObject {
     // Sorts events by the default sorting heuristic. Sorted from highest to lowest priority.
     static void sortEvents(bridge::DatabaseRecordList& events, QDateTime localDateTime);
 
+    int tickSpan() const;
+    void setTickSpan(int newTickSpan);
+
   signals:
     void typeChanged();
     void eventsChanged();
     void clockChanged();
+
+    void tickSpanChanged();
+    void ticked();
 
   private:
     void updateNow();
@@ -241,8 +258,11 @@ class DsQmlEventSchedule : public QObject {
     mutable QList<DsQmlEvent*> m_timeline; // List of events where overlapping events are resolved to a single event.
     QFutureWatcher<QList<DsQmlEvent*>> m_watcher;         // Tracks the async task.
     dsqt::ui::DsQmlClock*              m_clock = nullptr; //
+    int m_tickSpan = 1000;
+    QTimer* m_tickTimer = nullptr;
 };
-
 } // namespace dsqt::model
+
+Q_DECLARE_METATYPE(QList<dsqt::model::DsQmlEvent*>)
 
 #endif // SCHEDULE_HELPER_H

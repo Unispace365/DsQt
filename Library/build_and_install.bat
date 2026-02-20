@@ -1,69 +1,78 @@
 @echo off
 setlocal
 
-set PRESET=vs2022-6.10.1
+REM Set up the MSVC developer environment if not already active
+if not defined VSINSTALLDIR (
+    call "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvarsall.bat" amd64
+    if %errorlevel% neq 0 (
+        echo Failed to set up MSVC environment.
+        exit /b %errorlevel%
+    )
+)
+
+set PRESET=ninja-6.10.2
 
 :: Record overall start time
-set OVERALL_START=%time%
+call :gettime OVERALL_START
 
 echo === Configuring DsQt Library (%PRESET%) ===
-set CONFIGURE_START=%time%
+call :gettime CONFIGURE_START
 cmake --preset %PRESET%
 if %errorlevel% neq 0 (
     echo Configuration failed.
     exit /b %errorlevel%
 )
-set CONFIGURE_END=%time%
+call :gettime CONFIGURE_END
 
 echo.
 echo === Building Debug ===
-set BUILD_DEBUG_START=%time%
+call :gettime BUILD_DEBUG_START
 cmake --build --preset %PRESET%-debug
 if %errorlevel% neq 0 (
     echo Debug build failed.
     exit /b %errorlevel%
 )
-set BUILD_DEBUG_END=%time%
+call :gettime BUILD_DEBUG_END
 
 echo.
 echo === Building Release ===
-set BUILD_RELEASE_START=%time%
+call :gettime BUILD_RELEASE_START
 cmake --build --preset %PRESET%-release
 if %errorlevel% neq 0 (
     echo Release build failed.
     exit /b %errorlevel%
 )
-set BUILD_RELEASE_END=%time%
+call :gettime BUILD_RELEASE_END
 
 echo.
 echo === Installing Debug ===
-set INSTALL_DEBUG_START=%time%
+call :gettime INSTALL_DEBUG_START
 cmake --install build/%PRESET% --config Debug
 if %errorlevel% neq 0 (
     echo Debug install failed.
     exit /b %errorlevel%
 )
-set INSTALL_DEBUG_END=%time%
+call :gettime INSTALL_DEBUG_END
 
 echo.
 echo === Installing Release ===
-set INSTALL_RELEASE_START=%time%
+call :gettime INSTALL_RELEASE_START
 cmake --install build/%PRESET% --config Release
 if %errorlevel% neq 0 (
     echo Release install failed.
     exit /b %errorlevel%
 )
-set INSTALL_RELEASE_END=%time%
+call :gettime INSTALL_RELEASE_END
 
-set OVERALL_END=%time%
+call :gettime OVERALL_END
 
 :: --- Timing summary ---
-call :elapsed %CONFIGURE_START%     %CONFIGURE_END%     CONFIGURE_SECS
-call :elapsed %BUILD_DEBUG_START%   %BUILD_DEBUG_END%   BUILD_DEBUG_SECS
-call :elapsed %BUILD_RELEASE_START% %BUILD_RELEASE_END% BUILD_RELEASE_SECS
-call :elapsed %INSTALL_DEBUG_START% %INSTALL_DEBUG_END% INSTALL_DEBUG_SECS
+call :elapsed %CONFIGURE_START%       %CONFIGURE_END%       CONFIGURE_SECS
+call :elapsed %BUILD_DEBUG_START%     %BUILD_DEBUG_END%     BUILD_DEBUG_SECS
+call :elapsed %BUILD_RELEASE_START%   %BUILD_RELEASE_END%   BUILD_RELEASE_SECS
+call :elapsed %INSTALL_DEBUG_START%   %INSTALL_DEBUG_END%   INSTALL_DEBUG_SECS
 call :elapsed %INSTALL_RELEASE_START% %INSTALL_RELEASE_END% INSTALL_RELEASE_SECS
-call :elapsed %OVERALL_START% %OVERALL_END% OVERALL_SECS
+call :elapsed %OVERALL_START%         %OVERALL_END%         OVERALL_SECS
 
 set /a TOTAL_BUILD_SECS   = BUILD_DEBUG_SECS   + BUILD_RELEASE_SECS
 set /a TOTAL_INSTALL_SECS = INSTALL_DEBUG_SECS + INSTALL_RELEASE_SECS
@@ -94,20 +103,16 @@ echo.
 echo Done. Installed to %USERPROFILE%\Documents\DsQt
 goto :eof
 
-:: Compute elapsed seconds between two %time% values -> result var
+:: Get current time as integer seconds since midnight -> result var
+:gettime
+for /f %%T in ('powershell -NoProfile -Command "[int](Get-Date).TimeOfDay.TotalSeconds"') do set %1=%%T
+goto :eof
+
+:: Compute elapsed seconds between two integer timestamps -> result var
 :elapsed
 setlocal
-set T1=%~1
-set T2=%~2
-:: Parse HH:MM:SS.cs
-for /f "tokens=1-4 delims=:,. " %%a in ("%T1%") do (
-    set /a S1 = (%%a*3600) + (%%b*60) + %%c
-)
-for /f "tokens=1-4 delims=:,. " %%a in ("%T2%") do (
-    set /a S2 = (%%a*3600) + (%%b*60) + %%c
-)
-set /a DIFF = S2 - S1
-if %DIFF% lss 0 set /a DIFF += 86400
+set /a DIFF=%~2 - %~1
+if %DIFF% lss 0 set /a DIFF+=86400
 endlocal & set %~3=%DIFF%
 goto :eof
 

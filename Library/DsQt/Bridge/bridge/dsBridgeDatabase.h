@@ -134,7 +134,11 @@ class DatabaseTree {
 
     DatabaseTree(DatabaseRecordHash& nodes, const QString& rootUid, Traversal order = Traversal::PostOrder)
         : m_nodes(nodes) {
-        if (m_nodes.contains(rootUid)) {
+        if (order == Traversal::Roots) {
+            // rootsTraversal() iterates all nodes and does not use rootUid,
+            // so it is safe to call even when rootUid is empty or not in the map.
+            rootsTraversal();
+        } else if (m_nodes.contains(rootUid)) {
             switch (order) {
             case Traversal::PreOrder: // Visits the root node first, then recursively traverses its children.
                 preOrderTraversal(rootUid);
@@ -143,8 +147,7 @@ class DatabaseTree {
                                        // last.
                 postOrderTraversal(rootUid);
                 break;
-            case Traversal::Roots: // Only visits nodes that have no single parent.
-                rootsTraversal();
+            default:
                 break;
             }
         }

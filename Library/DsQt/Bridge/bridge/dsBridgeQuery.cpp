@@ -272,8 +272,9 @@ void DsBridgeSqlQuery::onUpdated() {
     // This runs in the main thread when the background task completes.
     mContent = mFutures.result();
     if (mContent.m_queue.isEmpty()) {
-        // Nothing to process.
-        bool success = mIsRunning.testAndSetRelaxed(true, false);
+        // No new content to process. Go straight to cleaning up stale content so that bridge signals are emitted.
+        mContent.m_queue = ContentLookup::get().keys();
+        QTimer::singleShot(1, this, &DsBridgeSqlQuery::onCleanContent);
     } else {
         // We're going to process all content in chunks, so that we do not affect the main thread too much.
         QTimer::singleShot(1, this, &DsBridgeSqlQuery::onProcessContent);
@@ -298,8 +299,9 @@ void DsBridgeSqlQuery::onProcessContent() {
         // Done processing. Setup content linking.
         mContent.m_queue = mContent.m_records.keys();
         if (mContent.m_queue.isEmpty()) {
-            // Nothing to link.
-            bool success = mIsRunning.testAndSetRelaxed(true, false);
+            // Nothing to link or sort. Go straight to cleaning up stale content so that bridge signals are emitted.
+            mContent.m_queue = ContentLookup::get().keys();
+            QTimer::singleShot(1, this, &DsBridgeSqlQuery::onCleanContent);
         } else {
             // We're going to link all content in chunks, so that we do not affect the main thread too much.
             QTimer::singleShot(1, this, &DsBridgeSqlQuery::onLinkContent);
@@ -328,8 +330,9 @@ void DsBridgeSqlQuery::onLinkContent() {
         // Done linking. Setup content sorting.
         mContent.m_queue = mContent.m_records.keys();
         if (mContent.m_queue.isEmpty()) {
-            // Nothing to sort.
-            bool success = mIsRunning.testAndSetRelaxed(true, false);
+            // Nothing to sort. Go straight to cleaning up stale content so that bridge signals are emitted.
+            mContent.m_queue = ContentLookup::get().keys();
+            QTimer::singleShot(1, this, &DsBridgeSqlQuery::onCleanContent);
         } else {
             // We're going to sort all content in chunks, so that we do not affect the main thread too much.
             QTimer::singleShot(1, this, &DsBridgeSqlQuery::onSortContent);
@@ -365,13 +368,8 @@ void DsBridgeSqlQuery::onSortContent() {
     if (mContent.m_queue.isEmpty()) {
         // Done sorting. Setup content cleaning.
         mContent.m_queue = ContentLookup::get().keys();
-        if (mContent.m_queue.isEmpty()) {
-            // Nothing to clean.
-            bool success = mIsRunning.testAndSetRelaxed(true, false);
-        } else {
-            // We're going to clean all content in chunks, so that we do not affect the main thread too much.
-            QTimer::singleShot(1, this, &DsBridgeSqlQuery::onCleanContent);
-        }
+        // Always proceed to onCleanContent so that bridge signals are emitted even when there is nothing to clean.
+        QTimer::singleShot(1, this, &DsBridgeSqlQuery::onCleanContent);
     } else {
         // Sort next chunk later.
         QTimer::singleShot(1, this, &DsBridgeSqlQuery::onSortContent);

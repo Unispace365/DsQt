@@ -12,6 +12,7 @@ DsQmlEvent::DsQmlEvent(const bridge::DatabaseRecord& model, qsizetype order, QOb
     : QObject(parent)
     , m_record(model)
     , m_order(order) {
+    m_model = bridge::DsQmlBridge::instance().getRecordById(model.value("uid").toString());
     m_title = m_record.value("record_name").toString();
     m_start.setDate(m_record.value(DsQmlEventSchedule::StartDate).toDate());
     m_start.setTime(m_record.value(DsQmlEventSchedule::StartTime).toTime());
@@ -37,7 +38,10 @@ DsQmlEventSchedule::DsQmlEventSchedule(const QString& type_name, QObject* parent
 
     // Connect the watcher to handle task completion.
     connect(&m_watcher, &QFutureWatcher<QList<DsQmlEvent*>>::finished, this, &DsQmlEventSchedule::onUpdated);
-
+    m_tickTimer = new QTimer(this);
+    m_tickTimer->setInterval(m_tickSpan);
+    connect(m_tickTimer, &QTimer::timeout, this, &DsQmlEventSchedule::updateNow);
+    m_tickTimer->start();
     // Refresh now.
     updateNow();
 }
@@ -362,5 +366,20 @@ void DsQmlEventSchedule::sortEvents(QList<DsQmlEvent*>& events, const QDateTime&
     // Sort from highest priority to lowest priority.
     std::stable_sort(events.begin(), events.end(), heuristic);
 }
+
+int DsQmlEventSchedule::tickSpan() const
+{
+    return m_tickSpan;
+}
+
+void DsQmlEventSchedule::setTickSpan(int newTickSpan)
+{
+    if (m_tickSpan == newTickSpan)
+        return;
+    m_tickSpan = newTickSpan;
+    emit tickSpanChanged();
+}
+
+
 
 } // namespace dsqt::model

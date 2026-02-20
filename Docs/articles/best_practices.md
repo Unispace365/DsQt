@@ -4,6 +4,8 @@
 
 This document describes things we learned while authoring QML user interfaces. It's a work-in-progress.
 
+\see cmake_user_presets For build configuration — enabling the VS2022 generator, using a different Qt version, or handling Qt installed outside `C:/Qt/`.
+
 # Use Columns and Rows
 
 When laying out items in a column or row, use the appropriate `Column` and `Row` elements. This makes it much easier to adjust spacing later on. It also does not require you to calculate element positions by hand, which can become complicated rather fast if you have multiple elements you need to lay out.

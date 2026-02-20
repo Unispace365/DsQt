@@ -323,6 +323,8 @@ import Dsqt.Bridge
 
 Your project needs the DsQt install location in `CMAKE_PREFIX_PATH`. The generated `CMakePresets.json` already includes this. **Do not edit `CMakePresets.json` directly** — it is managed by the migration script and may be regenerated. Instead, use `CMakeUserPresets.json` for any local overrides.
 
+For a full guide to all `CMakeUserPresets.json` scenarios — including enabling the VS2022 generator, using a different Qt version, and handling Qt installed outside `C:/Qt/` — see [Enabling Additional Build Presets with CMakeUserPresets.json](cmake_user_presets.md).
+
 ### CMakePresets.json (generated, checked into source control)
 
 The migration script generates a `CMakePresets.json` with sensible defaults, including the DsQt install path:
@@ -443,4 +445,4 @@ The subdirectory approach relied on the `DS_QT_PLATFORM_100` environment variabl
 
 **TouchEngine.dll not found:** Ensure the post-build copy command is in your CMakeLists.txt and that the DsQt library was installed with TouchEngine support.
 
-**Need to customize paths or add Qt versions:** Don't edit `CMakePresets.json` — create a `CMakeUserPresets.json` in your project root with local overrides. CMake merges both files automatically. See Step 6 for examples.
+**Need to customize paths or add Qt versions:** Don't edit `CMakePresets.json` — create a `CMakeUserPresets.json` in your project root with local overrides. CMake merges both files automatically. See [Enabling Additional Build Presets with CMakeUserPresets.json](cmake_user_presets.md) for a full guide.
