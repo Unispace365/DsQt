@@ -5,6 +5,7 @@
 This document describes things we learned while authoring QML user interfaces. It's a work-in-progress.
 
 \see cmake_user_presets For build configuration — enabling the VS2022 generator, using a different Qt version, or handling Qt installed outside `C:/Qt/`.
+\see bridge_usage For accessing CMS content via the DsBridge singleton and DsEventSchedule.
 
 # Use Columns and Rows
 
