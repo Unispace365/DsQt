@@ -12,7 +12,8 @@ DsQmlEvent::DsQmlEvent(const bridge::DatabaseRecord& model, qsizetype order, QOb
     : QObject(parent)
     , m_record(model)
     , m_order(order) {
-    m_model = bridge::DsQmlBridge::instance().getRecordById(model.value("uid").toString());
+
+
     m_title = m_record.value("record_name").toString();
     m_start.setDate(m_record.value(DsQmlEventSchedule::StartDate).toDate());
     m_start.setTime(m_record.value(DsQmlEventSchedule::StartTime).toTime());
@@ -22,6 +23,14 @@ DsQmlEvent::DsQmlEvent(const bridge::DatabaseRecord& model, qsizetype order, QOb
 
 int DsQmlEvent::days() const {
     return m_record.value(DsQmlEventSchedule::EffectiveDays).toInt();
+}
+
+ContentModel *DsQmlEvent::model() const {
+    if(!m_model) {
+        QString modelUid = m_record.value("uid").toString();
+        m_model = bridge::DsQmlBridge::instance().getRecordById(modelUid);
+    }
+    return m_model;
 }
 
 DsQmlEventSchedule::DsQmlEventSchedule(QObject* parent)
@@ -40,7 +49,7 @@ DsQmlEventSchedule::DsQmlEventSchedule(const QString& type_name, QObject* parent
     connect(&m_watcher, &QFutureWatcher<QList<DsQmlEvent*>>::finished, this, &DsQmlEventSchedule::onUpdated);
     m_tickTimer = new QTimer(this);
     m_tickTimer->setInterval(m_tickSpan);
-    connect(m_tickTimer, &QTimer::timeout, this, &DsQmlEventSchedule::updateNow);
+    connect(m_tickTimer, &QTimer::timeout, this, &DsQmlEventSchedule::updateNow,Qt::QueuedConnection);
     m_tickTimer->start();
     // Refresh now.
     updateNow();

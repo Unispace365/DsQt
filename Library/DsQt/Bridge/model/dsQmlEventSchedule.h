@@ -33,7 +33,7 @@ class DsQmlEvent : public QObject {
     Q_PROPERTY(qsizetype order READ order WRITE setOrder NOTIFY orderChanged)
     Q_PROPERTY(double secondsSinceMidnight READ secondsSinceMidnight CONSTANT)
     Q_PROPERTY(double durationInSeconds READ durationInSeconds CONSTANT)
-    Q_PROPERTY(dsqt::model::ContentModel* model READ model CONSTANT)
+    Q_PROPERTY(dsqt::model::ContentModel* model READ model FINAL)
 
   public:
     explicit DsQmlEvent(QObject* parent = nullptr)
@@ -73,7 +73,7 @@ class DsQmlEvent : public QObject {
     }
 
     int days() const;
-    ContentModel* model() const { return m_model; }
+    ContentModel* model() const;
 
     qsizetype order() const { return m_order; }
     void      setOrder(qsizetype order) {
@@ -142,7 +142,7 @@ class DsQmlEvent : public QObject {
     QDateTime              m_start;
     QDateTime              m_end;
     qsizetype              m_order;
-    dsqt::model::ContentModel *m_model = nullptr;
+    mutable dsqt::model::ContentModel *m_model = nullptr;
 };
 
 
@@ -154,9 +154,9 @@ class DsQmlEventSchedule : public QObject {
     Q_PROPERTY(QString type READ type WRITE setType NOTIFY typeChanged)
     Q_PROPERTY(QList<dsqt::model::DsQmlEvent*> events READ events NOTIFY eventsChanged)
     Q_PROPERTY(QList<dsqt::model::DsQmlEvent*> timeline READ timeline NOTIFY eventsChanged)
-    Q_PROPERTY(DsQmlEvent* current READ current NOTIFY eventsChanged)
+    Q_PROPERTY(dsqt::model::DsQmlEvent* current READ current NOTIFY eventsChanged)
     Q_PROPERTY(int tickSpan READ tickSpan WRITE setTickSpan NOTIFY tickSpanChanged FINAL)
-    Q_PROPERTY(ui::DsQmlClock* clock READ clock WRITE setClock NOTIFY clockChanged)
+    Q_PROPERTY(dsqt::ui::DsQmlClock* clock READ clock WRITE setClock NOTIFY clockChanged)
 
   public:
     inline static const char* StartDate     = "start_date";
