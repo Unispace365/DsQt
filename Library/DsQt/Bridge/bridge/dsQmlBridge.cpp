@@ -7,7 +7,7 @@ namespace dsqt::bridge {
 DsQmlBridge::DsQmlBridge()
     : QObject(nullptr)
 {
-    // HACK: We need to tell the QML Engine that this object will be destructed via C++, or the program will crash upon exit
+    // Let qml know we are handling the destruction of this object despite it being a QObject. Falure to do so results in a crash upon exit from a 'double free' error.
     QJSEngine::setObjectOwnership(this, QJSEngine::CppOwnership);
     m_content = model::ContentModel::createNamed("Bridge");
 }
