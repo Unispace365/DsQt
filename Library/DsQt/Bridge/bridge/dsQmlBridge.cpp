@@ -1,10 +1,14 @@
 #include "bridge/dsQmlBridge.h"
 
-#include <qcoreapplication.h>
+#include <QCoreApplication.h>
 
 namespace dsqt::bridge {
 
-DsQmlBridge::DsQmlBridge() {
+DsQmlBridge::DsQmlBridge()
+    : QObject(nullptr)
+{
+    // HACK: We need to tell the QML Engine that this object will be destructed via C++, or the program will crash upon exit
+    QJSEngine::setObjectOwnership(this, QJSEngine::CppOwnership);
     m_content = model::ContentModel::createNamed("Bridge");
 }
 

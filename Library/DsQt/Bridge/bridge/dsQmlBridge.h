@@ -32,7 +32,6 @@ class DsQmlBridge : public QObject {
 
     static DsQmlBridge* create(QQmlEngine *, QJSEngine *){
         auto& inst = instance();
-        QJSEngine::setObjectOwnership(&inst,QJSEngine::CppOwnership);
         return &inst;
     }
 
