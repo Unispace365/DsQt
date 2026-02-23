@@ -473,6 +473,11 @@ QStringList Cloner::scanForQtInstallations() const
         QStringLiteral("/mnt/c/Qt")
     };
 
+    // Add QT_DIR from system environment to Qt search roots if it exists
+    const QString envQtDir = qEnvironmentVariable("QT_DIR");
+    if (!envQtDir.isEmpty())
+        searchRoots << envQtDir;
+
     for (const auto &searchRoot : searchRoots) {
         QDir rootDir(searchRoot);
         if (!rootDir.exists())

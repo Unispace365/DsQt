@@ -15,7 +15,7 @@ Window {
     Loader {
         id: loader
         anchors.fill: parent
-        source: "file:///C:/dev/DsQt/Tools/ProjectCloner/MainView.qml"
+        source: "./MainView.qml"
     }
     Shortcut {
         sequence: "CTRL+R"

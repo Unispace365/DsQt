@@ -159,7 +159,7 @@ Rectangle {
                     }
                     Text {
                         visible: cloner.detectedQtVersions.length === 0
-                        text: "No Qt installations found in C:/Qt/"
+                        text: "No Qt installations found in C:/Qt/ or in %QT_DIR%"
                         color: "#999"
                         font.italic: true
                     }
