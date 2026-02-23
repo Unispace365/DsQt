@@ -31,7 +31,9 @@ class DsQmlBridge : public QObject {
     void setContent(dsqt::model::ContentModel* newContent);
 
     static DsQmlBridge* create(QQmlEngine *, QJSEngine *){
-        return &instance();
+        auto& inst = instance();
+        QJSEngine::setObjectOwnership(&inst,QJSEngine::CppOwnership);
+        return &inst;
     }
 
     /**
