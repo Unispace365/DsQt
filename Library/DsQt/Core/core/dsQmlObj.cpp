@@ -14,8 +14,6 @@ DsQmlObj::DsQmlObj(QQmlEngine* qmlEngine, QJSEngine* jsEngine, QObject* parent)
     mEngine = dynamic_cast<DsQmlApplicationEngine*>(qmlEngine);
     if (mEngine == nullptr) {
         qWarning() << "Engine is not a DsQmlApplicationEngine or a subclass. $DS functionality will not be available";
-    //} else {
-    //    connect(mEngine, &DsQmlApplicationEngine::bridgeChanged, this, &DsQmlObj::updatePlatform);
     }
 }
 
@@ -38,10 +36,6 @@ DsQmlApplicationEngine* DsQmlObj::engine() const {
     return mEngine;
 }
 
-model::ContentModel* DsQmlObj::platform() {
-    return mPlatform;
-}
-
 DsQmlPathHelper* DsQmlObj::path() const {
     return mPath;
 }
@@ -53,19 +47,6 @@ model::ContentModel* DsQmlObj::getRecordById(const QString& id) const {
         return itr.value();
     } else {
         return nullptr;
-    }
-}
-
-void DsQmlObj::updatePlatform() {
-    if (!mEngine) return;
-
-    qDebug() << "Updating platform";
-
-    const auto platformUid = appSettings()->getString("platform.id").toString();
-    const auto platform    = model::ContentModel::find(platformUid);
-    if (platform != mPlatform) {
-        mPlatform = platform;
-        emit platformChanged();
     }
 }
 

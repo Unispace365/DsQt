@@ -33,10 +33,9 @@ class DsQmlObj : public QObject {
     QML_SINGLETON
     QML_NAMED_ELEMENT(Ds)
 
-    Q_PROPERTY(dsqt::DsQmlEnvironment* env READ env NOTIFY envChanged)
-    Q_PROPERTY(dsqt::DsQmlSettingsProxy* appSettings READ appSettings NOTIFY appSettingsChanged)
-    Q_PROPERTY(dsqt::DsQmlApplicationEngine* engine READ engine NOTIFY engineChanged)
-    Q_PROPERTY(dsqt::model::ContentModel* platform READ platform NOTIFY platformChanged)
+    Q_PROPERTY(dsqt::DsQmlEnvironment* env READ env CONSTANT)
+    Q_PROPERTY(dsqt::DsQmlSettingsProxy* appSettings READ appSettings CONSTANT)
+    Q_PROPERTY(dsqt::DsQmlApplicationEngine* engine READ engine CONSTANT)
     Q_PROPERTY(dsqt::DsQmlPathHelper* path READ path CONSTANT)
 
   public:
@@ -74,13 +73,6 @@ class DsQmlObj : public QObject {
      */
     DsQmlApplicationEngine* engine() const;
 
-    /**
-     * \brief Getter for the platform content model.
-     * \return Pointer to DsQmlContentModel representing the platform.
-     */
-    model::ContentModel* platform();
-
-
     DsQmlPathHelper* path() const;
 
     /**
@@ -90,37 +82,9 @@ class DsQmlObj : public QObject {
      */
     Q_INVOKABLE model::ContentModel* getRecordById(const QString &id) const;
 
-  signals:
-    /**
-     * \brief Emitted when the environment changes.
-     */
-    void envChanged();
-
-    /**
-     * \brief Emitted when the application settings change.
-     */
-    void appSettingsChanged();
-
-    /**
-     * \brief Emitted when the engine changes.
-     */
-    void engineChanged();
-
-    /**
-     * \brief Emitted when the platform content model changes.
-     */
-    void platformChanged();
-
   private:
     DsQmlPathHelper*          mPath        = nullptr;
     DsQmlApplicationEngine*   mEngine      = nullptr;
-    model::ContentModel*      mPlatform    = nullptr;
-
-  private slots:
-    /**
-     * \brief Slot to update the platform content model.
-     */
-    void updatePlatform();
 };
 
 } // namespace dsqt
