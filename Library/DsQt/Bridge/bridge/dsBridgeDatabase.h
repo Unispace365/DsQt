@@ -3,11 +3,19 @@
 
 #include <QHash>
 #include <QString>
+#include <QUrl>
 #include <QVariantHash>
 
 namespace dsqt::bridge {
 
-using DatabaseRecord     = QVariantHash;
+class DatabaseRecord : public QVariantHash {
+  public:
+    QString getFilePath(const QString &key) const {
+        QVariantMap fileinfo = value(key, {}).toMap();
+        return QUrl(fileinfo.value("filepath", "").toString()).toLocalFile();
+    }
+};
+
 using DatabaseRecordList = QList<DatabaseRecord>;
 using DatabaseRecordHash = QHash<QString, DatabaseRecord>;
 
@@ -40,9 +48,12 @@ class DatabaseContent {
     /// Returns all event records.
     DatabaseRecordList events() const { return find(m_events); }
     /// Returns all platform records.
-    DatabaseRecordList platforms() const {
-        return find(m_platforms);
-    }
+    DatabaseRecordList platforms() const { return find(m_platforms); }
+
+    /// Returns the platform record based on the [platform.id] in app_settings.
+    DatabaseRecord getPlatform() const;
+    /// Returns the platform record given its type name.
+    DatabaseRecord getPlatform(const QString& typeName) const;
 
   private:
     friend class DatabaseIterator;
@@ -154,7 +165,7 @@ class DatabaseTree {
     }
 
     DatabaseTree(DatabaseContent& content, Traversal order = Traversal::PostOrder)
-        : DatabaseTree(content.m_records, content.m_content.isEmpty() ?QString(): content.m_content.front(), order) {}
+        : DatabaseTree(content.m_records, content.m_content.isEmpty() ? QString() : content.m_content.front(), order) {}
 
     // Begin iterator
     DatabaseIterator begin() const { return DatabaseIterator(m_nodes, m_order, 0); }

@@ -757,7 +757,7 @@ DatabaseContent DsBridgeSqlQuery::queryTables() {
         } else if (field_type == "RICH_TEXT") {
             // Use the provided rich text.
             record.insertOrAssign(field_uid, result.value("rich_text").toString());
-        } else if (field_type == "FILE_IMAGE" || field_type == "FILE_VIDEO" || field_type == "FILE_PDF") {
+        } else if (field_type == "FILE_IMAGE" || field_type == "FILE_VIDEO" || field_type == "FILE_PDF" || field_type == "FILE_OPAQUE") {
             // Create resource.
             const auto resourceId = result.value("hash").toString();
             if (!resourceId.isEmpty()) {
@@ -775,6 +775,8 @@ DatabaseContent DsBridgeSqlQuery::queryTables() {
                     res.setType(dsqt::DsResource::VIDEO_TYPE);
                 else if (field_type == "FILE_PDF")
                     res.setType(dsqt::DsResource::PDF_TYPE);
+                else if (field_type == "FILE_OPAQUE")
+                    res.setType(dsqt::DsResource::OPAQUE_TYPE);
                 else {
                     qWarning() << "Unknown file type for resource:" << field_type;
                     return;
