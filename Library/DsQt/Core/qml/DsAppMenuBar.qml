@@ -3,7 +3,7 @@ import QtQuick.Controls
 
 MenuBar {
     id: menuBar
-    width: parent.width
+
 
     signal fileInfoTriggered()
     signal logsApplicationTriggered(bool checked)

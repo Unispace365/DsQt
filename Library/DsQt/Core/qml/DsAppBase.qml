@@ -181,7 +181,7 @@ ApplicationWindow {
         autoRepeat: false
         context: Qt.ApplicationShortcut
         onActivated: {
-            windowMenuBar.visible = !windowMenuBar.visible
+            menuBar.visible = !menuBar.visible
         }
     }
 
