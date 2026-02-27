@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.29)
 
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
+
 include(FetchContent)
 
 # Read version from VERSION.txt (source of truth)
@@ -36,6 +38,9 @@ if(PROJECT_IS_TOP_LEVEL)
     endif()
 endif()
 
+# Find Qt6 and required components
+include(Qt6AutoDetect)
+
 find_package(Qt6 6.9
     REQUIRED COMPONENTS 
         Core 
@@ -46,6 +51,8 @@ find_package(Qt6 6.9
     #REQUIRED COMPONENTS
     #Test
 )
+
+message(STATUS "Qt6 version selected: ${Qt6_VERSION}")
 
 #qt_standard_project_setup(REQUIRES 6.9)
 
