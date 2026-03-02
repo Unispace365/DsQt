@@ -39,7 +39,10 @@ if(PROJECT_IS_TOP_LEVEL)
 endif()
 
 # Find Qt6 and required components
-include(Qt6AutoDetect)
+find_package(Qt6 QUIET CONFIG)
+if(NOT Qt6_FOUND)
+    include(Qt6AutoDetect)
+endif()
 
 find_package(Qt6 6.9
     REQUIRED COMPONENTS 
