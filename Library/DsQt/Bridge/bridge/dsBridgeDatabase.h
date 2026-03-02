@@ -1,6 +1,7 @@
 #ifndef DSBRIDGEDATABASE_H
 #define DSBRIDGEDATABASE_H
 
+#include <QDateTime>
 #include <QHash>
 #include <QString>
 #include <QUrl>
@@ -10,9 +11,86 @@ namespace dsqt::bridge {
 
 class DatabaseRecord : public QVariantHash {
   public:
-    QString getFilePath(const QString &key) const {
+    /// Returns the file path if this record is a resource.
+    QString getFilePath(const QString& key, const QString& defaultValue = "") const {
         QVariantMap fileinfo = value(key, {}).toMap();
-        return QUrl(fileinfo.value("filepath", "").toString()).toLocalFile();
+        return QUrl(fileinfo.value("filepath", defaultValue).toString()).toLocalFile();
+    }
+
+    /// Returns the start date and time if this record is an event.
+    QDateTime getStartDateTime() const { return value("start_date_time", {}).toDateTime(); }
+
+    /// Returns the end date and time if this record is an event.
+    QDateTime getEndDateTime() const { return value("end_date_time", {}).toDateTime(); }
+
+    /// Returns the weekdays for which the event is scheduled.
+    int getEffectiveDays() const { return value("effective_days", 0x7F).toInt() & 0x7F; }
+
+    static bool isToday(const QDate& localDate, const QDateTime& start, const QDateTime& end, int dayFlags = 0x7F) {
+        if (!start.isValid() || !end.isValid() || localDate < start.date() || localDate > end.date()) return false;
+
+        // Returns the weekday (0 to 6, where 0 = Sunday, 1 = Monday, ..., 6 = Saturday).
+        const int dayNumber = localDate.dayOfWeek() % 7;
+        const int dayFlag   = 0x1 << dayNumber;
+        if (dayFlags & dayFlag) return true;
+
+        return false;
+    }
+
+    /// Returns whether the event is scheduled for the specified day, taking into account the weekdays.
+    bool isToday(const QDate& localDate) const {
+        const QDateTime start    = getStartDateTime();
+        const QDateTime end      = getEndDateTime();
+        const int       dayFlags = getEffectiveDays();
+        return isToday(localDate, start, end, dayFlags);
+    }
+
+    /// Returns whether the event is scheduled for the specified date and time, taking into account specific times or
+    /// weekdays.
+    static bool isNow(const QDateTime& localDateTime, const QDateTime& start, const QDateTime& end,
+                      int dayFlags = 0x7F) {
+        if (!isToday(localDateTime.date(), start, end, dayFlags)) return false;
+        if (localDateTime.time() < start.time()) return false;
+        if (localDateTime.time() >= end.time()) return false;
+        return true;
+    }
+
+    /// Returns whether the event is scheduled for the specified date and time, taking into account specific times or
+    /// weekdays.
+    bool isNow(const QDateTime& localDateTime) const {
+        const QDateTime start    = getStartDateTime();
+        const QDateTime end      = getEndDateTime();
+        const int       dayFlags = getEffectiveDays();
+        return isNow(localDateTime, start, end, dayFlags);
+    }
+
+    /// Returns whether the event is scheduled during the time span.
+    static bool isWithinSpan(const QDateTime& spanStart, const QDateTime& spanEnd, const QDateTime& start,
+                             const QDateTime& end) {
+        if (spanStart > spanEnd) return false; // Invalid span.
+        if (!start.isValid()) return false;
+        if (!end.isValid()) return false;
+        if (end < start) return false; // Invalid value.
+        return (spanEnd >= start && end >= spanStart);
+    }
+
+    /// Returns whether the event is scheduled during the time span.
+    bool isWithinSpan(const QDateTime& spanStart, const QDateTime& spanEnd) const {
+        if (spanStart > spanEnd) return false; // Invalid span.
+
+        const QDateTime start = getStartDateTime();
+        const QDateTime end   = getEndDateTime();
+        return isWithinSpan(spanStart, spanEnd, start, end);
+    }
+
+    ///
+    static double secondsSinceMidnight(const QDateTime& localDateTime) {
+        return QTime(0, 0).secsTo(localDateTime.time());
+    }
+
+    ///
+    static double durationInSeconds(const QDateTime& spanStart, const QDateTime& spanEnd) {
+        return spanStart.time().secsTo(spanEnd.time());
     }
 };
 
@@ -54,6 +132,13 @@ class DatabaseContent {
     DatabaseRecord getPlatform() const;
     /// Returns the platform record given its type name.
     DatabaseRecord getPlatform(const QString& typeName) const;
+    ///
+    DatabaseRecord getCurrentEvent(const QDateTime& localDateTime) const;
+
+    static void sortEvents(DatabaseRecordList& events, const QDateTime& localDateTime = QDateTime().currentDateTime());
+
+    static void removeInactiveEvents(DatabaseRecordList& events,
+                                     const QDateTime&    localDateTime = QDateTime().currentDateTime());
 
   private:
     friend class DatabaseIterator;
