@@ -982,24 +982,6 @@ DatabaseGuard::DatabaseGuard(QSqlDatabase& database)
         qCWarning(lgBridgeSyncQuery) << "Could not open database at " << mDatabase.databaseName();
         return;
     }
-
-    // // Verify WAL mode
-    // QSqlQuery pragmaQuery(mDatabase);
-    // if (pragmaQuery.exec("PRAGMA journal_mode;") && pragmaQuery.next()) {
-    //     QString journalMode = pragmaQuery.value(0).toString();
-    //     if (journalMode.toLower() != "wal") {
-    //         qCDebug(lgBridgeSyncQuery) << "Warning: Database is not in WAL mode, current mode:" << journalMode;
-    //     } else {
-    //         qCDebug(lgBridgeSyncQuery) << "Database is in WAL mode";
-    //     }
-    // } else {
-    //     qCWarning(lgBridgeSyncQuery) << "Error checking journal mode:" << pragmaQuery.lastError().text();
-    // }
-
-    // // Set busy timeout
-    // if (!pragmaQuery.exec("PRAGMA busy_timeout=5000;")) {
-    //     qCWarning(lgBridgeSyncQuery) << "Error setting busy timeout:" << pragmaQuery.lastError().text();
-    // }
 }
 
 DatabaseGuard::~DatabaseGuard() {

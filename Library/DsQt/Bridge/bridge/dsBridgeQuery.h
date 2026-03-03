@@ -1,8 +1,8 @@
 #ifndef DSBRIDGEQUERY_H
 #define DSBRIDGEQUERY_H
 
-#include "bridge/dsBridgeWatcher.h"
 #include "bridge/dsBridgeDatabase.h"
+#include "bridge/dsBridgeWatcher.h"
 #include "core/dsQmlApplicationEngine.h"
 
 #include <QFutureWatcher>
@@ -156,7 +156,7 @@ struct DsBridgeSyncSettings {
 };
 
 /**
- * @brief Class for querying a SQL database bridged from a sync process.
+ * @brief Class for querying a SQL database from a sync process.
  *
  * This class manages the interaction with a SQL database populated by BridgeSync,
  * including launching the sync process if configured, watching for updates, and querying
@@ -178,9 +178,17 @@ class DsBridgeSqlQuery : public QObject {
     ~DsBridgeSqlQuery() override;
 
     /**
-     * @brief Queries the database and updates content models.
+     * @brief Retrieves the BridgeSync settings from configuration.
+     * @return The DsBridgeSyncSettings struct.
      */
-    void queryDatabase();
+    DsBridgeSyncSettings getBridgeSyncSettings();
+
+    /**
+     * @brief Validates the BridgeSync settings.
+     * @param settings The settings to validate.
+     * @return True if valid, false otherwise.
+     */
+    bool validateBridgeSyncSettings(const DsBridgeSyncSettings& settings) const;
 
   public:
     /**
@@ -201,21 +209,6 @@ class DsBridgeSqlQuery : public QObject {
     void onCleanContent();
 
   private:
-
-
-    /**
-     * @brief Retrieves the BridgeSync settings from configuration.
-     * @return The DsBridgeSyncSettings struct.
-     */
-    DsBridgeSyncSettings getBridgeSyncSettings();
-
-    /**
-     * @brief Validates the BridgeSync settings.
-     * @param settings The settings to validate.
-     * @return True if valid, false otherwise.
-     */
-    bool validateBridgeSyncSettings(const DsBridgeSyncSettings& settings) const;
-
     /**
      * @brief Attempts to launch the BridgeSync process if not running.
      * @return True if launched or already running, false on failure.
@@ -239,6 +232,11 @@ class DsBridgeSqlQuery : public QObject {
      * @return True on success, false on failure.
      */
     bool startConnection();
+
+    /**
+     * @brief Queries the database and updates content models.
+     */
+    void queryDatabase();
 
     /**
      * @brief Queries the database tables and updates models.
@@ -266,5 +264,6 @@ class DsBridgeSqlQuery : public QObject {
     QList<QMetaObject::Connection>          mConnections;
 #endif
 };
+
 } // namespace dsqt::bridge
 #endif // DSBRIDGEQUERY_H
