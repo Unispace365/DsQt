@@ -344,7 +344,7 @@ class ContentModel : public QQmlPropertyMap {
         });
         // Always add child uid to parent's list of childs.
         QStringList children;
-        for (auto child : d_ptr->children) {
+        for (auto child : std::as_const(d_ptr->children)) {
             auto ptr = dynamic_cast<ContentModel*>(child);
             if (ptr) {
                 children.append(ptr->getId());
