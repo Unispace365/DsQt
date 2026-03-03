@@ -760,7 +760,7 @@ DatabaseContent DsBridgeSqlQuery::queryTables() {
             // Use the provided rich text.
             record.insertOrAssign(field_uid, result.value("rich_text").toString());
         } else if (field_type == "FILE_IMAGE" || field_type == "FILE_VIDEO" || field_type == "FILE_PDF" ||
-                   field_type == "FILE_OPAQUE") {
+                   field_type == "FILE_OPAQUE" || field_type == "FILE_AUDIO") {
             // Create resource.
             const auto resourceId = result.value("hash").toString();
             if (!resourceId.isEmpty()) {
@@ -774,8 +774,8 @@ DatabaseContent DsBridgeSqlQuery::queryTables() {
                 // Set resource type.
                 if (field_type == "FILE_IMAGE")
                     res.setType(dsqt::DsResource::IMAGE_TYPE);
-                else if (field_type == "FILE_VIDEO")
-                    res.setType(dsqt::DsResource::VIDEO_TYPE);
+                else if (field_type == "FILE_VIDEO" || field_type == "FILE_AUDIO")
+                    res.setType(dsqt::DsResource::VIDEO_TYPE); // note that audio is just video without images
                 else if (field_type == "FILE_PDF")
                     res.setType(dsqt::DsResource::PDF_TYPE);
                 else if (field_type == "FILE_OPAQUE")
