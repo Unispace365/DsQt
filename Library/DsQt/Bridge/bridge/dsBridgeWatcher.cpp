@@ -4,6 +4,9 @@ namespace dsqt::bridge {
 
 DsBridgeWatcher::DsBridgeWatcher(const QFileInfo& dbPath, QObject* parent)
     : QObject(parent) {
+    // Make sure the directory exists.
+    QDir().mkdir(dbPath.absolutePath());
+
     m_database_file.setFile(QDir(dbPath.path()), "db.sqlite");
     m_notification_file.setFile(QDir(dbPath.path()), "sync_notification.txt");
 
