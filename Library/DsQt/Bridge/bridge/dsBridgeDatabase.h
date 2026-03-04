@@ -13,6 +13,16 @@ namespace dsqt::bridge {
 
 class DatabaseRecord : public QVariantHash {
   public:
+    QString recordName() const { return value("record_name", {}).toString(); }
+    QString typeName() const { return value("type_name", {}).toString(); }
+    QString typeKey() const { return value("type_key", {}).toString(); }
+
+    /// Returns a list of UIDs.
+    QStringList list(const QString& key) const { return value(key, {}).toString().split(','); }
+
+    ///
+    QStringList children() const { return list("child_uid"); }
+
     /// Returns the file path if this record is a resource.
     QString filepath(const QString& key, const QString& defaultValue = "") const {
         QVariantMap fileinfo = value(key, {}).toMap();
@@ -21,10 +31,8 @@ class DatabaseRecord : public QVariantHash {
 
     /// Returns the start date and time if this record is an event.
     QDateTime start() const { return value("start_date_time", {}).toDateTime(); }
-
     /// Returns the end date and time if this record is an event.
     QDateTime end() const { return value("end_date_time", {}).toDateTime(); }
-
     /// Returns the weekdays for which the event is scheduled.
     int days() const { return value("effective_days", 0x7F).toInt() & 0x7F; }
 };
