@@ -55,7 +55,7 @@ set(SOURCES
     src/dsTouchEngineTextureNode.cpp
     src/dsQmlTouchEngineTextureOutputView.cpp
     src/OpenGLImage.cpp
-    src/OpenGlRenderer.cpp
+    src/OpenGLRenderer.cpp
     src/OpenGLTexture.cpp
     src/Renderer.cpp
     src/dsTouchEngineMaterial.cpp
