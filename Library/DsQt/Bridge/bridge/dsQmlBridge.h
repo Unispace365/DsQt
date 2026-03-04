@@ -10,7 +10,7 @@
 
 
 namespace dsqt::bridge {
-//TODO: logging category for this class
+// TODO: logging category for this class
 
 class DsQmlBridge : public QObject {
     Q_OBJECT
@@ -28,9 +28,7 @@ class DsQmlBridge : public QObject {
 
     dsqt::model::ContentModel* content() const;
 
-    void setContent(dsqt::model::ContentModel* newContent);
-
-    static DsQmlBridge* create(QQmlEngine *, QJSEngine *){
+    static DsQmlBridge* create(QQmlEngine*, QJSEngine*) {
         auto& inst = instance();
         return &inst;
     }
@@ -42,24 +40,16 @@ class DsQmlBridge : public QObject {
     const bridge::DatabaseContent& database() const { return m_database; }
 
     /**
-     * @brief setDatabase
-     * @param database
-     */
-    void setDatabase(bridge::DatabaseContent&& database) {
-        m_database = std::move(database);
-        emit databaseChanged();
-        emit bridgeUpdated();
-    }
-
-    /**
      * @brief Get ContentModel by Id.
      * @param id The unique identifier of the content record.
      * @return Pointer to ContentModel if found, nullptr otherwise.
      */
     Q_INVOKABLE model::ContentModel* getRecordById(const QString& id) const {
         auto record = model::ContentModel::find(id);
-        if (!record) return nullptr;
-        else return record;
+        if (!record)
+            return nullptr;
+        else
+            return record;
     }
 
     /**
@@ -69,7 +59,7 @@ class DsQmlBridge : public QObject {
     Q_INVOKABLE QString getPlatformUid() const {
         auto platformId = DsSettings::getSettings("app_settings")->getOr<QString>("platform.id", "");
         if (platformId.isEmpty()) {
-            qDebug()<<"Attempting to get platform uid but platform.id is not set in app_settings";
+            qDebug() << "Attempting to get platform uid but platform.id is not set in app_settings";
             return "";
         }
         for (const auto& platform : m_database.platforms()) {
@@ -77,7 +67,7 @@ class DsQmlBridge : public QObject {
                 return platform.value("uid").toString();
             }
         }
-        qDebug()<<"Attempting to get platform uid but no platform with id "<<platformId<<" found in database";
+        qDebug() << "Attempting to get platform uid but no platform with id " << platformId << " found in database";
         return "";
     }
 
@@ -97,11 +87,7 @@ class DsQmlBridge : public QObject {
      * @brief Get ContentModel of platform by id from app_settings platform.id
      * @return Pointer to ContentModel if found, nullptr otherwise.
      */
-    Q_INVOKABLE model::ContentModel* getPlatformRecord() const {
-        return getRecordById(getPlatformUid());
-    }
-
-
+    Q_INVOKABLE model::ContentModel* getPlatformRecord() const { return getRecordById(getPlatformUid()); }
 
   signals:
     /**
@@ -114,16 +100,15 @@ class DsQmlBridge : public QObject {
      */
     void databaseChanged();
 
-    /**
-     * @brief Emitted when the bridge is updated. This is a general signal that can be used to indicate any update to the bridge, including content and database changes. It is thread-safe.
-     */
-    void bridgeUpdated();
-
   private:
     DsQmlBridge();
 
-    dsqt::model::ContentModel*    m_content = nullptr;
-    bridge::DatabaseContent m_database;
+    friend class DsBridgeSqlQuery;
+    void setContent(dsqt::model::ContentModel* newContent);
+    void setDatabase(bridge::DatabaseContent&& database);
+
+    dsqt::model::ContentModel* m_content = nullptr;
+    bridge::DatabaseContent    m_database;
 };
 
 } // namespace dsqt::bridge

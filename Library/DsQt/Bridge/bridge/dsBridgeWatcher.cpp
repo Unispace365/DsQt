@@ -4,6 +4,9 @@ namespace dsqt::bridge {
 
 DsBridgeWatcher::DsBridgeWatcher(const QFileInfo& dbPath, QObject* parent)
     : QObject(parent) {
+    // Make sure the directory exists.
+    QDir().mkdir(dbPath.absolutePath());
+
     m_database_file.setFile(QDir(dbPath.path()), "db.sqlite");
     m_notification_file.setFile(QDir(dbPath.path()), "sync_notification.txt");
 
@@ -36,30 +39,12 @@ void DsBridgeWatcher::processFile() {
         qDebug() << "Monitoring" << m_notification_file;
     }
 
-    //
+    // Check if the file exists. If not, warn the user.
     m_notification_file.refresh();
     if (!m_notification_file.exists()) {
         qDebug() << "Notification file" << m_notification_file << "missing. Make sure BridgeSync is running.";
         return;
     }
-
-    //
-    // QFile file(m_notification_file.absoluteFilePath());
-    // if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
-    //     qDebug() << "Failed to open" << m_notification_file;
-    //     return;
-    // }
-
-    // //
-    // QTextStream in(&file);
-    // while (!in.atEnd()) {
-    //     QString line = in.readLine();
-    //     if (!line.isEmpty()) {
-    //         qDebug() << "Received notification:" << line;
-    //     }
-    // }
-
-    // file.close();
 
     // Check if the file has changed. If it has, notify listeners.
     if (m_last_modified != m_notification_file.lastModified()) {

@@ -125,6 +125,7 @@ class DsResource {
 	static const int ZIP_TYPE			  = 8;
 	static const int VIDEO_PANORAMIC_TYPE = 9;
 	static const int YOUTUBE_TYPE		  = 10;
+    static const int OPAQUE_TYPE		  = 11;
 
   public:
 	/// Mainly for debugging

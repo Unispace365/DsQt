@@ -22,19 +22,17 @@ MenuBar {
     Menu {
         title: "File"
         width: 200
-        Action {
-            text: "Info"
-            shortcut: "CTRL+I"
-            onTriggered: menuBar.fileInfoTriggered()
-        }
-        MenuSeparator {}
+        // Action {
+        //     text: "Info"
+        //     shortcut: "CTRL+I"
+        //     onTriggered: menuBar.fileInfoTriggered()
+        // }
+        // MenuSeparator {}
         Action {
             text: "Quit"
             shortcut: "CTRL+Q"
             onTriggered: Qt.quit()
         }
-
-        //delegate: DsAppMenuItem {}
     }
     Menu {
         title: "Logs"
@@ -42,14 +40,14 @@ MenuBar {
         Action {
             id: logsApplicationAction
             text: "Application"
-            shortcut: "CTRL+L,CTRL+A"
+            shortcut: "C" // "CTRL+L,CTRL+A"
             checkable: true
             onTriggered: menuBar.logsApplicationTriggered(checked)
         }
         Action {
             id: logsBridgeSyncAction
             text: "BridgeSync"
-            shortcut: "CTRL+L,CTRL+B"
+            shortcut: "SHIFT+/" // "CTRL+L,CTRL+B"
             checkable: true
             onTriggered: menuBar.logsBridgeSyncTriggered(checked)
         }
@@ -60,8 +58,6 @@ MenuBar {
             checkable: true
             onTriggered: menuBar.logsAppHostTriggered(checked)
         }
-
-        //delegate: DsAppMenuItem {}
     }
     Menu {
         title: "Settings"
@@ -74,8 +70,6 @@ MenuBar {
             text: "Application"
             onTriggered: menuBar.settingsApplicationTriggered()
         }
-
-        //delegate: DsAppMenuItem {}
     }
     Menu {
         title: "Content"
@@ -86,8 +80,6 @@ MenuBar {
             checkable: true
             onTriggered: menuBar.contentBrowseToggled(checked)
         }
-
-        //delegate: DsAppMenuItem {}
     }
     Menu {
         title: "Help"
@@ -96,7 +88,5 @@ MenuBar {
             text: "Shortcuts"
             onTriggered: menuBar.helpShortcutsTriggered()
         }
-
-        //delegate: DsAppMenuItem {}
     }
 }

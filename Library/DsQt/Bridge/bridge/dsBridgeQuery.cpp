@@ -1,9 +1,9 @@
 ﻿#include "bridge/dsBridgeQuery.h"
 #include "bridge/dsQmlBridge.h"
 #include "core/dsEnvironment.h"
+#include "model/dsContentModel.h"
 #include "model/dsResource.h"
 #include "network/dsNodeWatcher.h"
-#include "model/dsContentModel.h"
 #include "settings/dsQmlSettingsProxy.h"
 #include "settings/dsSettings.h"
 
@@ -83,7 +83,7 @@ DsBridgeSqlQuery::~DsBridgeSqlQuery() {
 
     // Properly close the DB file.
     if (mDatabase.isOpen()) {
-        qCInfo(lgBridgeSyncApp) << "Closing database";
+        qCDebug(lgBridgeSyncApp) << "Closing database";
         mDatabase.close();
     }
 
@@ -394,10 +394,9 @@ void DsBridgeSqlQuery::onCleanContent() {
 
     if (mContent.m_queue.isEmpty()) {
         // Done cleaning.
-        bool success = mIsRunning.testAndSetRelaxed(true, false);
+        mIsRunning.testAndSetRelaxed(true, false);
 
-        bool isMainThread = QThread::currentThread() == QCoreApplication::instance()->thread();
-        Q_ASSERT(isMainThread);
+        Q_ASSERT(QThread::currentThread() == QCoreApplication::instance()->thread());
 
         // Construct or update the content tree.
         auto& bridge = bridge::DsQmlBridge::instance();
@@ -415,21 +414,21 @@ void DsBridgeSqlQuery::onCleanContent() {
         root->setProperty("event_uid", mContent.m_events);
         root->setProperty("platform_uid", mContent.m_platforms);
 
-        for (const auto& uid : std::as_const(mContent.m_content)){
+        for (const auto& uid : std::as_const(mContent.m_content)) {
             auto val = ContentModel::find(uid);
-            if(val){
+            if (val) {
                 val->setParent(content);
             }
         }
-        for (const auto& uid : std::as_const(mContent.m_events)){
+        for (const auto& uid : std::as_const(mContent.m_events)) {
             auto val = ContentModel::find(uid);
-            if(val){
+            if (val) {
                 val->setParent(events);
             }
         }
-        for (const auto& uid : std::as_const(mContent.m_platforms)){
+        for (const auto& uid : std::as_const(mContent.m_platforms)) {
             auto val = ContentModel::find(uid);
-            if(val){
+            if (val) {
                 val->setParent(platforms);
             }
         }
@@ -452,7 +451,7 @@ void DsBridgeSqlQuery::queryDatabase() {
     }
 
     // Perform update on a background thread.
-    QFuture<DatabaseContent> future = QtConcurrent::run([=]() { return queryTables(); });
+    QFuture<DatabaseContent> future = QtConcurrent::run([=, this]() { return queryTables(); });
 
     // Set the future in the watcher to track completion.
     mFutures.setFuture(future);
@@ -461,8 +460,8 @@ void DsBridgeSqlQuery::queryDatabase() {
 DatabaseContent DsBridgeSqlQuery::queryTables() {
     const auto isMainThread = QThread::currentThread() == QCoreApplication::instance()->thread();
 
-    qCInfo(lgBridgeSyncQuery) << "BridgeService is loading content"
-                              << (isMainThread ? "on the main thread" : "on a background thread");
+    qCDebug(lgBridgeSyncQuery) << "BridgeService is loading content"
+                               << (isMainThread ? "on the main thread" : "on a background thread");
 
     // Create content instance.
     DatabaseContent content;
@@ -687,11 +686,14 @@ DatabaseContent DsBridgeSqlQuery::queryTables() {
 #endif
             content.m_events.append(uid);
             record.insertOrAssign("span_type", result.value("span_type").toString());
-            record.insertOrAssign("start_date", result.value("span_start_date").toString());
-            record.insertOrAssign("end_date", result.value("span_end_date").toString());
-            record.insertOrAssign("start_time", result.value("start_time").toString());
-            record.insertOrAssign("end_time", result.value("end_time").toString());
             record.insertOrAssign("effective_days", result.value("effective_days").toInt());
+            // Convert from strings to QDateTime now, as this will greatly speed up operations later.
+            QDate date = QDate::fromString(result.value("span_start_date").toString(), "yyyy-MM-dd");
+            QTime time = QTime::fromString(result.value("start_time").toString(), "HH:mm:ss");
+            record.insertOrAssign("start_date_time", QDateTime(date, time));
+            date = QDate::fromString(result.value("span_end_date").toString(), "yyyy-MM-dd");
+            time = QTime::fromString(result.value("end_time").toString(), "HH:mm:ss");
+            record.insertOrAssign("end_date_time", QDateTime(date, time));
         } else if (variant == "ROOT_CONTENT") {
             content.m_content.append(uid);
         } else if (variant == "ROOT_PLATFORM") {
@@ -757,7 +759,8 @@ DatabaseContent DsBridgeSqlQuery::queryTables() {
         } else if (field_type == "RICH_TEXT") {
             // Use the provided rich text.
             record.insertOrAssign(field_uid, result.value("rich_text").toString());
-        } else if (field_type == "FILE_IMAGE" || field_type == "FILE_VIDEO" || field_type == "FILE_PDF") {
+        } else if (field_type == "FILE_IMAGE" || field_type == "FILE_VIDEO" || field_type == "FILE_PDF" ||
+                   field_type == "FILE_OPAQUE" || field_type == "FILE_AUDIO") {
             // Create resource.
             const auto resourceId = result.value("hash").toString();
             if (!resourceId.isEmpty()) {
@@ -771,10 +774,12 @@ DatabaseContent DsBridgeSqlQuery::queryTables() {
                 // Set resource type.
                 if (field_type == "FILE_IMAGE")
                     res.setType(dsqt::DsResource::IMAGE_TYPE);
-                else if (field_type == "FILE_VIDEO")
-                    res.setType(dsqt::DsResource::VIDEO_TYPE);
+                else if (field_type == "FILE_VIDEO" || field_type == "FILE_AUDIO")
+                    res.setType(dsqt::DsResource::VIDEO_TYPE); // note that audio is just video without images
                 else if (field_type == "FILE_PDF")
                     res.setType(dsqt::DsResource::PDF_TYPE);
+                else if (field_type == "FILE_OPAQUE")
+                    res.setType(dsqt::DsResource::OPAQUE_TYPE);
                 else {
                     qWarning() << "Unknown file type for resource:" << field_type;
                     return;
@@ -972,35 +977,17 @@ DatabaseGuard::DatabaseGuard(QSqlDatabase& database)
     }
 
     // Open the database
-    qCInfo(lgBridgeSyncQuery) << "Opening database";
+    qCDebug(lgBridgeSyncQuery) << "Opening database";
     if (!mDatabase.open()) {
         qCWarning(lgBridgeSyncQuery) << "Could not open database at " << mDatabase.databaseName();
         return;
     }
-
-    // // Verify WAL mode
-    // QSqlQuery pragmaQuery(mDatabase);
-    // if (pragmaQuery.exec("PRAGMA journal_mode;") && pragmaQuery.next()) {
-    //     QString journalMode = pragmaQuery.value(0).toString();
-    //     if (journalMode.toLower() != "wal") {
-    //         qCDebug(lgBridgeSyncQuery) << "Warning: Database is not in WAL mode, current mode:" << journalMode;
-    //     } else {
-    //         qCDebug(lgBridgeSyncQuery) << "Database is in WAL mode";
-    //     }
-    // } else {
-    //     qCWarning(lgBridgeSyncQuery) << "Error checking journal mode:" << pragmaQuery.lastError().text();
-    // }
-
-    // // Set busy timeout
-    // if (!pragmaQuery.exec("PRAGMA busy_timeout=5000;")) {
-    //     qCWarning(lgBridgeSyncQuery) << "Error setting busy timeout:" << pragmaQuery.lastError().text();
-    // }
 }
 
 DatabaseGuard::~DatabaseGuard() {
     // Only close the database if it was not already open when constructed
     if (!mWasOpen && mDatabase.isOpen()) {
-        qCInfo(lgBridgeSyncQuery) << "Closing database";
+        qCDebug(lgBridgeSyncQuery) << "Closing database";
         mDatabase.close();
     }
 }
@@ -1015,7 +1002,7 @@ DatabaseGuard& DatabaseGuard::operator=(DatabaseGuard&& other) noexcept {
     if (this != &other) {
         // Close our database if it was opened by this instance
         if (!mWasOpen && mDatabase.isOpen()) {
-            qCInfo(lgBridgeSyncQuery) << "Closing database in move assignment";
+            qCDebug(lgBridgeSyncQuery) << "Closing database in move assignment";
             mDatabase.close();
         }
         mDatabase      = other.mDatabase;

@@ -224,13 +224,6 @@ class DsQmlApplicationEngine : public QQmlApplicationEngine {
      */
     void idleChanged();
 
-
-
-    /**
-     * @brief Emitted when the root content is updated. Thread-safe version.
-     */
-    void databaseChanged();
-
   protected:
     /// Static pointer to the default engine instance.
     static DsQmlApplicationEngine* sDefaultEngine;

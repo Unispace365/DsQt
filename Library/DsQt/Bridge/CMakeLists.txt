@@ -28,7 +28,7 @@ qt_add_qml_module(Bridge
 
     SOURCES
         bridge/dsQmlBridge.h bridge/dsQmlBridge.cpp
-        bridge/dsBridgeDatabase.h
+        bridge/dsBridgeDatabase.h bridge/dsBridgeDatabase.cpp
         bridge/dsBridgeQuery.cpp bridge/dsBridgeQuery.h
         bridge/dsBridgeWatcher.cpp bridge/dsBridgeWatcher.h
         bridge/dsQmlPlaylistControl.cpp bridge/dsQmlPlaylistControl.h

@@ -18,10 +18,10 @@ ApplicationWindow {
         var screens = Application.screens
         for(var i=0; i<screens.length; ++i) {
             if(window.screen.virtualX === screens[i].virtualX &&
-                    window.screen.virtualY === screens[i].virtualY) {
+               window.screen.virtualY === screens[i].virtualY) {
                 _.displayIndex = i
                 if(_.displayName !== "")
-                    _.displayName = screens[i].name
+                _.displayName = screens[i].name
                 return
             }
         }
@@ -223,13 +223,13 @@ ApplicationWindow {
                                 }
     }
 
-    /// Application log viewer.
     /// Provides access to the settings.
     DsSettingsProxy {
         id: engineProxy
         target: "engine"
     }
 
+    /// Application log viewer.
     Component {
         id: appLog
         DsTextFileViewer {
@@ -246,18 +246,15 @@ ApplicationWindow {
     }
 
     /// BridgeSync log viewer.
-    /// Provides access to the bridge settings.
-    DsSettingsProxy {
-        id: bridgeProxy
-        target: "engine"
-        prefix: "engine.bridgesync.connection"
-    }
-
     Component {
         id: bridgeSyncLog
         DsTextFileViewer {
             title: "BridgeSync Log"
-            file: Ds.env.expand(bridgeProxy.getString("directory", "%LOCAL%") + "logs/bridgesync.log")
+            file: {
+                var base = Ds.env.expand(engineProxy.getString("engine.resource.location", "%DOCUMENTS%/downstream"))
+                if(!base.endsWith("/")) base += "/"
+                return base + "/logs/bridgesync.log"
+            }
             onVisibleChanged: (isVisible) => { windowMenuBar.logsBridgeSyncChecked = isVisible }
         }
     }

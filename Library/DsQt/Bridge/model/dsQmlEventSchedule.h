@@ -2,7 +2,6 @@
 #define DSQMLEVENTSCHEDULE_H
 
 #include "bridge/dsBridgeDatabase.h"
-#include "model/dsContentModel.h"
 #include "ui/dsQmlClock.h"
 
 #include <QColor>
@@ -12,8 +11,8 @@
 #include <QQmlEngine>
 #include <QQmlListProperty>
 #include <QQmlPropertyMap>
-#include <QtConcurrentRun>
 #include <QTimer>
+#include <QtConcurrentRun>
 // #include <qloggingcategory.h>
 
 // Q_DECLARE_LOGGING_CATEGORY(lgEventSchedule)
@@ -23,7 +22,7 @@ namespace dsqt::model {
 // Wraps a scheduled event into a QML object.
 class DsQmlEvent : public QObject {
     Q_OBJECT
-    QML_ELEMENT
+    QML_ANONYMOUS
     Q_PROPERTY(QString uid READ uid CONSTANT)
     Q_PROPERTY(QString type READ type CONSTANT)
     Q_PROPERTY(QString title READ title WRITE setTitle NOTIFY titleChanged)
@@ -33,16 +32,11 @@ class DsQmlEvent : public QObject {
     Q_PROPERTY(qsizetype order READ order WRITE setOrder NOTIFY orderChanged)
     Q_PROPERTY(double secondsSinceMidnight READ secondsSinceMidnight CONSTANT)
     Q_PROPERTY(double durationInSeconds READ durationInSeconds CONSTANT)
-    Q_PROPERTY(dsqt::model::ContentModel* model READ model FINAL)
 
   public:
     explicit DsQmlEvent(QObject* parent = nullptr)
         : QObject(parent) {}
 
-    DsQmlEvent(const DsQmlEvent&)            = delete;
-    DsQmlEvent(DsQmlEvent&&)                 = delete;
-    DsQmlEvent& operator=(const DsQmlEvent&) = delete;
-    DsQmlEvent& operator=(DsQmlEvent&&)      = delete;
     DsQmlEvent(const bridge::DatabaseRecord& record, qsizetype order, QObject* parent = nullptr);
 
     DsQmlEvent* duplicate() const { return new DsQmlEvent(m_record, m_order, parent()); }
@@ -73,7 +67,6 @@ class DsQmlEvent : public QObject {
     }
 
     int days() const;
-    ContentModel* model() const;
 
     qsizetype order() const { return m_order; }
     void      setOrder(qsizetype order) {
@@ -95,35 +88,6 @@ class DsQmlEvent : public QObject {
 
     const bridge::DatabaseRecord& record() const { return m_record; }
 
-    // Returns whether the event is scheduled for the specified date and time, taking into account specific times or
-    // weekdays.
-    bool isNow(const QDateTime& localDateTime) const {
-        if (!isToday(localDateTime.date())) return false;
-        if (localDateTime.time() < m_start.time() || localDateTime.time() >= m_end.time()) return false;
-        return true;
-    }
-    // Returns whether the event is scheduled for the specified day, taking into account the weekdays.
-    bool isToday(const QDate& localDate) const {
-        if (!m_start.isValid()) return false;
-        if (!m_end.isValid()) return false;
-        if (localDate < m_start.date() || localDate > m_end.date()) return false;
-
-        // Returns the weekday (0 to 6, where 0 = Sunday, 1 = Monday, ..., 6 = Saturday).
-        const auto dayNumber = localDate.dayOfWeek() % 7;
-        const int  dayFlag   = 0x1 << dayNumber;
-        if (days() & dayFlag) return true;
-
-        return false;
-    }
-    // Returns whether the event is scheduled during the time span.
-    bool isWithinSpan(const QDateTime& spanStart, const QDateTime& spanEnd) const {
-        if (spanStart > spanEnd) return false; // Invalid span.
-        if (!m_start.isValid()) return false;
-        if (!m_end.isValid()) return false;
-        if (m_end < m_start) return false; // Invalid value.
-        return (spanEnd >= m_start && m_end >= spanStart);
-    }
-
     bool operator==(const DsQmlEvent& rhs) const {
         // Do not compare titles.
         return (m_order == rhs.m_order && m_start == rhs.m_start && m_end == rhs.m_end && uid() == rhs.uid());
@@ -142,53 +106,43 @@ class DsQmlEvent : public QObject {
     QDateTime              m_start;
     QDateTime              m_end;
     qsizetype              m_order;
-    mutable dsqt::model::ContentModel *m_model = nullptr;
 };
-
-
 
 // Provides a list of scheduled events, optionally filtered by type, and exposes it to QML.
 class DsQmlEventSchedule : public QObject {
     Q_OBJECT
     QML_NAMED_ELEMENT(DsEventSchedule)
     Q_PROPERTY(QString type READ type WRITE setType NOTIFY typeChanged)
-    Q_PROPERTY(QList<dsqt::model::DsQmlEvent*> events READ events NOTIFY eventsChanged)
-    Q_PROPERTY(QList<dsqt::model::DsQmlEvent*> timeline READ timeline NOTIFY eventsChanged)
+    Q_PROPERTY(QQmlListProperty<DsQmlEvent> events READ events NOTIFY eventsChanged)
+    Q_PROPERTY(QQmlListProperty<DsQmlEvent> timeline READ timeline NOTIFY eventsChanged)
     Q_PROPERTY(dsqt::model::DsQmlEvent* current READ current NOTIFY eventsChanged)
-    Q_PROPERTY(int tickSpan READ tickSpan WRITE setTickSpan NOTIFY tickSpanChanged FINAL)
     Q_PROPERTY(dsqt::ui::DsQmlClock* clock READ clock WRITE setClock NOTIFY clockChanged)
 
   public:
-    inline static const char* StartDate     = "start_date";
-    inline static const char* EndDate       = "end_date";
-    inline static const char* StartTime     = "start_time";
-    inline static const char* EndTime       = "end_time";
+    inline static const char* StartDateTime = "start_date_time";
+    inline static const char* EndDateTime   = "end_date_time";
     inline static const char* EffectiveDays = "effective_days";
 
     explicit DsQmlEventSchedule(QObject* parent = nullptr);
     DsQmlEventSchedule(const QString& type_name, QObject* parent = nullptr);
+    ~DsQmlEventSchedule();
 
     // Returns the event type, or an empty string if not set.
     const QString& type() const { return m_type_name; }
     // Sets the event type, causing events to be filtered if not empty.
     void setType(const QString& type) {
         if (type == m_type_name) return;
-
         m_type_name = type;
         emit typeChanged();
-
-        updateNow();
     }
 
     // Returns all events, sorted from highest to lowest priority.
-    QList<DsQmlEvent*> events() const { return m_events; }
+    QQmlListProperty<DsQmlEvent> events();
     // Returns all events as a timeline, with all overlapping events resolved to a single event.
-    QList<DsQmlEvent*> timeline() const;
+    QQmlListProperty<DsQmlEvent> timeline();
     // Returns the currently active event, or nullptr if no event is active.
     DsQmlEvent* current() const {
-        if (m_events.isEmpty()) {
-            return nullptr;
-        }
+        if (m_events.isEmpty()) return nullptr;
         return m_events.front();
     }
     //
@@ -198,71 +152,48 @@ class DsQmlEventSchedule : public QObject {
         if (m_clock == clock) return;
 
         if (m_clock) {
-            disconnect(m_clock, &ui::DsQmlClock::minutesChanged, this, &DsQmlEventSchedule::updateNow);
+            disconnect(m_clock, &ui::DsQmlClock::secondsChanged, this, &DsQmlEventSchedule::updateNow);
         }
 
         m_clock = clock;
 
         if (m_clock) {
-            connect(m_clock, &ui::DsQmlClock::minutesChanged, this, &DsQmlEventSchedule::updateNow);
+            connect(m_clock, &ui::DsQmlClock::secondsChanged, this, &DsQmlEventSchedule::updateNow);
         }
 
         emit clockChanged();
     }
-
-  public:
-    // Returns whether the specified event is currently scheduled, taking into account specific times or weekdays.
-    static bool isEventNow(const bridge::DatabaseRecord& event, QDateTime localDateTime);
-    // Returns whether the specified event is scheduled for today, taking into account the weekdays.
-    static bool isEventToday(const bridge::DatabaseRecord& event, QDate localDate);
-    // Returns whether the specified event is within the time span.
-    static bool isEventWithinSpan(const bridge::DatabaseRecord& event, QDateTime spanStart, QDateTime spanEnd);
-
-    // Removes all events that are not of the specified type. Returns the number of removed events.
-    static size_t filterEvents(bridge::DatabaseRecordList& events, const QString& typeName);
-    // Removes all events that are not scheduled at the specified date and time. Returns the number of removed events.
-    static size_t filterEvents(bridge::DatabaseRecordList& events, QDateTime localDateTime);
-    // Removes all events that are not scheduled at the specified date. Returns the number of removed events.
-    static size_t filterEvents(bridge::DatabaseRecordList& events, QDate localDate);
-    // Removes all events that are not within the specified time range. Does not check for specific times or weekdays.
-    // Returns the number of removed events.
-    static size_t filterEvents(bridge::DatabaseRecordList& events, QDateTime spanStart, QDateTime spanEnd);
-
-    // Sorts events by the default sorting heuristic. Sorted from highest to lowest priority.
-    static void sortEvents(bridge::DatabaseRecordList& events, QDateTime localDateTime);
-
-    int tickSpan() const;
-    void setTickSpan(int newTickSpan);
 
   signals:
     void typeChanged();
     void eventsChanged();
     void clockChanged();
 
-    void tickSpanChanged();
-    void ticked();
-
   private:
     void updateNow();
     void update(const QDateTime& localDateTime);
-
-    static void sortEvents(QList<DsQmlEvent*>& events, const QDateTime& localDateTime);
 
   private slots:
     void onUpdated();
 
   private:
-    QString                    m_type_name = "";  // Event record type. If empty, all events are included.
-    QDateTime                  m_local_date_time; // Local date and time.
-    QList<DsQmlEvent*>         m_events;          // All events.
-    mutable QList<DsQmlEvent*> m_timeline; // List of events where overlapping events are resolved to a single event.
-    QFutureWatcher<QList<DsQmlEvent*>> m_watcher;         // Tracks the async task.
-    dsqt::ui::DsQmlClock*              m_clock = nullptr; //
-    int m_tickSpan = 1000;
-    QTimer* m_tickTimer = nullptr;
+    struct FutureResult {
+        QList<DsQmlEvent*> events;
+        QList<DsQmlEvent*> timeline;
+    };
+
+    QString                      m_type_name = "";  // Event record type. If empty, all events are included.
+    QDateTime                    m_local_date_time; // Local date and time.
+    QList<DsQmlEvent*>           m_events;          // All events.
+    QList<DsQmlEvent*>           m_timeline; // List of events where overlapping events are resolved to a single event.
+    QFutureWatcher<FutureResult> m_watcher;  // Tracks the async task.
+    dsqt::ui::DsQmlClock*        m_clock        = nullptr;
+    dsqt::ui::DsQmlClock*        m_defaultClock = nullptr;
 };
+
 } // namespace dsqt::model
 
-Q_DECLARE_METATYPE(QList<dsqt::model::DsQmlEvent*>)
+Q_DECLARE_METATYPE(dsqt::model::DsQmlEvent)
+// Q_DECLARE_METATYPE(QList<dsqt::model::DsQmlEvent*>)
 
 #endif // SCHEDULE_HELPER_H
