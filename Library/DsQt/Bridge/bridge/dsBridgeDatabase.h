@@ -13,6 +13,7 @@ namespace dsqt::bridge {
 
 class DatabaseRecord : public QVariantHash {
   public:
+    QString uid() const { return value("uid", {}).toString(); }
     QString recordName() const { return value("record_name", {}).toString(); }
     QString typeName() const { return value("type_name", {}).toString(); }
     QString typeKey() const { return value("type_key", {}).toString(); }
