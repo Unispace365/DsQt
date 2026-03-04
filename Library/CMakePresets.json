@@ -7,173 +7,29 @@
       "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
     },
     {
-      "name": "qt-6.10.0",
-      "hidden": true,
-      "inherits": "vcpkg-base",
-      "cacheVariables": {
-        "CMAKE_PREFIX_PATH": "C:/Qt/6.10.0/msvc2022_64",
-        "CMAKE_INSTALL_PREFIX": "$env{USERPROFILE}/Documents/DsQt"
-      }
-    },
-    {
-      "name": "qt-6.10.1",
-      "hidden": true,
-      "inherits": "vcpkg-base",
-      "cacheVariables": {
-        "CMAKE_PREFIX_PATH": "C:/Qt/6.10.1/msvc2022_64",
-        "CMAKE_INSTALL_PREFIX": "$env{USERPROFILE}/Documents/DsQt"
-      }
-    },
-    {
-      "name": "qt-6.10.2",
-      "hidden": true,
-      "inherits": "vcpkg-base",
-      "cacheVariables": {
-        "CMAKE_PREFIX_PATH": "C:/Qt/6.10.2/msvc2022_64",
-        "CMAKE_INSTALL_PREFIX": "$env{USERPROFILE}/Documents/DsQt"
-      }
-    },
-    {
-      "name": "vs2022-6.10.0",
-      "hidden": true,
-      "displayName": "VS2022 x64 - Qt 6.10.0",
-      "inherits": "qt-6.10.0",
-      "generator": "Visual Studio 17 2022",
-      "architecture": "x64",
-      "binaryDir": "${sourceDir}/build/vs2022-6.10.0"
-    },
-    {
-      "name": "vs2022-6.10.1",
-      "hidden": true,
-      "displayName": "VS2022 x64 - Qt 6.10.1",
-      "inherits": "qt-6.10.1",
-      "generator": "Visual Studio 17 2022",
-      "architecture": "x64",
-      "binaryDir": "${sourceDir}/build/vs2022-6.10.1"
-    },
-    {
       "name": "ninja-base",
       "hidden": true,
       "generator": "Ninja Multi-Config",
       "cacheVariables": {
-        "CMAKE_C_COMPILER": "cl.exe",
-        "CMAKE_CXX_COMPILER": "cl.exe",
-        "CMAKE_CXX_FLAGS_INIT": "/EHsc",
-        "CMAKE_CONFIGURATION_TYPES": "Debug;Release;RelWithDebInfo"
+        "CMAKE_C_COMPILER":         { "type": "FILEPATH", "value": "cl.exe" },
+        "CMAKE_CXX_COMPILER":       { "type": "FILEPATH", "value": "cl.exe" },
+        "CMAKE_CXX_FLAGS_INIT":     { "type": "STRING",   "value": "/EHsc" },
+        "CMAKE_CONFIGURATION_TYPES":{ "type": "STRING",   "value": "Debug;Release;RelWithDebInfo" }
       }
     },
     {
-      "name": "ninja-6.10.0",
-      "hidden": true,
-      "displayName": "Ninja - Qt 6.10.0",
-      "inherits": ["qt-6.10.0", "ninja-base"],
-      "binaryDir": "${sourceDir}/build/ninja-6.10.0"
-    },
-    {
-      "name": "ninja-6.10.1",
-      "hidden": true,
-      "displayName": "Ninja - Qt 6.10.1",
-      "inherits": ["qt-6.10.1", "ninja-base"],
-      "binaryDir": "${sourceDir}/build/ninja-6.10.1"
-    },
-    {
-      "name": "ninja-6.10.2",
-      "hidden": false,
-      "displayName": "Ninja - Qt 6.10.2",
-      "inherits": ["qt-6.10.2", "ninja-base"],
-      "binaryDir": "${sourceDir}/build/ninja-6.10.2"
+      "name": "ninja",
+      "displayName": "Ninja Multi-Config",
+      "inherits": ["vcpkg-base", "ninja-base"],
+      "binaryDir": "${sourceDir}/build/ninja",
+      "cacheVariables": {
+        "CMAKE_INSTALL_PREFIX": "$env{USERPROFILE}/Documents/DsQt"
+      }
     }
   ],
   "buildPresets": [
-    {
-      "name": "vs2022-6.10.0-debug",
-      "displayName": "Debug",
-      "configurePreset": "vs2022-6.10.0",
-      "configuration": "Debug"
-    },
-    {
-      "name": "vs2022-6.10.0-release",
-      "displayName": "Release",
-      "configurePreset": "vs2022-6.10.0",
-      "configuration": "Release"
-    },
-    {
-      "name": "vs2022-6.10.0-relwithdebinfo",
-      "displayName": "RelWithDebInfo",
-      "configurePreset": "vs2022-6.10.0",
-      "configuration": "RelWithDebInfo"
-    },
-    {
-      "name": "vs2022-6.10.1-debug",
-      "displayName": "Debug",
-      "configurePreset": "vs2022-6.10.1",
-      "configuration": "Debug"
-    },
-    {
-      "name": "vs2022-6.10.1-release",
-      "displayName": "Release",
-      "configurePreset": "vs2022-6.10.1",
-      "configuration": "Release"
-    },
-    {
-      "name": "vs2022-6.10.1-relwithdebinfo",
-      "displayName": "RelWithDebInfo",
-      "configurePreset": "vs2022-6.10.1",
-      "configuration": "RelWithDebInfo"
-    },
-    {
-      "name": "ninja-6.10.0-debug",
-      "displayName": "Debug",
-      "configurePreset": "ninja-6.10.0",
-      "configuration": "Debug"
-    },
-    {
-      "name": "ninja-6.10.0-release",
-      "displayName": "Release",
-      "configurePreset": "ninja-6.10.0",
-      "configuration": "Release"
-    },
-    {
-      "name": "ninja-6.10.0-relwithdebinfo",
-      "displayName": "RelWithDebInfo",
-      "configurePreset": "ninja-6.10.0",
-      "configuration": "RelWithDebInfo"
-    },
-    {
-      "name": "ninja-6.10.1-debug",
-      "displayName": "Debug",
-      "configurePreset": "ninja-6.10.1",
-      "configuration": "Debug"
-    },
-    {
-      "name": "ninja-6.10.1-release",
-      "displayName": "Release",
-      "configurePreset": "ninja-6.10.1",
-      "configuration": "Release"
-    },
-    {
-      "name": "ninja-6.10.1-relwithdebinfo",
-      "displayName": "RelWithDebInfo",
-      "configurePreset": "ninja-6.10.1",
-      "configuration": "RelWithDebInfo"
-    },
-    {
-      "name": "ninja-6.10.2-debug",
-      "displayName": "Debug",
-      "configurePreset": "ninja-6.10.2",
-      "configuration": "Debug"
-    },
-    {
-      "name": "ninja-6.10.2-release",
-      "displayName": "Release",
-      "configurePreset": "ninja-6.10.2",
-      "configuration": "Release"
-    },
-    {
-      "name": "ninja-6.10.2-relwithdebinfo",
-      "displayName": "RelWithDebInfo",
-      "configurePreset": "ninja-6.10.2",
-      "configuration": "RelWithDebInfo"
-    }
+    { "name": "ninja-debug",          "configurePreset": "ninja", "configuration": "Debug" },
+    { "name": "ninja-release",        "configurePreset": "ninja", "configuration": "Release" },
+    { "name": "ninja-relwithdebinfo", "configurePreset": "ninja", "configuration": "RelWithDebInfo" }
   ]
 }

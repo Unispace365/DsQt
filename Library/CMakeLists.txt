@@ -36,8 +36,25 @@ if(PROJECT_IS_TOP_LEVEL)
     endif()
 endif()
 
+# --- Qt auto-discovery (Windows) -------------------------------------------------
+# Scans C:/Qt/*/msvc2022_64 and selects the highest installed version.
+# Override by setting CMAKE_PREFIX_PATH or Qt6_DIR in your CMakeUserPresets.json.
+if(WIN32 AND NOT Qt6_DIR)
+    file(GLOB _qt_dirs LIST_DIRECTORIES true "C:/Qt/*/msvc2022_64")
+    if(_qt_dirs)
+        list(SORT _qt_dirs ORDER DESCENDING)
+        list(GET _qt_dirs 0 _qt_auto)
+        message(STATUS "DsQt: Auto-discovered Qt at ${_qt_auto}")
+        list(APPEND CMAKE_PREFIX_PATH "${_qt_auto}")
+    else()
+        message(WARNING "DsQt: No Qt installation found in C:/Qt/. "
+                        "Set CMAKE_PREFIX_PATH or Qt6_DIR to your Qt path.")
+    endif()
+endif()
+# ---------------------------------------------------------------------------------
+
 find_package(Qt6 6.9
-    REQUIRED COMPONENTS 
+    REQUIRED COMPONENTS
         Core 
         Concurrent
         Gui 
@@ -188,10 +205,12 @@ if(PROJECT_IS_TOP_LEVEL)
 
     # Spout module (Windows only)
     if(WIN32 AND TARGET DsSpout)
-        install(TARGETS
-            DsSpout
-            DsSpoutplugin
-            SpoutDX_static
+        set(_spout_install_targets DsSpout DsSpoutplugin)
+        if(TARGET SpoutDX_static)
+            # FetchContent build — install the in-tree static lib too
+            list(APPEND _spout_install_targets SpoutDX_static)
+        endif()
+        install(TARGETS ${_spout_install_targets}
             LIBRARY    DESTINATION ${CMAKE_INSTALL_LIBDIR}/$<CONFIG>
             ARCHIVE    DESTINATION ${CMAKE_INSTALL_LIBDIR}/$<CONFIG>
             RUNTIME    DESTINATION ${CMAKE_INSTALL_BINDIR}/$<CONFIG>

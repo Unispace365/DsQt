@@ -18,7 +18,11 @@
     },
     {
       "name": "vulkan"
+    },
+    {
+      "name": "spout2",
+      "version>=": "2.007.010",
+      "features": ["dx"]
     }
-
   ]
 }

@@ -14,24 +14,29 @@ find_package(Qt6 REQUIRED COMPONENTS
 qt_standard_project_setup(REQUIRES 6.9)
 
 # ----------------------------------------------------------------------
-# Fetch Spout2 SDK
+# Spout2: prefer an installed copy, fall back to fetching from source.
 # SpoutGL always creates a "Spout" shared-lib target, which is why our
 # own library is named DsSpout (see below).
 # ----------------------------------------------------------------------
-include(FetchContent)
-FetchContent_Declare(
-    Spout2
-    GIT_REPOSITORY https://github.com/leadedge/Spout2.git
-    GIT_TAG        2.007.017
-)
-
-# Configure Spout2 build options
-set(SPOUT_BUILD_SPOUTDX ON  CACHE BOOL "" FORCE)
-set(SPOUT_BUILD_LIBRARY OFF CACHE BOOL "" FORCE)
-set(SPOUT_BUILD_CMT     OFF CACHE BOOL "" FORCE)  # Don't override MSVC runtime globally
-set(SKIP_INSTALL_ALL    ON  CACHE BOOL "" FORCE)   # Don't install Spout2 targets
-
-FetchContent_MakeAvailable(Spout2)
+find_package(Spout2 QUIET)
+if(Spout2_FOUND)
+    message(STATUS "DsQt/Spout: Using installed Spout2 ${Spout2_VERSION}")
+    set(_spout_dx_target Spout2::SpoutDX_static)
+else()
+    message(STATUS "DsQt/Spout: Spout2 not found locally — fetching from GitHub")
+    include(FetchContent)
+    FetchContent_Declare(
+        Spout2
+        GIT_REPOSITORY https://github.com/leadedge/Spout2.git
+        GIT_TAG        2.007.017
+    )
+    set(SPOUT_BUILD_SPOUTDX ON  CACHE BOOL "" FORCE)
+    set(SPOUT_BUILD_LIBRARY OFF CACHE BOOL "" FORCE)
+    set(SPOUT_BUILD_CMT     OFF CACHE BOOL "" FORCE)  # Don't override MSVC runtime globally
+    set(SKIP_INSTALL_ALL    ON  CACHE BOOL "" FORCE)   # Don't install Spout2 targets
+    FetchContent_MakeAvailable(Spout2)
+    set(_spout_dx_target SpoutDX_static)
+endif()
 
 # ----------------------------------------------------------------------
 # Vulkan (optional — enables Vulkan backend for Spout texture import)
@@ -101,7 +106,7 @@ target_link_libraries(DsSpout
         Qt6::Gui
         Qt6::GuiPrivate
         DsSpoutplugin
-        SpoutDX_static
+        ${_spout_dx_target}
         d3d11
         d3d12
         dxgi
@@ -117,9 +122,17 @@ target_include_directories(DsSpout
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
-    PRIVATE
-        $<BUILD_INTERFACE:${spout2_SOURCE_DIR}/SPOUTSDK/SpoutDirectX/SpoutDX>
 )
+
+if(Spout2_FOUND)
+    # vcpkg installs SpoutDX headers under include/SpoutDX/ — add the subdirectory
+    get_target_property(_spout_include_dir Spout2::SpoutDX_static INTERFACE_INCLUDE_DIRECTORIES)
+    target_include_directories(DsSpout PRIVATE "${_spout_include_dir}/SpoutDX")
+else()
+    target_include_directories(DsSpout PRIVATE
+        $<BUILD_INTERFACE:${spout2_SOURCE_DIR}/SPOUTSDK/SpoutDirectX/SpoutDX>
+    )
+endif()
 
 target_compile_definitions(DsSpout PRIVATE NOMINMAX)
 

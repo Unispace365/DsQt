@@ -86,21 +86,41 @@ Documentation is compiled by Doxygen and can be found here:
 
 #### Build the DsQt Library
 
+**Preferred (command-line):**
+
+1. `cd Library`
+2. *(First time, optional)* If your Qt is **not** installed under `C:\Qt\`, copy
+   `CMakeUserPresets.example.json` → `CMakeUserPresets.json` and edit the Qt path inside.
+   If Qt is in `C:\Qt\` the build auto-discovers the latest version — no config needed.
+3. Run `build_and_install.bat` — configures, builds Debug + Release, and installs to
+   `%USERPROFILE%\Documents\DsQt`
+4. To target a specific Qt version: `build_and_install.bat ninja-6.10.2`
+
+**Alternative (Qt Creator):**
+
 1. Open Qt Creator
 2. File > Open File or Project, navigate to `DsQt/Library/CMakeLists.txt`
-3. Qt Creator will detect the CMakePresets.json - select the `VS2022 x64 - Qt 6.10.1` preset
-4. Click Configure Project
-5. In the left sidebar, click the Build button (hammer icon) or press Ctrl+B
-6. Build > Install (this deploys the library to `%USERPROFILE%\Documents\DsQt`)
+3. Qt Creator will detect the CMakePresets.json — select the `ninja` preset (or a
+   version-pinned preset from your `CMakeUserPresets.json`)
+4. Click Configure Project, then Build > Install
 
 #### Build and Run ProjectCloner
 
+**Preferred (command-line):**
+
+1. `cd Library`
+2. Run `build_and_install.bat` with the `DSQT_BUILD_TOOLS` option enabled, or open
+   `DsQt/Tools/ProjectCloner/CMakeLists.txt` directly
+3. Install deploys to `%USERPROFILE%\Documents\DsQt`
+4. Run: `%DS_QT_PLATFORM_100%\Tools\deploy\ProjectCloner\bin\appProjectCloner.exe`
+
+**Alternative (Qt Creator):**
+
 1. Open Qt Creator
 2. File > Open File or Project, navigate to `DsQt/Tools/ProjectCloner/CMakeLists.txt`
-3. Select the `VS2022 x64 - Qt 6.10.1` preset and click Configure Project
-4. Build the project (Ctrl+B)
-5. Build > Install
-6. Run: `%DS_QT_PLATFORM_100%\Tools\deploy\ProjectCloner\bin\appProjectCloner.exe`
+3. Select the `ninja` preset (or a version-pinned preset) and click Configure Project
+4. Build the project (Ctrl+B), then Build > Install
+5. Run: `%DS_QT_PLATFORM_100%\Tools\deploy\ProjectCloner\bin\appProjectCloner.exe`
 
 ## Creating a New Project
 
@@ -121,12 +141,20 @@ The tool creates a complete project from the ClonerSource template with:
 
 ### Building Your New Project
 
+**Preferred (command-line):**
+
+1. `cd <your-project>`
+2. Run `build_and_install.bat` — auto-discovers Qt and builds Debug + Release
+3. To target a specific Qt version: `build_and_install.bat ninja-6.10.2`
+4. Run from: `build/ninja/DEPLOY/bin/`
+
+**Alternative (Qt Creator):**
+
 1. Open Qt Creator
 2. File > Open File or Project, navigate to your project's `CMakeLists.txt`
-3. Select the `VS2022 x64 - Qt 6.10.1` preset and click Configure Project
-4. Build the project (Ctrl+B)
-5. Build > Install
-6. Run from: `build/vs2022-6.10.1/DEPLOY/bin/`
+3. Select the `ninja` preset (or a version-pinned preset) and click Configure Project
+4. Build the project (Ctrl+B), then Build > Install
+5. Run from: `build/ninja/DEPLOY/bin/`
 
 ## Getting to know DsQt
 

@@ -10,7 +10,7 @@ if not defined VSINSTALLDIR (
     )
 )
 
-set PRESET=ninja-6.10.2
+if not "%~1"=="" (set PRESET=%~1) else (set PRESET=ninja)
 
 :: Record overall start time
 call :gettime OVERALL_START
