@@ -17,6 +17,14 @@ int DsQmlEvent::days() const {
     return m_record.value(DsQmlEventSchedule::EffectiveDays).toInt();
 }
 
+ContentModel *DsQmlEvent::model() const {
+    if(!m_model) {
+        QString modelUid = m_record.value("uid").toString();
+        m_model = bridge::DsQmlBridge::instance().getRecordById(modelUid);
+    }
+    return m_model;
+}
+
 DsQmlEventSchedule::DsQmlEventSchedule(QObject* parent)
     : DsQmlEventSchedule("", parent) {
 }
@@ -135,6 +143,8 @@ void DsQmlEventSchedule::update(const QDateTime& localDateTime) {
             for (const auto& event : std::as_const(events)) {
                 // No parent yet, as we're in a different thread.
                 DsQmlEvent* item = new DsQmlEvent(event, result.events.size(), nullptr);
+                if(bridge::isEventNow(item->record(),localDateTime)) item->setIsNow(true);
+
                 // Move to main thread.
                 item->moveToThread(mainThread);
                 // Add to result.
@@ -193,6 +203,19 @@ void DsQmlEventSchedule::update(const QDateTime& localDateTime) {
 
     // Set the future in the watcher to track completion.
     m_watcher.setFuture(future);
+}
+
+bool DsQmlEvent::isNow() const
+{
+    return m_isNow;
+}
+
+void DsQmlEvent::setIsNow(bool newIsNow)
+{
+    if (m_isNow == newIsNow)
+        return;
+    m_isNow = newIsNow;
+    emit isNowChanged();
 }
 
 } // namespace dsqt::model

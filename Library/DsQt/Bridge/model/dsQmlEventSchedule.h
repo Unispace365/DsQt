@@ -71,6 +71,7 @@
 
 #include "bridge/dsBridgeDatabase.h"
 #include "ui/dsQmlClock.h"
+#include "model/dsContentModel.h"
 
 #include <QColor>
 #include <QDateTime>
@@ -109,7 +110,8 @@ class DsQmlEvent : public QObject {
     Q_PROPERTY(qsizetype order READ order WRITE setOrder NOTIFY orderChanged)
     Q_PROPERTY(double secondsSinceMidnight READ secondsSinceMidnight CONSTANT)
     Q_PROPERTY(double durationInSeconds READ durationInSeconds CONSTANT)
-
+    Q_PROPERTY(dsqt::model::ContentModel* model READ model FINAL)
+    Q_PROPERTY(bool isNow READ isNow WRITE setIsNow NOTIFY isNowChanged FINAL)
   public:
     explicit DsQmlEvent(QObject* parent = nullptr)
         : QObject(parent) {}
@@ -144,6 +146,7 @@ class DsQmlEvent : public QObject {
     }
 
     int days() const;
+    ContentModel* model() const;
 
     qsizetype order() const { return m_order; }
     void      setOrder(qsizetype order) {
@@ -167,9 +170,12 @@ class DsQmlEvent : public QObject {
 
     bool operator==(const DsQmlEvent& rhs) const {
         // Do not compare titles.
-        return (m_order == rhs.m_order && m_start == rhs.m_start && m_end == rhs.m_end && uid() == rhs.uid());
+        return (m_order == rhs.m_order && m_start == rhs.m_start && m_end == rhs.m_end && m_isNow == rhs.m_isNow && uid() == rhs.uid());
     }
     bool operator!=(const DsQmlEvent& rhs) const { return !(*this == rhs); }
+
+    bool isNow() const;
+    void setIsNow(bool newIsNow);
 
   signals:
     void titleChanged();
@@ -177,12 +183,16 @@ class DsQmlEvent : public QObject {
     void endChanged();
     void orderChanged();
 
+    void isNowChanged();
+
   private:
     bridge::DatabaseRecord m_record;
     QString                m_title;
     QDateTime              m_start;
     QDateTime              m_end;
     qsizetype              m_order;
+    mutable dsqt::model::ContentModel *m_model = nullptr;
+    bool m_isNow=false;
 };
 
 /**
@@ -237,11 +247,13 @@ class DsQmlEventSchedule : public QObject {
     /// Returns a non-overlapping chronological timeline. Overlapping slots are resolved to the
     /// highest-priority event; adjacent slots for the same event are merged.
     QQmlListProperty<DsQmlEvent> timeline();
+
     /// Returns the highest-priority event that is currently active right now, or nullptr if none.
     DsQmlEvent* current() const {
-        if (m_events.isEmpty()) return nullptr;
+        if (m_events.isEmpty() || !m_events.front()->isNow()) return nullptr;
         return m_events.front();
     }
+
     /// Returns the clock used to determine the current time.
     ui::DsQmlClock* clock() const { return m_clock; }
     /// Sets the clock used to determine the current time. An internal default clock is used
