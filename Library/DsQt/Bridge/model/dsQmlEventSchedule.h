@@ -1,6 +1,74 @@
 #ifndef DSQMLEVENTSCHEDULE_H
 #define DSQMLEVENTSCHEDULE_H
 
+/**
+ * @file dsQmlEventSchedule.h
+ * @brief Event scheduling classes for QML integration.
+ *
+ * ## Overview
+ *
+ * This module provides two classes for exposing time-based scheduled events to QML:
+ *
+ * - **DsQmlEvent** — A read-only wrapper around a single scheduled event record from the
+ *   bridge database. Exposes start/end times, title, type, effective days, and display order.
+ *
+ * - **DsQmlEventSchedule** (QML: `DsEventSchedule`) — Queries the bridge database for events,
+ *   filters and sorts them, and exposes two views to QML:
+ *   - `events` — all matching events sorted by priority (highest priority first).
+ *   - `timeline` — a non-overlapping chronological timeline resolved from the priority-sorted
+ *     events. At any moment in time the highest-priority event wins, and consecutive slots
+ *     occupied by the same event are merged into a single entry.
+ *   - `current` — a convenience pointer to the highest-priority event that is active right now.
+ *
+ * ## How It Works
+ *
+ * `DsQmlEventSchedule` reacts to two signals:
+ *   1. **Clock ticks** — it connects to a `DsQmlClock` (a default internal clock is created
+ *      automatically). Every time the clock emits `secondsChanged` the schedule re-evaluates
+ *      which events are active.
+ *   2. **Database updates** — it also connects to `DsQmlBridge::databaseChanged` so the event
+ *      list is refreshed whenever the underlying data changes.
+ *
+ * The heavy lifting (database query, filtering, sorting, timeline construction) is performed on
+ * a background thread via `QtConcurrent::run`. The result is handed back to the main thread
+ * through a `QFutureWatcher`, which then updates the exposed lists and emits `eventsChanged`
+ * only when the data has actually changed.
+ *
+ * ## Timeline Algorithm
+ *
+ * 1. Retrieve all events for the current day from the bridge database.
+ * 2. Optionally filter to a single event type (see `DsQmlEventSchedule::type`).
+ * 3. Sort by priority relative to the current moment.
+ * 4. Collect all unique start/end times as *checkpoints*.
+ * 5. At each checkpoint, re-sort the events and record the winner (highest priority).
+ * 6. Truncate each slot so it ends when the next checkpoint begins.
+ * 7. Remove zero- or negative-duration slots.
+ * 8. Merge adjacent slots that resolve to the same event.
+ *
+ * ## QML Usage
+ *
+ * @code{.qml}
+ * import Dsqt
+ *
+ * DsEventSchedule {
+ *     id: schedule
+ *     type: "meeting"   // leave empty to include all event types
+ *
+ *     // Iterate over all priority-sorted events for today:
+ *     Repeater { model: schedule.events; delegate: MyEventDelegate {} }
+ *
+ *     // Or use the resolved, non-overlapping timeline:
+ *     Repeater { model: schedule.timeline; delegate: MyTimelineDelegate {} }
+ *
+ *     // Access the currently active event:
+ *     Text { text: schedule.current ? schedule.current.title : "No event" }
+ * }
+ * @endcode
+ *
+ * An external `DsQmlClock` can be supplied via the `clock` property to control (or mock) the
+ * current time, which is especially useful for testing or for "preview at time" features.
+ */
+
 #include "bridge/dsBridgeDatabase.h"
 #include "ui/dsQmlClock.h"
 
@@ -19,7 +87,16 @@
 // Q_DECLARE_LOGGING_CATEGORY(lgEventScheduleVerbose)
 namespace dsqt::model {
 
-// Wraps a scheduled event into a QML object.
+/**
+ * @brief A QML-accessible wrapper around a single scheduled event record.
+ *
+ * `DsQmlEvent` is created and owned by `DsQmlEventSchedule`; it should not be
+ * instantiated directly from QML (hence `QML_ANONYMOUS`).
+ *
+ * The `order` property reflects the event's position in the priority-sorted list produced
+ * by `DsQmlEventSchedule`. It can be used together with `color()` to assign a consistent
+ * color to each event across repeaters or delegates.
+ */
 class DsQmlEvent : public QObject {
     Q_OBJECT
     QML_ANONYMOUS
@@ -108,7 +185,23 @@ class DsQmlEvent : public QObject {
     qsizetype              m_order;
 };
 
-// Provides a list of scheduled events, optionally filtered by type, and exposes it to QML.
+/**
+ * @brief Queries scheduled events from the bridge database and exposes them to QML.
+ *
+ * Registered in QML as `DsEventSchedule`.
+ *
+ * The schedule listens for two update triggers:
+ *  - **Clock ticks**: via a connected `DsQmlClock`. A default internal clock is created
+ *    automatically; supply an external one via the `clock` property to control or mock time.
+ *  - **Database changes**: via `DsQmlBridge::databaseChanged`.
+ *
+ * On each update the schedule runs a background pipeline that filters, sorts, and resolves
+ * the day's events, then notifies QML through `eventsChanged` only when the result differs
+ * from the previous state.
+ *
+ * @note All three list properties (`events`, `timeline`, `current`) share a single
+ *       `eventsChanged` notification signal.
+ */
 class DsQmlEventSchedule : public QObject {
     Q_OBJECT
     QML_NAMED_ELEMENT(DsEventSchedule)
@@ -119,35 +212,40 @@ class DsQmlEventSchedule : public QObject {
     Q_PROPERTY(dsqt::ui::DsQmlClock* clock READ clock WRITE setClock NOTIFY clockChanged)
 
   public:
+    /// Database column name for an event's start date/time.
     inline static const char* StartDateTime = "start_date_time";
+    /// Database column name for an event's end date/time.
     inline static const char* EndDateTime   = "end_date_time";
+    /// Database column name for the bitmask of days on which an event is effective.
     inline static const char* EffectiveDays = "effective_days";
 
     explicit DsQmlEventSchedule(QObject* parent = nullptr);
     DsQmlEventSchedule(const QString& type_name, QObject* parent = nullptr);
     ~DsQmlEventSchedule();
 
-    // Returns the event type, or an empty string if not set.
+    /// Returns the event type filter, or an empty string if all types are included.
     const QString& type() const { return m_type_name; }
-    // Sets the event type, causing events to be filtered if not empty.
+    /// Sets the event type filter. When non-empty only events of this type are returned.
     void setType(const QString& type) {
         if (type == m_type_name) return;
         m_type_name = type;
         emit typeChanged();
     }
 
-    // Returns all events, sorted from highest to lowest priority.
+    /// Returns all matching events for the current day, sorted from highest to lowest priority.
     QQmlListProperty<DsQmlEvent> events();
-    // Returns all events as a timeline, with all overlapping events resolved to a single event.
+    /// Returns a non-overlapping chronological timeline. Overlapping slots are resolved to the
+    /// highest-priority event; adjacent slots for the same event are merged.
     QQmlListProperty<DsQmlEvent> timeline();
-    // Returns the currently active event, or nullptr if no event is active.
+    /// Returns the highest-priority event that is currently active right now, or nullptr if none.
     DsQmlEvent* current() const {
         if (m_events.isEmpty()) return nullptr;
         return m_events.front();
     }
-    //
+    /// Returns the clock used to determine the current time.
     ui::DsQmlClock* clock() const { return m_clock; }
-    //
+    /// Sets the clock used to determine the current time. An internal default clock is used
+    /// when no external clock is supplied.
     void setClock(ui::DsQmlClock* clock) {
         if (m_clock == clock) return;
 

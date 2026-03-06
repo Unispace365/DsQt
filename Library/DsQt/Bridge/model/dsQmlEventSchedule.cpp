@@ -53,6 +53,8 @@ QQmlListProperty<DsQmlEvent> DsQmlEventSchedule::timeline() {
 }
 
 
+/// Reads the current time from the clock (or system time as a fallback) and kicks off an
+/// asynchronous update.
 void DsQmlEventSchedule::updateNow() {
     if (m_clock)
         m_local_date_time = m_clock->now();
@@ -62,6 +64,8 @@ void DsQmlEventSchedule::updateNow() {
     update(m_local_date_time);
 }
 
+/// Called on the main thread when the background task completes. Diffs the new event lists
+/// against the current ones and emits eventsChanged only when something has changed.
 void DsQmlEventSchedule::onUpdated() {
     // This runs in the main thread when the background task completes.
     FutureResult result = m_watcher.result();
@@ -99,6 +103,9 @@ void DsQmlEventSchedule::onUpdated() {
     if (hasChanged) emit eventsChanged();
 }
 
+/// Performs the full filter → sort → timeline pipeline on a background thread.
+/// The result is handed back to the main thread via m_watcher / onUpdated().
+/// If a previous update is still running the call is dropped (see TODO in body).
 void DsQmlEventSchedule::update(const QDateTime& localDateTime) {
     if (m_watcher.isRunning()) return; // TODO handle this better.
 
