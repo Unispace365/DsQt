@@ -214,8 +214,6 @@ if(PROJECT_IS_TOP_LEVEL)
         Bridgeplugin
         Waffles
         Wafflesplugin
-        TouchEngine
-        TouchEngineplugin
         Touch
         Touchplugin
 
@@ -226,6 +224,17 @@ if(PROJECT_IS_TOP_LEVEL)
         ARCHIVE    DESTINATION ${CMAKE_INSTALL_LIBDIR}/$<CONFIG>      # .a / .lib
         RUNTIME    DESTINATION ${CMAKE_INSTALL_BINDIR}/$<CONFIG>      # .dll / executables
     )
+
+    # TouchEngine module (Windows/Mac only)
+    if( (WIN32 OR APPLE) AND TARGET Dsqt::TouchEngine)
+        install(TARGETS
+            TouchEngine
+            TouchEngineplugin
+            LIBRARY    DESTINATION ${CMAKE_INSTALL_LIBDIR}/$<CONFIG>
+            ARCHIVE    DESTINATION ${CMAKE_INSTALL_LIBDIR}/$<CONFIG>
+            RUNTIME    DESTINATION ${CMAKE_INSTALL_BINDIR}/$<CONFIG>
+        )
+    endif()
 
     # Spout module (Windows only)
     if(WIN32 AND TARGET DsSpout)
