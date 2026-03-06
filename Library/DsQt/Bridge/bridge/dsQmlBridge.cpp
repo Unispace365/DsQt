@@ -10,6 +10,10 @@ DsQmlBridge::DsQmlBridge()
     // in a crash upon exit from a 'double free' error.
     QJSEngine::setObjectOwnership(this, QJSEngine::CppOwnership);
     m_content = model::ContentModel::createNamed("Bridge");
+    //connect database changed to bridge updated, since for now they are effectively the same thing.
+    //This is to provide a more specific signal that can be listened to on the main thread to know when Bridge
+    //has finished updating and all relevant properties have been updated.
+    connect(this, &DsQmlBridge::databaseChanged, this, &DsQmlBridge::bridgeUpdated);
 }
 
 model::ContentModel* DsQmlBridge::content() const {
@@ -26,6 +30,9 @@ void DsQmlBridge::setContent(model::ContentModel* newContent) {
     emit contentChanged();
 }
 
+//we are straying from the usual pattern of checking if we have the same database before setting it because we want to
+// make sure that any changes to the database are reflected in the UI.
+// If we check for the same database, then we might miss updates to the database that are made in place.
 void DsQmlBridge::setDatabase(DatabaseContent&& database) {
     m_database = std::move(database);
     emit databaseChanged();
