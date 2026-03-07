@@ -100,6 +100,13 @@ class DsQmlBridge : public QObject {
      */
     void databaseChanged();
 
+    /**
+     * @brief Emitted when the bridge has updated. In practice this is the same as databaseChanged, but with the
+     * semantic meaning that the update is complete and all relevant properties have been updated.
+     * You should listen to this on the main thread.
+     */
+    void bridgeUpdated();
+
   private:
     DsQmlBridge();
 

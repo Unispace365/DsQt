@@ -17,6 +17,14 @@ int DsQmlEvent::days() const {
     return m_record.value(DsQmlEventSchedule::EffectiveDays).toInt();
 }
 
+ContentModel *DsQmlEvent::model() const {
+    if(!m_model) {
+        QString modelUid = m_record.value("uid").toString();
+        m_model = bridge::DsQmlBridge::instance().getRecordById(modelUid);
+    }
+    return m_model;
+}
+
 DsQmlEventSchedule::DsQmlEventSchedule(QObject* parent)
     : DsQmlEventSchedule("", parent) {
 }
@@ -53,6 +61,8 @@ QQmlListProperty<DsQmlEvent> DsQmlEventSchedule::timeline() {
 }
 
 
+/// Reads the current time from the clock (or system time as a fallback) and kicks off an
+/// asynchronous update.
 void DsQmlEventSchedule::updateNow() {
     if (m_clock)
         m_local_date_time = m_clock->now();
@@ -62,6 +72,8 @@ void DsQmlEventSchedule::updateNow() {
     update(m_local_date_time);
 }
 
+/// Called on the main thread when the background task completes. Diffs the new event lists
+/// against the current ones and emits eventsChanged only when something has changed.
 void DsQmlEventSchedule::onUpdated() {
     // This runs in the main thread when the background task completes.
     FutureResult result = m_watcher.result();
@@ -99,6 +111,9 @@ void DsQmlEventSchedule::onUpdated() {
     if (hasChanged) emit eventsChanged();
 }
 
+/// Performs the full filter → sort → timeline pipeline on a background thread.
+/// The result is handed back to the main thread via m_watcher / onUpdated().
+/// If a previous update is still running the call is dropped (see TODO in body).
 void DsQmlEventSchedule::update(const QDateTime& localDateTime) {
     if (m_watcher.isRunning()) return; // TODO handle this better.
 
@@ -128,6 +143,8 @@ void DsQmlEventSchedule::update(const QDateTime& localDateTime) {
             for (const auto& event : std::as_const(events)) {
                 // No parent yet, as we're in a different thread.
                 DsQmlEvent* item = new DsQmlEvent(event, result.events.size(), nullptr);
+                if(bridge::isEventNow(item->record(),localDateTime)) item->setIsNow(true);
+
                 // Move to main thread.
                 item->moveToThread(mainThread);
                 // Add to result.
@@ -186,6 +203,19 @@ void DsQmlEventSchedule::update(const QDateTime& localDateTime) {
 
     // Set the future in the watcher to track completion.
     m_watcher.setFuture(future);
+}
+
+bool DsQmlEvent::isNow() const
+{
+    return m_isNow;
+}
+
+void DsQmlEvent::setIsNow(bool newIsNow)
+{
+    if (m_isNow == newIsNow)
+        return;
+    m_isNow = newIsNow;
+    emit isNowChanged();
 }
 
 } // namespace dsqt::model
