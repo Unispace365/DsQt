@@ -40,7 +40,7 @@ jobs:
       with:
         version: '6.10.*'
         arch: win64_msvc2022_64
-        modules: 'qtshadertools'
+        modules: 'qtshadertools qtmultimedia'
 
     - name: Setup vcpkg
       uses: lukka/run-vcpkg@v11
@@ -66,6 +66,7 @@ jobs:
         -G "Visual Studio 17 2022" -A x64
         -DCMAKE_TOOLCHAIN_FILE="${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake"
         -DCMAKE_INSTALL_PREFIX="${{ github.workspace }}/install"
+        -DDSQT_BUILD_TESTS=ON
 
     - name: Build Release
       shell: cmd
@@ -74,6 +75,25 @@ jobs:
     - name: Build Debug
       shell: cmd
       run: cmake --build Library/build/ci --config Debug
+
+    - name: Run Tests
+      shell: cmd
+      run: ctest --test-dir Library/build/ci --build-config Debug --output-on-failure --output-junit test-results.xml
+
+    - name: Upload Test Results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-results
+        path: Library/build/ci/test-results.xml
+
+    - name: Test Report
+      if: always()
+      uses: dorny/test-reporter@v1
+      with:
+        name: Qt Unit Tests
+        path: Library/build/ci/Tests/Settings/test_ds_settings.xml
+        reporter: java-junit
 
     - name: Install Release
       shell: cmd

@@ -1,0 +1,83 @@
+name: Test Library
+
+on:
+  push:
+    paths:
+      - 'Library/**'
+  pull_request:
+    paths:
+      - 'Library/**'
+
+permissions:
+  contents: read
+  checks: write
+
+jobs:
+  test:
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Setup MSVC
+      uses: ilammy/msvc-dev-cmd@v1
+      with:
+        arch: x64
+
+    - name: Setup Qt
+      uses: jurplel/install-qt-action@v4
+      with:
+        version: '6.10.*'
+        arch: win64_msvc2022_64
+        modules: 'qtshadertools qtmultimedia'
+
+    - name: Setup vcpkg
+      uses: lukka/run-vcpkg@v11
+      env:
+        VCPKG_BINARY_SOURCES: default,rw
+      with:
+        vcpkgDirectory: '${{ github.workspace }}/vcpkg'
+        vcpkgGitCommitId: 'b87383e8bc37cc68c758b34f7997a37012fa1fb8'
+
+    - name: Set up binary cache
+      uses: actions/cache@v4
+      with:
+        path: ${{ env.VCPKG_DEFAULT_BINARY_CACHE }}
+        key: ${{ runner.os }}-vcpkg-binary-cache-${{ hashFiles('vcpkg*.json') }}
+        restore-keys: |
+          ${{ runner.os }}-vcpkg-binary-cache-
+
+    - name: Configure
+      shell: cmd
+      run: >
+        cmake -S Library -B Library/build/ci
+        -G Ninja
+        -DCMAKE_BUILD_TYPE=Debug
+        -DCMAKE_TOOLCHAIN_FILE="${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake"
+        -DDSQT_BUILD_TESTS=ON
+
+    - name: Build
+      shell: cmd
+      run: cmake --build Library/build/ci
+
+    - name: Run Tests
+      shell: cmd
+      run: ctest --test-dir Library/build/ci --output-on-failure --output-junit test-results.xml
+
+    - name: Upload Test Results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-results
+        path: |
+          Library/build/ci/test-results.xml
+          Library/build/ci/Tests/Settings/*.xml
+
+    - name: Test Report
+      if: always()
+      uses: dorny/test-reporter@v1
+      with:
+        name: Qt Unit Tests
+        path: Library/build/ci/Tests/Settings/test_ds_settings.xml
+        reporter: java-junit
