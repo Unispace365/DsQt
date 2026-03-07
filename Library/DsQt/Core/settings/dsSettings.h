@@ -231,6 +231,8 @@ class DsSettings : public QObject {
         return std::optional<T>();
     }
 
+
+
 	/// Get a setting from the collection with the meta data.
 	/// This is used for debuging and internal management.
 	std::optional<NodeWMeta> getNodeViewWithMeta(const std::string& key);
@@ -352,6 +354,19 @@ class DsSettings : public QObject {
     toml::node* getRawNode(const std::string& key,bool onlyBase=false);
 
     std::vector<std::pair<std::string, std::optional<NodeWMeta> > > getNodeViewStackWithMeta(const std::string &key);
+
+    /// Returns the names of all known settings collections.
+    static QStringList getSettingsNames();
+
+    /// Returns file paths in stack order (bottom to top), plus "runtime" if set.
+    QStringList getLoadedFiles() const;
+
+    /// Returns a QVariantMap tree of all settings.
+    /// Leaf entries: {"value": QString, "source": QString, "type": QString, "__isLeaf": true}
+    /// Table entries: nested QVariantMap (no __isLeaf key)
+    /// If filterFile is non-empty, only include keys from that specific file.
+    QVariantMap getSettingsTree(const QString& filterFile = "") const;
+
   private:
 	// meta data
 	Qt::DateFormat										  mDateFormat		= Qt::ISODateWithMs;
@@ -365,13 +380,53 @@ class DsSettings : public QObject {
 	static std::unordered_map<std::string,
 							  std::function<void(QColor& resultcolor, float v1, float v2, float v3, float v4, float v5)>>
 		sColorConversionFuncs;
-    // Forward declarations
+    // Helpers
+    void buildSettingsMap(const toml::table& table, const QString& source, QVariantMap& output) const;
+    static QString tomlNodeToDisplayString(const toml::node& node);
+    static QString tomlNodeTypeName(const toml::node& node);
     QVariant tomlNodeViewToQVariant(const toml::node_view<const toml::node>& n);
     QVariantList tomlArrayViewToVariantList(const toml::node_view<const toml::node>& arrView);
     QVariantMap tomlTableViewToVariantMap(const toml::node_view<const toml::node>& tabView);
 	// static std::unordered_map<std::type_index,DSOverloaded> sOverloadMap;
 };
 
+// Declare getWithMeta specializations so they are not implicitly instantiated
+// (definitions are in dsSettingsCollections.cpp)
+template<> MaybeQVariantListMeta DsSettings::getWithMeta(const std::string& key);
+template<> MaybeQVariantMapMeta  DsSettings::getWithMeta(const std::string& key);
+
+// Explicit specializations of get<> for collection types (must be outside the class body)
+template<> inline std::optional<QVariantList> DsSettings::get(const std::string& key) {
+    auto retval = getWithMeta<QVariantList>(key);
+    if (retval) {
+        auto [value, x, y] = retval.value();
+        if (value.isEmpty()) {
+            const auto rawNode = getRawNode(key);
+            const auto raw = toml::node_view<const toml::node>(rawNode);
+            if (raw.is_array()) {
+                return std::optional<QVariantList>(tomlArrayViewToVariantList(raw));
+            }
+        }
+        return value;
+    }
+    return std::optional<QVariantList>(QVariantList());
+}
+
+template<> inline std::optional<QVariantMap> DsSettings::get(const std::string& key) {
+    auto retval = getWithMeta<QVariantMap>(key);
+    if (retval) {
+        auto [value, x, y] = retval.value();
+        if (value.isEmpty()) {
+            const auto rawNode = getRawNode(key);
+            const auto raw = toml::node_view<const toml::node>(rawNode);
+            if (raw.is_table()) {
+                return std::optional<QVariantMap>(tomlTableViewToVariantMap(raw));
+            }
+        }
+        return value;
+    }
+    return std::optional<QVariantMap>(QVariantMap());
+}
 
 }  // namespace dsqt
 #endif	// DSSETTINGS_H

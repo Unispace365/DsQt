@@ -126,9 +126,22 @@ DsSettingsRef DsEnvironment::loadSettings(const QString& settingsName, const QSt
 
     auto loaded = setting->loadSettingFile(expandq("%APP%/settings/" + filename).toStdString());
     if ((loaded || forceOverrides) && lookForOverrides) {
-        setting->loadSettingFile(expandq("%APP%/settings/%CFG_FOLDER%/" + filename).toStdString());
-        setting->loadSettingFile(expandq("%LOCAL%/settings/%PP%/" + filename).toStdString());
-        setting->loadSettingFile(expandq("%LOCAL%/settings/%PP%/%CFG_FOLDER%/" + filename).toStdString());
+        bool success = loaded;
+        if(success){
+            qCDebug(lgEnv) << "Loaded settings file " << filename << " from app folder.";
+        }
+        success = setting->loadSettingFile(expandq("%APP%/settings/%CFG_FOLDER%/" + filename).toStdString());
+        if(success){
+            qCDebug(lgEnv) << "Loaded settings file " << filename << " from app config folder.";
+        }
+        success = setting->loadSettingFile(expandq("%LOCAL%/settings/%PP%/" + filename).toStdString());
+        if(success){
+            qCDebug(lgEnv) << "Loaded settings file " << filename << " from local project folder.";
+        }
+        success = setting->loadSettingFile(expandq("%LOCAL%/settings/%PP%/%CFG_FOLDER%/" + filename).toStdString());
+        if(success){
+            qCDebug(lgEnv) << "Loaded settings file " << filename << " from local project config folder.";
+        }
     }
 
     return setting;

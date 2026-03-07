@@ -203,8 +203,8 @@ void DsQmlApplicationEngine::init() {
     DsFontManager fontManager(DsEnvironment::engineSettings());
     fontManager.loadFonts(&DsEnvironment::expandq);
     QFont defaultFont = fontManager.createDefaultFont();
-
-    qGuiApp->setFont(defaultFont);
+    DsFontManager::setApplicationDefaultFont(defaultFont);
+    //qGuiApp->setFont(defaultFont);
 
     connect(this, &DsQmlApplicationEngine::fileChanged, this, &DsQmlApplicationEngine::doReset);
     // rootContext()->setContextProperty("app_settings",mAppProxy);

@@ -173,8 +173,34 @@ list_of_maps_w_meta = [
     { type = "QVariantMap" }
 ]
 
+# list of only ints (homogeneous)
+list_ints_only = [[1, 2, 3, 4, 5]]
+
+# list of only strings
+list_strings_only = [["alpha", "beta", "gamma"]]
+
+# nested list (list containing a list)
+list_nested = [[[1, 2], [3, 4]]]
+
+# empty list
+list_empty = [[]]
+
+# list with all primitive types
+list_all_types = [[true, 42, 3.14, "hello", 1979-05-27T07:32:00Z]]
+
 [test.maps]
 map_a={int=10,string="string",float=10.5,obj={a="one"},array=[1],date=1979-05-27T07:32:00Z}
+
+# simple flat map (strings only)
+map_strings_only = {name="Alice", city="NYC", role="dev"}
+
+# nested map (map containing a map)
+map_nested = {outer_key="outer_val", inner={inner_key="inner_val", deep={deepest="found"}}}
+
+# map with all value types
+map_all_types = {b=true, i=42, f=3.14, s="hello", dt=1979-05-27T07:32:00Z, arr=[1,2], sub={x=1}}
+
+[test.maps.map_empty]
 
 [test.maps.header]
 int=10

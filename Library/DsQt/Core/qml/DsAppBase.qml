@@ -221,6 +221,25 @@ ApplicationWindow {
                                     }
                                     contentBrowser.visible = isChecked
                                 }
+
+        property DsSettingsViewer settingsEngineWindow: null
+        onSettingsEngineTriggered: {
+            if (settingsEngineWindow === null) {
+                settingsEngineWindow = settingsEngineComponent.createObject(window)
+            }
+            settingsEngineWindow.visible = true
+            settingsEngineWindow.raise()
+        }
+
+        property DsSettingsViewer settingsAppWindow: null
+        onSettingsApplicationTriggered: {
+            if (settingsAppWindow === null) {
+                settingsAppWindow = settingsAppComponent.createObject(window)
+            }
+            settingsAppWindow.visible = true
+            settingsAppWindow.raise()
+        }
+
     }
 
     /// Provides access to the settings.
@@ -256,6 +275,22 @@ ApplicationWindow {
                 return base + "/logs/bridgesync.log"
             }
             onVisibleChanged: (isVisible) => { windowMenuBar.logsBridgeSyncChecked = isVisible }
+        }
+    }
+
+    Component {
+        id: settingsEngineComponent
+        DsSettingsViewer {
+            settingsName: "engine"
+            title: "Settings Viewer — Engine"
+        }
+    }
+
+    Component {
+        id: settingsAppComponent
+        DsSettingsViewer {
+            settingsName: "app_settings"
+            title: "Settings Viewer — Application"
         }
     }
 

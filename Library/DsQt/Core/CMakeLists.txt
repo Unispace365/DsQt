@@ -46,6 +46,7 @@ qt_add_qml_module(Core
         qml/DsShortcut.qml
         qml/DsScaleLoader.qml
         qml/DsTextFileViewer.qml
+        qml/DsSettingsViewer.qml
         qml/ui/DsAnimateOnOffItem.qml
         qml/ui/DsMediaViewer.qml
         qml/ui/DsPlaylistView.qml
@@ -65,6 +66,7 @@ qt_add_qml_module(Core
         core/dsQmlTextMeasurer.h
         core/dsReloadUrlInterceptor.h core/dsReloadUrlInterceptor.cpp
         model/dsContentModel.cpp model/dsContentModel.h
+        model/dsSettingsTreeModel.cpp model/dsSettingsTreeModel.h
         model/dsQmlTextFileModel.cpp model/dsQmlTextFileModel.h
         model/dsResource.cpp model/dsResource.h
         model/qJsonModel.cpp model/qJsonModel.h

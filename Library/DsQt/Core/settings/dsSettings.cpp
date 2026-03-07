@@ -301,6 +301,130 @@ void DsSettings::set(std::string& key, T& value) {
 }
 
 
+QStringList DsSettings::getSettingsNames() {
+    QStringList names;
+    for (const auto& [name, ref] : sSettings) {
+        names.append(QString::fromStdString(name));
+    }
+    names.sort(Qt::CaseInsensitive);
+    return names;
+}
+
+QStringList DsSettings::getLoadedFiles() const {
+    QStringList files;
+    for (const auto& sf : mResultStack) {
+        files.append(QString::fromStdString(sf.filepath));
+    }
+    if (mRuntimeResult.valid) {
+        files.append(QStringLiteral("runtime"));
+    }
+    return files;
+}
+
+QString DsSettings::tomlNodeToDisplayString(const toml::node& node) {
+    if (node.is_string())         return QString::fromStdString(*node.value<std::string>());
+    if (node.is_integer())        return QString::number(*node.value<int64_t>());
+    if (node.is_floating_point()) return QString::number(*node.value<double>());
+    if (node.is_boolean())        return *node.value<bool>() ? QStringLiteral("true") : QStringLiteral("false");
+    if (node.is_date())           { std::ostringstream ss; ss << *node.value<toml::date>(); return QString::fromStdString(ss.str()); }
+    if (node.is_time())           { std::ostringstream ss; ss << *node.value<toml::time>(); return QString::fromStdString(ss.str()); }
+    if (node.is_date_time())      { std::ostringstream ss; ss << *node.value<toml::date_time>(); return QString::fromStdString(ss.str()); }
+    if (node.is_array()) {
+        std::ostringstream ss;
+        ss << *node.as_array();
+        return QString::fromStdString(ss.str());
+    }
+    return QStringLiteral("<unknown>");
+}
+
+QString DsSettings::tomlNodeTypeName(const toml::node& node) {
+    switch (node.type()) {
+        case toml::node_type::string:         return QStringLiteral("string");
+        case toml::node_type::integer:        return QStringLiteral("integer");
+        case toml::node_type::floating_point: return QStringLiteral("float");
+        case toml::node_type::boolean:        return QStringLiteral("bool");
+        case toml::node_type::date:           return QStringLiteral("date");
+        case toml::node_type::time:           return QStringLiteral("time");
+        case toml::node_type::date_time:      return QStringLiteral("datetime");
+        case toml::node_type::array:          return QStringLiteral("array");
+        case toml::node_type::table:          return QStringLiteral("table");
+        default:                              return QStringLiteral("unknown");
+    }
+}
+
+void DsSettings::buildSettingsMap(const toml::table& table, const QString& source, QVariantMap& output) const {
+    for (const auto& [key, nodeRef] : table) {
+        QString keyStr = QString::fromStdString(std::string(key.str()));
+
+        if (nodeRef.is_table()) {
+            // Recurse into sub-table
+            QVariantMap subMap;
+            if (output.contains(keyStr) && output[keyStr].typeId() == QMetaType::QVariantMap) {
+                subMap = output[keyStr].toMap();
+            }
+            buildSettingsMap(*nodeRef.as_table(), source, subMap);
+            output[keyStr] = subMap;
+        } else if (nodeRef.is_array() && nodeRef.as_array()->size() > 1
+                   && nodeRef.as_array()->back().is_table()) {
+            // Metadata convention: [value, {meta}] — use element[0] as value
+            const auto& valueNode = nodeRef.as_array()->at(0);
+            QVariantMap leaf;
+            leaf[QStringLiteral("value")]    = tomlNodeToDisplayString(valueNode);
+            leaf[QStringLiteral("source")]   = source;
+            leaf[QStringLiteral("type")]     = tomlNodeTypeName(valueNode);
+            leaf[QStringLiteral("__isLeaf")] = true;
+            output[keyStr] = leaf;
+        } else {
+            // Regular leaf value
+            QVariantMap leaf;
+            leaf[QStringLiteral("value")]    = tomlNodeToDisplayString(nodeRef);
+            leaf[QStringLiteral("source")]   = source;
+            leaf[QStringLiteral("type")]     = tomlNodeTypeName(nodeRef);
+            leaf[QStringLiteral("__isLeaf")] = true;
+            output[keyStr] = leaf;
+        }
+    }
+}
+
+QVariantMap DsSettings::getSettingsTree(const QString& filterFile) const {
+    QVariantMap result;
+
+    if (filterFile.isEmpty()) {
+        // Merge all files bottom-to-top (later files override)
+        for (const auto& sf : mResultStack) {
+            if (!sf.valid) continue;
+            if (const auto* tbl = sf.data.as_table()) {
+                buildSettingsMap(*tbl, QString::fromStdString(sf.filepath), result);
+            }
+        }
+        // Runtime overrides last
+        if (mRuntimeResult.valid) {
+            if (const auto* tbl = mRuntimeResult.data.as_table()) {
+                buildSettingsMap(*tbl, QStringLiteral("runtime"), result);
+            }
+        }
+    } else {
+        // Find the specific file
+        std::string filter = filterFile.toStdString();
+        for (const auto& sf : mResultStack) {
+            if (sf.filepath == filter && sf.valid) {
+                if (const auto* tbl = sf.data.as_table()) {
+                    buildSettingsMap(*tbl, filterFile, result);
+                }
+                return result;
+            }
+        }
+        // Check runtime
+        if (filterFile == QStringLiteral("runtime") && mRuntimeResult.valid) {
+            if (const auto* tbl = mRuntimeResult.data.as_table()) {
+                buildSettingsMap(*tbl, QStringLiteral("runtime"), result);
+            }
+        }
+    }
+
+    return result;
+}
+
 //-----------------------------------------------------------------------
 
 // Convert a toml::node_view<const toml::node> to QVariant. this function

@@ -60,7 +60,9 @@ class DsSettingsTest : public QObject
     void get_QDateTime_from_tomlDateTime_shouldReturnAValidQDateTimeOptional();
 
     //GEOM
+#ifdef DSQT_USE_GLM
     void get_glmVectors_from_arrays_shouldReturnAValidGlmVectorOptional();
+#endif
     void get_QVectors_from_arrays_shouldReturnAValidGlmVectorOptional();
     void get_QPoint_from_arraysandtables_shouldReturnAValidGlmVectorOptional_data();
     void get_QPoint_from_arraysandtables_shouldReturnAValidGlmVectorOptional();
@@ -72,9 +74,22 @@ class DsSettingsTest : public QObject
     //containers
     void get_QVariantList_shouldReturnAValidQVariantList_data();
     void get_QVariantList_shouldReturnAValidQVariantList();
+    void get_QVariantList_intsOnly();
+    void get_QVariantList_stringsOnly();
+    void get_QVariantList_nested();
+    void get_QVariantList_empty();
+    void get_QVariantList_allTypes();
+    void get_QVariantList_nonexistentKey();
+    void getWithMeta_QVariantList_shouldReturnMetaData();
 
     void get_QVariantMap_shouldReturnAValidQVariantMap_data();
     void get_QVariantMap_shouldReturnAValidQVariantMap();
+    void get_QVariantMap_stringsOnly();
+    void get_QVariantMap_nested();
+    void get_QVariantMap_empty();
+    void get_QVariantMap_allTypes();
+    void get_QVariantMap_nonexistentKey();
+    void getWithMeta_QVariantMap_shouldReturnMetaData();
 
     void get_shouldReturnAnEmptyOptionalWhenTheSettingDoesNotExist();
     void getWithMeta_shouldReturnAValidTupleWhenTheSettingExists();
@@ -497,6 +512,7 @@ void DsSettingsTest::get_QDateTime_from_tomlDateTime_shouldReturnAValidQDateTime
 //*****************
 //Geometry
 //*****************
+#ifdef DSQT_USE_GLM
 void DsSettingsTest::get_glmVectors_from_arrays_shouldReturnAValidGlmVectorOptional(){
     auto vec2 = test_settings->get<glm::vec2>("test.geom.vectors.vec2");
     auto vec3 = test_settings->get<glm::vec3>("test.geom.vectors.vec3");
@@ -509,6 +525,7 @@ void DsSettingsTest::get_glmVectors_from_arrays_shouldReturnAValidGlmVectorOptio
     QCOMPARE(vec3.value() , glm::vec3(20,30,40));
     QCOMPARE(vec4.value() , glm::vec4(20,30,40,50));
 }
+#endif
 
 void DsSettingsTest::get_QVectors_from_arrays_shouldReturnAValidGlmVectorOptional(){
     auto vec2 = test_settings->get<QVector2D>("test.geom.vectors.vec2");
@@ -627,6 +644,81 @@ void DsSettingsTest::get_QVariantList_shouldReturnAValidQVariantList()
     QCOMPARE(test_value.value(),result);
 }
 
+void DsSettingsTest::get_QVariantList_intsOnly()
+{
+    auto result = test_settings->get<QVariantList>("test.list.list_ints_only");
+    QVERIFY(result.has_value());
+    QVariantList expected = {
+        QVariant(qint64(1)), QVariant(qint64(2)), QVariant(qint64(3)),
+        QVariant(qint64(4)), QVariant(qint64(5))
+    };
+    QCOMPARE(result.value(), expected);
+}
+
+void DsSettingsTest::get_QVariantList_stringsOnly()
+{
+    auto result = test_settings->get<QVariantList>("test.list.list_strings_only");
+    QVERIFY(result.has_value());
+    QVariantList expected = {
+        QVariant("alpha"), QVariant("beta"), QVariant("gamma")
+    };
+    QCOMPARE(result.value(), expected);
+}
+
+void DsSettingsTest::get_QVariantList_nested()
+{
+    auto result = test_settings->get<QVariantList>("test.list.list_nested");
+    QVERIFY(result.has_value());
+    QVariantList inner1 = { QVariant(qint64(1)), QVariant(qint64(2)) };
+    QVariantList inner2 = { QVariant(qint64(3)), QVariant(qint64(4)) };
+    QVariantList expected = { QVariant(inner1), QVariant(inner2) };
+    QCOMPARE(result.value(), expected);
+}
+
+void DsSettingsTest::get_QVariantList_empty()
+{
+    // [[]] in TOML = array containing one empty array.
+    // The meta convention extracts element[0] (the inner []) as the value.
+    // Since that converts to an empty QVariantList, the fallback path in
+    // get<QVariantList> reads the raw node [[]] and returns [QVariantList()].
+    auto result = test_settings->get<QVariantList>("test.list.list_empty");
+    QVERIFY(result.has_value());
+    QCOMPARE(result.value().size(), 1);
+    QVERIFY(result.value()[0].toList().isEmpty());
+}
+
+void DsSettingsTest::get_QVariantList_allTypes()
+{
+    auto result = test_settings->get<QVariantList>("test.list.list_all_types");
+    QVERIFY(result.has_value());
+    auto list = result.value();
+    QCOMPARE(list.size(), 5);
+    QCOMPARE(list[0].toBool(), true);
+    QCOMPARE(list[1].toLongLong(), 42LL);
+    QCOMPARE(list[2].toDouble(), 3.14);
+    QCOMPARE(list[3].toString(), QString("hello"));
+    // Element 4 is a datetime — verify it converts
+    QVERIFY(list[4].canConvert<QDateTime>());
+    QCOMPARE(list[4].toDateTime().date(), QDate(1979, 5, 27));
+}
+
+void DsSettingsTest::get_QVariantList_nonexistentKey()
+{
+    auto result = test_settings->get<QVariantList>("test.list.does_not_exist");
+    QVERIFY(result.has_value());
+    QVERIFY(result.value().isEmpty());
+}
+
+void DsSettingsTest::getWithMeta_QVariantList_shouldReturnMetaData()
+{
+    auto result = test_settings->getWithMeta<QVariantList>("test.list.list_w_meta");
+    QVERIFY(result.has_value());
+    auto [value, meta, path] = result.value();
+    QVERIFY(!value.isEmpty());
+    QVERIFY2(meta != nullptr, "meta should point to a toml::table");
+    QVERIFY(QString::fromStdString(path).endsWith("test_settings.toml"));
+}
+
 void DsSettingsTest::get_QVariantMap_shouldReturnAValidQVariantMap_data()
 {
     QTest::addColumn<QString>("key");
@@ -681,6 +773,82 @@ void DsSettingsTest::get_QVariantMap_shouldReturnAValidQVariantMap()
     auto test_value = test_settings->get<QVariantMap>("test.maps."+key.toStdString());
     QCOMPARE(test_value.has_value(),true);
     QCOMPARE(test_value.value(),result);
+}
+
+void DsSettingsTest::get_QVariantMap_stringsOnly()
+{
+    auto result = test_settings->get<QVariantMap>("test.maps.map_strings_only");
+    QVERIFY(result.has_value());
+    QVariantMap expected = {
+        {"name", QVariant("Alice")},
+        {"city", QVariant("NYC")},
+        {"role", QVariant("dev")}
+    };
+    QCOMPARE(result.value(), expected);
+}
+
+void DsSettingsTest::get_QVariantMap_nested()
+{
+    auto result = test_settings->get<QVariantMap>("test.maps.map_nested");
+    QVERIFY(result.has_value());
+    auto map = result.value();
+    QCOMPARE(map["outer_key"].toString(), QString("outer_val"));
+
+    // Verify nested map
+    QVERIFY(map["inner"].canConvert<QVariantMap>());
+    auto inner = map["inner"].toMap();
+    QCOMPARE(inner["inner_key"].toString(), QString("inner_val"));
+
+    // Verify doubly nested map
+    QVERIFY(inner["deep"].canConvert<QVariantMap>());
+    auto deep = inner["deep"].toMap();
+    QCOMPARE(deep["deepest"].toString(), QString("found"));
+}
+
+void DsSettingsTest::get_QVariantMap_empty()
+{
+    auto result = test_settings->get<QVariantMap>("test.maps.map_empty");
+    QVERIFY(result.has_value());
+    QVERIFY(result.value().isEmpty());
+}
+
+void DsSettingsTest::get_QVariantMap_allTypes()
+{
+    auto result = test_settings->get<QVariantMap>("test.maps.map_all_types");
+    QVERIFY(result.has_value());
+    auto map = result.value();
+
+    QCOMPARE(map["b"].toBool(), true);
+    QCOMPARE(map["i"].toLongLong(), 42LL);
+    QCOMPARE(map["f"].toDouble(), 3.14);
+    QCOMPARE(map["s"].toString(), QString("hello"));
+
+    QVERIFY(map["dt"].canConvert<QDateTime>());
+    QCOMPARE(map["dt"].toDateTime().date(), QDate(1979, 5, 27));
+
+    QVERIFY(map["arr"].canConvert<QVariantList>());
+    auto arr = map["arr"].toList();
+    QCOMPARE(arr.size(), 2);
+
+    QVERIFY(map["sub"].canConvert<QVariantMap>());
+    auto sub = map["sub"].toMap();
+    QCOMPARE(sub["x"].toLongLong(), 1LL);
+}
+
+void DsSettingsTest::get_QVariantMap_nonexistentKey()
+{
+    auto result = test_settings->get<QVariantMap>("test.maps.does_not_exist");
+    QVERIFY(result.has_value());
+    QVERIFY(result.value().isEmpty());
+}
+
+void DsSettingsTest::getWithMeta_QVariantMap_shouldReturnMetaData()
+{
+    auto result = test_settings->getWithMeta<QVariantMap>("test.maps.header_meta");
+    QVERIFY(result.has_value());
+    auto [value, meta, path] = result.value();
+    QVERIFY(!value.isEmpty());
+    QVERIFY(QString::fromStdString(path).endsWith("test_settings.toml"));
 }
 
 void DsSettingsTest::get_shouldReturnAnEmptyOptionalWhenTheSettingDoesNotExist()

@@ -1,5 +1,9 @@
 @echo off
-setlocal
+setlocal enabledelayedexpansion
+
+REM Usage: build_and_install.bat [preset] [-test]
+REM   preset : CMake configure preset name (default: ninja)
+REM   -test  : Enable and run unit tests after the Debug build
 
 REM Set up the MSVC developer environment if not already active
 if not defined VSINSTALLDIR (
@@ -10,56 +14,104 @@ if not defined VSINSTALLDIR (
     )
 )
 
-if not "%~1"=="" (set PRESET=%~1) else (set PRESET=ninja)
+set PRESET=ninja
+set RUN_TESTS=0
+
+:: Parse arguments — accept preset and -test in any order
+:parse_args
+if "%~1"=="" goto :args_done
+if /i "%~1"=="-test"  (set RUN_TESTS=1& shift & goto :parse_args)
+if /i "%~1"=="/test"  (set RUN_TESTS=1& shift & goto :parse_args)
+set PRESET=%~1
+shift
+goto :parse_args
+:args_done
+
+:: Build the cmake configure command
+set CMAKE_CONFIGURE=cmake --preset %PRESET%
+if %RUN_TESTS%==1 (
+    set CMAKE_CONFIGURE=%CMAKE_CONFIGURE% -DDSQT_BUILD_TESTS=ON
+)
 
 :: Record overall start time
 call :gettime OVERALL_START
 
-echo === Configuring DsQt Library (%PRESET%) ===
+call :header "Configuring DsQt Library (%PRESET%)"
+if %RUN_TESTS%==1 powershell -NoProfile -Command "Write-Host '    Tests: ENABLED' -ForegroundColor Yellow"
 call :gettime CONFIGURE_START
-cmake --preset %PRESET%
+%CMAKE_CONFIGURE%
 if %errorlevel% neq 0 (
-    echo Configuration failed.
+    powershell -NoProfile -Command "Write-Host 'Configuration failed.' -ForegroundColor Red"
     exit /b %errorlevel%
 )
 call :gettime CONFIGURE_END
 
 echo.
-echo === Building Debug ===
+call :header "Building Debug"
 call :gettime BUILD_DEBUG_START
 cmake --build --preset %PRESET%-debug
 if %errorlevel% neq 0 (
-    echo Debug build failed.
+    powershell -NoProfile -Command "Write-Host 'Debug build failed.' -ForegroundColor Red"
     exit /b %errorlevel%
 )
 call :gettime BUILD_DEBUG_END
 
+:: Run tests after Debug build (tests are Debug-only)
+set TEST_SECS=0
+set TEST_OUTPUT=build\%PRESET%\test-output.txt
+if %RUN_TESTS%==1 (
+    echo.
+    call :header "Running Tests"
+    call :gettime TEST_START
+    ctest --test-dir build/%PRESET% --build-config Debug -V --output-junit build/%PRESET%/test-results.xml > "!TEST_OUTPUT!" 2>&1
+    set TEST_EXIT=!errorlevel!
+    call :gettime TEST_END
+    powershell -NoProfile -Command ^
+        "Get-Content '!TEST_OUTPUT!' | ForEach-Object {" ^
+        "  if ($_ -match 'PASS\s+:')        { Write-Host $_ -ForegroundColor Green }" ^
+        "  elseif ($_ -match 'FAIL')         { Write-Host $_ -ForegroundColor Red }" ^
+        "  elseif ($_ -match 'SKIP')         { Write-Host $_ -ForegroundColor Yellow }" ^
+        "  elseif ($_ -match 'Totals:')      { Write-Host $_ -ForegroundColor Cyan }" ^
+        "  elseif ($_ -match '^\d+/\d+')     { Write-Host $_ -ForegroundColor Cyan }" ^
+        "  elseif ($_ -match '\*{3,}')       { Write-Host $_ -ForegroundColor DarkGray }" ^
+        "  elseif ($_ -match 'Config:')      { Write-Host $_ -ForegroundColor DarkGray }" ^
+        "  elseif ($_ -match 'Test command') {} " ^
+        "  elseif ($_ -match 'Test timeout') {} " ^
+        "  else { Write-Host $_ }" ^
+        "}"
+    if not "!TEST_EXIT!"=="0" (
+        echo.
+        powershell -NoProfile -Command "Write-Host 'WARNING: Some tests failed (exit code !TEST_EXIT!). Continuing with build...' -ForegroundColor Yellow"
+        echo.
+    )
+)
+
 echo.
-echo === Building Release ===
+call :header "Building Release"
 call :gettime BUILD_RELEASE_START
 cmake --build --preset %PRESET%-release
 if %errorlevel% neq 0 (
-    echo Release build failed.
+    powershell -NoProfile -Command "Write-Host 'Release build failed.' -ForegroundColor Red"
     exit /b %errorlevel%
 )
 call :gettime BUILD_RELEASE_END
 
 echo.
-echo === Installing Debug ===
+call :header "Installing Debug"
 call :gettime INSTALL_DEBUG_START
 cmake --install build/%PRESET% --config Debug
 if %errorlevel% neq 0 (
-    echo Debug install failed.
+    powershell -NoProfile -Command "Write-Host 'Debug install failed.' -ForegroundColor Red"
     exit /b %errorlevel%
 )
 call :gettime INSTALL_DEBUG_END
 
 echo.
-echo === Installing Release ===
+call :header "Installing Release"
 call :gettime INSTALL_RELEASE_START
 cmake --install build/%PRESET% --config Release
 if %errorlevel% neq 0 (
-    echo Release install failed.
+    powershell -NoProfile -Command "Write-Host 'Release install failed.' -ForegroundColor Red"
     exit /b %errorlevel%
 )
 call :gettime INSTALL_RELEASE_END
@@ -87,20 +139,27 @@ call :fmt %TOTAL_INSTALL_SECS%   TOTAL_INSTALL_FMT
 call :fmt %OVERALL_SECS%         OVERALL_FMT
 
 echo.
-echo ==========================================
-echo  Timing Summary
-echo ==========================================
+call :header "Timing Summary"
 echo  Configure time      : %CONFIGURE_FMT%
 echo  Debug build time    : %BUILD_DEBUG_FMT%
 echo  Release build time  : %BUILD_RELEASE_FMT%
 echo  Total build time    : %TOTAL_BUILD_FMT%
+if !RUN_TESTS!==1 (
+    call :elapsed !TEST_START! !TEST_END! TEST_SECS
+    call :fmt !TEST_SECS! TEST_FMT
+    echo  Test time           : !TEST_FMT!
+)
 echo  Debug install time  : %INSTALL_DEBUG_FMT%
 echo  Release install time: %INSTALL_RELEASE_FMT%
 echo  Total install time  : %TOTAL_INSTALL_FMT%
 echo  Overall time        : %OVERALL_FMT%
-echo ==========================================
 echo.
-echo Done. Installed to %USERPROFILE%\Documents\DsQt
+powershell -NoProfile -Command "Write-Host 'Done. Installed to %USERPROFILE%\Documents\DsQt' -ForegroundColor Green"
+goto :eof
+
+:: Print a colored section header
+:header
+powershell -NoProfile -Command "Write-Host ('=== ' + '%~1' + ' ===') -ForegroundColor Cyan"
 goto :eof
 
 :: Get current time as integer seconds since midnight -> result var

@@ -219,7 +219,12 @@ QFont DsFontManager::createDefaultFont()
 
 void DsFontManager::setApplicationDefaultFont(const QFont& font)
 {
+
     QGuiApplication::setFont(font);
+    qInfo() << "DsFontManager::setApplicationDefaultFont: Application default font set to" << font.family()
+            << "point size:" << font.pointSizeF()
+            << "weight:" << font.weight()
+            << "italic:" << font.italic();
 }
 
 QFont::Style DsFontManager::parseStyle(const QString& style) const

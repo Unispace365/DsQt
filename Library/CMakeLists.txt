@@ -15,6 +15,12 @@ set(CMAKE_AUTOUIC ON)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# MSVC: enable C++ exceptions (required by toml++ and Qt).
+# The Visual Studio generator adds /EHsc by default but Ninja does not.
+if(MSVC AND NOT CMAKE_CXX_FLAGS MATCHES "/EHsc")
+    string(APPEND CMAKE_CXX_FLAGS " /EHsc")
+endif()
+
 set(QT_FORCE_CMP0156_TO_VALUE NEW)
 
 # Consolidate all QML module output into a single directory structure
@@ -60,9 +66,13 @@ find_package(Qt6 6.9
         Gui 
         Qml
         Quick
-    #REQUIRED COMPONENTS
-    #Test
 )
+
+option(DSQT_BUILD_TESTS "Build and run DsQt unit tests" OFF)
+if(DSQT_BUILD_TESTS)
+    enable_testing()
+    find_package(Qt6 REQUIRED COMPONENTS Test)
+endif()
 
 #qt_standard_project_setup(REQUIRES 6.9)
 
@@ -157,10 +167,10 @@ cmake_path(NATIVE_PATH CMAKE_CURRENT_SOURCE_DIR DS_QMLLINT_ROOT)
 # set_target_properties(WafflesUx PROPERTIES FOLDER WafflesUx)
 # set_target_properties(TouchEngineQt PROPERTIES FOLDER TouchEngineQt)
 
-# if(PROJECT_IS_TOP_LEVEL)
-#   add_subdirectory(Tests/Settings)
-#   add_subdirectory(Tests/BridgeTest)
-# endif()
+if(DSQT_BUILD_TESTS)
+    add_subdirectory(Tests/Settings)
+    # add_subdirectory(Tests/BridgeTest)  # Stubbed — enable when tests are implemented
+endif()
 
 # ----------------------------------------------------------------------
 # Installation rules
