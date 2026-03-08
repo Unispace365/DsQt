@@ -19,9 +19,21 @@ Window {
         id: system
     }
 
+    SystemPalette {
+        id: systemActive
+        colorGroup: SystemPalette.Active
+    }
+
     DsSettingsTreeModel {
         id: settingsModel
         settingsName: root.settingsName
+        onModelReset: expandTimer.restart()
+    }
+
+    Timer {
+        id: expandTimer
+        interval: 0
+        onTriggered: treeView.expandRecursively(-1)
     }
 
     ColumnLayout {
@@ -81,11 +93,85 @@ Window {
                 }
             }
 
-            Button {
-                text: "Reload"
+        }
+
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: 8
+
+            Label {
+                text: "Search:"
                 font.family: "Segoe UI"
                 font.pixelSize: 14
-                onClicked: settingsModel.reload()
+                color: system.text
+            }
+
+            TextField {
+                id: searchField
+                Layout.fillWidth: true
+                font.family: "Segoe UI"
+                font.pixelSize: 14
+                placeholderText: "Search by key, path, or value..."
+                onTextChanged: {
+                    searchResults.model = settingsModel.search(text)
+                }
+            }
+        }
+
+        ListView {
+            id: searchResults
+            Layout.fillWidth: true
+            Layout.preferredHeight: visible ? Math.min(contentHeight, 200) : 0
+            visible: searchField.text.length > 0 && count > 0
+            clip: true
+
+            delegate: ItemDelegate {
+                id: resultDelegate
+                width: searchResults.width
+                required property var modelData
+                required property int index
+
+                contentItem: RowLayout {
+                    spacing: 8
+                    Text {
+                        text: resultDelegate.modelData.path
+                        font.family: "Segoe UI"
+                        font.pixelSize: 13
+                        font.bold: !resultDelegate.modelData.isLeaf
+                        color: resultDelegate.modelData.isLeaf ? system.text : systemActive.highlight
+                        Layout.preferredWidth: 300
+                        elide: Text.ElideMiddle
+                    }
+                    Text {
+                        text: resultDelegate.modelData.isLeaf ? "= " + resultDelegate.modelData.value : ""
+                        font.family: "Segoe UI"
+                        font.pixelSize: 13
+                        color: system.mid
+                        Layout.fillWidth: true
+                        elide: Text.ElideRight
+                    }
+                    Text {
+                        text: resultDelegate.modelData.type
+                        font.family: "Segoe UI"
+                        font.pixelSize: 11
+                        color: system.mid
+                        Layout.preferredWidth: 60
+                        horizontalAlignment: Text.AlignRight
+                    }
+                }
+
+                onClicked: {
+                    let idx = settingsModel.indexForPath(resultDelegate.modelData.path)
+                    if (!idx.valid) return
+                    treeView.expandToIndex(idx)
+                    treeView.forceLayout()
+                    let row = treeView.rowAtIndex(idx)
+                    if (row >= 0) {
+                        treeView.positionViewAtRow(row, Qt.AlignVCenter)
+                        treeView.selectionModel.setCurrentIndex(idx, ItemSelectionModel.ClearAndSelect)
+                    }
+                    searchField.text = ""
+                }
             }
         }
 
@@ -98,6 +184,7 @@ Window {
             clip: true
             selectionBehavior: TreeView.SingleSelection
             selectionModel: ItemSelectionModel {}
+            pointerNavigationEnabled: false
 
             delegate: TreeViewDelegate {
                 id: treeDelegate
@@ -107,6 +194,9 @@ Window {
                 required property string type
                 required property bool isLeaf
 
+                implicitWidth: treeView.width
+                //leftPadding: treeDelegate.depth * treeDelegate.indentation + 4
+
                 contentItem: RowLayout {
                     spacing: 12
 
@@ -115,7 +205,9 @@ Window {
                         font.family: "Segoe UI"
                         font.pixelSize: 14
                         font.bold: !treeDelegate.isLeaf
-                        color: treeDelegate.isLeaf ? system.text : system.highlight
+                        color: treeDelegate.current
+                            ? system.highlightedText
+                            : (treeDelegate.isLeaf ? system.text : systemActive.highlight)
                         Layout.preferredWidth: 220
                         elide: Text.ElideRight
                     }
@@ -124,7 +216,7 @@ Window {
                         text: treeDelegate.isLeaf ? treeDelegate.value : ""
                         font.family: "Segoe UI"
                         font.pixelSize: 14
-                        color: system.text
+                        color: treeDelegate.current ? system.highlightedText : system.text
                         Layout.fillWidth: true
                         elide: Text.ElideRight
                     }
@@ -133,7 +225,7 @@ Window {
                         text: treeDelegate.isLeaf ? treeDelegate.type : ""
                         font.family: "Segoe UI"
                         font.pixelSize: 12
-                        color: system.mid
+                        color: treeDelegate.current ? system.highlightedText : system.mid
                         Layout.preferredWidth: 60
                         horizontalAlignment: Text.AlignRight
                     }
@@ -142,7 +234,7 @@ Window {
                         text: treeDelegate.isLeaf ? treeDelegate.source : ""
                         font.family: "Segoe UI"
                         font.pixelSize: 12
-                        color: system.mid
+                        color: treeDelegate.current ? system.highlightedText : system.mid
                         Layout.preferredWidth: 250
                         elide: Text.ElideMiddle
                     }

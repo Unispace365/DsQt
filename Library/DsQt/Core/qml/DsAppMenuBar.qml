@@ -20,6 +20,7 @@ MenuBar {
     property alias contentBrowseChecked: contentBrowseAction.checked
 
     Menu {
+        id: fileMenu
         title: "File"
         width: 200
         // Action {
@@ -35,6 +36,7 @@ MenuBar {
         }
     }
     Menu {
+        id: logsMenu
         title: "Logs"
         width: 250
         Action {
@@ -60,28 +62,24 @@ MenuBar {
         }
     }
     Menu {
-        title: "Settings"
+        id: toolsMenu
+        title: "Tools"
         width: 200
         Action {
-            text: "Engine"
+            checkable: true
+            text: "Settings"
             onTriggered: menuBar.settingsEngineTriggered()
         }
-        Action {
-            text: "Application"
-            onTriggered: menuBar.settingsApplicationTriggered()
-        }
-    }
-    Menu {
-        title: "Content"
-        width: 200
+
         Action {
             id: contentBrowseAction
-            text: "Browse"
+            text: "Content Browser"
             checkable: true
             onTriggered: menuBar.contentBrowseToggled(checked)
         }
     }
     Menu {
+        id: helpMenu
         title: "Help"
         width: 200
         Action {

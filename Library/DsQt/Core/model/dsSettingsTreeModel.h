@@ -22,6 +22,7 @@ class SettingsTreeItem {
     void addChild(std::shared_ptr<SettingsTreeItem> child);
 
     QString m_key;
+    QString m_fullKeyPath;
     QString m_value;
     QString m_source;
     QString m_type;
@@ -54,6 +55,8 @@ class DsSettingsTreeModel : public QAbstractItemModel {
     QHash<int, QByteArray> roleNames() const override;
 
     Q_INVOKABLE void reload();
+    Q_INVOKABLE QVariantList search(const QString& text) const;
+    Q_INVOKABLE QModelIndex  indexForPath(const QString& dottedPath) const;
 
     QString      settingsName() const { return m_settingsName; }
     void         setSettingsName(const QString& name);
@@ -73,7 +76,8 @@ class DsSettingsTreeModel : public QAbstractItemModel {
 
   private:
     void rebuild();
-    void buildTree(const QVariantMap& map, SettingsTreeItem* parent);
+    void buildTree(const QVariantMap& map, SettingsTreeItem* parent, const QString& parentPath);
+    void searchRecursive(SettingsTreeItem* item, const QString& text, QVariantList& results) const;
 
     DsSettingsRef                     m_settings;
     QString                           m_settingsName;

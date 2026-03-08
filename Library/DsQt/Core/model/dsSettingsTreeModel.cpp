@@ -166,7 +166,7 @@ void DsSettingsTreeModel::rebuild() {
 
     if (m_settings) {
         QVariantMap tree = m_settings->getSettingsTree(m_filterFile);
-        buildTree(tree, m_rootItem.get());
+        buildTree(tree, m_rootItem.get(), QString());
 
         QStringList files = m_settings->getLoadedFiles();
         if (m_loadedFiles != files) {
@@ -178,8 +178,7 @@ void DsSettingsTreeModel::rebuild() {
     endResetModel();
 }
 
-void DsSettingsTreeModel::buildTree(const QVariantMap& map, SettingsTreeItem* parent) {
-    // Collect and sort keys for consistent display
+void DsSettingsTreeModel::buildTree(const QVariantMap& map, SettingsTreeItem* parent, const QString& parentPath) {
     QStringList keys = map.keys();
     keys.sort(Qt::CaseInsensitive);
 
@@ -189,20 +188,69 @@ void DsSettingsTreeModel::buildTree(const QVariantMap& map, SettingsTreeItem* pa
 
         QVariantMap entry = val.toMap();
         auto item = std::make_shared<SettingsTreeItem>(key, parent);
+        item->m_fullKeyPath = parentPath.isEmpty() ? key : parentPath + QStringLiteral(".") + key;
 
         if (entry.value(QStringLiteral("__isLeaf")).toBool()) {
-            // Leaf node
             item->m_isLeaf = true;
             item->m_value  = entry.value(QStringLiteral("value")).toString();
             item->m_source = entry.value(QStringLiteral("source")).toString();
             item->m_type   = entry.value(QStringLiteral("type")).toString();
         } else {
-            // Table node — recurse
-            buildTree(entry, item.get());
+            buildTree(entry, item.get(), item->m_fullKeyPath);
         }
 
         parent->addChild(std::move(item));
     }
+}
+
+QVariantList DsSettingsTreeModel::search(const QString& text) const {
+    QVariantList results;
+    if (text.isEmpty()) return results;
+    searchRecursive(m_rootItem.get(), text, results);
+    return results;
+}
+
+void DsSettingsTreeModel::searchRecursive(SettingsTreeItem* item, const QString& text, QVariantList& results) const {
+    for (int i = 0; i < item->childCount(); ++i) {
+        auto* child = item->child(i);
+        bool matches = child->m_key.contains(text, Qt::CaseInsensitive)
+                    || child->m_value.contains(text, Qt::CaseInsensitive)
+                    || child->m_fullKeyPath.contains(text, Qt::CaseInsensitive);
+
+        if (matches) {
+            results.append(QVariantMap{
+                {QStringLiteral("key"),   child->m_key},
+                {QStringLiteral("path"),  child->m_fullKeyPath},
+                {QStringLiteral("value"), child->m_value},
+                {QStringLiteral("type"),  child->m_type},
+                {QStringLiteral("isLeaf"), child->m_isLeaf},
+            });
+        }
+
+        if (child->childCount() > 0) {
+            searchRecursive(child, text, results);
+        }
+    }
+}
+
+QModelIndex DsSettingsTreeModel::indexForPath(const QString& dottedPath) const {
+    QStringList segments = dottedPath.split(QLatin1Char('.'));
+    SettingsTreeItem* current = m_rootItem.get();
+
+    for (const auto& segment : segments) {
+        bool found = false;
+        for (int i = 0; i < current->childCount(); ++i) {
+            if (current->child(i)->m_key == segment) {
+                current = current->child(i);
+                found = true;
+                break;
+            }
+        }
+        if (!found) return {};
+    }
+
+    if (current == m_rootItem.get()) return {};
+    return createIndex(current->row(), 0, current);
 }
 
 } // namespace dsqt
