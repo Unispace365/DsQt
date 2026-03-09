@@ -1,0 +1,189 @@
+name: Build Project
+
+on:
+  push:
+    paths:
+      - 'Examples/**'
+
+permissions:
+  contents: write
+
+jobs:
+  discover:
+    if: github.ref_name == 'main' || github.ref_name == vars.BUILD_PROJECT_TEST_BRANCH
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.scan.outputs.matrix }}
+      has_projects: ${{ steps.scan.outputs.has_projects }}
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Discover changed projects
+      id: scan
+      shell: bash
+      run: |
+        # Get list of files changed in this push
+        if [ "${{ github.event.before }}" = "0000000000000000000000000000000000000000" ]; then
+          # New branch — diff against the default branch
+          changed_files=$(git diff --name-only origin/main...HEAD)
+        else
+          changed_files=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }})
+        fi
+
+        echo "Changed files:"
+        echo "$changed_files"
+
+        matrix="[]"
+        for cfg in Examples/*/project-ci.yml; do
+          [ -f "$cfg" ] || continue
+          dir=$(dirname "$cfg")
+
+          # Only include this project if any changed file lives under its directory
+          if ! echo "$changed_files" | grep -q "^${dir}/"; then
+            echo "Skipping $dir (no changes)"
+            continue
+          fi
+
+          name=$(grep '^name:' "$cfg" | sed 's/^name:[[:space:]]*//' | tr -d '"')
+          qt_modules=$(grep '^qt_modules:' "$cfg" | sed 's/^qt_modules:[[:space:]]*//' | tr -d '"')
+          vcpkg_commit=$(grep '^vcpkg_commit:' "$cfg" | sed 's/^vcpkg_commit:[[:space:]]*//' | tr -d '"')
+          dsqt_repo=$(grep '^dsqt_repo:' "$cfg" | sed 's/^dsqt_repo:[[:space:]]*//' | tr -d '"')
+          dsqt_release_tag=$(grep '^dsqt_release_tag:' "$cfg" | sed 's/^dsqt_release_tag:[[:space:]]*//' | tr -d '"')
+          matrix=$(echo "$matrix" | jq -c \
+            --arg d "$dir" --arg n "$name" --arg q "$qt_modules" --arg v "$vcpkg_commit" \
+            --arg dr "$dsqt_repo" --arg dt "$dsqt_release_tag" \
+            '. + [{"dir": $d, "name": $n, "qt_modules": $q, "vcpkg_commit": $v, "dsqt_repo": $dr, "dsqt_release_tag": $dt}]')
+        done
+
+        has_projects=$([ "$matrix" != "[]" ] && echo "true" || echo "false")
+        echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+        echo "has_projects=$has_projects" >> "$GITHUB_OUTPUT"
+        echo "Discovered projects: $matrix"
+
+  build:
+    # Off by default. Set the repository variable BUILD_PROJECT_ENABLED to 'true' to enable.
+    if: vars.BUILD_PROJECT_ENABLED == 'true' && needs.discover.outputs.has_projects == 'true'
+    needs: discover
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJson(needs.discover.outputs.matrix) }}
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Read version
+      id: version
+      shell: bash
+      run: |
+        VERSION=$(cat "${{ matrix.dir }}/VERSION.txt" | tr -d '[:space:]')
+        FULL_VERSION="${VERSION}.${{ github.run_number }}"
+        echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+        echo "full_version=$FULL_VERSION" >> "$GITHUB_OUTPUT"
+        echo "Building ${{ matrix.name }} v${FULL_VERSION}"
+
+    - name: Setup MSVC
+      uses: ilammy/msvc-dev-cmd@v1
+      with:
+        arch: x64
+
+    - name: Setup Qt
+      uses: jurplel/install-qt-action@v4
+      with:
+        version: '6.10.*'
+        arch: win64_msvc2022_64
+        modules: ${{ matrix.qt_modules }}
+
+    - name: Setup vcpkg
+      uses: lukka/run-vcpkg@v11
+      with:
+        vcpkgDirectory: '${{ github.workspace }}/vcpkg'
+        vcpkgGitCommitId: ${{ matrix.vcpkg_commit }}
+
+    - name: Resolve Dsqt version
+      id: dsqt-version
+      shell: bash
+      run: |
+        # Per-project override > repo variable > default
+        DSQT_REPO="${{ matrix.dsqt_repo || vars.DSQT_REPO || github.repository }}"
+        if [ -n "${{ matrix.dsqt_release_tag }}" ]; then
+          DSQT_TAG="${{ matrix.dsqt_release_tag }}"
+        elif [ -n "${{ vars.DSQT_RELEASE_TAG }}" ]; then
+          DSQT_TAG="${{ vars.DSQT_RELEASE_TAG }}"
+        else
+          DSQT_TAG=$(gh release list --repo "$DSQT_REPO" --limit 50 --json tagName --jq '.[].tagName' | grep '^library/' | head -1)
+        fi
+        echo "dsqt_repo=$DSQT_REPO" >> "$GITHUB_OUTPUT"
+        echo "dsqt_tag=$DSQT_TAG" >> "$GITHUB_OUTPUT"
+        echo "Resolved Dsqt: $DSQT_REPO @ $DSQT_TAG"
+      env:
+        GH_TOKEN: ${{ github.token }}
+
+    - name: Cache Dsqt install
+      id: cache-dsqt
+      uses: actions/cache@v4
+      with:
+        path: dsqt-install/
+        key: dsqt-${{ steps.dsqt-version.outputs.dsqt_tag }}
+
+    - name: Download Dsqt release
+      if: steps.cache-dsqt.outputs.cache-hit != 'true'
+      shell: bash
+      run: |
+        mkdir -p "${{ github.workspace }}/dsqt-install"
+        DSQT_REPO="${{ steps.dsqt-version.outputs.dsqt_repo }}"
+        DSQT_TAG="${{ steps.dsqt-version.outputs.dsqt_tag }}"
+        gh release download "$DSQT_TAG" --repo "$DSQT_REPO" --pattern '*.zip' --dir .
+        7z x *.zip -o"${{ github.workspace }}/dsqt-install"
+        rm -f *.zip
+      env:
+        GH_TOKEN: ${{ github.token }}
+
+    - name: Configure
+      shell: cmd
+      run: >
+        cmake -S ${{ matrix.dir }} -B ${{ matrix.dir }}/build/ci
+        -G "Visual Studio 17 2022" -A x64
+        -DCMAKE_TOOLCHAIN_FILE="${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake"
+        -DCMAKE_PREFIX_PATH="${{ github.workspace }}/dsqt-install"
+        -DCMAKE_INSTALL_PREFIX="${{ github.workspace }}/install-project"
+
+    - name: Build Release
+      shell: cmd
+      run: cmake --build ${{ matrix.dir }}/build/ci --config Release
+
+    - name: Install Release
+      shell: cmd
+      run: cmake --install ${{ matrix.dir }}/build/ci --config Release
+
+    - name: Package artifacts
+      shell: bash
+      run: |
+        cd "${{ github.workspace }}/install-project"
+        7z a "${{ github.workspace }}/${{ matrix.name }}-${{ steps.version.outputs.full_version }}.zip" .
+
+    - name: Create tag
+      if: github.ref_name == 'main' || vars.BRANCH_PROJECT_RELEASE == 'true'
+      shell: bash
+      run: |
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+        git tag "project/${{ matrix.name }}/v${{ steps.version.outputs.full_version }}"
+        git push origin "project/${{ matrix.name }}/v${{ steps.version.outputs.full_version }}"
+
+    - name: Create GitHub Release
+      if: github.ref_name == 'main' || vars.BRANCH_PROJECT_RELEASE == 'true'
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: "project/${{ matrix.name }}/v${{ steps.version.outputs.full_version }}"
+        name: "${{ matrix.name }} v${{ steps.version.outputs.full_version }}"
+        body: |
+          Automated build of ${{ matrix.name }}.
+          Version: ${{ steps.version.outputs.full_version }}
+          Commit: ${{ github.sha }}
+        files: ${{ matrix.name }}-${{ steps.version.outputs.full_version }}.zip

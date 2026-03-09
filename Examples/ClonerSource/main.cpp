@@ -1,15 +1,10 @@
-#ifdef _WIN32
-#ifdef DS_QT_DLLS_SUBDIR
-// Put a manifest dependency to the qt/ directory so we can keep qt dlls in their own directory
-#pragma comment(linker, "/manifestdependency:\"name='qt' version='1.0.0.0' type='win32'\"")
-#endif
-#endif
-
 #include <QQmlApplicationEngine>
 #include <QQuickStyle>
-#include <QtWebEngineQuick>
+// #include <QtWebEngineQuick/QtWebEngineQuick>  // Uncomment if QtWebEngineQuick::initialize() is needed
 #include <QIcon>
+#include <QtQml/qqmlextensionplugin.h>
 #include <dsBridgeQuery.h>
+
 #include <dsEnvironment.h>
 #include <dsGuiApplication.h>
 #include <dsNodeWatcher.h>
@@ -17,10 +12,28 @@
 #include <dsReloadUrlInterceptor.h>
 
 #include <QQuickWindow>
-#include <QSGRendererInterface>
+#ifdef DSQT_HAS_TouchEngine
 #include "dsQmlTouchEngineManager.h"
 #include "dsQmlTouchEngineInstance.h"
 #include "dsQmlTouchEngineTextureOutputView.h"
+#endif
+
+// Import statically linked Dsqt QML plugins
+#ifdef DSQT_HAS_Core
+Q_IMPORT_QML_PLUGIN(Dsqt_CorePlugin)
+#endif
+#ifdef DSQT_HAS_Bridge
+Q_IMPORT_QML_PLUGIN(Dsqt_BridgePlugin)
+#endif
+#ifdef DSQT_HAS_TouchEngine
+Q_IMPORT_QML_PLUGIN(Dsqt_TouchEnginePlugin)
+#endif
+#ifdef DSQT_HAS_Waffles
+Q_IMPORT_QML_PLUGIN(Dsqt_WafflesPlugin)
+#endif
+#ifdef DSQT_HAS_Spout
+Q_IMPORT_QML_PLUGIN(Dsqt_SpoutPlugin)
+#endif
 
 //activate high performance graphics on windows laptops with dual graphics cards
 #ifdef Q_OS_WIN
@@ -35,16 +48,14 @@ __declspec(dllexport) int AmdPowerXpressRequestHighPerformance = 1;
 
 int main(int argc, char *argv[])
 {
-    // Set Vulkan as the preferred graphics API
-    QQuickWindow::setGraphicsApi(QSGRendererInterface::Direct3D12);
+    DsGuiApplication::configureGraphics({
+        .graphicsApi = QSGRendererInterface::Direct3D12,
+        .colorDepth = 10,
+    });
 
 
-    //ensure the data.qrc is initialized
-    Q_INIT_RESOURCE(data);
-
-    //(@NOTE:KEYBOARD)
-    //ensure the keyboard.qrc is initialized
-    Q_INIT_RESOURCE(keyboard);
+    // Note: Resources from Dsqt::Core (data.qrc, keyboard.qrc) are auto-initialized
+    // when the QML module is loaded. Explicit Q_INIT_RESOURCE is not needed.
     QLoggingCategory::setFilterRules("*.verbose=false\n"
                                      "reloadUrl.*=false\n"
                                      "bridgeSync.app=false\n"
@@ -136,81 +147,12 @@ int main(int argc, char *argv[])
             return;
         }
 
-        // Initialize graphics after window is created
-        QObject *rootObject = obj;
-
-
-        if (auto* window = qobject_cast<QQuickWindow*>(rootObject)) {
-            auto setApi = [window,rootObject]() {
-                QSGRendererInterface* rif = window->rendererInterface();
-                QRhi* rhi = window->rhi();
-                if(rhi == nullptr){
-                    qWarning() << "No QRhi available from window!";
-                    return;
-                }
-                //rhi->nativeHandles();
-                if (rif) {
-                    // Get native graphics device based on backend
-                    void* device = nullptr;
-                    DsQmlTouchEngineInstance::TEGraphicsAPI apiType = DsQmlTouchEngineInstance::TEGraphicsAPI_Unknown;
-
-                    switch (rif->graphicsApi()) {
-                    case QSGRendererInterface::Direct3D11: {
-                        device = rif->getResource(window, QSGRendererInterface::DeviceResource);
-                        apiType = DsQmlTouchEngineInstance::TEGraphicsAPI_D3D11;
-                        qDebug() << "Using Direct3D 11!";
-                        break;
-                    }
-                    case QSGRendererInterface::Direct3D12: {
-                        device = rif->getResource(window, QSGRendererInterface::DeviceResource);
-                        apiType = DsQmlTouchEngineInstance::TEGraphicsAPI_D3D12;
-                        qDebug() << "Using Direct3D 12!";
-                        break;
-                    }
-                    case QSGRendererInterface::Vulkan: {
-                        device = rif->getResource(window, QSGRendererInterface::DeviceResource);
-                        apiType = DsQmlTouchEngineInstance::TEGraphicsAPI_Vulkan;
-                        qDebug() << "Using Vulkan!";
-                        break;
-                    }
-                    case QSGRendererInterface::OpenGL: {
-                        // OpenGL context should be current
-                        apiType = DsQmlTouchEngineInstance::TEGraphicsAPI_OpenGL;
-                        qDebug() << "Using OpenGL!";
-                        break;
-                    }
-                    case QSGRendererInterface::Metal: {
-                        device = rif->getResource(window, QSGRendererInterface::DeviceResource);
-                        apiType = DsQmlTouchEngineInstance::TEGraphicsAPI_Metal;
-                        qDebug() << "Using Metal!";
-                        break;
-                    }
-                    default:
-                        qWarning() << "Unsupported graphics API";
-                        break;
-                    }
-
-                    if (apiType != DsQmlTouchEngineInstance::TEGraphicsAPI_Unknown) {
-                        // Initialize DsTouchEngineManager with the detected API
-                        DsQmlTouchEngineManager* manager = DsQmlTouchEngineManager::inst();
-
-                               // Store API type in manager for future instances
-                        manager->setGraphicsAPI(apiType);
-                        manager->setWindow(window);
-                        if (device || apiType == DsQmlTouchEngineInstance::TEGraphicsAPI_OpenGL) {
-                            manager->initializeGraphics(rhi,device);
-                        }
-                    }
-                }
-                window->disconnect(rootObject);
-            };
-            if(window->isSceneGraphInitialized()) {
-                setApi();
-            } else {
-                QObject::connect(window, &QQuickWindow::sceneGraphInitialized, rootObject, setApi, Qt::DirectConnection);
-            }
-
+        // Initialize TouchEngine graphics after window is created
+#ifdef DSQT_HAS_TouchEngine
+        if (auto* window = qobject_cast<QQuickWindow*>(obj)) {
+            DsQmlTouchEngineManager::initializeFromWindow(window);
         }
+#endif
     },Qt::DirectConnection);
 
 

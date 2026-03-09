@@ -1,6 +1,6 @@
 import QtQuick
 import QtQuick.Shapes
-import Dsqt
+import Dsqt.Core
 import ClonerSource
 
 Item {

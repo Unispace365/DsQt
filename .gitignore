@@ -31,7 +31,7 @@ ui_*.h
 *.qmlc
 *.jsc
 Makefile*
-*build-*
+*build-*/
 *.qm
 *.prl
 
@@ -70,7 +70,24 @@ cmake/dsqtimportpath.h
 .qmlls.ini
 .qmllint.ini
 
+#CMake
+CMakeLists.txt.user
+CMakeCache.txt
+CMakeFiles
+CMakeScripts
+Makefile
+cmake_install.cmake
+install_manifest.txt
+compile_commands.json
+CTestTestfile.cmake
+_deps
+CMakeUserPresets.json
+
 #include Touchengine.dll
-!Library/TouchEngineQt/TouchEngine/bin/TouchEngine.dll
+!Library/Dsqt/TouchEngine/TouchEngine/bin/TouchEngine.dll
 .claude/settings.local.json
 Tools/ProjectCloner/.qtcreator
+Examples/ClonerSource/.qtcreator
+/**/.claude
+/**/.qtcreator
+Tools/__pycache__

@@ -1,0 +1,35 @@
+{
+  "version": 6,
+  "configurePresets": [
+    {
+      "name": "vcpkg-base",
+      "hidden": true,
+      "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
+    },
+    {
+      "name": "ninja-base",
+      "hidden": true,
+      "generator": "Ninja Multi-Config",
+      "cacheVariables": {
+        "CMAKE_C_COMPILER":         { "type": "FILEPATH", "value": "cl.exe" },
+        "CMAKE_CXX_COMPILER":       { "type": "FILEPATH", "value": "cl.exe" },
+        "CMAKE_CXX_FLAGS_INIT":     { "type": "STRING",   "value": "/EHsc" },
+        "CMAKE_CONFIGURATION_TYPES":{ "type": "STRING",   "value": "Debug;Release;RelWithDebInfo" }
+      }
+    },
+    {
+      "name": "ninja",
+      "displayName": "Ninja Multi-Config",
+      "inherits": ["vcpkg-base", "ninja-base"],
+      "binaryDir": "${sourceDir}/build/ninja",
+      "cacheVariables": {
+        "CMAKE_INSTALL_PREFIX": "$env{USERPROFILE}/Documents/DsQt"
+      }
+    }
+  ],
+  "buildPresets": [
+    { "name": "ninja-debug",          "configurePreset": "ninja", "configuration": "Debug" },
+    { "name": "ninja-release",        "configurePreset": "ninja", "configuration": "Release" },
+    { "name": "ninja-relwithdebinfo", "configurePreset": "ninja", "configuration": "RelWithDebInfo" }
+  ]
+}

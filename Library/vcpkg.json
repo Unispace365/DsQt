@@ -1,0 +1,28 @@
+{
+  "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
+  "name": "dsqt",
+  "version": "0.1.0",
+  "builtin-baseline": "b02e341c927f16d991edbd915d8ea43eac52096c",
+  "dependencies": [
+    {
+      "name": "pkgconf",
+      "version>=": "2.3.0"
+    },
+    {
+      "name": "tomlplusplus",
+      "version>=": "3.4.0"
+    },
+    {
+      "name": "glm",
+      "version>=": "1.0.1"
+    },
+    {
+      "name": "vulkan"
+    },
+    {
+      "name": "spout2",
+      "version>=": "2.007.010",
+      "features": ["dx"]
+    }
+  ]
+}

@@ -2,7 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Shapes
 import QtQuick.VirtualKeyboard
-import Dsqt
+import Dsqt.Core
 import "qml"
 
 /// Sets up our window, menu bar and basic functionality.

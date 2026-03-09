@@ -1,8 +1,9 @@
-cmake_minimum_required(VERSION 3.16)
+if(NOT CMAKE_PROJECT_NAME OR CMAKE_PROJECT_NAME STREQUAL "ProjectCloner")
+    cmake_minimum_required(VERSION 3.16)
+    project(ProjectCloner VERSION 0.1 LANGUAGES CXX)
+endif()
 
-set(CMAKE_INSTALL_PREFIX "$ENV{DS_QT_PLATFORM_100}/Tools/deploy/ProjectCloner" CACHE PATH "CMake install prefix. prepended to install directories" FORCE)
-project(ProjectCloner VERSION 0.1 LANGUAGES CXX)
-
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(QT_QML_GENERATE_QMLLS_INI ON)
@@ -30,9 +31,15 @@ qt_add_qml_module(appProjectCloner
     RESOURCES skip.txt
     DEPENDENCIES QtQuick
     RESOURCES images/clone1.gif images/clone2.gif images/clone3.gif images/clone4.gif images/error.gif
+    QML_FILES MainView.qml
 )
 
-configure_file("${CMAKE_SOURCE_DIR}/skip.txt" "${CMAKE_BINARY_DIR}/skip.txt" COPYONLY)
+configure_file("${CMAKE_CURRENT_SOURCE_DIR}/skip.txt" "${CMAKE_BINARY_DIR}/skip.txt" COPYONLY)
+#add_custom_command(TARGET appProjectCloner POST_BUILD
+#    COMMAND ${CMAKE_COMMAND} -E copy_directory
+#        "${CMAKE_CURRENT_SOURCE_DIR}/ProjectSource"
+#        "$<TARGET_FILE_DIR:appProjectCloner>/ProjectSource"
+#)
 
 # Qt for iOS sets MACOSX_BUNDLE_GUI_IDENTIFIER automatically since Qt 6.1.
 # If you are developing for iOS or macOS you should consider setting an
@@ -50,11 +57,25 @@ target_link_libraries(appProjectCloner
 )
 
 include(GNUInstallDirs)
-install(TARGETS appProjectCloner
-    BUNDLE DESTINATION .
-    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+
+# When built as a subdirectory of DsQt, nest under Tools/ProjectCloner/
+if(NOT CMAKE_PROJECT_NAME OR CMAKE_PROJECT_NAME STREQUAL "ProjectCloner")
+    set(PC_INSTALL_PREFIX "")
+else()
+    set(PC_INSTALL_PREFIX "Tools/ProjectCloner/")
+endif()
+
+target_compile_definitions(appProjectCloner PRIVATE
+    CLONER_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../../Examples/ClonerSource"
 )
+
+install(TARGETS appProjectCloner
+    BUNDLE DESTINATION ${PC_INSTALL_PREFIX}
+    LIBRARY DESTINATION ${PC_INSTALL_PREFIX}${CMAKE_INSTALL_LIBDIR}
+    RUNTIME DESTINATION ${PC_INSTALL_PREFIX}${CMAKE_INSTALL_BINDIR}
+)
+
+install(FILES skip.txt DESTINATION ${PC_INSTALL_PREFIX}${CMAKE_INSTALL_BINDIR})
 
 qt_generate_deploy_qml_app_script(
     TARGET appProjectCloner
@@ -63,43 +84,25 @@ qt_generate_deploy_qml_app_script(
     DEPLOY_USER_QML_MODULES_ON_UNSUPPORTED_PLATFORM
 )
 
-
+# Override QT_DEPLOY_* variables at install time so the deploy script places
+# DLLs, plugins, QML modules and translations under our install prefix.
+install(CODE "
+    set(QT_DEPLOY_BIN_DIR \"${PC_INSTALL_PREFIX}${CMAKE_INSTALL_BINDIR}\")
+    set(QT_DEPLOY_LIB_DIR \"${PC_INSTALL_PREFIX}${CMAKE_INSTALL_LIBDIR}\")
+    set(QT_DEPLOY_PLUGINS_DIR \"${PC_INSTALL_PREFIX}plugins\")
+    set(QT_DEPLOY_QML_DIR \"${PC_INSTALL_PREFIX}qml\")
+    set(QT_DEPLOY_TRANSLATIONS_DIR \"${PC_INSTALL_PREFIX}translations\")
+")
 install(SCRIPT ${deploy_script})
 
 
 IF (WIN32 AND DS_QT_DLLS_SUBDIR)
 add_definitions(-DDS_QT_DLLS_SUBDIR)
 # set the path to the dlls in the install directory
-set(nativeDllPath "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}")
+set(nativeDllPath "${CMAKE_INSTALL_PREFIX}/${PC_INSTALL_PREFIX}${CMAKE_INSTALL_BINDIR}")
 # convert to a cmake path
 cmake_path(CONVERT "${nativeDllPath}" TO_CMAKE_PATH_LIST cmakeDllPath)
-file(MAKE_DIRECTORY "${cmakeDllPath}/qt")
-
-#make an empty qt manifest for running the app inside Qt Creator
-configure_file("${CMAKE_SOURCE_DIR}/cmake/qt.manifest.in" "${CMAKE_BINARY_DIR}/qt/qt.manifest")
 
 # process the dlls
-install(CODE "
-# grab all the dlls in the install directory
-file(GLOB xdlls \"${cmakeDllPath}/*.dll\")\n
-
-
-#loop through the dlls\n
-foreach(dll \${xdlls})\n
-
-    #get the name of the dll sans the path\n
-    file(RELATIVE_PATH rDll \"${cmakeDllPath}\" \"\${dll}\" )
-    
-    #add it to the list of <file> elements to add to the manifest\n
-    set(DLL_LIST \"\${DLL_LIST}\n<file name=\\\"\${rDll}\\\"/>\")\n
-    
-    #move the dll to the qt directory\n
-    file(RENAME \"\${dll}\" \"${cmakeDllPath}/qt/\${rDll}\")\n
-
-endforeach()\n
-
-#use the list to create the manifest\n
-configure_file(\"${CMAKE_SOURCE_DIR}/cmake/qt.manifest.in\" \"${cmakeDllPath}/qt/qt.manifest\")
-")
 
 ENDIF()

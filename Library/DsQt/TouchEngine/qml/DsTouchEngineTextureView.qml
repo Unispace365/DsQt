@@ -1,0 +1,37 @@
+import QtQuick
+import Dsqt.TouchEngine
+
+/*
+ * DsTouchEngineTextureView - QML wrapper component for texture output
+ * This provides additional QML-friendly features on top of the C++ DsTouchEngineTextureOutputView
+ */
+Item {
+    id: root
+
+    // Re-expose properties with additional behaviors if needed
+    property alias instanceId: view.instanceId
+    property alias outputLink: view.outputLink
+    property alias autoUpdate: view.autoUpdate
+
+    // Forward request frame method
+    function requestFrame() {
+        view.requestFrame()
+    }
+
+    // Optional: Add visual feedback
+    Rectangle {
+        anchors.fill: parent
+        color: "transparent"
+        border.color: view.autoUpdate ? "#4CAF50" : "#757575"
+        border.width: 1
+        opacity: 0.0
+    }
+
+    // The actual C++ backed view
+    DsTouchEngineTextureOutputView {
+        id: view
+        anchors.fill: parent
+    }
+
+
+}

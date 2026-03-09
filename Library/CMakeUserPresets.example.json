@@ -1,0 +1,61 @@
+{
+  "version": 6,
+  "configurePresets": [
+    {
+      "name": "qt-6.10.0",
+      "hidden": true,
+      "inherits": "vcpkg-base",
+      "cacheVariables": {
+        "CMAKE_PREFIX_PATH": "C:/Qt/6.10.0/msvc2022_64",
+        "CMAKE_INSTALL_PREFIX": "$env{USERPROFILE}/Documents/DsQt"
+      }
+    },
+    {
+      "name": "qt-6.10.1",
+      "hidden": true,
+      "inherits": "vcpkg-base",
+      "cacheVariables": {
+        "CMAKE_PREFIX_PATH": "C:/Qt/6.10.1/msvc2022_64",
+        "CMAKE_INSTALL_PREFIX": "$env{USERPROFILE}/Documents/DsQt"
+      }
+    },
+    {
+      "name": "qt-6.10.2",
+      "hidden": true,
+      "inherits": "vcpkg-base",
+      "cacheVariables": {
+        "CMAKE_PREFIX_PATH": "C:/Qt/6.10.2/msvc2022_64",
+        "CMAKE_INSTALL_PREFIX": "$env{USERPROFILE}/Documents/DsQt"
+      }
+    },
+    {
+      "name": "ninja-6.10.0",
+      "displayName": "Ninja - Qt 6.10.0",
+      "inherits": ["qt-6.10.0", "ninja-base"],
+      "binaryDir": "${sourceDir}/build/ninja-6.10.0"
+    },
+    {
+      "name": "ninja-6.10.1",
+      "displayName": "Ninja - Qt 6.10.1",
+      "inherits": ["qt-6.10.1", "ninja-base"],
+      "binaryDir": "${sourceDir}/build/ninja-6.10.1"
+    },
+    {
+      "name": "ninja-6.10.2",
+      "displayName": "Ninja - Qt 6.10.2",
+      "inherits": ["qt-6.10.2", "ninja-base"],
+      "binaryDir": "${sourceDir}/build/ninja-6.10.2"
+    }
+  ],
+  "buildPresets": [
+    { "name": "ninja-6.10.0-debug",          "configurePreset": "ninja-6.10.0", "configuration": "Debug" },
+    { "name": "ninja-6.10.0-release",        "configurePreset": "ninja-6.10.0", "configuration": "Release" },
+    { "name": "ninja-6.10.0-relwithdebinfo", "configurePreset": "ninja-6.10.0", "configuration": "RelWithDebInfo" },
+    { "name": "ninja-6.10.1-debug",          "configurePreset": "ninja-6.10.1", "configuration": "Debug" },
+    { "name": "ninja-6.10.1-release",        "configurePreset": "ninja-6.10.1", "configuration": "Release" },
+    { "name": "ninja-6.10.1-relwithdebinfo", "configurePreset": "ninja-6.10.1", "configuration": "RelWithDebInfo" },
+    { "name": "ninja-6.10.2-debug",          "configurePreset": "ninja-6.10.2", "configuration": "Debug" },
+    { "name": "ninja-6.10.2-release",        "configurePreset": "ninja-6.10.2", "configuration": "Release" },
+    { "name": "ninja-6.10.2-relwithdebinfo", "configurePreset": "ninja-6.10.2", "configuration": "RelWithDebInfo" }
+  ]
+}

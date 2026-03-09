@@ -10,6 +10,7 @@ set(DS_PROJECT_DESC "Test DsQt Application")
 
 project(${DS_APP_NAME} VERSION 0.1 LANGUAGES CXX)
 
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_INSTALL_PREFIX "${CMAKE_BINARY_DIR}/DEPLOY/")
 set(QT_QML_GENERATE_QMLLS_INI ON)
@@ -82,28 +83,9 @@ set_target_properties(${DS_EXE_NAME} PROPERTIES
     WIN32_EXECUTABLE TRUE
 )
 
-##Fetch toml++
-FetchContent_Declare(
-    tomlplusplus
-    GIT_REPOSITORY https://github.com/marzer/tomlplusplus.git
-    GIT_TAG        v3.4.0
-    #PREFIX ${CMAKE_DIR_LOCATION}/_deps
-)
-FetchContent_GetProperties(tomlplusplus)
-FetchContent_MakeAvailable(tomlplusplus)
-
-##Fetch GLM from the g-truc glm repo.
-##https://glm.g-truc.net/0.9.9/index.html
-FetchContent_Declare(
-    glm
-    GIT_REPOSITORY https://github.com/g-truc/glm.git
-    GIT_TAG        1.0.1
-    CONFIGURE_COMMAND ""
-    BUILD_COMMAND ""
-    #PREFIX ${CMAKE_DIR_LOCATION}/_deps
-)
-FetchContent_GetProperties(glm)
-FetchContent_MakeAvailable(glm)
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(tomlplusplus REQUIRED IMPORTED_TARGET tomlplusplus)
+find_package(glm CONFIG REQUIRED)
 
 FetchContent_Declare(
     qtimgui
@@ -122,15 +104,8 @@ set(imgui_target appDsqtApp)
 include(${imgui_base}/imgui.cmakeinc)
 include(${imgui_base}/imguiquick.cmakeinc)
 
-##connect glm
-target_include_directories(${DS_EXE_NAME} PUBLIC ${glm_SOURCE_DIR})
-
-##connect toml++
-target_include_directories(${DS_EXE_NAME} PUBLIC ${tomlplusplus_SOURCE_DIR}/include)
-
-
 target_link_libraries(${DS_EXE_NAME}
-    PRIVATE Qt6::Quick Dsqt Dsqtplugin Dsqtplugin_init Dsqt_resources_1 Dsqt_resources_2 Dsqt_resources_3 glm Qt6::Sql Qt6::GuiPrivate Qt6::Gui Qt6::ShaderTools Qt6::ShaderToolsPrivate
+    PRIVATE Qt6::Quick Dsqt Dsqtplugin Dsqtplugin_init Dsqt_resources_1 Dsqt_resources_2 Dsqt_resources_3 glm::glm PkgConfig::tomlplusplus Qt6::Sql Qt6::GuiPrivate Qt6::Gui Qt6::ShaderTools Qt6::ShaderToolsPrivate
 )
 
 
