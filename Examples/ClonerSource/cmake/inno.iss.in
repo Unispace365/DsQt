@@ -1,0 +1,81 @@
+; ----- Required app parameters
+; this is the location of the DEPLOY Folder, which should contain the built
+;executable and all necessary files to run the app. This is used to pull in
+;the version number from the executable, so it needs to be correct for that to work.
+#define BASEDIR "@CMAKE_INSTALL_PREFIX@"
+; What displays in the start menu, also used as the Unique app name / id
+#define APP_DISPLAY_NAME "@DS_APP_NAME@"
+; Used for paths for the app directory. Recommend using the auto-generated values
+#define APP_NAME "@DS_APP_NAME@"
+; The exe file itself
+#define APP_EXE "@DS_EXE_NAME@.exe"
+; Get the version from the executable
+#define APP_VERS GetVersionNumbersString(BASEDIR + "/bin/" + APP_EXE)
+
+; ------ Optional Flags
+
+; Setup for the machine in production
+;  - Adds env variable for Pango / Cario backend
+;  - Starts the app on system boot
+;  - Disables Windows Error Reporting UI
+@INNO_IS_PRODUCTION@
+
+; App runs inside apphost
+; Automatically add the apphost.json config file to the correct destination directory
+; If IS_PRODUCTION is defined, will start apphost on system boot
+#define USE_APPHOST
+
+; Define to replace Windows Explorer with DSAppHost, instead of launching it as a startup item.
+; Only works if IS_PRODUCTION is defined, too.
+; #define REPLACE_SHELL
+
+; Uses bridgesync to connect to a CMS
+#define USE_BRIDGESYNC
+
+; Define to not create a normal app icon (and only uses DsAppHost icon)
+#define SKIP_APP_ICON
+
+; -------- Required include of the base install
+; This grabs the full installer script to actually build the thing
+; Check that file if you have any problems or questions
+; App binaries, data, and settings (minus configuration.xml) are automatically added
+#include @INNO_BASE_INSTALL@
+
+
+; -------- Optional additional stuff
+; Add any additional files, settings, icons, registry, etc here
+;[Files]
+;Source: "src/*"; DestDir: "{app}/src"; Flags: recursesubdirs
+
+; -------- Run an app/script at the end of the installer
+;[Run]
+;Filename: "{app}\config_selector.bat"
+
+[Files]
+; Install the Visual C++ Runtime Redistributable
+Source: "{#BASEDIR}\bin\VC_redist.x64.exe"; DestDir: "{tmp}"; Flags: deleteafterinstall; Check: VCRedistNeedsInstall;
+
+[InstallDelete]
+; Making sure the old BridgeSync DLL's are removed.
+Type: files; Name: "{app}/bridgesync/*.dll";
+
+[Run]
+Filename: "{tmp}/VC_redist.x64.exe"; StatusMsg: "Installing Visual C++ Redistributable..."; Parameters: "/install /quiet /norestart"; Flags: waituntilterminated; Check: VCRedistNeedsInstall;
+
+[Code]
+function VCRedistNeedsInstall: Boolean;
+var
+  Version: String;
+begin
+  if RegQueryStringValue(HKEY_LOCAL_MACHINE, 'SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64', 'Version', Version) then
+  begin
+    // Is the installed version compatible?
+    Log('VC Redist Version check : found ' + Version);
+    Result := (CompareStr(Version, 'v14.40.33810.00')<0);
+  end
+  else
+  begin
+    // Not even an old version installed
+    Result := True;
+  end;
+end;
