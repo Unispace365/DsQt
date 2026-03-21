@@ -198,3 +198,75 @@ qt_generate_deploy_qml_app_script(
 )
 
 install(SCRIPT ${deploy_script})
+
+# --- DSAppHost configuration ---
+# Defaults for apphost.json (override via -D flags)
+if(NOT DEFINED APPHOST_PREVENT_SLEEP)
+    set(APPHOST_PREVENT_SLEEP "true")
+endif()
+if(NOT DEFINED APPHOST_KIOSK)
+    set(APPHOST_KIOSK "true")
+endif()
+if(NOT DEFINED APPHOST_RESTART_APPS)
+    set(APPHOST_RESTART_APPS "false")
+endif()
+if(NOT DEFINED APPHOST_RESTART_APPS_HOUR)
+    set(APPHOST_RESTART_APPS_HOUR "1")
+endif()
+if(NOT DEFINED APPHOST_RESTART_APPS_MINUTE)
+    set(APPHOST_RESTART_APPS_MINUTE "0")
+endif()
+if(NOT DEFINED APPHOST_RESTART_SYSTEM)
+    set(APPHOST_RESTART_SYSTEM "true")
+endif()
+if(NOT DEFINED APPHOST_RESTART_SYSTEM_HOUR)
+    set(APPHOST_RESTART_SYSTEM_HOUR "1")
+endif()
+if(NOT DEFINED APPHOST_RESTART_SYSTEM_MINUTE)
+    set(APPHOST_RESTART_SYSTEM_MINUTE "0")
+endif()
+if(NOT DEFINED APPHOST_APP_ARGS)
+    set(APPHOST_APP_ARGS "")
+endif()
+if(NOT DEFINED APPHOST_START_DELAY)
+    set(APPHOST_START_DELAY "1000")
+endif()
+if(NOT DEFINED APPHOST_RESTART_DELAY)
+    set(APPHOST_RESTART_DELAY "10000")
+endif()
+if(NOT DEFINED APPHOST_ENABLE_MONITOR)
+    set(APPHOST_ENABLE_MONITOR "true")
+endif()
+if(NOT DEFINED APPHOST_MEMORY_LIMIT)
+    set(APPHOST_MEMORY_LIMIT "10000")
+endif()
+
+configure_file(
+    "${CMAKE_CURRENT_SOURCE_DIR}/cmake/apphost.json.in"
+    "${CMAKE_CURRENT_SOURCE_DIR}/install/apphost.json"
+    @ONLY
+)
+
+# --- Inno Setup installer generation ---
+# INNO_BASE_INSTALL: path to the shared base install script (quoted for ISS #include)
+if(NOT DEFINED INNO_BASE_INSTALL)
+    set(INNO_BASE_INSTALL "${CMAKE_CURRENT_SOURCE_DIR}/install/base_install.iss")
+endif()
+cmake_path(ABSOLUTE_PATH INNO_BASE_INSTALL NORMALIZE)
+set(INNO_BASE_INSTALL "\"${INNO_BASE_INSTALL}\"")
+
+# Production installer (.iss with IS_PRODUCTION defined)
+set(INNO_IS_PRODUCTION "#define IS_PRODUCTION")
+configure_file(
+    "${CMAKE_CURRENT_SOURCE_DIR}/cmake/inno.iss.in"
+    "${CMAKE_CURRENT_SOURCE_DIR}/install/${DS_APP_NAME}.iss"
+    @ONLY
+)
+
+# Dev installer (.iss without IS_PRODUCTION)
+set(INNO_IS_PRODUCTION "; #define IS_PRODUCTION")
+configure_file(
+    "${CMAKE_CURRENT_SOURCE_DIR}/cmake/inno.iss.in"
+    "${CMAKE_CURRENT_SOURCE_DIR}/install/${DS_APP_NAME}_dev.iss"
+    @ONLY
+)

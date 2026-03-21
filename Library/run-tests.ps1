@@ -83,41 +83,51 @@ ctest --test-dir $BuildDir --output-on-failure --output-junit "$BuildDir\test-re
 $testExitCode = $LASTEXITCODE
 
 # --- Generate HTML Report ---
-$junitXml = "$BuildDir\Tests\Settings\test_ds_settings.xml"
-$htmlReport = "$BuildDir\test-report.html"
+# Collect all per-test JUnit XML files from the Tests subdirectories.
+# Each test registers output as <test_name>.xml in its own build directory.
+$junitFiles = @(Get-ChildItem -Path "$BuildDir\Tests" -Filter "*.xml" -Recurse -File -ErrorAction SilentlyContinue)
 
-# Check if the per-test JUnit XML was generated
-if (-not (Test-Path $junitXml)) {
-    # Fall back to the ctest-level results
-    $junitXml = "$BuildDir\test-results.xml"
+# Fall back to the ctest-level results if no per-test files found
+if ($junitFiles.Count -eq 0) {
+    $fallback = "$BuildDir\test-results.xml"
+    if (Test-Path $fallback) {
+        $junitFiles = @(Get-Item $fallback)
+    }
 }
 
-if (Test-Path $junitXml) {
+$htmlReport = "$BuildDir\test-report.html"
+
+if ($junitFiles) {
     Write-Host "`n--- Generating HTML Report ---" -ForegroundColor Yellow
+    Write-Host "Found $($junitFiles.Count) test result file(s):" -ForegroundColor DarkGray
+    foreach ($f in $junitFiles) { Write-Host "  $($f.FullName)" -ForegroundColor DarkGray }
 
-    # Try xunit-viewer first (npm package), then fall back to a self-contained report
-    $hasXunitViewer = Get-Command xunit-viewer -ErrorAction SilentlyContinue
-    if ($hasXunitViewer) {
-        xunit-viewer -r $junitXml -o $htmlReport
-    }
-    else {
-        # Generate a self-contained HTML report from the JUnit XML
-        $xml = [xml](Get-Content $junitXml)
-        $totalTests = 0
-        $totalFailures = 0
-        $totalTime = 0.0
-        $rows = ""
+    # Generate a self-contained HTML report from all JUnit XML files
+    $totalTests = 0
+    $totalFailures = 0
+    $totalTime = 0.0
+    $sections = ""
 
+    foreach ($junitFile in $junitFiles) {
+        $xml = [xml](Get-Content $junitFile.FullName)
         foreach ($suite in $xml.SelectNodes("//testsuite")) {
             $suiteName = $suite.name
+            $suiteTests = 0
+            $suiteFailures = 0
+            $suiteTime = 0.0
+            $rows = ""
+
             foreach ($tc in $suite.SelectNodes("testcase")) {
                 $totalTests++
+                $suiteTests++
                 $name = $tc.name
                 $time = $tc.time
                 $totalTime += [double]$time
+                $suiteTime += [double]$time
                 $failure = $tc.SelectSingleNode("failure")
                 if ($failure) {
                     $totalFailures++
+                    $suiteFailures++
                     $status = "<span style='color:#e74c3c;font-weight:bold'>FAIL</span>"
                     $msg = [System.Web.HttpUtility]::HtmlEncode($failure.message) -replace "`n","<br>"
                 }
@@ -125,14 +135,29 @@ if (Test-Path $junitXml) {
                     $status = "<span style='color:#2ecc71;font-weight:bold'>PASS</span>"
                     $msg = ""
                 }
-                $rows += "<tr><td>$suiteName</td><td>$name</td><td>$status</td><td>${time}s</td><td style='font-size:0.85em'>$msg</td></tr>`n"
+                $rows += "<tr><td>$name</td><td>$status</td><td>${time}s</td><td style='font-size:0.85em'>$msg</td></tr>`n"
             }
+
+            $suitePassed = $suiteTests - $suiteFailures
+            $suiteIcon = if ($suiteFailures -eq 0) { "<span style='color:#2ecc71'>&#x2714;</span>" } else { "<span style='color:#e74c3c'>&#x2718;</span>" }
+            $openAttr = if ($suiteFailures -gt 0) { " open" } else { " open" }
+            $sections += @"
+<details class="suite"$openAttr>
+  <summary>$suiteIcon $suiteName <span class="suite-stats">$suitePassed / $suiteTests passed &mdash; $([math]::Round($suiteTime, 3))s</span></summary>
+  <table>
+  <tr><th>Test</th><th>Status</th><th>Time</th><th>Details</th></tr>
+  $rows
+  </table>
+</details>
+
+"@
         }
+    }
 
-        $passed = $totalTests - $totalFailures
-        $summaryColor = if ($totalFailures -eq 0) { "#2ecc71" } else { "#e74c3c" }
+    $passed = $totalTests - $totalFailures
+    $summaryColor = if ($totalFailures -eq 0) { "#2ecc71" } else { "#e74c3c" }
 
-        $html = @"
+    $html = @"
 <!DOCTYPE html>
 <html>
 <head>
@@ -141,12 +166,20 @@ if (Test-Path $junitXml) {
 <style>
   body { font-family: 'Segoe UI', sans-serif; margin: 2em; background: #1a1a2e; color: #eee; }
   h1 { color: #16a085; }
+  h2 { color: #e0e0e0; font-size: 1.1em; margin: 1.5em 0 0.5em; }
   .summary { font-size: 1.2em; margin: 1em 0; padding: 1em; background: #16213e; border-radius: 8px; }
   .summary .count { font-weight: bold; color: $summaryColor; font-size: 1.4em; }
-  table { border-collapse: collapse; width: 100%; margin-top: 1em; }
+  .suite { margin-bottom: 1.5em; padding: 1em; background: #16213e; border-radius: 8px; }
+  .suite summary { cursor: pointer; font-size: 1.1em; font-weight: bold; color: #e0e0e0; list-style: none; }
+  .suite summary::-webkit-details-marker { display: none; }
+  .suite summary::before { content: '\25B6'; display: inline-block; margin-right: 0.5em; transition: transform 0.2s; font-size: 0.7em; }
+  .suite[open] summary::before { transform: rotate(90deg); }
+  .suite table { margin-top: 0.75em; }
+  .suite-stats { font-size: 0.8em; color: #888; font-weight: normal; margin-left: 0.5em; }
+  table { border-collapse: collapse; width: 100%; }
   th { background: #0f3460; padding: 10px 12px; text-align: left; }
   td { padding: 8px 12px; border-bottom: 1px solid #333; }
-  tr:hover { background: #16213e; }
+  tr:hover { background: #1a1a2e; }
 </style>
 </head>
 <body>
@@ -155,18 +188,14 @@ if (Test-Path $junitXml) {
   <span class="count">$passed / $totalTests passed</span>
   &mdash; $totalFailures failures &mdash; $([math]::Round($totalTime, 2))s total
 </div>
-<table>
-<tr><th>Suite</th><th>Test</th><th>Status</th><th>Time</th><th>Details</th></tr>
-$rows
-</table>
+$sections
 <p style="color:#666;margin-top:2em;font-size:0.85em">
 Generated $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')
 </p>
 </body>
 </html>
 "@
-        $html | Out-File -Encoding utf8 $htmlReport
-    }
+    $html | Out-File -Encoding utf8 $htmlReport
 
     Write-Host "`nReport: $htmlReport" -ForegroundColor Green
 
@@ -175,7 +204,7 @@ Generated $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')
     }
 }
 else {
-    Write-Host "`nNo JUnit XML found — skipping HTML report." -ForegroundColor DarkYellow
+    Write-Host "`nNo JUnit XML found - skipping HTML report." -ForegroundColor DarkYellow
 }
 
 # --- Summary ---

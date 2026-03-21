@@ -30,6 +30,15 @@ class DsGuiApplication : public QGuiApplication
     DsGuiApplication(int &argc, char **argv);
 
     static void configureGraphics(const DsGraphicsConfig& config = {});
-};
 
+    // Resolve an INI path value to a full log file path.
+    // If path is empty, returns defaultLogPath. If path has no file extension
+    // (or is an existing directory), appends defaultLogName.
+    static QString resolveLogPath(const QString &path, const QString &defaultLogName,
+                                  const QString &defaultLogPath);
+
+  private:
+    void initializeLogging();
+    void printStartupBanner();
+};
 #endif // DSGUIAPPLICATION_H

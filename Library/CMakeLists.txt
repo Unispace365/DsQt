@@ -169,6 +169,7 @@ cmake_path(NATIVE_PATH CMAKE_CURRENT_SOURCE_DIR DS_QMLLINT_ROOT)
 
 if(DSQT_BUILD_TESTS)
     add_subdirectory(Tests/Settings)
+    add_subdirectory(Tests/Logging)
     # add_subdirectory(Tests/BridgeTest)  # Stubbed — enable when tests are implemented
 endif()
 
