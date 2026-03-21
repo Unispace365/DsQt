@@ -94,7 +94,8 @@ Documentation is compiled by Doxygen and can be found here:
    If Qt is in `C:\Qt\` the build auto-discovers the latest version — no config needed.
 3. Run `build_and_install.bat` — configures, builds Debug + Release, and installs to
    `%USERPROFILE%\Documents\DsQt`
-4. To target a specific Qt version: `build_and_install.bat ninja-6.10.2`
+4. To target a specific Qt version: `build_and_install.bat -qt 6.10.2`
+5. To also build and install ProjectCloner + ClonerSource: `build_and_install.bat -tools`
 
 **Alternative (Qt Creator):**
 
@@ -109,10 +110,9 @@ Documentation is compiled by Doxygen and can be found here:
 **Preferred (command-line):**
 
 1. `cd Library`
-2. Run `build_and_install.bat` with the `DSQT_BUILD_TOOLS` option enabled, or open
-   `DsQt/Tools/ProjectCloner/CMakeLists.txt` directly
-3. Install deploys to `%USERPROFILE%\Documents\DsQt`
-4. Run: `%DS_QT_PLATFORM_100%\Tools\deploy\ProjectCloner\bin\appProjectCloner.exe`
+2. Run `build_and_install.bat -tools` — this builds and installs ProjectCloner and
+   copies the ClonerSource template to `%USERPROFILE%\Documents\DsQt\Tools\`
+3. Run: `%USERPROFILE%\Documents\DsQt\Tools\ProjectCloner\bin\appProjectCloner.exe`
 
 **Alternative (Qt Creator):**
 

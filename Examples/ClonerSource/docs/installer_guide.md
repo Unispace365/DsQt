@@ -151,7 +151,7 @@ configure_file(
 
 ## Step 4: Update .gitignore
 
-> **Note:** `install/` is probably already in .gitignore. It should be changed to `install/*`
+> **Note:** Besure to check if `install/` is already in the gitignore and if it is change it to `install/*`.
 
 Make sure your `.gitignore` tracks the source files but ignores generated output:
 
@@ -166,6 +166,8 @@ install/*
 ```
 
 > **Note:** Use `install/*` (not `install/`) so that the negation patterns work correctly.
+
+
 
 # Building an Installer
 

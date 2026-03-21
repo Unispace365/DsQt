@@ -1,10 +1,11 @@
 @echo off
 setlocal enabledelayedexpansion
 
-REM Usage: build_and_install.bat [preset] [-test] [-no-configure] [-no-install] [-clean] [-hard-clean]
-REM                              [-rebuild] [-hard-rebuild] [-qt <ver|path>]
+REM Usage: build_and_install.bat [preset] [-test] [-tools] [-no-configure] [-no-install] [-clean]
+REM                              [-hard-clean] [-rebuild] [-hard-rebuild] [-qt <ver|path>]
 REM   preset         : CMake configure preset name (default: ninja)
 REM   -test          : Enable and run unit tests after the Debug build
+REM   -tools         : Build and install ProjectCloner + ClonerSource template
 REM   -no-configure  : Skip the CMake configure step (for fast incremental builds)
 REM   -no-install    : Skip the install steps entirely
 REM   -clean         : Run cmake --build clean targets and exit
@@ -30,6 +31,7 @@ set DO_CLEAN=0
 set DO_HARD_CLEAN=0
 set DO_REBUILD=0
 set DO_HARD_REBUILD=0
+set BUILD_TOOLS=0
 set QT_PATH=
 
 :: Parse arguments — accept preset and flags in any order
@@ -37,6 +39,8 @@ set QT_PATH=
 if "%~1"=="" goto :args_done
 if /i "%~1"=="-test"          (set RUN_TESTS=1& shift & goto :parse_args)
 if /i "%~1"=="/test"          (set RUN_TESTS=1& shift & goto :parse_args)
+if /i "%~1"=="-tools"         (set BUILD_TOOLS=1& shift & goto :parse_args)
+if /i "%~1"=="/tools"         (set BUILD_TOOLS=1& shift & goto :parse_args)
 if /i "%~1"=="-no-configure"  (set SKIP_CONFIGURE=1& shift & goto :parse_args)
 if /i "%~1"=="/no-configure"  (set SKIP_CONFIGURE=1& shift & goto :parse_args)
 if /i "%~1"=="-no-install"    (set SKIP_INSTALL=1& shift & goto :parse_args)
@@ -239,6 +243,52 @@ if %errorlevel% neq 0 (
     exit /b %errorlevel%
 )
 call :gettime INSTALL_RELEASE_END
+
+:: --- Build and Install Tools (ProjectCloner + ClonerSource) ---
+if !BUILD_TOOLS!==1 (
+    set TOOLS_DIR=%~dp0..\Tools\ProjectCloner
+    set CLONER_SRC=%~dp0..\Examples\ClonerSource
+    set TOOLS_BUILD=!TOOLS_DIR!\build\%PRESET%
+    set INSTALL_PREFIX=%USERPROFILE%\Documents\DsQt
+
+    echo.
+    call :header "Configuring ProjectCloner"
+    set TOOLS_CMAKE=cmake -S "!TOOLS_DIR!" -B "!TOOLS_BUILD!" -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="!INSTALL_PREFIX!\Tools\ProjectCloner"
+    if defined QT_PATH (
+        set TOOLS_CMAKE=!TOOLS_CMAKE! -DCMAKE_PREFIX_PATH="!QT_PATH!"
+    )
+    !TOOLS_CMAKE!
+    if !errorlevel! neq 0 (
+        powershell -NoProfile -Command "Write-Host 'ProjectCloner configure failed.' -ForegroundColor Red"
+        exit /b !errorlevel!
+    )
+
+    echo.
+    call :header "Building ProjectCloner"
+    cmake --build "!TOOLS_BUILD!" --config Release
+    if !errorlevel! neq 0 (
+        powershell -NoProfile -Command "Write-Host 'ProjectCloner build failed.' -ForegroundColor Red"
+        exit /b !errorlevel!
+    )
+
+    echo.
+    call :header "Installing ProjectCloner"
+    cmake --install "!TOOLS_BUILD!" --config Release
+    if !errorlevel! neq 0 (
+        powershell -NoProfile -Command "Write-Host 'ProjectCloner install failed.' -ForegroundColor Red"
+        exit /b !errorlevel!
+    )
+
+    echo.
+    call :header "Copying ClonerSource template"
+    if exist "!INSTALL_PREFIX!\Tools\ClonerSource" rmdir /s /q "!INSTALL_PREFIX!\Tools\ClonerSource"
+    xcopy "!CLONER_SRC!" "!INSTALL_PREFIX!\Tools\ClonerSource\" /E /I /Q /Y >nul
+    if !errorlevel! neq 0 (
+        powershell -NoProfile -Command "Write-Host 'ClonerSource copy failed.' -ForegroundColor Red"
+        exit /b !errorlevel!
+    )
+    powershell -NoProfile -Command "Write-Host 'Tools installed to: !INSTALL_PREFIX!\Tools' -ForegroundColor Green"
+)
 
 :timing
 call :gettime OVERALL_END
