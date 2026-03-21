@@ -35,17 +35,10 @@ void DsGuiApplication::initializeLogging()
 
         // Allow the INI to override the log file path; fall back to default.
         // The path value can be a directory or a full file path.
-        QString logPath = settings.value(QStringLiteral("logger/path")).toString();
-        if (logPath.isEmpty()) {
-            logPath = defaultLogPath;
-        } else {
-            logPath = DsEnv::expandq(logPath);
-            QFileInfo fi(logPath);
-            // If the path has no file extension or is an existing directory, treat it as a directory
-            if (fi.suffix().isEmpty() || fi.isDir()) {
-                logPath = logPath + QStringLiteral("/") + defaultLogName;
-            }
-        }
+        QString rawPath = settings.value(QStringLiteral("logger/path")).toString();
+        if (!rawPath.isEmpty())
+            rawPath = DsEnv::expandq(rawPath);
+        QString logPath = resolveLogPath(rawPath, defaultLogName, defaultLogPath);
 
         settings.setValue(QStringLiteral("logger/path"), logPath);
         QDir().mkpath(QFileInfo(logPath).absolutePath());
@@ -67,6 +60,19 @@ void DsGuiApplication::printStartupBanner()
     qInfo() << "DsQt" << DSQT_VERSION << "| Qt" << qVersion() << "| PID:" << applicationPid();
     qInfo() << "Started:" << QDateTime::currentDateTime().toString(Qt::ISODate);
     qInfo() << "========================================";
+}
+
+QString DsGuiApplication::resolveLogPath(const QString &path, const QString &defaultLogName,
+                                         const QString &defaultLogPath)
+{
+    if (path.isEmpty())
+        return defaultLogPath;
+
+    QFileInfo fi(path);
+    if (fi.suffix().isEmpty() || fi.isDir())
+        return path + QStringLiteral("/") + defaultLogName;
+
+    return path;
 }
 
 void DsGuiApplication::configureGraphics(const DsGraphicsConfig& config)
