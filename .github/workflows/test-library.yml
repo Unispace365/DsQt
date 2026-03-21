@@ -38,7 +38,7 @@ jobs:
         VCPKG_BINARY_SOURCES: default,rw
       with:
         vcpkgDirectory: '${{ github.workspace }}/vcpkg'
-        vcpkgGitCommitId: 'b87383e8bc37cc68c758b34f7997a37012fa1fb8'
+        vcpkgGitCommitId: '4b77da7fed37817f124936239197833469f1b9a8'
 
     - name: Set up binary cache
       uses: actions/cache@v4
@@ -72,12 +72,12 @@ jobs:
         name: test-results
         path: |
           Library/build/ci/test-results.xml
-          Library/build/ci/Tests/Settings/*.xml
+          Library/build/ci/Tests/**/*.xml
 
     - name: Test Report
       if: always()
       uses: dorny/test-reporter@v1
       with:
         name: Qt Unit Tests
-        path: Library/build/ci/Tests/Settings/test_ds_settings.xml
+        path: Library/build/ci/Tests/**/test_*.xml
         reporter: java-junit
