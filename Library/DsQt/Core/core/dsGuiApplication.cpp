@@ -1,8 +1,72 @@
 #include "core/dsGuiApplication.h"
+#include "core/dsEnvironment.h"
+#include "core/dsVersion.h"
+#define QTLOGGER_STATIC
+#include "utility/qtlogger.h"
+
+#include <QDateTime>
+#include <QDir>
+#include <QFileInfo>
 #include <QQuickWindow>
+#include <QSettings>
+#include <QStandardPaths>
 
 DsGuiApplication::DsGuiApplication(int &argc, char **argv):QGuiApplication(argc,argv)
 {
+    initializeLogging();
+}
+
+void DsGuiApplication::initializeLogging()
+{
+    const QString appName = applicationName().isEmpty()
+                            ? QFileInfo(applicationFilePath()).baseName()
+                            : applicationName();
+    const QString defaultLogName = appName + QStringLiteral(".log.txt");
+    const QString defaultLogDir  = QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation)
+                                   + QStringLiteral("/downstream/logs/") + appName;
+    const QString defaultLogPath = defaultLogDir + QStringLiteral("/") + defaultLogName;
+
+    const QString iniPath = DsEnv::expandq(QStringLiteral("%APP%/settings/logging.ini"));
+
+    auto *logger = QtLogger::Logger::instance();
+
+    if (QFileInfo::exists(iniPath)) {
+        QSettings settings(iniPath, QSettings::IniFormat);
+
+        // Allow the INI to override the log file path; fall back to default.
+        // The path value can be a directory or a full file path.
+        QString logPath = settings.value(QStringLiteral("logger/path")).toString();
+        if (logPath.isEmpty()) {
+            logPath = defaultLogPath;
+        } else {
+            logPath = DsEnv::expandq(logPath);
+            QFileInfo fi(logPath);
+            // If the path has no file extension or is an existing directory, treat it as a directory
+            if (fi.suffix().isEmpty() || fi.isDir()) {
+                logPath = logPath + QStringLiteral("/") + defaultLogName;
+            }
+        }
+
+        settings.setValue(QStringLiteral("logger/path"), logPath);
+        QDir().mkpath(QFileInfo(logPath).absolutePath());
+
+        logger->configure(settings, QStringLiteral("logger"));
+    } else {
+        QDir().mkpath(defaultLogDir);
+        logger->configure(defaultLogPath, 1048576, 5,
+                          QtLogger::RotatingFileSink::RotationOnStartup, true);
+    }
+
+    printStartupBanner();
+}
+
+void DsGuiApplication::printStartupBanner()
+{
+    qInfo() << "========================================";
+    qInfo() << applicationName() << "v" << applicationVersion();
+    qInfo() << "DsQt" << DSQT_VERSION << "| Qt" << qVersion() << "| PID:" << applicationPid();
+    qInfo() << "Started:" << QDateTime::currentDateTime().toString(Qt::ISODate);
+    qInfo() << "========================================";
 }
 
 void DsGuiApplication::configureGraphics(const DsGraphicsConfig& config)

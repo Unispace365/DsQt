@@ -30,6 +30,9 @@ class DsGuiApplication : public QGuiApplication
     DsGuiApplication(int &argc, char **argv);
 
     static void configureGraphics(const DsGraphicsConfig& config = {});
-};
 
+  private:
+    void initializeLogging();
+    void printStartupBanner();
+};
 #endif // DSGUIAPPLICATION_H
