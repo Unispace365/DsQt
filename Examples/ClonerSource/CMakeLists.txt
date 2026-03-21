@@ -109,9 +109,12 @@ set_target_properties(${DS_EXE_NAME} PROPERTIES
     WIN32_EXECUTABLE TRUE
 )
 
-find_package(PkgConfig REQUIRED)
-pkg_check_modules(tomlplusplus REQUIRED IMPORTED_TARGET tomlplusplus)
+#find_package(PkgConfig REQUIRED)
+#pkg_check_modules(tomlplusplus REQUIRED IMPORTED_TARGET tomlplusplus)
+find_package(tomlplusplus CONFIG REQUIRED)
 find_package(glm CONFIG REQUIRED)
+
+
 
 target_include_directories(${DS_EXE_NAME} PRIVATE
     ${Dsqt_INCLUDES}
@@ -144,7 +147,7 @@ target_link_libraries(${DS_EXE_NAME}
         Qt6::GuiPrivate
         Qt6::Sql
 
-        PkgConfig::tomlplusplus
+        tomlplusplus::tomlplusplus
         glm::glm
 )
 
