@@ -177,9 +177,10 @@ and DSAppHost configuration, see the [Installer Guide](Docs/articles/installer_g
 For detailed documentation, see the articles in [Docs/articles/](Docs/articles/):
 
 1. [Settings Guide](Docs/articles/settings_guide.md) - Configuration and settings system
-2. [Best Practices](Docs/articles/best_practices.md) - Recommended patterns and approaches
-3. [SVG Color Reference](Docs/articles/svg_color_reference.md) - Working with SVG colors
-4. [Installer Guide](Docs/articles/installer_guide.md) - Building Windows installers with Inno Setup
+2. [Logging Guide](Docs/articles/logging_guide.md) - Log file configuration and rotation
+3. [Best Practices](Docs/articles/best_practices.md) - Recommended patterns and approaches
+4. [SVG Color Reference](Docs/articles/svg_color_reference.md) - Working with SVG colors
+5. [Installer Guide](Docs/articles/installer_guide.md) - Building Windows installers with Inno Setup
 
 ## Generating documentation
 

@@ -169,13 +169,18 @@ install/*
 
 ## Quick Start
 
-1. **Build and deploy your project first** — the installer packages the DEPLOY directory:
+1. **Build and deploy your project first** — the installer packages the DEPLOY directory.
+   Build and install your project using Qt Creator or however you normally initiate a build
+   in your environment. From the command line it could look like this:
    ```
-   build_and_install.bat
+   cmake --preset ninja-6.10.2
+   cmake --build --preset ninja-6.10.2-release
+   cmake --install build/ninja-6.10.2 --config Release
    ```
+   > Replace `ninja-6.10.2` with the preset that matches your environment.
 
 2. **Run CMake configure** to generate the `.iss` files (this happens automatically during
-   the build step above).
+   the configure step of your build).
 
 3. **Build the installer:**
    ```
