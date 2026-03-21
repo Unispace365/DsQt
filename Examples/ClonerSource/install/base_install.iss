@@ -18,6 +18,7 @@
 ;   CMS_URL          - Set DS_BASEURL environment variable to this URL
 
 #define SYSTEMF GetEnv('SYSTEMROOT')
+#define TOOLS_DIR "{pf}\Downstream\tools"
 
 #define PROD_NAME ""
 #ifndef IS_PRODUCTION
@@ -57,12 +58,12 @@ Name: "{app}/bin/settings"; Permissions: users-modify;
 Source: "{#BASEDIR}\*"; Excludes:"*.iobj,*.ipdb,*.pdb,*.map"; DestDir: "{app}"; Flags: recursesubdirs
 
 #ifdef USE_APPHOST
-Source: "install/DSAppHost/*"; DestDir: "{app}/DSAppHost/"; Flags: recursesubdirs
+Source: "install/DSAppHost/*"; DestDir: "{#TOOLS_DIR}\DSAppHost\"; Flags: recursesubdirs
 Source: "install/apphost.json"; DestDir: "{userdocs}\downstream\common\dsapphost\config"
 #endif
 
 #ifdef USE_BRIDGESYNC
-Source: "install/bridgesync/*"; DestDir: "{app}/bridgesync/"; Flags: recursesubdirs
+Source: "install/bridgesync/*"; DestDir: "{#TOOLS_DIR}\bridgesync\"; Flags: recursesubdirs
 #endif
 
 [Icons]
@@ -73,7 +74,7 @@ Name: "{commondesktop}\{#APP_DISPLAY_NAME}"; Filename: "{app}\bin\{#APP_EXE}"
 #endif
 
 #ifdef USE_APPHOST
-Name: "{commondesktop}\{#APP_DISPLAY_NAME} DSAppHost"; Filename: "{app}\DSAppHost\DSAppHost.exe"
+Name: "{commondesktop}\{#APP_DISPLAY_NAME} DSAppHost"; Filename: "{#TOOLS_DIR}\DSAppHost\DSAppHost.exe"
 #endif
 
 ; In production will launch the app on system boot
@@ -83,7 +84,7 @@ Name: "{commondesktop}\{#APP_DISPLAY_NAME} DSAppHost"; Filename: "{app}\DSAppHos
   #ifdef USE_APPHOST
     ; Only if we're not replacing the shell, see below.
     #ifndef REPLACE_SHELL
-    Name: "{commonstartup}\{#APP_NAME}-DSAppHost"; Filename: "{app}\DSAppHost\DSAppHost.exe";
+    Name: "{commonstartup}\{#APP_NAME}-DSAppHost"; Filename: "{#TOOLS_DIR}\DSAppHost\DSAppHost.exe";
     #endif
   #else
     ; No apphost, but start the main app on system boot
@@ -109,7 +110,7 @@ Root: HKLM; Subkey: "SYSTEM\CurrentControlSet\Control\Session Manager\Environmen
 ; Instead of launching apphost on startup, we can replace the shell and not launch Windows Explorer at all.
 #ifdef REPLACE_SHELL
   #ifdef USE_APPHOST
-    Root: HKCU; Subkey: "Software\Microsoft\Windows NT\CurrentVersion\Winlogon"; ValueName: "Shell"; ValueType: string; ValueData: "{app}\DSAppHost\DSAppHost.exe"; Flags: createvalueifdoesntexist uninsdeletevalue;
+    Root: HKCU; Subkey: "Software\Microsoft\Windows NT\CurrentVersion\Winlogon"; ValueName: "Shell"; ValueType: string; ValueData: "{#TOOLS_DIR}\DSAppHost\DSAppHost.exe"; Flags: createvalueifdoesntexist uninsdeletevalue;
   #endif
 #endif
 

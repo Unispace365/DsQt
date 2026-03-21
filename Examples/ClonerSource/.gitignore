@@ -42,9 +42,9 @@ install/*
 !install/download_apphost.py
 !install/download_bridgesync.py
 !install/get_deps.bat
-!install/make_installer.bat
 !install/requirements.txt
 !install/base_install.iss
+!install/apphost_flags
 add_build/*
 !add_build/.gitkeep
 deploy/

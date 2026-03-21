@@ -156,6 +156,22 @@ The tool creates a complete project from the ClonerSource template with:
 4. Build the project (Ctrl+B), then Build > Install
 5. Run from: `build/ninja/DEPLOY/bin/`
 
+### Building a Windows Installer
+
+DsQt projects include an Inno Setup-based installer system. After building your project:
+
+1. Install [Inno Setup 6](https://jrsoftware.org/isdl.php)
+2. Build the installer:
+    ```
+    cd install
+    make_installer.bat              # Development installer
+    make_installer.bat --production # Production installer
+    ```
+3. Output is in `install/build/`
+
+For full details on adding installer support to an existing project, customizing flags,
+and DSAppHost configuration, see the [Installer Guide](Docs/articles/installer_guide.md).
+
 ## Getting to know DsQt
 
 For detailed documentation, see the articles in [Docs/articles/](Docs/articles/):
@@ -163,6 +179,7 @@ For detailed documentation, see the articles in [Docs/articles/](Docs/articles/)
 1. [Settings Guide](Docs/articles/settings_guide.md) - Configuration and settings system
 2. [Best Practices](Docs/articles/best_practices.md) - Recommended patterns and approaches
 3. [SVG Color Reference](Docs/articles/svg_color_reference.md) - Working with SVG colors
+4. [Installer Guide](Docs/articles/installer_guide.md) - Building Windows installers with Inno Setup
 
 ## Generating documentation
 

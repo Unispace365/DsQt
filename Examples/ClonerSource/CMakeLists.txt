@@ -200,50 +200,35 @@ qt_generate_deploy_qml_app_script(
 install(SCRIPT ${deploy_script})
 
 # --- DSAppHost configuration ---
-# Defaults for apphost.json (override via -D flags)
-if(NOT DEFINED APPHOST_PREVENT_SLEEP)
-    set(APPHOST_PREVENT_SLEEP "true")
-endif()
-if(NOT DEFINED APPHOST_KIOSK)
-    set(APPHOST_KIOSK "true")
-endif()
-if(NOT DEFINED APPHOST_RESTART_APPS)
-    set(APPHOST_RESTART_APPS "false")
-endif()
-if(NOT DEFINED APPHOST_RESTART_APPS_HOUR)
-    set(APPHOST_RESTART_APPS_HOUR "1")
-endif()
-if(NOT DEFINED APPHOST_RESTART_APPS_MINUTE)
-    set(APPHOST_RESTART_APPS_MINUTE "0")
-endif()
-if(NOT DEFINED APPHOST_RESTART_SYSTEM)
-    set(APPHOST_RESTART_SYSTEM "true")
-endif()
-if(NOT DEFINED APPHOST_RESTART_SYSTEM_HOUR)
-    set(APPHOST_RESTART_SYSTEM_HOUR "1")
-endif()
-if(NOT DEFINED APPHOST_RESTART_SYSTEM_MINUTE)
-    set(APPHOST_RESTART_SYSTEM_MINUTE "0")
-endif()
-if(NOT DEFINED APPHOST_APP_ARGS)
-    set(APPHOST_APP_ARGS "")
-endif()
-if(NOT DEFINED APPHOST_START_DELAY)
-    set(APPHOST_START_DELAY "1000")
-endif()
-if(NOT DEFINED APPHOST_RESTART_DELAY)
-    set(APPHOST_RESTART_DELAY "10000")
-endif()
-if(NOT DEFINED APPHOST_ENABLE_MONITOR)
-    set(APPHOST_ENABLE_MONITOR "true")
-endif()
-if(NOT DEFINED APPHOST_MEMORY_LIMIT)
-    set(APPHOST_MEMORY_LIMIT "10000")
+# Read settings from install/apphost_flags (KEY=VALUE format)
+# Values can still be overridden via cmake -D flags
+set(_apphost_flags_file "${CMAKE_CURRENT_SOURCE_DIR}/install/apphost_flags")
+if(EXISTS "${_apphost_flags_file}")
+    file(STRINGS "${_apphost_flags_file}" _apphost_lines)
+    foreach(_line IN LISTS _apphost_lines)
+        # Skip comments and blank lines
+        if(_line MATCHES "^#" OR _line STREQUAL "")
+            continue()
+        endif()
+        # Parse KEY=VALUE (only set if not already defined via -D)
+        if(_line MATCHES "^([A-Z_]+)=(.*)")
+            if(NOT DEFINED "${CMAKE_MATCH_1}")
+                set("${CMAKE_MATCH_1}" "${CMAKE_MATCH_2}")
+            endif()
+        endif()
+    endforeach()
 endif()
 
 configure_file(
     "${CMAKE_CURRENT_SOURCE_DIR}/cmake/apphost.json.in"
     "${CMAKE_CURRENT_SOURCE_DIR}/install/apphost.json"
+    @ONLY
+)
+
+# Installer build script
+configure_file(
+    "${CMAKE_CURRENT_SOURCE_DIR}/cmake/make_installer.bat.in"
+    "${CMAKE_CURRENT_SOURCE_DIR}/install/make_installer.bat"
     @ONLY
 )
 
