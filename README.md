@@ -94,7 +94,8 @@ Documentation is compiled by Doxygen and can be found here:
    If Qt is in `C:\Qt\` the build auto-discovers the latest version — no config needed.
 3. Run `build_and_install.bat` — configures, builds Debug + Release, and installs to
    `%USERPROFILE%\Documents\DsQt`
-4. To target a specific Qt version: `build_and_install.bat ninja-6.10.2`
+4. To target a specific Qt version: `build_and_install.bat -qt 6.10.2`
+5. To also build and install ProjectCloner + ClonerSource: `build_and_install.bat -tools`
 
 **Alternative (Qt Creator):**
 
@@ -109,10 +110,9 @@ Documentation is compiled by Doxygen and can be found here:
 **Preferred (command-line):**
 
 1. `cd Library`
-2. Run `build_and_install.bat` with the `DSQT_BUILD_TOOLS` option enabled, or open
-   `DsQt/Tools/ProjectCloner/CMakeLists.txt` directly
-3. Install deploys to `%USERPROFILE%\Documents\DsQt`
-4. Run: `%DS_QT_PLATFORM_100%\Tools\deploy\ProjectCloner\bin\appProjectCloner.exe`
+2. Run `build_and_install.bat -tools` — this builds and installs ProjectCloner and
+   copies the ClonerSource template to `%USERPROFILE%\Documents\DsQt\Tools\`
+3. Run: `%USERPROFILE%\Documents\DsQt\Tools\ProjectCloner\bin\appProjectCloner.exe`
 
 **Alternative (Qt Creator):**
 
@@ -156,13 +156,31 @@ The tool creates a complete project from the ClonerSource template with:
 4. Build the project (Ctrl+B), then Build > Install
 5. Run from: `build/ninja/DEPLOY/bin/`
 
+### Building a Windows Installer
+
+DsQt projects include an Inno Setup-based installer system. After building your project:
+
+1. Install [Inno Setup 6](https://jrsoftware.org/isdl.php)
+2. Build the installer:
+    ```
+    cd install
+    make_installer.bat              # Development installer
+    make_installer.bat --production # Production installer
+    ```
+3. Output is in `install/build/`
+
+For full details on adding installer support to an existing project, customizing flags,
+and DSAppHost configuration, see the [Installer Guide](Docs/articles/installer_guide.md).
+
 ## Getting to know DsQt
 
 For detailed documentation, see the articles in [Docs/articles/](Docs/articles/):
 
 1. [Settings Guide](Docs/articles/settings_guide.md) - Configuration and settings system
-2. [Best Practices](Docs/articles/best_practices.md) - Recommended patterns and approaches
-3. [SVG Color Reference](Docs/articles/svg_color_reference.md) - Working with SVG colors
+2. [Logging Guide](Docs/articles/logging_guide.md) - Log file configuration and rotation
+3. [Best Practices](Docs/articles/best_practices.md) - Recommended patterns and approaches
+4. [SVG Color Reference](Docs/articles/svg_color_reference.md) - Working with SVG colors
+5. [Installer Guide](Docs/articles/installer_guide.md) - Building Windows installers with Inno Setup
 
 ## Generating documentation
 
