@@ -41,6 +41,7 @@ const QString VIDEO_STREAM_TYPE_SZ("s");
 const QString WEB_TYPE_SZ("w");
 const QString YOUTUBE_TYPE_SZ("y");
 const QString ZIP_TYPE_SZ("z");
+const QString OPAQUE_TYPE_SZ("o");
 const QString ERROR_TYPE_SZ("0");
 
 // This gets reduced to being a video type; here to support B&R CMSs, which
@@ -58,6 +59,7 @@ const QString VIDEO_STREAM_NAME_SZ("video stream");
 const QString WEB_NAME_SZ("web");
 const QString YOUTUBE_NAME_SZ("youtube");
 const QString ZIP_NAME_SZ("zip");
+const QString OPAQUE_NAME_SZ("opaque");
 const QString ERROR_NAME_SZ("error");
 
 const QString FONT_TYPE_QML_SZ("FONT_TYPE");
@@ -69,6 +71,7 @@ const QString VIDEO_STREAM_TYPE_QML_SZ("VIDEO_STREAM_TYPE");
 const QString WEB_TYPE_QML_SZ("WEB_TYPE");
 const QString YOUTUBE_TYPE_QML_SZ("YOUTUBE_TYPE");
 const QString ZIP_TYPE_QML_SZ("ZIP_TYPE");
+const QString OPAQUE_TYPE_QML_SZ("OPAQUE_TYPE");
 const QString ERROR_TYPE_QML_SZ("ERROR_TYPE");
 } // namespace
 
@@ -433,6 +436,8 @@ const QString& DsResource::getTypeName() const {
         return WEB_NAME_SZ;
     else if (mType == YOUTUBE_TYPE)
         return YOUTUBE_NAME_SZ;
+    else if (mType == OPAQUE_TYPE)
+        return OPAQUE_NAME_SZ;
     return ERROR_NAME_SZ;
 }
 
@@ -455,6 +460,8 @@ const QString& DsResource::getTypeChar() const {
         return WEB_TYPE_SZ;
     else if (mType == YOUTUBE_TYPE)
         return YOUTUBE_TYPE_SZ;
+    else if (mType == OPAQUE_TYPE)
+        return OPAQUE_TYPE_SZ;
     return ERROR_TYPE_SZ;
 }
 
@@ -478,6 +485,8 @@ const QString &DsResource::getQMLTypeName() const
         return WEB_TYPE_QML_SZ;
     else if (mType == YOUTUBE_TYPE)
         return YOUTUBE_TYPE_QML_SZ;
+    else if (mType == OPAQUE_TYPE)
+        return OPAQUE_TYPE_QML_SZ;
     return ERROR_TYPE_QML_SZ;
 }
 
@@ -603,6 +612,8 @@ const int DsResource::makeTypeFromString(const QString& typeChar) {
         return ZIP_TYPE;
     else if (YOUTUBE_TYPE_SZ == typeChar)
         return YOUTUBE_TYPE;
+    else if (OPAQUE_TYPE_SZ == typeChar)
+        return OPAQUE_TYPE;
     else if (AUDIO_TYPE_SZ == typeChar)
         return VIDEO_TYPE;
     else
@@ -621,8 +632,6 @@ const int DsResource::parseTypeFromFilename(const QString& newMedia) {
         return dsqt::DsResource::YOUTUBE_TYPE;
     }
 
-    auto html    = newMedia.endsWith(".html");
-    auto htmlEnd = newMedia.size() - 5;
     if (newMedia.startsWith("http") || newMedia.endsWith(".html") || newMedia.startsWith("ftp://") ||
         newMedia.startsWith("ftps://")) {
         return dsqt::DsResource::WEB_TYPE;
@@ -643,7 +652,8 @@ const int DsResource::parseTypeFromFilename(const QString& newMedia) {
         return dsqt::DsResource::WEB_TYPE;
     } else if (extensionay.contains("pdf")) {
         return dsqt::DsResource::PDF_TYPE;
-
+    } else if (extensionay.contains("csv")) {
+        return dsqt::DsResource::OPAQUE_TYPE;
     } else if (extensionay.contains("png") || extensionay.contains("jpg") || extensionay.contains("jpeg")) {
         return dsqt::DsResource::IMAGE_TYPE;
 
