@@ -155,7 +155,7 @@ void DsQmlEventSchedule::update(const QDateTime& localDateTime) {
             }
 
             // Create event timeline.
-            const auto timeline = eventTimeline(events);
+            const auto timeline = eventTimeline(events, localDateTime.date());
 
             // Convert timeline events to internal representation.
             for (const auto& event : std::as_const(timeline)) {

@@ -9,6 +9,7 @@
 #include <QVariantHash>
 
 #include <bitset>
+#include <set>
 
 namespace dsqt::bridge {
 
@@ -48,7 +49,7 @@ class DatabaseResource : public QVariantHash {
     /// default rectangle {0, 0, 1, 1}.
     QRectF crop() const {
         qreal x{0}, y{0}, w{1}, h{1};
-        QList params = value("crop", {}).toList();
+        QVariantList params = value("crop", {}).toList();
         if (params.size() == 4 && toFloat(params[0], x) && toFloat(params[1], y) && toFloat(params[2], w) &&
             toFloat(params[3], h))
             return {x, y, w, h};
