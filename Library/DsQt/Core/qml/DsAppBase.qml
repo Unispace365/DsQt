@@ -252,7 +252,7 @@ ApplicationWindow {
     Component {
         id: appLog
         DsTextFileViewer {
-            title: "Application Log"
+            title: "Application Log (" + file + ")"
             file: {
                 var id = engineProxy.getString("engine.project_path","application_dev")
                 var base = Ds.env.expand(engineProxy.getString("engine.logging.directory","%DOCUMENTS%/downstream/logs/"))

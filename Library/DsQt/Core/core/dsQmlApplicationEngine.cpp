@@ -86,7 +86,7 @@ void DsQmlApplicationEngine::doReset() {
     postReset();
 }
 
-DsSettingsRef DsQmlApplicationEngine::getAppSettings() {
+DsSettingsRef DsQmlApplicationEngine::getAppSettings() const {
     return mSettings;
 }
 

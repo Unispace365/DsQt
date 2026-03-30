@@ -128,10 +128,13 @@ void DsQmlEventSchedule::update(const QDateTime& localDateTime) {
         FutureResult result;
 
         // Obtain all events from bridge.
-        const auto& content = bridge::DsQmlBridge::instance().database();
+        const auto& content  = bridge::DsQmlBridge::instance().database();
+        const auto  platform = content.getPlatform();
 
         auto events = content.events();
         if (!events.isEmpty()) {
+            // Only keep events for the current platform.
+            filterEvents(events, platform);
             // Only keep events of a specific type.
             filterEvents(events, typeName);
             // Only keep today's events.
@@ -151,50 +154,17 @@ void DsQmlEventSchedule::update(const QDateTime& localDateTime) {
                 result.events.append(item);
             }
 
-            // Create a sorted list of start and end times.
-            std::set<QTime> checkpoints;
-            for (auto& event : std::as_const(events)) {
-                checkpoints.insert(event.start().time());
-                checkpoints.insert(event.end().time());
-            }
+            // Create event timeline.
+            const auto timeline = eventTimeline(events, localDateTime.date());
 
-            // For each of the checkpoints, sort the events and add the first event to the result.
-            QDateTime currentDateTime = localDateTime;
-            for (const auto& checkpoint : checkpoints) {
-                currentDateTime.setTime(checkpoint);
-                sortEvents(events, currentDateTime);
-
+            // Convert timeline events to internal representation.
+            for (const auto& event : std::as_const(timeline)) {
                 // No parent yet, as we're in a different thread.
-                DsQmlEvent* item = new DsQmlEvent(events.front(), result.timeline.size(), nullptr);
-                item->setStart(currentDateTime);
+                DsQmlEvent* item = new DsQmlEvent(event, result.timeline.size(), nullptr);
                 // Move to main thread.
                 item->moveToThread(mainThread);
                 // Add to result.
                 result.timeline.append(item);
-            }
-
-            //  Truncate events so they don't overlap.
-            for (qsizetype i = 1; i < result.timeline.size(); ++i) {
-                DsQmlEvent* item = result.timeline[result.timeline.size() - 1 - i];
-                if (item->end().time() > currentDateTime.time()) item->setEnd(currentDateTime);
-                currentDateTime = item->start();
-            }
-
-            // Remove events with invalid durations.
-            result.timeline.removeIf([](const DsQmlEvent* item) { return item->durationInSeconds() <= 0; });
-
-            // Merge events if needed.
-            DsQmlEvent* previous = nullptr;
-            for (auto itr = result.timeline.begin(); itr != result.timeline.end();) {
-                // Set correct order.
-                (*itr)->setOrder(std::distance(result.timeline.begin(), itr));
-                // Merge with previous if the same.
-                if (previous && previous->uid() == (*itr)->uid() && previous->end() == (*itr)->start()) {
-                    previous->setEnd((*itr)->end());
-                    itr = result.timeline.erase(itr);
-                } else {
-                    previous = *itr++;
-                }
             }
         }
 

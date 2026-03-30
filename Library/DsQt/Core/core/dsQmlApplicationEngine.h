@@ -73,7 +73,7 @@ class DsQmlApplicationEngine : public QQmlApplicationEngine {
      * @brief Retrieves the application settings reference.
      * @return DsSettingsRef containing the app settings.
      */
-    DsSettingsRef getAppSettings();
+    DsSettingsRef getAppSettings() const;
 
     /**
      * @brief Retrieves the engine settings reference.
