@@ -86,7 +86,7 @@ qt_add_qml_module(DsSpout
     DEPENDENCIES QtQuick
 )
 
-qt6_add_shaders(DsSpout "shaders"
+qt6_add_shaders(DsSpout "dsqt_spout_shaders"
     PREFIX "/"
     HLSL 50
     PRECOMPILE
