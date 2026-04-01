@@ -141,20 +141,34 @@ The tool creates a complete project from the ClonerSource template with:
 
 ### Building Your New Project
 
-**Preferred (command-line):**
+**Command-line (CMake presets):**
 
 1. `cd <your-project>`
-2. Run `build_and_install.bat` — auto-discovers Qt and builds Debug + Release
-3. To target a specific Qt version: `build_and_install.bat ninja-6.10.2`
-4. Run from: `build/ninja/DEPLOY/bin/`
+2. Configure: `cmake --preset ninja-6.10.2`
+3. Build: `cmake --build --preset ninja-6.10.2-debug` (or `-release`, `-relwithdebinfo`)
+4. Install: `cmake --build --preset ninja-6.10.2-release --target install`
+5. Run from: `build/ninja-6.10.2/DEPLOY/bin/`
 
-**Alternative (Qt Creator):**
+To see all available presets: `cmake --list-presets`
+
+If your Qt is not installed under `C:\Qt\` or you need a different preset, see the
+[CMake User Presets Guide](Docs/articles/cmake_user_presets.md).
+
+**Qt Creator:**
 
 1. Open Qt Creator
 2. File > Open File or Project, navigate to your project's `CMakeLists.txt`
-3. Select the `ninja` preset (or a version-pinned preset) and click Configure Project
-4. Build the project (Ctrl+B), then Build > Install
-5. Run from: `build/ninja/DEPLOY/bin/`
+3. Select the `ninja-6.10.2` preset (or a version-pinned preset from your
+   `CMakeUserPresets.json`) and click Configure Project
+4. Go to **Projects** > **Deploy Settings** and click **Add Deploy Step** > **CMake install**
+5. Go to **Projects** > **Run Settings** and set the **Executable** to
+   `build/ninja-6.10.2/DEPLOY/bin/<your-exe>.exe` and the **Working directory** to the
+   same `DEPLOY/bin/` directory
+6. Build the project (Ctrl+B), then use **Build > Deploy** to install
+
+> **Note:** The **Always deploy before running** checkbox in **Edit > Preferences > Build & Run**
+> is enabled by default. If this is unchecked, running the project will not automatically build
+> and deploy — you will have to manually build and deploy before each run.
 
 ### Building a Windows Installer
 
@@ -164,8 +178,9 @@ DsQt projects include an Inno Setup-based installer system. After building your 
 2. Build the installer:
     ```
     cd install
-    make_installer.bat              # Development installer
-    make_installer.bat --production # Production installer
+    make_installer.bat                # Production installer
+    make_installer.bat --non-production # Development (NPI) installer
+    make_installer.bat -npi             # Development (NPI) installer (short form)
     ```
 3. Output is in `install/build/`
 

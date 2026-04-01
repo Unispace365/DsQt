@@ -187,9 +187,9 @@ install/*
 3. **Build the installer:**
    ```
    cd install
-   make_installer.bat              # Development (NPI) installer
-   make_installer.bat --production # Production installer
-   make_installer.bat -p           # Production (short form)
+   make_installer.bat                # Production installer
+   make_installer.bat --non-production # Development (NPI) installer
+   make_installer.bat -npi             # Development (NPI) installer (short form)
    ```
 
 4. The compiled installer `.exe` will be in `install/build/`.
