@@ -144,10 +144,11 @@ The tool creates a complete project from the ClonerSource template with:
 **Command-line (CMake presets):**
 
 1. `cd <your-project>`
-2. Configure: `cmake --preset ninja-6.10.2`
-3. Build: `cmake --build --preset ninja-6.10.2-debug` (or `-release`, `-relwithdebinfo`)
-4. Install: `cmake --build --preset ninja-6.10.2-release --target install`
-5. Run from: `build/ninja-6.10.2/DEPLOY/bin/`
+2. Configure Debug: `cmake --preset ninja-6.10.2-debug`
+3. Configure Release: `cmake --preset ninja-6.10.2-release`
+4. Build: `cmake --build --preset ninja-6.10.2-debug` (or `-release`, `-relwithdebinfo`)
+5. Install: `cmake --build --preset ninja-6.10.2-release --target install`
+6. Run from: `build/ninja-6.10.2/DEPLOY/bin/`
 
 To see all available presets: `cmake --list-presets`
 
