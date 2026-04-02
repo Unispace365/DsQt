@@ -175,7 +175,7 @@ install/*
    Build and install your project using Qt Creator or however you normally initiate a build
    in your environment. From the command line it could look like this:
    ```
-   cmake --preset ninja-6.10.2
+   cmake --preset ninja-6.10.2-release
    cmake --build --preset ninja-6.10.2-release
    cmake --install build/ninja-6.10.2 --config Release
    ```
