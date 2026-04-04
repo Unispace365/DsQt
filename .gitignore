@@ -38,10 +38,11 @@ Makefile*
 #downstream
 cmake/dsqmlimportpath.h
 build/
-install/
+install/*
 add_build/*
 !add_build/.gitkeep
 deploy/
+
 
 # Qt unit tests
 target_wrapper.*

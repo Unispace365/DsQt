@@ -94,7 +94,8 @@ Documentation is compiled by Doxygen and can be found here:
    If Qt is in `C:\Qt\` the build auto-discovers the latest version — no config needed.
 3. Run `build_and_install.bat` — configures, builds Debug + Release, and installs to
    `%USERPROFILE%\Documents\DsQt`
-4. To target a specific Qt version: `build_and_install.bat ninja-6.10.2`
+4. To target a specific Qt version: `build_and_install.bat -qt 6.10.2`
+5. To also build and install ProjectCloner + ClonerSource: `build_and_install.bat -tools`
 
 **Alternative (Qt Creator):**
 
@@ -109,10 +110,9 @@ Documentation is compiled by Doxygen and can be found here:
 **Preferred (command-line):**
 
 1. `cd Library`
-2. Run `build_and_install.bat` with the `DSQT_BUILD_TOOLS` option enabled, or open
-   `DsQt/Tools/ProjectCloner/CMakeLists.txt` directly
-3. Install deploys to `%USERPROFILE%\Documents\DsQt`
-4. Run: `%DS_QT_PLATFORM_100%\Tools\deploy\ProjectCloner\bin\appProjectCloner.exe`
+2. Run `build_and_install.bat -tools` — this builds and installs ProjectCloner and
+   copies the ClonerSource template to `%USERPROFILE%\Documents\DsQt\Tools\`
+3. Run: `%USERPROFILE%\Documents\DsQt\Tools\ProjectCloner\bin\appProjectCloner.exe`
 
 **Alternative (Qt Creator):**
 
@@ -141,28 +141,62 @@ The tool creates a complete project from the ClonerSource template with:
 
 ### Building Your New Project
 
-**Preferred (command-line):**
+**Command-line (CMake presets):**
 
 1. `cd <your-project>`
-2. Run `build_and_install.bat` — auto-discovers Qt and builds Debug + Release
-3. To target a specific Qt version: `build_and_install.bat ninja-6.10.2`
-4. Run from: `build/ninja/DEPLOY/bin/`
+2. Configure Debug: `cmake --preset ninja-6.10.2-debug`
+3. Configure Release: `cmake --preset ninja-6.10.2-release`
+4. Build: `cmake --build --preset ninja-6.10.2-debug` (or `-release`, `-relwithdebinfo`)
+5. Install: `cmake --build --preset ninja-6.10.2-release --target install`
+6. Run from: `build/ninja-6.10.2/DEPLOY/bin/`
 
-**Alternative (Qt Creator):**
+To see all available presets: `cmake --list-presets`
+
+If your Qt is not installed under `C:\Qt\` or you need a different preset, see the
+[CMake User Presets Guide](Docs/articles/cmake_user_presets.md).
+
+**Qt Creator:**
 
 1. Open Qt Creator
 2. File > Open File or Project, navigate to your project's `CMakeLists.txt`
-3. Select the `ninja` preset (or a version-pinned preset) and click Configure Project
-4. Build the project (Ctrl+B), then Build > Install
-5. Run from: `build/ninja/DEPLOY/bin/`
+3. Select the `ninja-6.10.2` preset (or a version-pinned preset from your
+   `CMakeUserPresets.json`) and click Configure Project
+4. Go to **Projects** > **Deploy Settings** and click **Add Deploy Step** > **CMake install**
+5. Go to **Projects** > **Run Settings** and set the **Executable** to
+   `build/ninja-6.10.2/DEPLOY/bin/<your-exe>.exe` and the **Working directory** to the
+   same `DEPLOY/bin/` directory
+6. Build the project (Ctrl+B), then use **Build > Deploy** to install
+
+> **Note:** The **Always deploy before running** checkbox in **Edit > Preferences > Build & Run**
+> is enabled by default. If this is unchecked, running the project will not automatically build
+> and deploy — you will have to manually build and deploy before each run.
+
+### Building a Windows Installer
+
+DsQt projects include an Inno Setup-based installer system. After building your project:
+
+1. Install [Inno Setup 6](https://jrsoftware.org/isdl.php)
+2. Build the installer:
+    ```
+    cd install
+    make_installer.bat                # Production installer
+    make_installer.bat --non-production # Development (NPI) installer
+    make_installer.bat -npi             # Development (NPI) installer (short form)
+    ```
+3. Output is in `install/build/`
+
+For full details on adding installer support to an existing project, customizing flags,
+and DSAppHost configuration, see the [Installer Guide](Docs/articles/installer_guide.md).
 
 ## Getting to know DsQt
 
 For detailed documentation, see the articles in [Docs/articles/](Docs/articles/):
 
 1. [Settings Guide](Docs/articles/settings_guide.md) - Configuration and settings system
-2. [Best Practices](Docs/articles/best_practices.md) - Recommended patterns and approaches
-3. [SVG Color Reference](Docs/articles/svg_color_reference.md) - Working with SVG colors
+2. [Logging Guide](Docs/articles/logging_guide.md) - Log file configuration and rotation
+3. [Best Practices](Docs/articles/best_practices.md) - Recommended patterns and approaches
+4. [SVG Color Reference](Docs/articles/svg_color_reference.md) - Working with SVG colors
+5. [Installer Guide](Docs/articles/installer_guide.md) - Building Windows installers with Inno Setup
 
 ## Generating documentation
 
