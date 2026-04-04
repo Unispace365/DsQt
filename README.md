@@ -69,6 +69,26 @@ Documentation is compiled by Doxygen and can be found here:
     5. Variable value: `C:\vcpkg`
     6. Ok, Ok, Ok
 
+#### Updating vcpkg Baseline
+
+If you encounter build errors related to `tomlplusplus` (e.g. missing headers, version
+conflicts, or compilation failures), your vcpkg baseline is likely too old. Update it:
+
+```bash
+cd C:\vcpkg
+git pull
+.\bootstrap-vcpkg.bat
+```
+
+Then update the baseline hash in your project's `vcpkg.json`:
+
+```bash
+vcpkg x-update-baseline
+```
+
+This updates the `builtin-baseline` field to the latest vcpkg commit, which ensures
+you get compatible package versions.
+
 #### Download and Configure DsQt
 
 1. Download and install Git and ensure you have git-lfs available

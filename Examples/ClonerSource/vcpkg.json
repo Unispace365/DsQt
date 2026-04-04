@@ -2,12 +2,8 @@
   "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
   "name": "clonersource",
   "version": "1.0.0",
-  "builtin-baseline": "b02e341c927f16d991edbd915d8ea43eac52096c",
+  "builtin-baseline": "4b77da7fed37817f124936239197833469f1b9a8",
   "dependencies": [
-    {
-      "name": "pkgconf",
-      "version>=": "2.3.0"
-    },
     {
       "name": "tomlplusplus",
       "version>=": "3.4.0"
