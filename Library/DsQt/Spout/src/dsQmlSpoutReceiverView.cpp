@@ -168,5 +168,6 @@ QSGNode* DsQmlSpoutReceiverView::updatePaintNode(QSGNode* oldNode, UpdatePaintNo
 
     node->setTexture(rhiTexture, senderSize);
     node->setRect(boundingRect());
+    node->markDirty(QSGNode::DirtyMaterial);
     return node;
 }

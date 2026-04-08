@@ -3,43 +3,131 @@
 
 #include <QDateTime>
 #include <QHash>
+#include <QRectF>
 #include <QString>
 #include <QUrl>
 #include <QVariantHash>
 
 #include <bitset>
+#include <set>
 
 namespace dsqt::bridge {
 
+class DatabaseResource : public QVariantHash {
+  public:
+    DatabaseResource() = default;
+
+    explicit DatabaseResource(const QVariantHash& hash)
+        : QVariantHash(hash) {}
+
+    /// Returns true if the resource contains all required fields.
+    bool isValid() const {
+        return contains("filepath") && contains("crop") && contains("type") && contains("width") && contains("height");
+    }
+
+    /// Returns the file path of the resource. If the resource is invalid or the `filepath` field is missing, returns
+    /// the specified default value.
+    QString filepath(const QString& defaultValue = "") const {
+        return QUrl(value("filepath", defaultValue).toString()).toLocalFile();
+    }
+    /// Returns the type of the resource. If the resource is invalid or the `type` field is missing, returns an empty
+    /// string.
+    QString type() const { return value("type", {}).toString(); }
+    /// Returns the width of the resource. If the resource is invalid or the `width` field is missing, returns 0.
+    qreal width() const {
+        qreal w{0};
+        toFloat(value("width"), w);
+        return w;
+    }
+    /// Returns the height of the resource. If the resource is invalid or the `height` field is missing, returns 0.
+    qreal height() const {
+        qreal h{0};
+        toFloat(value("height"), h);
+        return h;
+    }
+    /// Returns the crop rectangle of the resource. If the resource is invalid or the `crop` field is missing, returns a
+    /// default rectangle {0, 0, 1, 1}.
+    QRectF crop() const {
+        qreal x{0}, y{0}, w{1}, h{1};
+        QVariantList params = value("crop", {}).toList();
+        if (params.size() == 4 && toFloat(params[0], x) && toFloat(params[1], y) && toFloat(params[2], w) &&
+            toFloat(params[3], h))
+            return {x, y, w, h};
+        return {0, 0, 1, 1};
+    }
+
+  private:
+    bool toFloat(const QVariant& value, qreal& result) const {
+        bool ok = true;
+        auto n  = value.toFloat(&ok);
+        result  = ok ? n : result;
+        return ok;
+    }
+};
+
+class DatabaseRecord;
+using DatabaseRecordList = QList<DatabaseRecord>;
+using DatabaseRecordHash = QHash<QString, DatabaseRecord>;
+
 class DatabaseRecord : public QVariantHash {
   public:
+    DatabaseRecord() = default;
+
+    explicit DatabaseRecord(const QVariantHash& hash)
+        : QVariantHash(hash) {}
+
+    /// Returns the unique identifier of the record.
     QString uid() const { return value("uid", {}).toString(); }
+    /// Returns the name of the record as entered in the CMS.
     QString recordName() const { return value("record_name", {}).toString(); }
+    /// Returns the display name of the content type.
     QString typeName() const { return value("type_name", {}).toString(); }
+    /// Returns the `appKey` of the content type.
     QString typeKey() const { return value("type_key", {}).toString(); }
+    /// Returns the sort order, or -1 if unknown.
+    int rank() const { return value("rank", -1).toInt(); }
 
-    /// Returns a list of UIDs.
-    QStringList list(const QString& key) const { return value(key, {}).toString().split(','); }
+    /// Returns the value of the specified key as a list of strings, split by the specified separator.
+    QStringList list(const QString& key, QChar sep = ',') const {
+        return value(key, {}).toString().split(sep, Qt::SkipEmptyParts);
+    }
 
-    ///
-    QStringList children() const { return list("child_uid"); }
+    /// Returns the unique identifier(s) of the record's parent(s).
+    /// To obtain the actual records, call DatabaseContent::find(parentUids()).
+    QStringList parentUids() const { return value("parent_uid",{}).toStringList(); }
+    /// Returns the unique identifier(s) of the record's child(ren).
+    /// To obtain the actual records, call DatabaseContent::find(childUids()).
+    QStringList childUids() const { return value("child_uid",{}).toStringList(); }
 
-    /// Returns the file path if this record is a resource.
+    /// Returns true if this record is root content.
+    bool isRoot() const { return value("variant", {}).toString() == "ROOT_CONTENT"; }
+    /// Returns true if this record is an event.
+    bool isEvent() const { return value("variant", {}).toString() == "SCHEDULE"; }
+    /// Returns true if this record is a platform.
+    bool isPlatform() const { return value("variant", {}).toString() == "ROOT_PLATFORM"; }
+
+    /// Returns true if the specified key corresponds to a valid resource.
+    bool isResource(const QString& key) const {
+        auto res = resource(key);
+        return res.isValid();
+    }
+    /// If the specified key corresponds to a valid resource, returns the resource. Otherwise, returns an invalid
+    /// resource.
+    DatabaseResource resource(const QString& key) const { return DatabaseResource(value(key).toHash()); }
+
+    /// If this record is a resource, returns the file path.
     QString filepath(const QString& key, const QString& defaultValue = "") const {
-        QVariantMap fileinfo = value(key, {}).toMap();
+        QVariantHash fileinfo = value(key, {}).toHash();
         return QUrl(fileinfo.value("filepath", defaultValue).toString()).toLocalFile();
     }
 
-    /// Returns the start date and time if this record is an event.
+    /// If this record is an event, returns the start date and time.
     QDateTime start() const { return value("start_date_time", {}).toDateTime(); }
-    /// Returns the end date and time if this record is an event.
+    /// If this record is an event, returns the end date and time.
     QDateTime end() const { return value("end_date_time", {}).toDateTime(); }
-    /// Returns the weekdays for which the event is scheduled.
+    /// If this record is an event, returns the weekdays for which the event is scheduled.
     int days() const { return value("effective_days", 0x7F).toInt() & 0x7F; }
 };
-
-using DatabaseRecordList = QList<DatabaseRecord>;
-using DatabaseRecordHash = QHash<QString, DatabaseRecord>;
 
 class DatabaseContent {
   public:
@@ -310,6 +398,20 @@ static size_t filterEvents(DatabaseRecordList& events, const QString& typeName) 
     return sz - events.size();
 }
 
+// Removes all events that are not scheduled for the specified platform. Returns the number of removed events.
+static size_t filterEvents(DatabaseRecordList& events, const DatabaseRecord& platform) {
+    if (!platform.isPlatform()) return 0;
+
+    auto heuristic = [&platform](const DatabaseRecord& record) -> bool {
+        const auto uids = record.parentUids();
+        return !uids.contains(platform.uid());
+    };
+
+    size_t sz = events.size();
+    events.removeIf(heuristic);
+    return sz - events.size();
+}
+
 // Removes all events that are not scheduled at the specified date and time. Returns the number of removed events.
 static size_t filterEvents(DatabaseRecordList& events, const QDateTime& localDateTime) {
     auto heuristic = [&localDateTime](const DatabaseRecord& record) -> bool {
@@ -380,6 +482,66 @@ static void sortEvents(DatabaseRecordList& events, const QDateTime& localDateTim
 
     // Sort from highest priority to lowest priority.
     std::stable_sort(events.begin(), events.end(), heuristic);
+}
+
+// Given a list of events, returns a timeline of events for the specified date.
+static DatabaseRecordList eventTimeline(DatabaseRecordList events, const QDate& localDate = QDate().currentDate()) {
+    DatabaseRecordList result;
+
+    if (!events.empty()) {
+        // First, filter out events that are not scheduled for the specified date.
+        filterEvents(events, localDate);
+
+        // Collect all unique start and end times of the events as checkpoints.
+        std::set<QTime> checkpoints;
+        for (auto& event : std::as_const(events)) {
+            checkpoints.insert(event.start().time());
+            checkpoints.insert(event.end().time());
+        }
+
+        // Iterate through checkpoints and build the timeline. At each checkpoint, the current event is determined by
+        // sorting all events by the default heuristic, and taking the first one. If the current event is the same as
+        // the previous event, they are merged into one event with the start time of the previous event and the end time
+        // of the current event. If the current event is different from the previous event, it is added to the result as
+        // a new event.
+        QDateTime current(localDate, QTime());
+        for (const auto& checkpoint : checkpoints) {
+            // Find current event.
+            current.setTime(checkpoint);
+            sortEvents(events, current);
+
+            // Take the first event as the current event and set its start time to the current checkpoint.
+            DatabaseRecord event     = events.front();
+            event["start_date_time"] = current;
+
+            // Compare to previous event.
+            if (!result.empty()) {
+                auto& previous = result.back();
+                // Truncate previous event if it ends after the current checkpoint.
+                if (previous.end().time() > current.time()) {
+                    previous["end_date_time"] = current;
+                }
+                // Merge with previous event if they are the same and adjacent.
+                if (previous.uid() == event.uid() && previous.end() == event.start()) {
+                    previous["end_date_time"] = event.end();
+                } else {
+                    // Add to result.
+                    result.append(event);
+                }
+            } else {
+                // Add to result.
+                result.append(event);
+            }
+        }
+
+        // Remove events with invalid durations, as this can happen when events are truncated or merged.
+        result.removeIf([](const DatabaseRecord& item) {
+            const int durationInSeconds = item.start().time().secsTo(item.end().time());
+            return durationInSeconds <= 0;
+        });
+    }
+
+    return result;
 }
 
 } // namespace dsqt::bridge

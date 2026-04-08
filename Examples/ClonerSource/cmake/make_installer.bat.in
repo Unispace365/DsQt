@@ -3,10 +3,10 @@ setlocal
 
 cd /d "%~dp0"
 
-set "ISS_FILE=ClonerSource_dev.iss"
+set "ISS_FILE=@DS_APP_NAME@.iss"
 
-if /i "%~1"=="--production" set "ISS_FILE=ClonerSource.iss"
-if /i "%~1"=="-p" set "ISS_FILE=ClonerSource.iss"
+if /i "%~1"=="--non-production" set "ISS_FILE=@DS_APP_NAME@_dev.iss"
+if /i "%~1"=="-npi" set "ISS_FILE=@DS_APP_NAME@_dev.iss"
 
 REM --- Find ISCC.exe ---
 set "ISCC="
