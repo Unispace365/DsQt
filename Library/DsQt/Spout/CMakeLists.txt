@@ -151,7 +151,9 @@ install(DIRECTORY .
         PATTERN "*.hpp"
 )
 if(Spout2_Static)
-    install(FILES "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/lib/SpoutDX_static.lib"
+    install(FILES
+        "$<$<CONFIG:Debug>:${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/debug/lib/SpoutDX_static.lib>"
+        "$<$<NOT:$<CONFIG:Debug>>:${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/lib/SpoutDX_static.lib>"
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/$<CONFIG>
             )
 endif()
