@@ -61,9 +61,9 @@ endif()
 
 find_package(Qt6 6.9
     REQUIRED COMPONENTS
-        Core 
+        Core
         Concurrent
-        Gui 
+        Gui
         Qml
         Quick
 )
@@ -216,10 +216,11 @@ if(PROJECT_IS_TOP_LEVEL)
     # Spout module (Windows only)
     if(WIN32 AND TARGET DsSpout)
         set(_spout_install_targets DsSpout DsSpoutplugin)
-        if(TARGET SpoutDX_static)
-            # FetchContent build — install the in-tree static lib too
-            list(APPEND _spout_install_targets SpoutDX_static)
-        endif()
+
+        #if(TARGET SpoutDX_static)
+            # FetchContent build — install the in-tree #static lib too
+            #list(APPEND _spout_install_targets #SpoutDX_static)
+        #endif()
         install(TARGETS ${_spout_install_targets}
             LIBRARY    DESTINATION ${CMAKE_INSTALL_LIBDIR}/$<CONFIG>
             ARCHIVE    DESTINATION ${CMAKE_INSTALL_LIBDIR}/$<CONFIG>

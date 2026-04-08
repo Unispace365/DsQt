@@ -22,6 +22,7 @@ find_package(Spout2 QUIET)
 if(Spout2_FOUND)
     message(STATUS "DsQt/Spout: Using installed Spout2 ${Spout2_VERSION}")
     set(_spout_dx_target Spout2::SpoutDX_static)
+    set(Spout2_Static "true")
 else()
     message(STATUS "DsQt/Spout: Spout2 not found locally — fetching from GitHub")
     include(FetchContent)
@@ -149,3 +150,8 @@ install(DIRECTORY .
         PATTERN "*.h"
         PATTERN "*.hpp"
 )
+if(Spout2_Static)
+    install(FILES "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/lib/SpoutDX_static.lib"
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/$<CONFIG>
+            )
+endif()
