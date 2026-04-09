@@ -53,7 +53,7 @@ void DsSpoutMaterial::setMipmapFiltering(QSGTexture::Filtering filtering)
 DsSpoutMaterialShader::DsSpoutMaterialShader()
 {
     // Ensure shader resources are initialized (needed for static library linking)
-    Q_INIT_RESOURCE(shaders);
+    Q_INIT_RESOURCE(dsqt_spout_shaders);
 
     setShaderFileName(VertexStage,
                       QStringLiteral(":/resources/shaders/texture.vert.qsb"));
