@@ -32,18 +32,27 @@ void DsGuiApplication::initializeLogging()
 
     if (QFileInfo::exists(iniPath)) {
         QSettings settings(iniPath, QSettings::IniFormat);
-
         // Allow the INI to override the log file path; fall back to default.
         // The path value can be a directory or a full file path.
         QString rawPath = settings.value(QStringLiteral("logger/path")).toString();
-        if (!rawPath.isEmpty())
-            rawPath = DsEnv::expandq(rawPath);
-        QString logPath = resolveLogPath(rawPath, defaultLogName, defaultLogPath);
-
+        QString expandedPath = rawPath;
+        bool removePath = !settings.contains("logger/path");
+        if (!rawPath.isEmpty()){
+            expandedPath = DsEnv::expandq(rawPath);
+        }
+        QString logPath = resolveLogPath(expandedPath, defaultLogName, defaultLogPath);
         settings.setValue(QStringLiteral("logger/path"), logPath);
         QDir().mkpath(QFileInfo(logPath).absolutePath());
 
         logger->configure(settings, QStringLiteral("logger"));
+        if(removePath){
+            settings.remove("logger/path");
+
+        } else {
+            settings.setValue(QStringLiteral("logger/path"), rawPath);
+
+        }
+        settings.sync();
     } else {
         QDir().mkpath(defaultLogDir);
         logger->configure(defaultLogPath, 1048576, 5,
