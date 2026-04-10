@@ -21,6 +21,11 @@ if(DSQT_WITH_GLM)
     find_package(glm CONFIG REQUIRED)
 endif()
 
+configure_file(
+    ${CMAKE_CURRENT_SOURCE_DIR}/core/dsVersion.h.in
+    ${CMAKE_CURRENT_BINARY_DIR}/core/dsVersion.h
+)
+
 find_package(Qt6 6.9
     REQUIRED COMPONENTS
         Core
@@ -93,7 +98,7 @@ qt_add_qml_module(Core
         utility/dsFileMetaData.cpp utility/dsFileMetaData.h
         utility/dsStringUtils.cpp utility/dsStringUtils.h
         utility/dsUrlImageLoader.cpp utility/dsUrlImageLoader.h
-        
+
     #DEPENDENCIES
     #     QtQuick
     #     Dsqtplugin
@@ -119,6 +124,8 @@ target_include_directories(Core
     PUBLIC
         # During build: use source-tree headers
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+        # Generated headers (dsVersion.h)
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
         # Subdirectories needed for Qt's metatype system to find headers
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/core>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/model>
