@@ -78,7 +78,7 @@ if %errorlevel% neq 0 (
     powershell -NoProfile -Command "Write-Host 'WARNING: git fetch failed for vcpkg - build may fail if baseline is missing.' -ForegroundColor Yellow"
 ) else (
     git pull --ff-only -q
-    if %errorlevel% neq 0 (
+    if !errorlevel! neq 0 (
         powershell -NoProfile -Command "Write-Host 'WARNING: fast-forward-only git pull failed for vcpkg - build may fail if baseline is missing.' -ForegroundColor Yellow"
     ) else (
         powershell -NoProfile -Command "Write-Host 'vcpkg is up to date.' -ForegroundColor Green"
