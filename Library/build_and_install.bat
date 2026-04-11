@@ -60,6 +60,32 @@ shift
 goto :parse_args
 :args_done
 
+:: --- Check if VCPKG is installed ---
+if not defined VCPKG_ROOT (
+    powershell -NoProfile -Command "Write-Host 'VCPKG_ROOT is not set. Please make sure VCPKG is properly installed.' -ForegroundColor Red"
+    exit /b 1
+)
+if not exist "%VCPKG_ROOT%\vcpkg.exe" (
+    powershell -NoProfile -Command "Write-Host 'vcpkg.exe not found in VCPKG_ROOT: %VCPKG_ROOT%' -ForegroundColor Red"
+    exit /b 1
+)
+
+:: --- Pull the latest VCPKG ---
+call :header "Updating VCPKG"
+pushd "%VCPKG_ROOT%"
+git fetch -q
+if %errorlevel% neq 0 (
+    powershell -NoProfile -Command "Write-Host 'WARNING: git fetch failed for vcpkg - build may fail if baseline is missing.' -ForegroundColor Yellow"
+) else (
+    git pull --ff-only -q
+    if !errorlevel! neq 0 (
+        powershell -NoProfile -Command "Write-Host 'WARNING: fast-forward-only git pull failed for vcpkg - build may fail if baseline is missing.' -ForegroundColor Yellow"
+    ) else (
+        powershell -NoProfile -Command "Write-Host 'vcpkg is up to date.' -ForegroundColor Green"
+    )
+)
+popd
+
 :: --- Resolve Qt path ---
 if defined QT_PATH (
     REM If it looks like a version number (no backslash/slash), expand to C:\Qt\<ver>\msvc2022_64
