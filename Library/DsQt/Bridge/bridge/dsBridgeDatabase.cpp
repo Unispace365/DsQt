@@ -4,7 +4,7 @@
 namespace dsqt::bridge {
 
 DatabaseRecord DatabaseContent::getPlatform() const {
-    const QString& platformUid = DsSettings::getSettings("app_settings")->getOr<QString>("platform.id", "");
+    const QString platformUid = DsSettings::getSettings("app_settings")->getOr<QString>("platform.id", "");
     return find(platformUid);
 }
 
