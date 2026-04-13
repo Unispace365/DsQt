@@ -39,10 +39,10 @@ if(GIT_FOUND AND GIT_REPO_CHECK_RESULT EQUAL 0 AND GIT_INSIDE_WORK_TREE STREQUAL
             message(WARNING "Git tag '${GIT_TAG}' is not a valid numeric version; falling back to default version ${DS_APP_VERSION}.")
         endif()
     else()
-        message(WARNING "No Git tag found; falling back to default version.")
+        message(STATUS "No Git tag found; falling back to default version.")
     endif()
 else()
-    message(WARNING "Git not found or not a Git repository; using default version.")
+    message(STATUS "Git not found or not a Git repository; using default version.")
 endif()
 
 # Convert to comma form and pad to 4 parts for the Windows version resource
