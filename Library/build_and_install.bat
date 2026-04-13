@@ -1,18 +1,29 @@
 @echo off
 setlocal enabledelayedexpansion
 
-REM Usage: build_and_install.bat [preset] [-test] [-tools] [-no-configure] [-no-install] [-clean]
-REM                              [-hard-clean] [-rebuild] [-hard-rebuild] [-qt <ver|path>]
-REM   preset         : CMake configure preset name (default: ninja)
-REM   -test          : Enable and run unit tests after the Debug build
-REM   -tools         : Build and install ProjectCloner + ClonerSource template
-REM   -no-configure  : Skip the CMake configure step (for fast incremental builds)
-REM   -no-install    : Skip the install steps entirely
-REM   -clean         : Run cmake --build clean targets and exit
-REM   -hard-clean    : Delete the entire build folder and exit
-REM   -rebuild       : Clean then build (cmake clean + full build)
-REM   -hard-rebuild  : Delete build folder then configure + build + install from scratch
-REM   -qt <ver|path> : Qt version (e.g. 6.10.2) or full path (e.g. C:\Qt\6.10.2\msvc2022_64)
+goto :script_start
+
+:usage
+echo[
+echo Usage: build_and_install.bat [preset] [-test] [-tools] [-no-configure] [-no-install] [-clean]
+echo                              [-hard-clean] [-rebuild] [-hard-rebuild] [-qt ^<ver^|path^>]
+echo[
+echo   preset              : CMake configure preset name ^(default: ninja^)
+echo   -test               : Enable and run unit tests after the Debug build
+echo   -tools              : Build and install ProjectCloner + ClonerSource template
+echo   -no-configure       : Skip the CMake configure step ^(for fast incremental builds^)
+echo   -no-install         : Skip the install steps entirely
+echo   -clean              : Run cmake --build clean targets and exit
+echo   -hard-clean         : Delete the entire build folder and exit
+echo   -rebuild            : Clean then build ^(cmake clean + full build^)
+echo   -hard-rebuild       : Delete build folder then configure + build + install from scratch
+echo   -qt ^<ver or path^> : Qt version ^(e.g. 6.10.2^) or full path ^(e.g. C:\Qt\6.10.2\msvc2022_64^)
+echo   -h / -?             : Print usage info and exit
+if defined PRINT_HELP (
+  exit /b 0
+)
+
+:script_start
 
 REM Set up the MSVC developer environment if not already active
 if not defined VSINSTALLDIR (
@@ -32,6 +43,7 @@ set DO_HARD_CLEAN=0
 set DO_REBUILD=0
 set DO_HARD_REBUILD=0
 set BUILD_TOOLS=0
+set PRINT_HELP=0
 set QT_PATH=
 
 :: Parse arguments — accept preset and flags in any order
@@ -55,10 +67,18 @@ if /i "%~1"=="-hard-rebuild"  (set DO_HARD_REBUILD=1& shift & goto :parse_args)
 if /i "%~1"=="/hard-rebuild"  (set DO_HARD_REBUILD=1& shift & goto :parse_args)
 if /i "%~1"=="-qt"            (set QT_PATH=%~2& shift & shift & goto :parse_args)
 if /i "%~1"=="/qt"            (set QT_PATH=%~2& shift & shift & goto :parse_args)
+if /i "%~1"=="-h"            (set PRINT_HELP=1& shift & goto :parse_args)
+if /i "%~1"=="/h"            (set PRINT_HELP=1& shift & goto :parse_args)
+if /i "%~1"=="-?"            (set PRINT_HELP=1& shift & goto :parse_args)
+if /i "%~1"=="/?"            (set PRINT_HELP=1& shift & goto :parse_args)
 set PRESET=%~1
 shift
 goto :parse_args
 :args_done
+
+if !PRINT_HELP!==1 (
+    goto :usage
+)
 
 :: --- Check if VCPKG is installed ---
 if not defined VCPKG_ROOT (
