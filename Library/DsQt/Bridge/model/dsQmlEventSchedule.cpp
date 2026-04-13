@@ -17,10 +17,10 @@ int DsQmlEvent::days() const {
     return m_record.value(DsQmlEventSchedule::EffectiveDays).toInt();
 }
 
-ContentModel *DsQmlEvent::model() const {
-    if(!m_model) {
+ContentModel* DsQmlEvent::model() const {
+    if (!m_model) {
         QString modelUid = m_record.value("uid").toString();
-        m_model = bridge::DsQmlBridge::instance().getRecordById(modelUid);
+        m_model          = bridge::DsQmlBridge::instance().getRecordById(modelUid);
     }
     return m_model;
 }
@@ -88,34 +88,39 @@ void DsQmlEventSchedule::onUpdated() {
             hasChanged |= *(m_timeline[i]) != *(result.timeline[i]);
     }
 
-    // Set parent now that we're in the main thread.
-    for (auto event : std::as_const(result.events)) {
-        event->setParent(this);
-    }
-    for (auto event : std::as_const(result.timeline)) {
-        event->setParent(this);
-    }
+    if (hasChanged) {
+        // Set parent now that we're in the main thread.
+        for (auto event : std::as_const(result.events)) {
+            event->setParent(this);
+        }
+        for (auto event : std::as_const(result.timeline)) {
+            event->setParent(this);
+        }
 
-    // Remove existing events.
-    for (auto event : std::as_const(m_events)) {
-        event->deleteLater();
-    }
-    for (auto event : std::as_const(m_timeline)) {
-        event->deleteLater();
-    }
+        // Remove existing events.
+        for (auto event : std::as_const(m_events)) {
+            event->deleteLater();
+        }
+        for (auto event : std::as_const(m_timeline)) {
+            event->deleteLater();
+        }
 
-    // Store result.
-    m_events   = std::move(result.events);
-    m_timeline = std::move(result.timeline);
+        // Store result.
+        m_events   = std::move(result.events);
+        m_timeline = std::move(result.timeline);
 
-    if (hasChanged) emit eventsChanged();
+        emit eventsChanged();
+    }
 }
 
 /// Performs the full filter → sort → timeline pipeline on a background thread.
 /// The result is handed back to the main thread via m_watcher / onUpdated().
 /// If a previous update is still running the call is dropped (see TODO in body).
 void DsQmlEventSchedule::update(const QDateTime& localDateTime) {
-    if (m_watcher.isRunning()) return; // TODO handle this better.
+    if (m_watcher.isRunning()) {
+        qWarning() << "DsQmlEventSchedule watcher is already running";
+        return; // TODO handle this better.
+    }
 
     // Capture selected type name.
     QString typeName = m_type_name;
@@ -146,7 +151,7 @@ void DsQmlEventSchedule::update(const QDateTime& localDateTime) {
             for (const auto& event : std::as_const(events)) {
                 // No parent yet, as we're in a different thread.
                 DsQmlEvent* item = new DsQmlEvent(event, result.events.size(), nullptr);
-                if(bridge::isEventNow(item->record(),localDateTime)) item->setIsNow(true);
+                if (bridge::isEventNow(item->record(), localDateTime)) item->setIsNow(true);
 
                 // Move to main thread.
                 item->moveToThread(mainThread);
@@ -175,15 +180,12 @@ void DsQmlEventSchedule::update(const QDateTime& localDateTime) {
     m_watcher.setFuture(future);
 }
 
-bool DsQmlEvent::isNow() const
-{
+bool DsQmlEvent::isNow() const {
     return m_isNow;
 }
 
-void DsQmlEvent::setIsNow(bool newIsNow)
-{
-    if (m_isNow == newIsNow)
-        return;
+void DsQmlEvent::setIsNow(bool newIsNow) {
+    if (m_isNow == newIsNow) return;
     m_isNow = newIsNow;
     emit isNowChanged();
 }
