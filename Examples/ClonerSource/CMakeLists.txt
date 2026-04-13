@@ -10,7 +10,18 @@ set(DS_APP_VERSION   "0.0.0")  # Default version
 
 # Attempt to get version from Git tags
 find_package(Git QUIET)
-if(GIT_FOUND AND EXISTS "${CMAKE_SOURCE_DIR}/../.git")
+if(GIT_FOUND)
+    execute_process(
+        COMMAND ${GIT_EXECUTABLE} rev-parse --is-inside-work-tree
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        RESULT_VARIABLE GIT_REPO_CHECK_RESULT
+        OUTPUT_VARIABLE GIT_INSIDE_WORK_TREE
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        ERROR_QUIET
+    )
+endif()
+
+if(GIT_FOUND AND GIT_REPO_CHECK_RESULT EQUAL 0 AND GIT_INSIDE_WORK_TREE STREQUAL "true")
     execute_process(
         COMMAND ${GIT_EXECUTABLE} describe --tags --abbrev=0
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
