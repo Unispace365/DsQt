@@ -30,9 +30,9 @@ if(GIT_FOUND AND GIT_REPO_CHECK_RESULT EQUAL 0 AND GIT_INSIDE_WORK_TREE STREQUAL
         ERROR_QUIET
     )
     if(GIT_TAG)
-        # Strip leading 'v' if present, then validate that the result is a numeric version
-        string(REGEX REPLACE "^v" "" GIT_TAG_VERSION "${GIT_TAG}")
-        if(GIT_TAG_VERSION MATCHES "^[0-9]+(\\.[0-9]+){2,3}$")
+        # Remove everything before the first sequence of digits.
+        string(REGEX MATCH "[0-9]+(\\.[0-9]+)?(\\.[0-9]+)?(\\.[0-9]+)?" GIT_TAG_VERSION "${GIT_TAG}" )
+        if(GIT_TAG_VERSION MATCHES "^[0-9]+(\\.[0-9]+)?(\\.[0-9]+)?(\\.[0-9]+)?$")
             set(DS_APP_VERSION "${GIT_TAG_VERSION}")
             message(STATUS "Git tag found: ${GIT_TAG}; using version ${DS_APP_VERSION}")
         else()
