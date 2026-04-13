@@ -8,17 +8,17 @@ echo[
 echo Usage: build_and_install.bat [preset] [-test] [-tools] [-no-configure] [-no-install] [-clean]
 echo                              [-hard-clean] [-rebuild] [-hard-rebuild] [-qt ^<ver^|path^>]
 echo[
-echo   preset              : CMake configure preset name ^(default: ninja^)
-echo   -test               : Enable and run unit tests after the Debug build
-echo   -tools              : Build and install ProjectCloner + ClonerSource template
-echo   -no-configure       : Skip the CMake configure step ^(for fast incremental builds^)
-echo   -no-install         : Skip the install steps entirely
-echo   -clean              : Run cmake --build clean targets and exit
-echo   -hard-clean         : Delete the entire build folder and exit
-echo   -rebuild            : Clean then build ^(cmake clean + full build^)
-echo   -hard-rebuild       : Delete build folder then configure + build + install from scratch
+echo   preset            : CMake configure preset name ^(default: ninja^)
+echo   -test             : Enable and run unit tests after the Debug build
+echo   -tools            : Build and install ProjectCloner + ClonerSource template
+echo   -no-configure     : Skip the CMake configure step ^(for fast incremental builds^)
+echo   -no-install       : Skip the install steps entirely
+echo   -clean            : Run cmake --build clean targets and exit
+echo   -hard-clean       : Delete the entire build folder and exit
+echo   -rebuild          : Clean then build ^(cmake clean + full build^)
+echo   -hard-rebuild     : Delete build folder then configure + build + install from scratch
 echo   -qt ^<ver or path^> : Qt version ^(e.g. 6.10.2^) or full path ^(e.g. C:\Qt\6.10.2\msvc2022_64^)
-echo   -h / -?             : Print usage info and exit
+echo   -h / -?           : Print usage info and exit
 if defined PRINT_HELP (
   exit /b 0
 )
