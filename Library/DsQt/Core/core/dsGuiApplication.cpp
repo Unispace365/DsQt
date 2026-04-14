@@ -44,6 +44,7 @@ void DsGuiApplication::initializeLogging()
         settings.setValue(QStringLiteral("logger/path"), logPath);
         QDir().mkpath(QFileInfo(logPath).absolutePath());
 
+        m_logPath = logPath;
         logger->configure(settings, QStringLiteral("logger"));
         if(removePath){
             settings.remove("logger/path");
@@ -54,6 +55,7 @@ void DsGuiApplication::initializeLogging()
         }
         settings.sync();
     } else {
+        m_logPath = defaultLogPath;
         QDir().mkpath(defaultLogDir);
         logger->configure(defaultLogPath, 1048576, 5,
                           QtLogger::RotatingFileSink::RotationOnStartup, true);

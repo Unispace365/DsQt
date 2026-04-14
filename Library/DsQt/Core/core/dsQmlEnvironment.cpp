@@ -1,6 +1,7 @@
 #include "core/dsQmlEnvironment.h"
 #include "core/dsQmlApplicationEngine.h"
 #include "core/dsEnvironment.h"
+#include "core/dsGuiApplication.h"
 
 namespace dsqt {
 
@@ -16,6 +17,12 @@ const QString dsqt::DsQmlEnvironment::expand(const QString& string) {
 
 const QUrl DsQmlEnvironment::expandUrl(const QString& string) {
     return QUrl(expand(string));
+}
+
+const QString DsQmlEnvironment::logFile()
+{
+    DsGuiApplication* app = dynamic_cast<DsGuiApplication*>(QCoreApplication::instance());
+    return app->getLogPath();
 }
 
 
