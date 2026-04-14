@@ -6,15 +6,53 @@ set(DS_APP_NAME ClonerSource)
 set(DS_EXE_NAME app${DS_APP_NAME})
 set(DS_PROJECT_NAME "PROJECT_NAME_")
 set(DS_PROJECT_DESC "PROJECT_DESC_")
+set(DS_APP_VERSION   "0.0.0")  # Default version
 
-# Read version from VERSION.txt (source of truth)
-file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/VERSION.txt" DS_VERSION_STRING LIMIT_COUNT 1)
-string(STRIP "${DS_VERSION_STRING}" DS_VERSION_STRING)
-set(DS_APP_VERSION "${DS_VERSION_STRING}.0")
-string(REPLACE "." "," DS_APP_VERSION_RC "${DS_APP_VERSION}")
+# Attempt to get version from Git tags
+find_package(Git QUIET)
+if(GIT_FOUND)
+    execute_process(
+        COMMAND ${GIT_EXECUTABLE} rev-parse --is-inside-work-tree
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+        RESULT_VARIABLE GIT_REPO_CHECK_RESULT
+        OUTPUT_VARIABLE GIT_INSIDE_WORK_TREE
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        ERROR_QUIET
+    )
+endif()
+
+if(GIT_FOUND AND GIT_REPO_CHECK_RESULT EQUAL 0 AND GIT_INSIDE_WORK_TREE STREQUAL "true")
+    execute_process(
+        COMMAND ${GIT_EXECUTABLE} describe --tags --abbrev=0
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+        OUTPUT_VARIABLE GIT_TAG
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        ERROR_QUIET
+    )
+    if(GIT_TAG)
+        # Remove everything before the first sequence of digits.
+        string(REGEX MATCH "[0-9]+(\\.[0-9]+)?(\\.[0-9]+)?(\\.[0-9]+)?" GIT_TAG_VERSION "${GIT_TAG}" )
+        if(GIT_TAG_VERSION MATCHES "^[0-9]+(\\.[0-9]+)?(\\.[0-9]+)?(\\.[0-9]+)?$")
+            set(DS_APP_VERSION "${GIT_TAG_VERSION}")
+            message(STATUS "Git tag found: ${GIT_TAG}; using version ${DS_APP_VERSION}")
+        else()
+            message(WARNING "Git tag '${GIT_TAG}' is not a valid numeric version; falling back to default version ${DS_APP_VERSION}.")
+        endif()
+    else()
+        message(STATUS "No Git tag found; falling back to default version.")
+    endif()
+else()
+    message(STATUS "Git not found or not a Git repository; using default version.")
+endif()
+
+# Convert to comma form and pad to 4 parts for the Windows version resource
+string(REGEX REPLACE "^([0-9]+)(\\.[0-9]+)?(\\.[0-9]+)?(\\.[0-9]+)?.*" 
+                     "\\1\\2\\3\\4" 
+                     TMP_VERSION "${DS_APP_VERSION}.0.0.0")
+string(REGEX REPLACE "\\." "," DS_APP_VERSION_COMMA "${TMP_VERSION}")
 
 #define the project
-project(${DS_APP_NAME} VERSION ${DS_VERSION_STRING} LANGUAGES CXX)
+project(${DS_APP_NAME} VERSION ${DS_APP_VERSION} LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
