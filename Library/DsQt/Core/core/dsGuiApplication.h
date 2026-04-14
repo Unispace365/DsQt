@@ -6,6 +6,7 @@
 #include <QGuiApplication>
 #include <QSurfaceFormat>
 #include <QSGRendererInterface>
+#include <QString>
 
 struct DsGraphicsConfig {
     // Graphics API (nullopt = Qt default)
@@ -36,9 +37,13 @@ class DsGuiApplication : public QGuiApplication
     // (or is an existing directory), appends defaultLogName.
     static QString resolveLogPath(const QString &path, const QString &defaultLogName,
                                   const QString &defaultLogPath);
+    QString getLogPath() {
+        return m_logPath;
+    }
 
   private:
     void initializeLogging();
     void printStartupBanner();
+    QString m_logPath;
 };
 #endif // DSGUIAPPLICATION_H

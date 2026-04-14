@@ -197,6 +197,8 @@ ApplicationWindow {
                                             appLogWindow = appLog.createObject(window)
                                             appLogWindow.closing.connect( () => { windowMenuBar.logsApplicationChecked = false } )
                                         }
+                                        appLogWindow.file = ""
+                                        appLogWindow.file = Ds.env.logFile();
                                         appLogWindow.visible = isChecked
                                     }
 
@@ -253,14 +255,16 @@ ApplicationWindow {
         id: appLog
         DsTextFileViewer {
             title: "Application Log (" + file + ")"
-            file: {
-                var id = engineProxy.getString("engine.project_path","application_dev")
-                var base = Ds.env.expand(engineProxy.getString("engine.logging.directory","%DOCUMENTS%/downstream/logs/"))
-                if(!base.endsWith("/")) base += "/"
-                var todayStr = Qt.formatDate(new Date(), "yyyy-MM-dd")
-                return base + id + "/" + id + "_" + todayStr + ".log.txt"
-            }
-            onVisibleChanged: (isVisible) => { windowMenuBar.logsApplicationChecked = isVisible }
+            file: Ds.env.logFile()
+
+            //{
+            //    var id = engineProxy.getString("engine.project_path","application_dev")
+            //    var base = Ds.env.expand(engineProxy.getString("engine.logging.directory","%DOCUMENTS%/downstream/logs/"))
+            //    if(!base.endsWith("/")) base += "/"
+            //    var todayStr = Qt.formatDate(new Date(), "yyyy-MM-dd")
+            //    return base + id + "/" + id + "_" + todayStr + ".log.txt"
+            //}
+            onVisibleChanged: (isVisible) => { windowMenuBar.logsApplicationChecked = isVisible; }
         }
     }
 

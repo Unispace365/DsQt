@@ -42,6 +42,7 @@ class DsQmlEnvironment : public QObject {
     Q_INVOKABLE const QUrl    expandUrl(const QString& string);
     // Q_INVOKABLE QString getLocalFolder();
 
+    Q_INVOKABLE const QString logFile();
    
 };
 

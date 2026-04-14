@@ -10,7 +10,7 @@ Window {
     title: "Text Viewer"
     color: system.base
 
-    flags: Qt.WindowStaysOnTopHint
+    flags: Qt.WindowStaysOnTopHint | Qt.Window | Qt.WindowSystemMenuHint
 
     //visible: true
     //flags: Qt.WindowTitleHint | Qt.WindowCloseButtonHint | Qt.Tool
