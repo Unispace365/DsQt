@@ -1,0 +1,19 @@
+[touch_filter]
+# How long (ms) a touch must last before it is accepted.
+# Touches released before this threshold are discarded as transient.
+transient_ms      = 200
+
+# Exponential moving-average alpha for jitter smoothing.
+# 0 = no movement, 1 = no smoothing (raw).
+smoothing_alpha   = 0.30
+
+# Window (ms) after a lift during which a nearby new press is treated as
+# a continuation rather than a new touch (lift-resume bridging).
+lift_resume_ms    = 80
+
+# Maximum distance (px) for lift-resume to trigger.
+lift_resume_px    = 25
+
+# New presses within this distance (px) of an active touch are rejected
+# as accidental contacts.  0 = disabled.
+proximity_px      = 50

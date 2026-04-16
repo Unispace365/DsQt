@@ -81,6 +81,7 @@ add_subdirectory("Dsqt/Bridge")
 add_subdirectory("Dsqt/Waffles")
 add_subdirectory("Dsqt/TouchEngine")
 add_subdirectory("Dsqt/Spout")
+add_subdirectory("Dsqt/Touch")
 
 if(Dsqt::Core::DSQT_USE_GLM)
     message(STATUS "Dsqt: GLM support enabled")
@@ -103,6 +104,7 @@ target_link_libraries(Dsqt
     Dsqt::Bridge
     Dsqt::Waffles
     Dsqt::TouchEngine
+    Dsqt::Touch
 )
 
 if(WIN32 AND TARGET Dsqt::Spout)
@@ -205,6 +207,8 @@ if(PROJECT_IS_TOP_LEVEL)
         Wafflesplugin
         TouchEngine
         TouchEngineplugin
+        Touch
+        Touchplugin
 
         # Where to put the different kinds of files
         # Install into config-specific subdirectories so Debug and Release
@@ -255,6 +259,11 @@ if(PROJECT_IS_TOP_LEVEL)
         "${QT_QML_OUTPUT_DIRECTORY}/Dsqt/TouchEngine/TouchEngine.qmltypes"
         DESTINATION "qml/Dsqt/TouchEngine"
     )
+    install(FILES
+        "${QT_QML_OUTPUT_DIRECTORY}/Dsqt/Touch/qmldir"
+        "${QT_QML_OUTPUT_DIRECTORY}/Dsqt/Touch/Touch.qmltypes"
+        DESTINATION "qml/Dsqt/Touch"
+    )
 
     # Spout QML module metadata (Windows only)
     if(WIN32 AND TARGET DsSpout)
@@ -284,6 +293,11 @@ if(PROJECT_IS_TOP_LEVEL)
     )
     install(DIRECTORY "${QT_QML_OUTPUT_DIRECTORY}/Dsqt/TouchEngine/qml"
         DESTINATION "qml/Dsqt/TouchEngine"
+        OPTIONAL
+        FILES_MATCHING PATTERN "*.qml"
+    )
+    install(DIRECTORY "${QT_QML_OUTPUT_DIRECTORY}/Dsqt/Touch/qml"
+        DESTINATION "qml/Dsqt/Touch"
         OPTIONAL
         FILES_MATCHING PATTERN "*.qml"
     )
