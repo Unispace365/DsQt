@@ -7,18 +7,21 @@ goto :script_start
 echo[
 echo Usage: build_and_install.bat [preset] [-test] [-tools] [-no-configure] [-no-install] [-clean]
 echo                              [-hard-clean] [-rebuild] [-hard-rebuild] [-qt ^<ver^|path^>]
+echo                              [-private-reinject]
 echo[
-echo   preset            : CMake configure preset name ^(default: ninja^)
-echo   -test             : Enable and run unit tests after the Debug build
-echo   -tools            : Build and install ProjectCloner + ClonerSource template
-echo   -no-configure     : Skip the CMake configure step ^(for fast incremental builds^)
-echo   -no-install       : Skip the install steps entirely
-echo   -clean            : Run cmake --build clean targets and exit
-echo   -hard-clean       : Delete the entire build folder and exit
-echo   -rebuild          : Clean then build ^(cmake clean + full build^)
-echo   -hard-rebuild     : Delete build folder then configure + build + install from scratch
-echo   -qt ^<ver or path^> : Qt version ^(e.g. 6.10.2^) or full path ^(e.g. C:\Qt\6.10.2\msvc2022_64^)
-echo   -h / -?           : Print usage info and exit
+echo   preset              : CMake configure preset name ^(default: ninja^)
+echo   -test               : Enable and run unit tests after the Debug build
+echo   -tools              : Build and install ProjectCloner + ClonerSource template
+echo   -no-configure       : Skip the CMake configure step ^(for fast incremental builds^)
+echo   -no-install         : Skip the install steps entirely
+echo   -clean              : Run cmake --build clean targets and exit
+echo   -hard-clean         : Delete the entire build folder and exit
+echo   -rebuild            : Clean then build ^(cmake clean + full build^)
+echo   -hard-rebuild       : Delete build folder then configure + build + install from scratch
+echo   -qt ^<ver or path^>   : Qt version ^(e.g. 6.10.2^) or full path ^(e.g. C:\Qt\6.10.2\msvc2022_64^)
+echo   -private-reinject   : Enable DSQT_TOUCH_PRIVATE_REINJECT ^(uses Qt private headers for
+echo                         proper touch re-injection; makes TapHandler work with TouchFilter^)
+echo   -h / -?             : Print usage info and exit
 if defined PRINT_HELP (
   exit /b 0
 )
@@ -45,6 +48,7 @@ set DO_HARD_REBUILD=0
 set BUILD_TOOLS=0
 set PRINT_HELP=0
 set QT_PATH=
+set PRIVATE_REINJECT=0
 
 :: Parse arguments — accept preset and flags in any order
 :parse_args
@@ -65,8 +69,10 @@ if /i "%~1"=="-rebuild"       (set DO_REBUILD=1& shift & goto :parse_args)
 if /i "%~1"=="/rebuild"       (set DO_REBUILD=1& shift & goto :parse_args)
 if /i "%~1"=="-hard-rebuild"  (set DO_HARD_REBUILD=1& shift & goto :parse_args)
 if /i "%~1"=="/hard-rebuild"  (set DO_HARD_REBUILD=1& shift & goto :parse_args)
-if /i "%~1"=="-qt"            (set QT_PATH=%~2& shift & shift & goto :parse_args)
-if /i "%~1"=="/qt"            (set QT_PATH=%~2& shift & shift & goto :parse_args)
+if /i "%~1"=="-qt"                  (set QT_PATH=%~2& shift & shift & goto :parse_args)
+if /i "%~1"=="/qt"                  (set QT_PATH=%~2& shift & shift & goto :parse_args)
+if /i "%~1"=="-private-reinject"    (set PRIVATE_REINJECT=1& shift & goto :parse_args)
+if /i "%~1"=="/private-reinject"    (set PRIVATE_REINJECT=1& shift & goto :parse_args)
 if /i "%~1"=="-h"            (set PRINT_HELP=1& shift & goto :parse_args)
 if /i "%~1"=="/h"            (set PRINT_HELP=1& shift & goto :parse_args)
 if /i "%~1"=="-?"            (set PRINT_HELP=1& shift & goto :parse_args)
@@ -163,6 +169,9 @@ set CMAKE_CONFIGURE=cmake --preset %PRESET%
 if %RUN_TESTS%==1 (
     set CMAKE_CONFIGURE=%CMAKE_CONFIGURE% -DDSQT_BUILD_TESTS=ON
 )
+if %PRIVATE_REINJECT%==1 (
+    set CMAKE_CONFIGURE=%CMAKE_CONFIGURE% -DDSQT_TOUCH_PRIVATE_REINJECT=ON
+)
 if defined QT_PATH (
     set CMAKE_CONFIGURE=!CMAKE_CONFIGURE! -DCMAKE_PREFIX_PATH="!QT_PATH!" -DQt6_DIR="!QT_PATH!/lib/cmake/Qt6"
 )
@@ -177,7 +186,8 @@ if %SKIP_CONFIGURE%==1 (
     call :header "Skipping Configure (-no-configure)"
 ) else (
     call :header "Configuring DsQt Library (%PRESET%)"
-    if %RUN_TESTS%==1 powershell -NoProfile -Command "Write-Host '    Tests: ENABLED' -ForegroundColor Yellow"
+    if %RUN_TESTS%==1       powershell -NoProfile -Command "Write-Host '    Tests:            ENABLED' -ForegroundColor Yellow"
+    if %PRIVATE_REINJECT%==1 powershell -NoProfile -Command "Write-Host '    Private reinject: ENABLED' -ForegroundColor Yellow"
     call :gettime CONFIGURE_START
     %CMAKE_CONFIGURE%
     if %errorlevel% neq 0 (

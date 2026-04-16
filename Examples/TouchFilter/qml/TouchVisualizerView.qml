@@ -51,7 +51,7 @@ Item {
                 Text {
                     text:            cs.label
                     color:           "#9aaabf"
-                    font.pixelSize:  14
+                    font.pixelSize: 16
                     width:           parent.width - valLabel.implicitWidth - 4
                     elide:           Text.ElideRight
                 }
@@ -61,7 +61,7 @@ Item {
                                     ? sl.value.toFixed(cs.decimals) + cs.suffix
                                     : Math.round(sl.value) + cs.suffix
                     color:          "#dde8ff"
-                    font.pixelSize: 14
+                    font.pixelSize: 16
                     font.bold:      true
                 }
             }
@@ -227,9 +227,31 @@ Item {
                 Text {
                     text:           "TOUCH FILTER"
                     color:          "#4a6a9a"
-                    font.pixelSize: 11
+                    font.pixelSize: 13
                     font.bold:      true
                     font.letterSpacing: 3
+                }
+
+                // Private-reinject status badge (compile-time constant)
+                Rectangle {
+                    width: parent.width; height: 22; radius: 3
+                    color:  filter.privateReinject ? "#0e2010" : "#1c1408"
+                    border { color: filter.privateReinject ? "#2a6a30" : "#5a4010"; width: 1 }
+                    Row {
+                        anchors { left: parent.left; verticalCenter: parent.verticalCenter; leftMargin: 7 }
+                        spacing: 6
+                        Rectangle {
+                            width: 6; height: 6; radius: 3
+                            color: filter.privateReinject ? "#28D769" : "#c8a828"
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+                        Text {
+                            text:  filter.privateReinject ? "Private reinject ON" : "Private reinject OFF"
+                            color: filter.privateReinject ? "#50aa60"              : "#aa8830"
+                            font.pixelSize: 10
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+                    }
                 }
 
                 // Stats
@@ -253,14 +275,14 @@ Item {
                                     anchors.horizontalCenter: parent.horizontalCenter
                                     text:           modelData.value
                                     color:          modelData.color
-                                    font.pixelSize: 14
+                                    font.pixelSize: 16
                                     font.bold:      true
                                 }
                                 Text {
                                     anchors.horizontalCenter: parent.horizontalCenter
                                     text:           modelData.label
                                     color:          Qt.darker(modelData.color, 1.4)
-                                    font.pixelSize: 7
+                                    font.pixelSize: 9
                                     font.letterSpacing: 1.5
                                 }
                             }
@@ -286,7 +308,7 @@ Item {
                         anchors { left: parent.left; verticalCenter: parent.verticalCenter; leftMargin: 8 }
                         spacing: 7
                         Rectangle { width: 8; height: 8; radius: 4; color: ctrlEnabled.filterOn ? "#28D769" : "#FF503C"; anchors.verticalCenter: parent.verticalCenter }
-                        Text { text: ctrlEnabled.filterOn ? "Filter enabled" : "Filter disabled"; color: ctrlEnabled.filterOn ? "#dde8ff" : "#5a6a7a"; font.pixelSize: 12; anchors.verticalCenter: parent.verticalCenter }
+                        Text { text: ctrlEnabled.filterOn ? "Filter enabled" : "Filter disabled"; color: ctrlEnabled.filterOn ? "#dde8ff" : "#5a6a7a"; font.pixelSize: 14; anchors.verticalCenter: parent.verticalCenter }
                     }
                     TapHandler { onTapped: ctrlEnabled.filterOn = !ctrlEnabled.filterOn }
                 }
@@ -300,7 +322,7 @@ Item {
                         anchors { left: parent.left; verticalCenter: parent.verticalCenter; leftMargin: 8 }
                         spacing: 7
                         Rectangle { width: 8; height: 2; radius: 1; color: "#50A0FF"; anchors.verticalCenter: parent.verticalCenter }
-                        Text { text: "Show smoothed trail"; color: root.showSmoothed ? "#dde8ff" : "#5a6a7a"; font.pixelSize: 12; anchors.verticalCenter: parent.verticalCenter }
+                        Text { text: "Show smoothed trail"; color: root.showSmoothed ? "#dde8ff" : "#5a6a7a"; font.pixelSize: 14; anchors.verticalCenter: parent.verticalCenter }
                     }
                     TapHandler { onTapped: root.showSmoothed = !root.showSmoothed }
                 }
@@ -311,7 +333,7 @@ Item {
                     width: parent.width; height: 36; radius: 4
                     color: clearHover.containsMouse ? "#2a1520" : "#1a0d14"
                     border { color: "#7a2030"; width: 2 }
-                    Text { anchors.centerIn: parent; text: "CLEAR"; color: "#ee4455"; font.pixelSize: 13; font.bold: true; font.letterSpacing: 3 }
+                    Text { anchors.centerIn: parent; text: "CLEAR"; color: "#ee4455"; font.pixelSize: 15; font.bold: true; font.letterSpacing: 3 }
                     HoverHandler { id: clearHover }
                     TapHandler  { onTapped: root.clearAll() }
                 }
@@ -325,270 +347,360 @@ Item {
             height: parent.height
 
             // ── Gesture demo strip (bottom) ───────────────────────────────────
+            // Six boxes: Pinch | Single·TH | Double·TH | Double·MPTA | Hold·TH | Hold·MPTA
+            // TH  = TapHandler  (amber label) — may require DSQT_TOUCH_PRIVATE_REINJECT
+            // MPTA = MultiPointTouchArea (teal label) — always reliable
             Row {
                 id:     demoStrip
                 anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
                 height: Math.max(150, Math.round(parent.height * 0.30))
 
-                // ── Pinch / Zoom demo ─────────────────────────────────────────
+                readonly property int boxW: Math.floor(width / 6)
+
+                // ── Shared helper components ──────────────────────────────────
+                // Inline reusable arc-paint function defined per-canvas below.
+
+                // ── 1. Pinch / Zoom — PinchHandler ───────────────────────────
                 Rectangle {
                     id:     pinchBox
-                    width:  Math.floor(parent.width / 3)
+                    width:  demoStrip.boxW
                     height: parent.height
-                    color:  "#060d18"
-                    clip:   true
+                    color:  "#060d18"; clip: true
                     border { color: "#1a2a3a"; width: 1 }
 
                     property real contentScale: 1.0
-                    property real panX:         0.0
-                    property real panY:         0.0
+                    property real panX: 0.0
+                    property real panY: 0.0
 
-                    Text {
-                        anchors { top: parent.top; horizontalCenter: parent.horizontalCenter; topMargin: 8 }
-                        text: "PINCH / ZOOM"
-                        color: "#3a5a7a"; font.pixelSize: 9; font.bold: true; font.letterSpacing: 2
+                    Column {
+                        anchors { top: parent.top; horizontalCenter: parent.horizontalCenter; topMargin: 6 }
+                        spacing: 1
+                        Text { text: "PINCH / ZOOM";  color: "#3a5a7a"; font.pixelSize: 10; font.bold: true; font.letterSpacing: 2; anchors.horizontalCenter: parent.horizontalCenter }
+                        Text { text: "PinchHandler";  color: "#4a7a4a"; font.pixelSize: 9; anchors.horizontalCenter: parent.horizontalCenter }
                     }
 
-                    // Zoomable content — 5×5 grid of dots
                     Item {
                         anchors.fill: parent
                         transform: [
                             Translate { x: pinchBox.panX; y: pinchBox.panY },
-                            Scale {
-                                xScale: pinchBox.contentScale
-                                yScale: pinchBox.contentScale
-                                origin.x: pinchBox.width  / 2
-                                origin.y: pinchBox.height / 2
-                            }
+                            Scale { xScale: pinchBox.contentScale; yScale: pinchBox.contentScale; origin.x: pinchBox.width / 2; origin.y: pinchBox.height / 2 }
                         ]
                         Repeater {
                             model: 25
                             Rectangle {
-                                x:      pinchBox.width  / 2 - 60 + (index % 5) * 30
-                                y:      pinchBox.height / 2 - 60 + Math.floor(index / 5) * 30
-                                width:  6; height: 6; radius: 3
-                                color:  "#2a6aaa"
+                                x: pinchBox.width  / 2 - 60 + (index % 5) * 30
+                                y: pinchBox.height / 2 - 60 + Math.floor(index / 5) * 30
+                                width: 6; height: 6; radius: 3; color: "#2a6aaa"
                             }
                         }
                     }
 
                     Text {
-                        anchors { bottom: parent.bottom; horizontalCenter: parent.horizontalCenter; bottomMargin: 8 }
-                        text:           pinchBox.contentScale.toFixed(2) + "×"
-                        color:          "#2a4a6a"
-                        font.pixelSize: 9
+                        anchors { bottom: parent.bottom; horizontalCenter: parent.horizontalCenter; bottomMargin: 6 }
+                        text: pinchBox.contentScale.toFixed(2) + "×"; color: "#2a4a6a"; font.pixelSize: 10
                     }
 
                     PinchHandler {
-                        id: pinchHandler
-                        target: null
-                        grabPermissions: PointerHandler.CanTakeOverFromAnything
+                        target: null; grabPermissions: PointerHandler.CanTakeOverFromAnything
                         property bool skipFirst: false
                         onActiveChanged: { if (active) skipFirst = true }
-                        onScaleChanged: (delta) => {
-                            if (active) pinchBox.contentScale =
-                                Math.max(0.15, Math.min(10.0, pinchBox.contentScale * delta))
-                        }
-                        onActiveTranslationChanged: (t) => {
-                            if (!active) return
-                            if (skipFirst) { skipFirst = false; return }
-                            pinchBox.panX += t.x
-                            pinchBox.panY += t.y
-                        }
+                        onScaleChanged: (delta) => { if (active) pinchBox.contentScale = Math.max(0.15, Math.min(10.0, pinchBox.contentScale * delta)) }
+                        onActiveTranslationChanged: (t) => { if (!active) return; if (skipFirst) { skipFirst = false; return }; pinchBox.panX += t.x; pinchBox.panY += t.y }
                     }
-
                     DragHandler {
-                        target: null
-                        acceptedDevices: PointerDevice.TouchScreen
-                        acceptedButtons: Qt.NoButton
+                        target: null; acceptedDevices: PointerDevice.TouchScreen; acceptedButtons: Qt.NoButton; maximumPointCount: 1
                         grabPermissions: PointerHandler.CanTakeOverFromItems | PointerHandler.CanTakeOverFromHandlersOfDifferentType
-                        maximumPointCount: 1
                         property bool skipFirst: false
                         onActiveChanged: { if (active) skipFirst = true }
-                        onActiveTranslationChanged: (t) => {
-                            if (!active) return
-                            if (skipFirst) { skipFirst = false; return }
-                            pinchBox.panX += t.x
-                            pinchBox.panY += t.y
-                        }
+                        onActiveTranslationChanged: (t) => { if (!active) return; if (skipFirst) { skipFirst = false; return }; pinchBox.panX += t.x; pinchBox.panY += t.y }
                     }
                 }
 
-                // ── Double-tap demo ───────────────────────────────────────────
+                // ── 2. Single Tap — TapHandler ────────────────────────────────
                 Rectangle {
-                    id:     doubleTapBox
-                    width:  Math.floor(parent.width / 3)
-                    height: parent.height
-                    color:  "#06080e"
-                    border { color: "#1a1a28"; width: 1 }
+                    id:     singleTapTH
+                    width:  demoStrip.boxW; height: parent.height
+                    color:  "#0e0c06"
+                    border { color: "#2a2810"; width: 1 }
 
                     property int tapCount: 0
 
-                    Text {
-                        anchors { top: parent.top; horizontalCenter: parent.horizontalCenter; topMargin: 8 }
-                        text: "DOUBLE TAP"
-                        color: "#3a5a7a"; font.pixelSize: 9; font.bold: true; font.letterSpacing: 2
+                    Column {
+                        anchors { top: parent.top; horizontalCenter: parent.horizontalCenter; topMargin: 6 }
+                        spacing: 1
+                        Text { text: "SINGLE TAP"; color: "#3a5a7a"; font.pixelSize: 10; font.bold: true; font.letterSpacing: 2; anchors.horizontalCenter: parent.horizontalCenter }
+                        Text { text: "TapHandler"; color: "#9a8a40"; font.pixelSize: 9; anchors.horizontalCenter: parent.horizontalCenter }
                     }
 
-                    // Rings + dot that pulse on double-tap
-                    Item {
+                    Rectangle {
+                        id:               stDot
                         anchors.centerIn: parent
-                        width: 64; height: 64
+                        width: 22; height: 22; radius: 11; color: "#5a6030"
+                        ScaleAnimator on scale { id: stAnim; from: 1.0; to: 1.8; duration: 180; easing.type: Easing.OutBack; running: false; onFinished: stDot.scale = 1.0 }
+                    }
 
+                    Text {
+                        anchors { bottom: parent.bottom; horizontalCenter: parent.horizontalCenter; bottomMargin: 6 }
+                        text: singleTapTH.tapCount > 0 ? "× " + singleTapTH.tapCount : " "
+                        color: "#8a7a30"; font.pixelSize: 12; font.bold: true
+                    }
+
+                    TapHandler {
+                        acceptedButtons: Qt.NoButton
+                        gesturePolicy:   TapHandler.DragThreshold
+                        dragThreshold:   30
+                        onTapped: { singleTapTH.tapCount++; stAnim.restart() }
+                    }
+                }
+
+                // ── 3. Double Tap — TapHandler ────────────────────────────────
+                Rectangle {
+                    id:     doubleTapTH
+                    width:  demoStrip.boxW; height: parent.height
+                    color:  "#0e0c06"
+                    border { color: "#2a2810"; width: 1 }
+
+                    property int tapCount: 0
+
+                    Column {
+                        anchors { top: parent.top; horizontalCenter: parent.horizontalCenter; topMargin: 6 }
+                        spacing: 1
+                        Text { text: "DOUBLE TAP"; color: "#3a5a7a"; font.pixelSize: 10; font.bold: true; font.letterSpacing: 2; anchors.horizontalCenter: parent.horizontalCenter }
+                        Text { text: "TapHandler"; color: "#9a8a40"; font.pixelSize: 9; anchors.horizontalCenter: parent.horizontalCenter }
+                    }
+
+                    Item {
+                        anchors.centerIn: parent; width: 56; height: 56
                         Rectangle {
-                            id: outerRing
-                            anchors.centerIn: parent
-                            width: 56; height: 56; radius: 28
-                            color: "transparent"
-                            border { color: "#1e3a5a"; width: 2 }
-
-                            ScaleAnimator on scale {
-                                id: outerAnim
-                                from: 1.0; to: 1.6; duration: 250
-                                easing.type: Easing.OutCubic
-                                running: false
-                                onFinished: outerRing.scale = 1.0
-                            }
+                            id: dtTHRing; anchors.centerIn: parent
+                            width: 50; height: 50; radius: 25; color: "transparent"
+                            border { color: "#4a4020"; width: 2 }
+                            ScaleAnimator on scale { id: dtTHRingAnim; from: 1.0; to: 1.6; duration: 250; easing.type: Easing.OutCubic; running: false; onFinished: dtTHRing.scale = 1.0 }
                         }
-
                         Rectangle {
-                            id: innerDot
-                            anchors.centerIn: parent
-                            width: 20; height: 20; radius: 10
-                            color: "#1e4a7a"
-
-                            ScaleAnimator on scale {
-                                id: innerAnim
-                                from: 1.0; to: 2.0; duration: 200
-                                easing.type: Easing.OutBack
-                                running: false
-                                onFinished: innerDot.scale = 1.0
-                            }
+                            id: dtTHDot; anchors.centerIn: parent
+                            width: 18; height: 18; radius: 9; color: "#6a5a20"
+                            ScaleAnimator on scale { id: dtTHDotAnim; from: 1.0; to: 2.0; duration: 200; easing.type: Easing.OutBack; running: false; onFinished: dtTHDot.scale = 1.0 }
                         }
                     }
 
                     Text {
-                        anchors { bottom: parent.bottom; horizontalCenter: parent.horizontalCenter; bottomMargin: 8 }
-                        text:           doubleTapBox.tapCount > 0 ? "× " + doubleTapBox.tapCount : " "
-                        color:          "#2a5a9a"
-                        font.pixelSize: 11
-                        font.bold:      true
+                        anchors { bottom: parent.bottom; horizontalCenter: parent.horizontalCenter; bottomMargin: 6 }
+                        text: doubleTapTH.tapCount > 0 ? "× " + doubleTapTH.tapCount : " "
+                        color: "#8a7a30"; font.pixelSize: 12; font.bold: true
                     }
 
-                    MultiPointTouchArea {
-                        anchors.fill:      parent
-                        minimumTouchPoints: 1
-                        maximumTouchPoints: 1
+                    TapHandler {
+                        acceptedButtons: Qt.NoButton
+                        // ReleaseWithinBounds: tap is valid as long as the release
+                        // lands inside the item — no drag cancellation during the tap.
+                        gesturePolicy:   TapHandler.ReleaseWithinBounds
 
-                        property real _lastRelease: 0
-
-                        onReleased: (touchPoints) => {
+                        // Qt's built-in tapCount uses mouseDoubleClickDistance (~4px),
+                        // too tight for touch.  Track time + position ourselves with a
+                        // 500ms / 40px window — standard touch double-tap tolerances.
+                        property real  _lastTap: 0
+                        property point _lastPos: Qt.point(0, 0)
+                        onTapped: {
                             var now = Date.now()
-                            if (now - _lastRelease < 350) {
-                                doubleTapBox.tapCount++
-                                outerAnim.restart()
-                                innerAnim.restart()
-                                _lastRelease = 0   // prevent triple-tap counting again
+                            var dx  = point.position.x - _lastPos.x
+                            var dy  = point.position.y - _lastPos.y
+                            var dist = Math.sqrt(dx*dx + dy*dy)
+                            if (now - _lastTap < 500 && dist < 40) {
+                                doubleTapTH.tapCount++
+                                dtTHRingAnim.restart()
+                                dtTHDotAnim.restart()
+                                _lastTap = 0
                             } else {
-                                _lastRelease = now
+                                _lastTap = now
+                                _lastPos = Qt.point(point.position.x, point.position.y)
                             }
                         }
                     }
                 }
 
-                // ── Long-press demo ───────────────────────────────────────────
+                // ── 4. Double Tap — MultiPointTouchArea ───────────────────────
                 Rectangle {
-                    id:     holdBox
-                    width:  parent.width - pinchBox.width - doubleTapBox.width
-                    height: parent.height
-                    color:  "#060e08"
-                    border { color: "#1a2a1a"; width: 1 }
+                    id:     doubleTapMPTA
+                    width:  demoStrip.boxW; height: parent.height
+                    color:  "#060e0e"
+                    border { color: "#102828"; width: 1 }
+
+                    property int tapCount: 0
+
+                    Column {
+                        anchors { top: parent.top; horizontalCenter: parent.horizontalCenter; topMargin: 6 }
+                        spacing: 1
+                        Text { text: "DOUBLE TAP"; color: "#3a5a7a"; font.pixelSize: 10; font.bold: true; font.letterSpacing: 2; anchors.horizontalCenter: parent.horizontalCenter }
+                        Text { text: "MultiPoint"; color: "#409a8a"; font.pixelSize: 9; anchors.horizontalCenter: parent.horizontalCenter }
+                    }
+
+                    Item {
+                        anchors.centerIn: parent; width: 56; height: 56
+                        Rectangle {
+                            id: dtMPTARing; anchors.centerIn: parent
+                            width: 50; height: 50; radius: 25; color: "transparent"
+                            border { color: "#1e4a4a"; width: 2 }
+                            ScaleAnimator on scale { id: dtMPTARingAnim; from: 1.0; to: 1.6; duration: 250; easing.type: Easing.OutCubic; running: false; onFinished: dtMPTARing.scale = 1.0 }
+                        }
+                        Rectangle {
+                            id: dtMPTADot; anchors.centerIn: parent
+                            width: 18; height: 18; radius: 9; color: "#206a6a"
+                            ScaleAnimator on scale { id: dtMPTADotAnim; from: 1.0; to: 2.0; duration: 200; easing.type: Easing.OutBack; running: false; onFinished: dtMPTADot.scale = 1.0 }
+                        }
+                    }
+
+                    Text {
+                        anchors { bottom: parent.bottom; horizontalCenter: parent.horizontalCenter; bottomMargin: 6 }
+                        text: doubleTapMPTA.tapCount > 0 ? "× " + doubleTapMPTA.tapCount : " "
+                        color: "#309a8a"; font.pixelSize: 12; font.bold: true
+                    }
+
+                    MultiPointTouchArea {
+                        anchors.fill: parent; minimumTouchPoints: 1; maximumTouchPoints: 1
+                        property real  _lastRelease: 0
+                        property point _lastPos:     Qt.point(0, 0)
+                        onReleased: (touchPoints) => {
+                            var now = Date.now()
+                            var tp  = touchPoints[0]
+                            var dx  = tp.x - _lastPos.x
+                            var dy  = tp.y - _lastPos.y
+                            var dist = Math.sqrt(dx*dx + dy*dy)
+                            if (now - _lastRelease < 500 && dist < 40) {
+                                doubleTapMPTA.tapCount++; dtMPTARingAnim.restart(); dtMPTADotAnim.restart()
+                                _lastRelease = 0
+                            } else {
+                                _lastRelease = now
+                                _lastPos = Qt.point(tp.x, tp.y)
+                            }
+                        }
+                    }
+                }
+
+                // ── 5. Long Press — TapHandler ────────────────────────────────
+                Rectangle {
+                    id:     holdTH
+                    width:  demoStrip.boxW; height: parent.height
+                    color:  "#0e0c06"
+                    border { color: "#2a2810"; width: 1 }
 
                     property real holdProgress:  0.0
                     property bool holdTriggered: false
 
-                    Text {
-                        anchors { top: parent.top; horizontalCenter: parent.horizontalCenter; topMargin: 8 }
-                        text: "HOLD"
-                        color: "#3a5a7a"; font.pixelSize: 9; font.bold: true; font.letterSpacing: 2
+                    onHoldProgressChanged:  holdTHArc.requestPaint()
+                    onHoldTriggeredChanged: holdTHArc.requestPaint()
+
+                    Column {
+                        anchors { top: parent.top; horizontalCenter: parent.horizontalCenter; topMargin: 6 }
+                        spacing: 1
+                        Text { text: "HOLD"; color: "#3a5a7a"; font.pixelSize: 10; font.bold: true; font.letterSpacing: 2; anchors.horizontalCenter: parent.horizontalCenter }
+                        Text { text: "TapHandler"; color: "#9a8a40"; font.pixelSize: 9; anchors.horizontalCenter: parent.horizontalCenter }
                     }
 
-                    // Radial progress arc
                     Canvas {
-                        id:           holdArc
-                        anchors.centerIn: parent
-                        width: 64; height: 64
-
+                        id: holdTHArc; anchors.centerIn: parent; width: 56; height: 56
                         onPaint: {
-                            var ctx = getContext("2d")
+                            var ctx = getContext("2d"), cx = width/2, cy = height/2, r = 22
                             ctx.clearRect(0, 0, width, height)
-                            var cx = width / 2, cy = height / 2, r = 26
-
-                            // Background ring
-                            ctx.beginPath()
-                            ctx.arc(cx, cy, r, 0, Math.PI * 2)
-                            ctx.strokeStyle = "#112218"
-                            ctx.lineWidth   = 6
-                            ctx.stroke()
-
-                            // Progress arc
-                            if (holdBox.holdProgress > 0) {
-                                var start = -Math.PI / 2
-                                ctx.beginPath()
-                                ctx.arc(cx, cy, r, start,
-                                        start + holdBox.holdProgress * Math.PI * 2)
-                                ctx.strokeStyle = holdBox.holdTriggered ? "#28D769" : "#2a9a50"
-                                ctx.lineWidth   = 6
-                                ctx.stroke()
+                            ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2); ctx.strokeStyle = "#1a1808"; ctx.lineWidth = 5; ctx.stroke()
+                            if (holdTH.holdProgress > 0) {
+                                var s = -Math.PI/2
+                                ctx.beginPath(); ctx.arc(cx, cy, r, s, s + holdTH.holdProgress * Math.PI * 2)
+                                ctx.strokeStyle = holdTH.holdTriggered ? "#c8a828" : "#9a8030"; ctx.lineWidth = 5; ctx.stroke()
                             }
-
-                            // Centre fill
-                            ctx.beginPath()
-                            ctx.arc(cx, cy, 10, 0, Math.PI * 2)
-                            ctx.fillStyle = holdBox.holdTriggered ? "#28D769"
-                                          : holdBox.holdProgress > 0 ? "#2a9a50"
-                                          : "#112218"
-                            ctx.fill()
+                            ctx.beginPath(); ctx.arc(cx, cy, 8, 0, Math.PI*2)
+                            ctx.fillStyle = holdTH.holdTriggered ? "#c8a828" : holdTH.holdProgress > 0 ? "#9a8030" : "#1a1808"; ctx.fill()
                         }
                     }
 
-                    Connections {
-                        target: holdBox
-                        function onHoldProgressChanged()  { holdArc.requestPaint() }
-                        function onHoldTriggeredChanged()  { holdArc.requestPaint() }
-                    }
-
                     Text {
-                        anchors { bottom: parent.bottom; horizontalCenter: parent.horizontalCenter; bottomMargin: 8 }
-                        text:           holdBox.holdTriggered ? "HELD!" : " "
-                        color:          "#28D769"
-                        font.pixelSize: 11
-                        font.bold:      true
+                        anchors { bottom: parent.bottom; horizontalCenter: parent.horizontalCenter; bottomMargin: 6 }
+                        text: holdTH.holdTriggered ? "HELD!" : " "; color: "#c8a828"; font.pixelSize: 12; font.bold: true
                     }
 
-                    MultiPointTouchArea {
-                        anchors.fill:       parent
-                        minimumTouchPoints: 1
-                        maximumTouchPoints: 1
-
-                        onPressed:  { holdBox.holdProgress = 0; holdBox.holdTriggered = false; holdFillTimer.restart() }
-                        onReleased: { holdFillTimer.stop();     holdBox.holdProgress = 0;       holdBox.holdTriggered = false }
-                        onCanceled: { holdFillTimer.stop();     holdBox.holdProgress = 0;       holdBox.holdTriggered = false }
+                    TapHandler {
+                        id:                 holdTHHandler
+                        acceptedButtons:    Qt.NoButton
+                        longPressThreshold: 0.6
+                        onLongPressed:      holdTH.holdTriggered = true
+                        onPressedChanged: {
+                            // pressed goes false on physical release regardless of grab type.
+                            // Only reset fill progress here — not holdTriggered, so "HELD!"
+                            // stays visible until onTapped/onCanceled clears it.
+                            if (!pressed && !holdTH.holdTriggered)
+                                holdTH.holdProgress = 0.0
+                        }
+                        // Clear the triggered state on actual release (tapped fires
+                        // after the physical lift, even following a long press).
+                        onTapped:   { holdTH.holdProgress = 0.0; holdTH.holdTriggered = false }
+                        onCanceled: { holdTH.holdProgress = 0.0; holdTH.holdTriggered = false }
                     }
 
                     Timer {
-                        id:       holdFillTimer
-                        interval: 16
-                        repeat:   true
+                        running: holdTHHandler.pressed && !holdTH.holdTriggered
+                        interval: 16; repeat: true
                         onTriggered: {
-                            var next = holdBox.holdProgress + 0.016 / 0.6
-                            if (next >= 1.0) {
-                                holdBox.holdProgress  = 1.0
-                                holdBox.holdTriggered = true
-                                stop()
-                            } else {
-                                holdBox.holdProgress = next
+                            var next = holdTH.holdProgress + 0.016 / holdTHHandler.longPressThreshold
+                            holdTH.holdProgress = next >= 1.0 ? 1.0 : next
+                        }
+                    }
+                }
+
+                // ── 6. Long Press — MultiPointTouchArea ───────────────────────
+                Rectangle {
+                    id:     holdMPTA
+                    width:  demoStrip.width - demoStrip.boxW * 5
+                    height: parent.height
+                    color:  "#060e0e"
+                    border { color: "#102828"; width: 1 }
+
+                    property real holdProgress:  0.0
+                    property bool holdTriggered: false
+
+                    onHoldProgressChanged:  holdMPTAArc.requestPaint()
+                    onHoldTriggeredChanged: holdMPTAArc.requestPaint()
+
+                    Column {
+                        anchors { top: parent.top; horizontalCenter: parent.horizontalCenter; topMargin: 6 }
+                        spacing: 1
+                        Text { text: "HOLD"; color: "#3a5a7a"; font.pixelSize: 10; font.bold: true; font.letterSpacing: 2; anchors.horizontalCenter: parent.horizontalCenter }
+                        Text { text: "MultiPoint"; color: "#409a8a"; font.pixelSize: 9; anchors.horizontalCenter: parent.horizontalCenter }
+                    }
+
+                    Canvas {
+                        id: holdMPTAArc; anchors.centerIn: parent; width: 56; height: 56
+                        onPaint: {
+                            var ctx = getContext("2d"), cx = width/2, cy = height/2, r = 22
+                            ctx.clearRect(0, 0, width, height)
+                            ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2); ctx.strokeStyle = "#081818"; ctx.lineWidth = 5; ctx.stroke()
+                            if (holdMPTA.holdProgress > 0) {
+                                var s = -Math.PI/2
+                                ctx.beginPath(); ctx.arc(cx, cy, r, s, s + holdMPTA.holdProgress * Math.PI * 2)
+                                ctx.strokeStyle = holdMPTA.holdTriggered ? "#28D769" : "#2a9a70"; ctx.lineWidth = 5; ctx.stroke()
                             }
+                            ctx.beginPath(); ctx.arc(cx, cy, 8, 0, Math.PI*2)
+                            ctx.fillStyle = holdMPTA.holdTriggered ? "#28D769" : holdMPTA.holdProgress > 0 ? "#2a9a70" : "#081818"; ctx.fill()
+                        }
+                    }
+
+                    Text {
+                        anchors { bottom: parent.bottom; horizontalCenter: parent.horizontalCenter; bottomMargin: 6 }
+                        text: holdMPTA.holdTriggered ? "HELD!" : " "; color: "#28D769"; font.pixelSize: 12; font.bold: true
+                    }
+
+                    MultiPointTouchArea {
+                        anchors.fill: parent; minimumTouchPoints: 1; maximumTouchPoints: 1
+                        onPressed:  { holdMPTA.holdProgress = 0; holdMPTA.holdTriggered = false; holdMPTATimer.restart() }
+                        onReleased: { holdMPTATimer.stop(); holdMPTA.holdProgress = 0; holdMPTA.holdTriggered = false }
+                        onCanceled: { holdMPTATimer.stop(); holdMPTA.holdProgress = 0; holdMPTA.holdTriggered = false }
+                    }
+
+                    Timer {
+                        id: holdMPTATimer; interval: 16; repeat: true
+                        onTriggered: {
+                            var next = holdMPTA.holdProgress + 0.016 / 0.6
+                            if (next >= 1.0) { holdMPTA.holdProgress = 1.0; holdMPTA.holdTriggered = true; stop() }
+                            else holdMPTA.holdProgress = next
                         }
                     }
                 }
@@ -610,7 +722,7 @@ Item {
                         anchors.centerIn: parent
                         text:           "Trace the dashed line to test the filter"
                         color:          "#445566"
-                        font.pixelSize: 11
+                        font.pixelSize: 13
                     }
                 }
 
@@ -725,7 +837,7 @@ Item {
                             }
 
                             ctx.fillStyle = "rgba(255,255,255,0.85)"
-                            ctx.font      = "bold 14px sans-serif"
+                            ctx.font      = "bold 16px sans-serif"
                             ctx.fillText(
                                 t.state === 'down' ? '↓ DOWN' :
                                 t.state === 'drag' ? '→ DRAG' : '↑ UP',
@@ -735,7 +847,7 @@ Item {
                                 ctx.fillStyle = t.classification === 'filtered'
                                                 ? "rgba(255,110,90,0.88)"
                                                 : "rgba(80,160,255,0.80)"
-                                ctx.font      = "12px sans-serif"
+                                ctx.font      = "14px sans-serif"
                                 ctx.fillText(
                                     t.filterReason === 'transient'  ? '(transient)'  :
                                     t.filterReason === 'proximity'  ? '(proximity)'  :
@@ -762,7 +874,7 @@ Item {
                             spacing: 4
                             anchors.verticalCenter: parent.verticalCenter
                             Rectangle { width: 12; height: 2; radius: 1; color: modelData.color; anchors.verticalCenter: parent.verticalCenter }
-                            Text { text: modelData.label; color: "#5a6a80"; font.pixelSize: 8; anchors.verticalCenter: parent.verticalCenter }
+                            Text { text: modelData.label; color: "#5a6a80"; font.pixelSize: 10; anchors.verticalCenter: parent.verticalCenter }
                         }
                     }
                 }

@@ -8,6 +8,11 @@
 #include <QQuickWindow>
 #include <QTimer>
 
+#ifdef DSQT_TOUCH_PRIVATE_REINJECT
+#  include <qpa/qwindowsysteminterface_p.h>
+#  include <private/qeventpoint_p.h>
+#endif
+
 class QTouchEvent;
 
 /// A QObject event filter that intercepts QTouchEvents at the QQuickWindow
@@ -42,16 +47,35 @@ class QTouchEvent;
 ///      are re-injected and delivered normally.
 ///   3. Jitter smoothing     – move events pass through unchanged; smoothed
 ///      positions are reported via touchAccepted signals only.
-///   4. Lift-resume bridging – operates at signal level only (see note below).
+///   4. Lift-resume bridging – see note below.
 ///
 /// Lift-resume note
 /// ----------------
 /// A release followed by a nearby press within liftResumeThresholdMs is
 /// treated as a drag continuation in the touchAccepted / touchFiltered signal
-/// stream.  However, both the release and the new press events are passed
-/// through to Qt's handlers unchanged.  Full event-level suppression would
-/// require remapping touch IDs inside QTouchEvent, which is not possible
-/// without private Qt headers.
+/// stream.
+///
+/// Without DSQT_TOUCH_PRIVATE_REINJECT: both the release and the new press
+/// events pass through to Qt's handlers unchanged (signal-level only).
+///
+/// With DSQT_TOUCH_PRIVATE_REINJECT: the new press is suppressed and
+/// re-delivered with the old touch ID via QWindowSystemInterface, making the
+/// lift-resume fully transparent to TapHandler, DragHandler, etc.
+///
+/// Re-injection note
+/// -----------------
+/// By default, confirmed touches are re-injected via QCoreApplication::sendEvent.
+/// This bypasses Qt's input pipeline so TapHandler / PointerHandler subclasses
+/// may not receive events reliably.  Build with DSQT_TOUCH_PRIVATE_REINJECT=ON
+/// (requires Qt6::GuiPrivate) to use QWindowSystemInterface::handleTouchEvent
+/// which feeds events through the full pipeline.
+///
+/// On Windows LWE displays, QEventPoint::scenePosition() == globalPosition()
+/// (screen-absolute) rather than window-relative.  TapHandler checks scenePosition()
+/// against item bounds; raw LWE events fail this check and are rejected.
+/// With DSQT_TOUCH_PRIVATE_REINJECT, even when filterEnabled is false, events are
+/// re-normalised through QWindowSystemInterface so TapHandler works correctly.
+/// Without the flag the original event is passed through and TapHandler may not work.
 class TouchFilter : public QObject
 {
     Q_OBJECT
@@ -76,6 +100,7 @@ class TouchFilter : public QObject
                    NOTIFY proximityFilterPxChanged FINAL)
     Q_PROPERTY(bool filterEnabled READ isFilterEnabled WRITE setFilterEnabled
                    NOTIFY filterEnabledChanged FINAL)
+    Q_PROPERTY(bool privateReinject READ isPrivateReinject CONSTANT FINAL)
 
 public:
     explicit TouchFilter(QObject *parent = nullptr);
@@ -88,6 +113,13 @@ public:
     qreal liftResumeDistancePx()    const { return m_liftResumeDistancePx;  }
     qreal proximityFilterPx()       const { return m_proximityFilterPx;     }
     bool  isFilterEnabled()         const { return m_filterEnabled;          }
+    static bool isPrivateReinject() {
+#ifdef DSQT_TOUCH_PRIVATE_REINJECT
+        return true;
+#else
+        return false;
+#endif
+    }
 
     void setWindow              (QQuickWindow* w);
     void setTransientThresholdMs(int   ms);
@@ -177,8 +209,17 @@ private:
     void confirmRelease(int id);  ///< Lifting timer expired: emit signal release
     void cleanupTouch  (int id);
 
+    /// Re-inject a single buffered event so Qt handlers see the confirmed touch.
+    void reInjectEvent(const StoredEvent &ev);
+
     QPointF applySmoothing(TouchData *data, qreal x, qreal y) const;
 
     static int   stateInt(QEventPoint::State s);
     static qreal dist(QPointF a, QPointF b);
+
+#ifdef DSQT_TOUCH_PRIVATE_REINJECT
+    /// Convert a QEventPoint to the structure QWindowSystemInterface expects.
+    static QWindowSystemInterface::TouchPoint toTouchPoint(const QEventPoint &pt,
+                                                           QWindow *window);
+#endif
 };
