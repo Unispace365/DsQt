@@ -119,7 +119,7 @@ target_link_libraries(Core PUBLIC
     Qt6::Gui 
     Qt6::Qml 
     Coreplugin
-    user32 # For WindowHelper
+    $<$<PLATFORM_ID:Windows>:user32> # For WindowHelper
 )
 
 target_include_directories(Core
