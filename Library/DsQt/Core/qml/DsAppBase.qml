@@ -27,7 +27,7 @@ ApplicationWindow {
     Timer {
         id: refocusTimer
         interval: windowProxy.getInt("forceToFrontInterval", 2000)
-        repeat: false
+        repeat: true
         onTriggered: if(windowProxy.getBool("forceToFront",false)) WindowHelper.forceToFront(window)
     }
 
