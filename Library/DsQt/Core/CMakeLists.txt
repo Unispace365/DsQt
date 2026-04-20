@@ -98,6 +98,7 @@ qt_add_qml_module(Core
         utility/dsFileMetaData.cpp utility/dsFileMetaData.h
         utility/dsStringUtils.cpp utility/dsStringUtils.h
         utility/dsUrlImageLoader.cpp utility/dsUrlImageLoader.h
+        utility/WindowHelper.h
 
     #DEPENDENCIES
     #     QtQuick
@@ -118,6 +119,7 @@ target_link_libraries(Core PUBLIC
     Qt6::Gui 
     Qt6::Qml 
     Coreplugin
+    user32 # For WindowHelper
 )
 
 target_include_directories(Core
