@@ -20,7 +20,11 @@ ApplicationWindow {
             refocusTimer.stop()
         } else {
             console.log("Window is no longer front-most")
-            refocusTimer.start()
+            if(windowProxy.getBool("forceToFront",false) && windowProxy.getString("mode","window") !== "window") {
+                refocusTimer.start()
+            } else {
+                refocusTimer.stop()
+            }
         }
     }
 
@@ -28,7 +32,7 @@ ApplicationWindow {
         id: refocusTimer
         interval: windowProxy.getInt("forceToFrontInterval", 2000)
         repeat: true
-        onTriggered: if(windowProxy.getBool("forceToFront",false)) WindowHelper.forceToFront(window)
+        onTriggered: indowHelper.forceToFront(window)
     }
 
     // Keep track of screen changes.
