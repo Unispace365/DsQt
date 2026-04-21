@@ -64,17 +64,17 @@ void DsQmlSpoutReceiverView::connectReceiver()
         update();
     });
 
-    // Continuous rendering — request update after each frame is presented
-    if (window()) {
-        connect(window(), &QQuickWindow::frameSwapped,
-                this, &QQuickItem::update, Qt::QueuedConnection);
-    }
-    connect(this, &QQuickItem::windowChanged, this, [this](QQuickWindow* win) {
-        if (win) {
-            connect(win, &QQuickWindow::frameSwapped,
-                    this, &QQuickItem::update, Qt::QueuedConnection);
-        }
-    });
+    // // Continuous rendering — request update after each frame is presented
+    // if (window()) {
+    //     connect(window(), &QQuickWindow::frameSwapped,
+    //             this, &QQuickItem::update, Qt::QueuedConnection);
+    // }
+    // connect(this, &QQuickItem::windowChanged, this, [this](QQuickWindow* win) {
+    //     if (win) {
+    //         connect(win, &QQuickWindow::frameSwapped,
+    //                 this, &QQuickItem::update, Qt::QueuedConnection);
+    //     }
+    // });
 }
 
 void DsQmlSpoutReceiverView::disconnectReceiver()

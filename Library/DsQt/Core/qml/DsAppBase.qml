@@ -13,6 +13,24 @@ ApplicationWindow {
     visible: false // Will become visible once setup.
     color: "black"
 
+    // Keep track of active changes.
+    onActiveChanged: {
+        if (active) {
+            console.log("Window is now front-most / active")
+            refocusTimer.stop()
+        } else {
+            console.log("Window is no longer front-most")
+            refocusTimer.start()
+        }
+    }
+
+    Timer {
+        id: refocusTimer
+        interval: windowProxy.getInt("forceToFrontInterval", 2000)
+        repeat: true
+        onTriggered: if(windowProxy.getBool("forceToFront",false)) WindowHelper.forceToFront(window)
+    }
+
     // Keep track of screen changes.
     onScreenChanged: {
         var screens = Application.screens
@@ -193,36 +211,36 @@ ApplicationWindow {
 
         property DsTextFileViewer appLogWindow: null
         onLogsApplicationTriggered: (isChecked) => {
-                                        if(appLogWindow === null) {
-                                            appLogWindow = appLog.createObject(window)
-                                            appLogWindow.closing.connect( () => { windowMenuBar.logsApplicationChecked = false } )
-                                        }
-                                        appLogWindow.file = ""
-                                        appLogWindow.file = Ds.env.logFile();
-                                        appLogWindow.visible = isChecked
-                                    }
+            if(appLogWindow === null) {
+                appLogWindow = appLog.createObject(window)
+                appLogWindow.closing.connect( () => { windowMenuBar.logsApplicationChecked = false } )
+            }
+            appLogWindow.file = ""
+            appLogWindow.file = Ds.env.logFile();
+            appLogWindow.visible = isChecked
+        }
 
         property DsTextFileViewer bridgeSyncLogWindow: null
         onLogsBridgeSyncTriggered: (isChecked) => {
-                                       if(bridgeSyncLogWindow === null) {
-                                           bridgeSyncLogWindow = bridgeSyncLog.createObject(window)
-                                           bridgeSyncLogWindow.closing.connect( () => { windowMenuBar.logsBridgeSyncChecked = false } )
-                                       }
-                                       bridgeSyncLogWindow.visible = isChecked
-                                   }
+            if(bridgeSyncLogWindow === null) {
+                bridgeSyncLogWindow = bridgeSyncLog.createObject(window)
+                bridgeSyncLogWindow.closing.connect( () => { windowMenuBar.logsBridgeSyncChecked = false } )
+            }
+            bridgeSyncLogWindow.visible = isChecked
+        }
 
         property var contentBrowser: null
         onContentBrowseToggled: (isChecked) => {
-                                    if (window.contentViewerComponent === null) {
-                                        console.warn("Content browser not available")
-                                        return
-                                    }
-                                    if(contentBrowser === null) {
-                                        contentBrowser = window.contentViewerComponent.createObject(window)
-                                        contentBrowser.closing.connect( () => { windowMenuBar.contentBrowseChecked = false } )
-                                    }
-                                    contentBrowser.visible = isChecked
-                                }
+            if (window.contentViewerComponent === null) {
+                console.warn("Content browser not available")
+                return
+            }
+            if(contentBrowser === null) {
+                contentBrowser = window.contentViewerComponent.createObject(window)
+                contentBrowser.closing.connect( () => { windowMenuBar.contentBrowseChecked = false } )
+            }
+            contentBrowser.visible = isChecked
+        }
 
         property DsSettingsViewer settingsEngineWindow: null
         onSettingsEngineTriggered: {
