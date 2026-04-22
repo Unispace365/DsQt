@@ -61,6 +61,13 @@ void DsGuiApplication::initializeLogging()
                           QtLogger::RotatingFileSink::RotationOnStartup, true);
     }
 
+#if defined(Q_OS_WIN) && defined(QT_DEBUG)
+    // In debug builds, add OutputDebugString so Qt Creator's Application Output
+    // receives messages when the MSVC debugger is attached.  stdout/stderr are
+    // not reliably piped for WIN32-subsystem apps in that mode.
+    logger->sendToWinDebug();
+#endif
+
     printStartupBanner();
 }
 
