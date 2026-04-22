@@ -140,10 +140,12 @@ target_include_directories(Core
 )
 
 if(DSQT_WITH_TOML)
-    target_include_directories(Core PUBLIC
-            $<BUILD_INTERFACE:${tomlplusplus_SOURCE_DIR}/include>
-            $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
-    )
+    # tomlplusplus::tomlplusplus (from find_package(tomlplusplus CONFIG)) already
+    # propagates its own include directories and compile definitions via its
+    # INTERFACE target — we don't need to add them manually here. The old
+    # `${tomlplusplus_SOURCE_DIR}` reference only worked with FetchContent and
+    # silently became a no-op after switching to find_package, which meant
+    # downstream consumers lost the toml++ wiring entirely.
     target_link_libraries(Core PUBLIC tomlplusplus::tomlplusplus)
     target_compile_definitions(Core PUBLIC DSQT_USE_TOML)
 endif()
@@ -169,10 +171,11 @@ install(DIRECTORY .
     # PATTERN "internal/*" EXCLUDE
 )
 
-if(DSQT_WITH_TOML)
-    install(
-        DIRECTORY   ${tomlplusplus_SOURCE_DIR}/include/
-        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
-        FILES_MATCHING PATTERN "*.h" PATTERN "*.hpp" PATTERN "*.inl"
-    )
-endif()
+# NOTE: We intentionally do NOT install toml++ headers into the Dsqt install
+# prefix. With find_package(tomlplusplus CONFIG), tomlplusplus_SOURCE_DIR is
+# empty, so the old install() block was silently doing nothing anyway.
+# Downstream consumers are instead expected to locate tomlplusplus themselves,
+# which DsqtConfig.cmake handles via find_dependency(tomlplusplus). This keeps
+# the build and install sides of the toml++ ABI consistent (critical: if the
+# vcpkg port is dynamic, its headers mark symbols __declspec(dllimport), and
+# both Dsqt and the consumer must see the same config to avoid LNK4217/LNK2019).
