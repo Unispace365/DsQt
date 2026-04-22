@@ -16,7 +16,7 @@ if(DSQT_TOUCH_PRIVATE_REINJECT)
     find_package(Qt6 6.9 REQUIRED COMPONENTS GuiPrivate)
 endif()
 
-find_package(Qt6 6.9 REQUIRED COMPONENTS Core Gui Quick)
+find_package(Qt6 6.9 REQUIRED COMPONENTS Core Gui Quick QuickControls2)
 qt_standard_project_setup(REQUIRES 6.9)
 
 add_library(Touch)
@@ -29,6 +29,9 @@ qt_add_qml_module(Touch
     SOURCES
         touch/TouchFilter.h
         touch/TouchFilter.cpp
+    QML_FILES
+        qml/TouchFilterDebugOverlay.qml
+        qml/TouchFilterControlsWindow.qml
 )
 
 set(TouchTargets ${TouchTargets} PARENT_SCOPE)
@@ -37,6 +40,8 @@ target_link_libraries(Touch PUBLIC
     Qt6::Core
     Qt6::Gui
     Qt6::Quick
+    Qt6::QuickControls2
+    Core
     Touchplugin
 )
 

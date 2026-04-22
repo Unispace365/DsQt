@@ -3,8 +3,7 @@ project_path = ["TouchFilter", {type="string"}]
 idle_timeout  = 600
 
 [engine.extra]
-app_settings = ["touch_filter_settings.toml"]
-engine       = ["engine.font.toml"]
+engine = ["engine.font.toml", "touch_filter_settings.toml"]
 
 [engine.window]
 mode         = "window"

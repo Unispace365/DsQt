@@ -24,8 +24,8 @@ Item {
     // ── Settings ──────────────────────────────────────────────────────────────
     DsSettingsProxy {
         id:     filterProxy
-        target: "app_settings"
-        prefix: "touch_filter"
+        target: "engine"
+        prefix: "engine.touch_filter"
     }
 
     // ── Reusable large-touch slider control ───────────────────────────────────
@@ -291,11 +291,11 @@ Item {
                 }
 
                 // Sliders
-                CtrlSlider { id: ctrlTransient; width: parent.width; label: "Transient";  suffix: " ms"; from: 10;  to: 500;  value: 80;   stepSize: 5;    Component.onCompleted: value = filterProxy.getInt("transient_ms", 80) }
-                CtrlSlider { id: ctrlSmooth;    width: parent.width; label: "Smoothing α"; suffix: "";   from: 0.0; to: 1.0;  value: 0.30; stepSize: 0.01; decimals: 2; Component.onCompleted: value = filterProxy.getFloat("smoothing_alpha", 0.30) }
-                CtrlSlider { id: ctrlLift;      width: parent.width; label: "Lift resume"; suffix: " ms"; from: 20;  to: 400;  value: 120;  stepSize: 5;    Component.onCompleted: value = filterProxy.getInt("lift_resume_ms", 120) }
-                CtrlSlider { id: ctrlLiftDist;  width: parent.width; label: "Lift dist";   suffix: " px"; from: 0;   to: 200;  value: 25;   stepSize: 5;    Component.onCompleted: value = filterProxy.getFloat("lift_resume_px", 25) }
-                CtrlSlider { id: ctrlProximity; width: parent.width; label: "Proximity";   suffix: " px"; from: 0;   to: 200;  value: 0;    stepSize: 5;    Component.onCompleted: value = filterProxy.getInt("proximity_px", 0) }
+                CtrlSlider { id: ctrlTransient; width: parent.width; label: "Transient";  suffix: " ms"; from: 10;  to: 500;  value: 80;   stepSize: 5;    Component.onCompleted: value = filterProxy.getInt("transientThresholdMs", 80) }
+                CtrlSlider { id: ctrlSmooth;    width: parent.width; label: "Smoothing α"; suffix: "";   from: 0.0; to: 1.0;  value: 0.30; stepSize: 0.01; decimals: 2; Component.onCompleted: value = filterProxy.getFloat("smoothingFactor", 0.30) }
+                CtrlSlider { id: ctrlLift;      width: parent.width; label: "Lift resume"; suffix: " ms"; from: 20;  to: 400;  value: 120;  stepSize: 5;    Component.onCompleted: value = filterProxy.getInt("liftResumeThresholdMs", 120) }
+                CtrlSlider { id: ctrlLiftDist;  width: parent.width; label: "Lift dist";   suffix: " px"; from: 0;   to: 200;  value: 25;   stepSize: 5;    Component.onCompleted: value = filterProxy.getFloat("liftResumeDistancePx", 25) }
+                CtrlSlider { id: ctrlProximity; width: parent.width; label: "Proximity";   suffix: " px"; from: 0;   to: 200;  value: 0;    stepSize: 5;    Component.onCompleted: value = filterProxy.getInt("proximityFilterPx", 0) }
 
                 // Toggle: filter enabled
                 Rectangle {

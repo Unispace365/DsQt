@@ -18,11 +18,12 @@ A working demonstration is in `Examples/TouchFilter`.
 2. [Installing the Filter in QML](#installing-the-filter-in-qml)
 3. [Filtering Stages](#filtering-stages)
 4. [Listening to Results](#listening-to-results)
-5. [Configuration via TOML Settings](#configuration-via-toml-settings)
-6. [Properties Reference](#properties-reference)
-7. [Signals Reference](#signals-reference)
-8. [Platform Notes](#platform-notes)
-9. [Known Limitations](#known-limitations)
+5. [Debug Overlay and Controls Window](#debug-overlay-and-controls-window)
+6. [Configuration via TOML Settings](#configuration-via-toml-settings)
+7. [Properties Reference](#properties-reference)
+8. [Signals Reference](#signals-reference)
+9. [Platform Notes](#platform-notes)
+10. [Known Limitations](#known-limitations)
 
 ---
 
@@ -185,6 +186,128 @@ TouchFilter {
             delete acceptedLive[id]
         }
     }
+}
+```
+
+---
+
+## Debug Overlay and Controls Window
+
+The `Dsqt.Touch` module ships two ready-made QML types for debugging the filter in any
+application:
+
+| Type | Purpose |
+|---|---|
+| `TouchFilterDebugOverlay` | Transparent overlay that draws live touch trails and a stats HUD |
+| `TouchFilterControlsWindow` | Floating window for adjusting filter parameters at runtime |
+
+### TouchFilterDebugOverlay
+
+Place the overlay anywhere in your item tree and assign your `TouchFilter` instance to
+its `touchFilter` property. It fills its parent, is fully transparent to input
+(`enabled: false`), and maps incoming window-space coordinates to its own local space
+automatically — so it works correctly regardless of where it sits in the visual tree.
+
+```qml
+import Dsqt.Touch
+
+TouchFilter {
+    id: myFilter
+    // window: ...
+}
+
+TouchFilterDebugOverlay {
+    anchors.fill: parent
+    touchFilter: myFilter
+}
+```
+
+**What it draws:**
+
+| Colour | Meaning |
+|---|---|
+| Green solid | Accepted raw path |
+| Blue dashed | Accepted smoothed path (EMA) |
+| Yellow | Pending — waiting for the transient timer |
+| Red | Filtered — transient / proximity / lift-resume |
+
+Each active touch shows a position dot that scales with state (press → large, drag →
+medium, release → ring), and a ↓ DOWN / → DRAG / ↑ UP label. Filtered touches include
+the suppression reason.
+
+A **PASS / WAIT / FILTER** stats HUD is shown in the top-right corner. A colour-coded
+legend appears along the bottom edge.
+
+**Properties:**
+
+| Property | Type | Default | Description |
+|---|---|---|---|
+| `touchFilter` | `TouchFilter` | `null` | The filter to observe. |
+| `showSmoothed` | `bool` | `true` | Draw the EMA-smoothed trail alongside the raw trail. |
+
+**Functions:**
+
+| Function | Description |
+|---|---|
+| `clearAll()` | Wipes all recorded trails, resets counters, and calls `touchFilter.reset()`. |
+
+Changing `touchFilter` also clears all state automatically.
+
+### TouchFilterControlsWindow
+
+`TouchFilterControlsWindow` is a standalone `Window` that lets you adjust every filter
+parameter at runtime without rebuilding. It includes:
+
+- Sliders for all five parameters (transient, smoothing α, lift-resume ms/px, proximity)
+- Filter enable/disable toggle
+- Private-reinject status badge
+- Per-session PASS / WAIT / FILTER counters
+- CLEAR button (calls `touchFilter.reset()` and resets its own counters)
+
+Sliders initialise from the filter's current values when `touchFilter` is set and
+write back to the filter as they move.
+
+### Opening from the DsAppMenu
+
+When your application uses `DsAppBase`, a **Tools › TouchFilter Debug** menu item is
+available. Set `touchFilterForDebug` on `DsAppBase` to your filter instance before the
+window is first opened:
+
+```qml
+import Dsqt.Core
+import Dsqt.Touch
+
+DsAppBase {
+    id: base
+
+    // Wire the filter to the menu-managed controls window.
+    touchFilterForDebug: myFilter
+
+    TouchFilter {
+        id: myFilter
+        onWindowChanged: if (window) myFilter.window = window
+        Component.onCompleted: if (window) myFilter.window = window
+    }
+
+    TouchFilterDebugOverlay {
+        anchors.fill: parent
+        touchFilter: myFilter
+    }
+}
+```
+
+The controls window is created lazily on the first menu trigger and gracefully disabled
+if the Touch module is not present in the build.
+
+### Using the Controls Window Standalone
+
+If you prefer to open the controls window without the menu, instantiate it directly:
+
+```qml
+TouchFilterControlsWindow {
+    id: debugControls
+    touchFilter: myFilter
+    visible: true
 }
 ```
 

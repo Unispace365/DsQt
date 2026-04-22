@@ -162,6 +162,7 @@ signals:
     /// wasFiltered = false → touch was accepted (touchAccepted will also fire)
     void touchReclassified(int id, bool wasFiltered, QString reason);
 
+    void wasReset();
     void windowChanged();
     void transientThresholdMsChanged();
     void smoothingFactorChanged();

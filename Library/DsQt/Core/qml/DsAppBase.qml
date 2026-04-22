@@ -166,6 +166,11 @@ ApplicationWindow {
         visible = true
     }
 
+    /// Set this to your TouchFilter instance before the TouchFilter Debug window
+    /// is first opened from the Tools menu.  Uses var to avoid importing Dsqt.Touch
+    /// in this file; the controls window performs its own type check at runtime.
+    property var touchFilterForDebug: null
+
     /// Setup the window after construction.
     Component.onCompleted: {
         // Load content browser component dynamically from Bridge module.
@@ -173,6 +178,13 @@ ApplicationWindow {
         if (contentViewerComponent.status === Component.Error) {
             console.warn("DsAppBase: Bridge module not available - content browser disabled")
             contentViewerComponent = null
+        }
+
+        // Load TouchFilter controls window dynamically from Touch module.
+        touchFilterDebugComponent = Qt.createComponent("qrc:/qt/qml/Dsqt/Touch/qml/TouchFilterControlsWindow.qml")
+        if (touchFilterDebugComponent.status === Component.Error) {
+            console.warn("DsAppBase: TouchFilter debug disabled:", touchFilterDebugComponent.errorString())
+            touchFilterDebugComponent = null
         }
 
         // Adjust position and size based on specified mode.
@@ -227,6 +239,23 @@ ApplicationWindow {
                 bridgeSyncLogWindow.closing.connect( () => { windowMenuBar.logsBridgeSyncChecked = false } )
             }
             bridgeSyncLogWindow.visible = isChecked
+        }
+
+        property var touchFilterDebugWindow: null
+        onTouchFilterDebugTriggered: (isChecked) => {
+            if (window.touchFilterDebugComponent === null) {
+                console.warn("DsAppBase: TouchFilter debug not available")
+                windowMenuBar.touchFilterDebugChecked = false
+                return
+            }
+            if (touchFilterDebugWindow === null) {
+                touchFilterDebugWindow = window.touchFilterDebugComponent.createObject(window, {
+                    touchFilter: window.touchFilterForDebug
+                })
+                touchFilterDebugWindow.closing.connect(() => { windowMenuBar.touchFilterDebugChecked = false })
+            }
+            touchFilterDebugWindow.visible = isChecked
+            if (isChecked) touchFilterDebugWindow.raise()
         }
 
         property var contentBrowser: null
@@ -318,6 +347,9 @@ ApplicationWindow {
 
     /// Content browser component (loaded dynamically from Bridge module)
     property Component contentViewerComponent: null
+
+    /// TouchFilter debug controls window component (loaded dynamically from Touch module)
+    property Component touchFilterDebugComponent: null
 
     /// TODO AppHost log viewer.
 }

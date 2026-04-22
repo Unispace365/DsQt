@@ -1,4 +1,5 @@
 #include "TouchFilter.h"
+#include "settings/dsSettings.h"
 
 #include <QCoreApplication>
 #include <QPointerEvent>
@@ -8,7 +9,17 @@
 
 // ── Lifecycle ─────────────────────────────────────────────────────────────────
 
-TouchFilter::TouchFilter(QObject *parent) : QObject(parent) {}
+TouchFilter::TouchFilter(QObject *parent) : QObject(parent)
+{
+    if (auto s = dsqt::DsSettings::getSettings("engine")) {
+        setTransientThresholdMs (static_cast<int>(s->getOr<int64_t>("engine.touch_filter.transientThresholdMs",  m_transientThresholdMs)));
+        setSmoothingFactor      (s->getOr<double>("engine.touch_filter.smoothingFactor",       m_smoothingFactor));
+        setLiftResumeThresholdMs(static_cast<int>(s->getOr<int64_t>("engine.touch_filter.liftResumeThresholdMs", m_liftResumeThresholdMs)));
+        setLiftResumeDistancePx (s->getOr<double>("engine.touch_filter.liftResumeDistancePx",  m_liftResumeDistancePx));
+        setProximityFilterPx    (s->getOr<double>("engine.touch_filter.proximityFilterPx",     m_proximityFilterPx));
+        setFilterEnabled        (s->getOr<bool>  ("engine.touch_filter.filterEnabled",         m_filterEnabled));
+    }
+}
 
 TouchFilter::~TouchFilter()
 {
@@ -82,6 +93,7 @@ void TouchFilter::reset()
         delete data;
     }
     m_touches.clear();
+    emit wasReset();
 }
 
 // ── QObject event filter ──────────────────────────────────────────────────────
