@@ -4,14 +4,6 @@ option(DSQT_WITH_TOML "Enable tomlplusplus support" ON)
 option(DSQT_WITH_GLM "Enable GML math library support" OFF)
 
 if(DSQT_WITH_TOML)
-#     include(FetchContent)
-#     FetchContent_Declare(
-#         tomlplusplus
-#         GIT_REPOSITORY https://github.com/marzer/tomlplusplus.git
-#         GIT_TAG v3.4.0
-#         GIT_SHALLOW TRUE
-#     )
-#     FetchContent_MakeAvailable(tomlplusplus)
 find_package(tomlplusplus CONFIG REQUIRED)
 endif()
 

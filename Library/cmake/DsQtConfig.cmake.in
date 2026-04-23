@@ -284,6 +284,30 @@ foreach(_comp IN LISTS Dsqt_FIND_COMPONENTS)
 endforeach()
 
 # ----------------------------------------------------------------------
+# Runtime DLL deployment helper
+# Usage: dsqt_deploy_runtime_dlls(myTarget)
+# Adds a post-build command that copies bundled runtime DLLs (tomlplusplus,
+# TouchEngine) from the DsQt install prefix into the target's output directory.
+# Call this once per executable target in consumer CMakeLists.txt.
+# ----------------------------------------------------------------------
+set(DSQT_RUNTIME_DLLS "")
+if(WIN32)
+    list(APPEND DSQT_RUNTIME_DLLS "tomlplusplus-3.dll")
+    list(APPEND DSQT_RUNTIME_DLLS "TouchEngine.dll")
+endif()
+
+macro(dsqt_deploy_runtime_dlls _target)
+    foreach(_dll IN LISTS DSQT_RUNTIME_DLLS)
+        add_custom_command(TARGET ${_target} POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "${DSQT_BIN_DIR}/$<CONFIG>/${_dll}"
+                "$<TARGET_FILE_DIR:${_target}>/${_dll}"
+            COMMENT "Deploying ${_dll} to $<TARGET_FILE_DIR:${_target}>"
+        )
+    endforeach()
+endmacro()
+
+# ----------------------------------------------------------------------
 # Standard CMake helper
 # ----------------------------------------------------------------------
 include(FindPackageHandleStandardArgs)

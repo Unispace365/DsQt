@@ -142,6 +142,8 @@ target_link_libraries(${DS_EXE_NAME}
         Qt6::QuickControls2
 )
 
+dsqt_deploy_runtime_dlls(${DS_EXE_NAME})
+
 include(GNUInstallDirs)
 
 install(TARGETS ${DS_EXE_NAME}
