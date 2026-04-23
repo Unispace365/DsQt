@@ -20,7 +20,7 @@ ApplicationWindow {
             refocusTimer.stop()
         } else {
             console.log("Window is no longer front-most")
-            if(windowProxy.getBool("forceToFront",false) && windowProxy.getString("mode","window") !== "window") {
+            if(windowProxy.getBool("forceToFront",false) && (flags & Qt.FramelessWindowHint)) {
                 refocusTimer.start()
             } else {
                 refocusTimer.stop()
