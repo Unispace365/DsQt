@@ -32,7 +32,7 @@ ApplicationWindow {
         id: refocusTimer
         interval: windowProxy.getInt("forceToFrontInterval", 2000)
         repeat: true
-        onTriggered: indowHelper.forceToFront(window)
+        onTriggered: WindowHelper.forceToFront(window)
     }
 
     // Keep track of screen changes.
