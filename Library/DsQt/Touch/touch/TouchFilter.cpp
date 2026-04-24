@@ -127,7 +127,7 @@ bool TouchFilter::eventFilter(QObject *watched, QEvent *event)
             emit touchRaw(pt.id(), sp.x(), sp.y(), s);
             emit touchAccepted(pt.id(), sp.x(), sp.y(), sp.x(), sp.y(), s);
         }
-#ifdef DSQT_TOUCH_PRIVATE_REINJECT
+#ifndef DSQT_TOUCH_NO_PRIVATE_REINJECT
         // On Windows LWE displays, QEventPoint::scenePosition() == globalPosition()
         // (screen-absolute) instead of being window-relative.  TapHandler and other
         // PointerHandlers check scenePosition() against the item's bounds; with raw LWE
@@ -236,7 +236,7 @@ bool TouchFilter::filterPoint(QTouchEvent *event, const QEventPoint &pt, const Q
                                QStringLiteral("liftResume"));
             emit touchReclassified(id, false, QStringLiteral("liftResume"));
 
-#ifdef DSQT_TOUCH_PRIVATE_REINJECT
+#ifndef DSQT_TOUCH_NO_PRIVATE_REINJECT
             // Re-deliver the new press with the OLD touch ID so Qt handlers see
             // one continuous touch (no lift, no new press).
             QEventPoint remapped = pt;
@@ -425,7 +425,7 @@ void TouchFilter::confirmRelease(int id)
 
 void TouchFilter::reInjectEvent(const StoredEvent &ev)
 {
-#ifdef DSQT_TOUCH_PRIVATE_REINJECT
+#ifndef DSQT_TOUCH_NO_PRIVATE_REINJECT
     // Use QWindowSystemInterface so the event travels through the full Qt input
     // pipeline (QGuiApplicationPrivate::processTouchEvent → QPointingDevice state
     // update → QQuickDeliveryAgent).  This makes TapHandler, DragHandler, and
@@ -445,7 +445,7 @@ void TouchFilter::reInjectEvent(const StoredEvent &ev)
 #endif
 }
 
-#ifdef DSQT_TOUCH_PRIVATE_REINJECT
+#ifndef DSQT_TOUCH_NO_PRIVATE_REINJECT
 QWindowSystemInterface::TouchPoint
 TouchFilter::toTouchPoint(const QEventPoint &pt, QWindow *window)
 {

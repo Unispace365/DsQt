@@ -3,16 +3,17 @@ cmake_minimum_required(VERSION 3.29)
 # Suppress CMake's "you are using private Qt headers" warning — we know.
 set(QT_NO_PRIVATE_MODULE_WARNING ON)
 
-# When ON, re-inject confirmed touch events via QWindowSystemInterface rather
-# than QCoreApplication::sendEvent.  This feeds events through Qt's full input
-# pipeline so that TapHandler, DragHandler and PinchHandler work correctly with
-# transient-filtered touches.  Also enables event-level lift-resume bridging via
-# QMutableEventPoint::setId().  Requires Qt private headers (Qt6::GuiPrivate).
-option(DSQT_TOUCH_PRIVATE_REINJECT
-    "Use Qt private headers for proper touch re-injection (enables TapHandler compatibility)"
+# By default, confirmed touch events are re-injected via QWindowSystemInterface,
+# which feeds events through Qt's full input pipeline so TapHandler, DragHandler,
+# and PinchHandler work correctly with transient-filtered touches.  Also enables
+# event-level lift-resume bridging via QMutableEventPoint::setId().
+# Requires Qt private headers (Qt6::GuiPrivate).
+# Set DSQT_TOUCH_NO_PRIVATE_REINJECT=ON to fall back to QCoreApplication::sendEvent.
+option(DSQT_TOUCH_NO_PRIVATE_REINJECT
+    "Disable Qt private-header touch re-injection (fallback to QCoreApplication::sendEvent)"
     OFF)
 
-if(DSQT_TOUCH_PRIVATE_REINJECT)
+if(NOT DSQT_TOUCH_NO_PRIVATE_REINJECT)
     find_package(Qt6 6.9 REQUIRED COMPONENTS GuiPrivate)
 endif()
 
@@ -45,9 +46,10 @@ target_link_libraries(Touch PUBLIC
     Touchplugin
 )
 
-if(DSQT_TOUCH_PRIVATE_REINJECT)
+if(NOT DSQT_TOUCH_NO_PRIVATE_REINJECT)
     target_link_libraries(Touch PUBLIC Qt6::GuiPrivate)
-    target_compile_definitions(Touch PUBLIC DSQT_TOUCH_PRIVATE_REINJECT)
+else()
+    target_compile_definitions(Touch PUBLIC DSQT_TOUCH_NO_PRIVATE_REINJECT)
 endif()
 
 target_include_directories(Touch PUBLIC
