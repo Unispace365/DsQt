@@ -8,7 +8,7 @@
 #include <QQuickWindow>
 #include <QTimer>
 
-#ifdef DSQT_TOUCH_PRIVATE_REINJECT
+#ifndef DSQT_TOUCH_NO_PRIVATE_REINJECT
 #  include <qpa/qwindowsysteminterface_p.h>
 #  include <private/qeventpoint_p.h>
 #endif
@@ -55,27 +55,28 @@ class QTouchEvent;
 /// treated as a drag continuation in the touchAccepted / touchFiltered signal
 /// stream.
 ///
-/// Without DSQT_TOUCH_PRIVATE_REINJECT: both the release and the new press
-/// events pass through to Qt's handlers unchanged (signal-level only).
+/// By default: the new press is suppressed and re-delivered with the old touch
+/// ID via QWindowSystemInterface, making the lift-resume fully transparent to
+/// TapHandler, DragHandler, etc.
 ///
-/// With DSQT_TOUCH_PRIVATE_REINJECT: the new press is suppressed and
-/// re-delivered with the old touch ID via QWindowSystemInterface, making the
-/// lift-resume fully transparent to TapHandler, DragHandler, etc.
+/// With DSQT_TOUCH_NO_PRIVATE_REINJECT: both the release and the new press
+/// events pass through to Qt's handlers unchanged (signal-level only).
 ///
 /// Re-injection note
 /// -----------------
-/// By default, confirmed touches are re-injected via QCoreApplication::sendEvent.
-/// This bypasses Qt's input pipeline so TapHandler / PointerHandler subclasses
-/// may not receive events reliably.  Build with DSQT_TOUCH_PRIVATE_REINJECT=ON
-/// (requires Qt6::GuiPrivate) to use QWindowSystemInterface::handleTouchEvent
-/// which feeds events through the full pipeline.
+/// By default, confirmed touches are re-injected via QWindowSystemInterface::handleTouchEvent
+/// (requires Qt6::GuiPrivate), which feeds events through the full Qt input pipeline
+/// so TapHandler / PointerHandler subclasses work correctly.
+///
+/// Build with DSQT_TOUCH_NO_PRIVATE_REINJECT to fall back to QCoreApplication::sendEvent,
+/// which bypasses the pipeline — TapHandler / PointerHandler subclasses may not work reliably.
 ///
 /// On Windows LWE displays, QEventPoint::scenePosition() == globalPosition()
 /// (screen-absolute) rather than window-relative.  TapHandler checks scenePosition()
 /// against item bounds; raw LWE events fail this check and are rejected.
-/// With DSQT_TOUCH_PRIVATE_REINJECT, even when filterEnabled is false, events are
-/// re-normalised through QWindowSystemInterface so TapHandler works correctly.
-/// Without the flag the original event is passed through and TapHandler may not work.
+/// The default re-injection path re-normalises coordinates so TapHandler works correctly.
+/// With DSQT_TOUCH_NO_PRIVATE_REINJECT the original event is passed through unchanged
+/// and TapHandler may not work.
 class TouchFilter : public QObject
 {
     Q_OBJECT
@@ -114,7 +115,7 @@ public:
     qreal proximityFilterPx()       const { return m_proximityFilterPx;     }
     bool  isFilterEnabled()         const { return m_filterEnabled;          }
     static bool isPrivateReinject() {
-#ifdef DSQT_TOUCH_PRIVATE_REINJECT
+#ifndef DSQT_TOUCH_NO_PRIVATE_REINJECT
         return true;
 #else
         return false;
@@ -218,7 +219,7 @@ private:
     static int   stateInt(QEventPoint::State s);
     static qreal dist(QPointF a, QPointF b);
 
-#ifdef DSQT_TOUCH_PRIVATE_REINJECT
+#ifndef DSQT_TOUCH_NO_PRIVATE_REINJECT
     /// Convert a QEventPoint to the structure QWindowSystemInterface expects.
     static QWindowSystemInterface::TouchPoint toTouchPoint(const QEventPoint &pt,
                                                            QWindow *window);
