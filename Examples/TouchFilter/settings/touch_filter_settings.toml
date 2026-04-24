@@ -1,0 +1,22 @@
+[engine.touch_filter]
+# How long (ms) a touch must last before it is accepted.
+# Touches released before this threshold are discarded as transient.
+transientThresholdMs   = 200
+
+# Exponential moving-average alpha for jitter smoothing.
+# 0 = no movement, 1 = no smoothing (raw).
+smoothingFactor        = 0.30
+
+# Window (ms) after a lift during which a nearby new press is treated as
+# a continuation rather than a new touch (lift-resume bridging).
+liftResumeThresholdMs  = 80
+
+# Maximum distance (px) for lift-resume to trigger.
+liftResumeDistancePx   = 25
+
+# New presses within this distance (px) of an active touch are rejected
+# as accidental contacts.  0 = disabled.
+proximityFilterPx      = 50
+
+# Set to false to pass all touches through unfiltered (signals still fire).
+filterEnabled          = true

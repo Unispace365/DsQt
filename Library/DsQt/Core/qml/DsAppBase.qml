@@ -13,6 +13,28 @@ ApplicationWindow {
     visible: false // Will become visible once setup.
     color: "black"
 
+    // Keep track of active changes.
+    onActiveChanged: {
+        if (active) {
+            console.log("Window is now front-most / active")
+            refocusTimer.stop()
+        } else {
+            console.log("Window is no longer front-most")
+            if(windowProxy.getBool("forceToFront",false) && (flags & Qt.FramelessWindowHint)) {
+                refocusTimer.start()
+            } else {
+                refocusTimer.stop()
+            }
+        }
+    }
+
+    Timer {
+        id: refocusTimer
+        interval: windowProxy.getInt("forceToFrontInterval", 2000)
+        repeat: true
+        onTriggered: WindowHelper.forceToFront(window)
+    }
+
     // Keep track of screen changes.
     onScreenChanged: {
         var screens = Application.screens
@@ -148,6 +170,11 @@ ApplicationWindow {
         visible = true
     }
 
+    /// Set this to your TouchFilter instance before the TouchFilter Debug window
+    /// is first opened from the Tools menu.  Uses var to avoid importing Dsqt.Touch
+    /// in this file; the controls window performs its own type check at runtime.
+    property var touchFilterForDebug: null
+
     /// Setup the window after construction.
     Component.onCompleted: {
         // Load content browser component dynamically from Bridge module.
@@ -155,6 +182,13 @@ ApplicationWindow {
         if (contentViewerComponent.status === Component.Error) {
             console.warn("DsAppBase: Bridge module not available - content browser disabled")
             contentViewerComponent = null
+        }
+
+        // Load TouchFilter controls window dynamically from Touch module.
+        touchFilterDebugComponent = Qt.createComponent("qrc:/qt/qml/Dsqt/Touch/qml/TouchFilterControlsWindow.qml")
+        if (touchFilterDebugComponent.status === Component.Error) {
+            console.warn("DsAppBase: TouchFilter debug disabled:", touchFilterDebugComponent.errorString())
+            touchFilterDebugComponent = null
         }
 
         // Adjust position and size based on specified mode.
@@ -193,36 +227,53 @@ ApplicationWindow {
 
         property DsTextFileViewer appLogWindow: null
         onLogsApplicationTriggered: (isChecked) => {
-                                        if(appLogWindow === null) {
-                                            appLogWindow = appLog.createObject(window)
-                                            appLogWindow.closing.connect( () => { windowMenuBar.logsApplicationChecked = false } )
-                                        }
-                                        appLogWindow.file = ""
-                                        appLogWindow.file = Ds.env.logFile();
-                                        appLogWindow.visible = isChecked
-                                    }
+            if(appLogWindow === null) {
+                appLogWindow = appLog.createObject(window)
+                appLogWindow.closing.connect( () => { windowMenuBar.logsApplicationChecked = false } )
+            }
+            appLogWindow.file = ""
+            appLogWindow.file = Ds.env.logFile();
+            appLogWindow.visible = isChecked
+        }
 
         property DsTextFileViewer bridgeSyncLogWindow: null
         onLogsBridgeSyncTriggered: (isChecked) => {
-                                       if(bridgeSyncLogWindow === null) {
-                                           bridgeSyncLogWindow = bridgeSyncLog.createObject(window)
-                                           bridgeSyncLogWindow.closing.connect( () => { windowMenuBar.logsBridgeSyncChecked = false } )
-                                       }
-                                       bridgeSyncLogWindow.visible = isChecked
-                                   }
+            if(bridgeSyncLogWindow === null) {
+                bridgeSyncLogWindow = bridgeSyncLog.createObject(window)
+                bridgeSyncLogWindow.closing.connect( () => { windowMenuBar.logsBridgeSyncChecked = false } )
+            }
+            bridgeSyncLogWindow.visible = isChecked
+        }
+
+        property var touchFilterDebugWindow: null
+        onTouchFilterDebugTriggered: (isChecked) => {
+            if (window.touchFilterDebugComponent === null) {
+                console.warn("DsAppBase: TouchFilter debug not available")
+                windowMenuBar.touchFilterDebugChecked = false
+                return
+            }
+            if (touchFilterDebugWindow === null) {
+                touchFilterDebugWindow = window.touchFilterDebugComponent.createObject(window, {
+                    touchFilter: window.touchFilterForDebug
+                })
+                touchFilterDebugWindow.closing.connect(() => { windowMenuBar.touchFilterDebugChecked = false })
+            }
+            touchFilterDebugWindow.visible = isChecked
+            if (isChecked) touchFilterDebugWindow.raise()
+        }
 
         property var contentBrowser: null
         onContentBrowseToggled: (isChecked) => {
-                                    if (window.contentViewerComponent === null) {
-                                        console.warn("Content browser not available")
-                                        return
-                                    }
-                                    if(contentBrowser === null) {
-                                        contentBrowser = window.contentViewerComponent.createObject(window)
-                                        contentBrowser.closing.connect( () => { windowMenuBar.contentBrowseChecked = false } )
-                                    }
-                                    contentBrowser.visible = isChecked
-                                }
+            if (window.contentViewerComponent === null) {
+                console.warn("Content browser not available")
+                return
+            }
+            if(contentBrowser === null) {
+                contentBrowser = window.contentViewerComponent.createObject(window)
+                contentBrowser.closing.connect( () => { windowMenuBar.contentBrowseChecked = false } )
+            }
+            contentBrowser.visible = isChecked
+        }
 
         property DsSettingsViewer settingsEngineWindow: null
         onSettingsEngineTriggered: {
@@ -300,6 +351,9 @@ ApplicationWindow {
 
     /// Content browser component (loaded dynamically from Bridge module)
     property Component contentViewerComponent: null
+
+    /// TouchFilter debug controls window component (loaded dynamically from Touch module)
+    property Component touchFilterDebugComponent: null
 
     /// TODO AppHost log viewer.
 }

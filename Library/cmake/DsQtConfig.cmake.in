@@ -25,6 +25,29 @@ find_dependency(Qt6
 )
 
 # ----------------------------------------------------------------------
+# tomlplusplus is a PUBLIC dependency of Dsqt::Core (dsSettings.h includes
+# <toml++/toml.h>). Consumers MUST see the same tomlplusplus config that
+# was used when Dsqt was built — otherwise toml++'s TOML_EXPORTED_* macros
+# may resolve to __declspec(dllimport) on one side and regular/inline on
+# the other, producing LNK4217 warnings and LNK2019 unresolved externals
+# at the final link step of the consuming application.
+#
+# Strategy: prefer the self-contained config bundled with this DsQt install
+# (lib/cmake/tomlplusplus/tomlplusplusConfig.cmake).  If that file is absent
+# (e.g. an older install or a custom prefix layout) fall back to whatever
+# tomlplusplus the consuming project has available via find_dependency.
+# ----------------------------------------------------------------------
+if(NOT TARGET tomlplusplus::tomlplusplus)
+    set(_dsqt_bundled_toml_cmake "${CMAKE_CURRENT_LIST_DIR}/../tomlplusplus/tomlplusplusConfig.cmake")
+    if(EXISTS "${_dsqt_bundled_toml_cmake}")
+        include("${_dsqt_bundled_toml_cmake}")
+    else()
+        find_dependency(tomlplusplus CONFIG)
+    endif()
+    unset(_dsqt_bundled_toml_cmake)
+endif()
+
+# ----------------------------------------------------------------------
 # Compute installation paths (public variables for consumers)
 # ----------------------------------------------------------------------
 get_filename_component(DSQT_INSTALL_PREFIX "${CMAKE_CURRENT_LIST_DIR}/../../.." ABSOLUTE)
@@ -98,9 +121,21 @@ endmacro()
 # Create Core targets
 _dsqt_create_imported_target(Core)
 _dsqt_create_plugin_target(Core)
+
+# Build the Core interface link list. tomlplusplus::tomlplusplus MUST be
+# propagated here so downstream targets see the exact same toml++ include
+# path and compile definitions (e.g. TOML_SHARED_LIB) that Core.lib was
+# compiled against. Also re-apply DSQT_USE_TOML so consumer code that
+# guards on it behaves consistently.
+set(_dsqt_core_iface_libs "Qt6::Core;Qt6::Quick;Qt6::Gui;Qt6::Qml;Dsqt::Coreplugin")
+if(TARGET tomlplusplus::tomlplusplus)
+    list(APPEND _dsqt_core_iface_libs "tomlplusplus::tomlplusplus")
+endif()
+
 set_target_properties(Dsqt::Core PROPERTIES
     INTERFACE_INCLUDE_DIRECTORIES "${_DSQT_INCLUDE_DIR};${_DSQT_INCLUDE_DIR}/core;${_DSQT_INCLUDE_DIR}/model;${_DSQT_INCLUDE_DIR}/network;${_DSQT_INCLUDE_DIR}/settings;${_DSQT_INCLUDE_DIR}/ui;${_DSQT_INCLUDE_DIR}/utility"
-    INTERFACE_LINK_LIBRARIES "Qt6::Core;Qt6::Quick;Qt6::Gui;Qt6::Qml;Dsqt::Coreplugin"
+    INTERFACE_LINK_LIBRARIES      "${_dsqt_core_iface_libs}"
+    INTERFACE_COMPILE_DEFINITIONS "DSQT_USE_TOML"
 )
 
 # Create Bridge targets
@@ -116,6 +151,20 @@ _dsqt_create_imported_target(Waffles)
 _dsqt_create_plugin_target(Waffles)
 set_target_properties(Dsqt::Waffles PROPERTIES
     INTERFACE_LINK_LIBRARIES "Qt6::Core;Qt6::Quick;Qt6::Gui;Qt6::Qml;Dsqt::Wafflesplugin"
+)
+
+# Create Touch targets
+_dsqt_create_imported_target(Touch)
+_dsqt_create_plugin_target(Touch)
+set(_dsqt_touch_iface_libs "Qt6::Core;Qt6::Gui;Qt6::Quick;Dsqt::Touchplugin")
+if(@DSQT_TOUCH_PRIVATE_REINJECT@)
+    find_dependency(Qt6 REQUIRED COMPONENTS GuiPrivate)
+    string(APPEND _dsqt_touch_iface_libs ";Qt6::GuiPrivate")
+    set(DSQT_TOUCH_PRIVATE_REINJECT TRUE)
+endif()
+set_target_properties(Dsqt::Touch PROPERTIES
+    INTERFACE_INCLUDE_DIRECTORIES "${_DSQT_INCLUDE_DIR};${_DSQT_INCLUDE_DIR}/touch"
+    INTERFACE_LINK_LIBRARIES      "${_dsqt_touch_iface_libs}"
 )
 
 # Create TouchEngine targets
@@ -200,7 +249,7 @@ endif()
 # Create umbrella target
 if(NOT TARGET Dsqt::Dsqt)
     add_library(Dsqt::Dsqt INTERFACE IMPORTED)
-    set(_dsqt_umbrella_libs "Dsqt::Core;Dsqt::Bridge;Dsqt::Waffles;Dsqt::TouchEngine")
+    set(_dsqt_umbrella_libs "Dsqt::Core;Dsqt::Bridge;Dsqt::Waffles;Dsqt::TouchEngine;Dsqt::Touch")
     if(WIN32)
         list(APPEND _dsqt_umbrella_libs "Dsqt::Spout")
     endif()
@@ -212,7 +261,7 @@ endif()
 # ----------------------------------------------------------------------
 # Define the set of known/valid component names
 # ----------------------------------------------------------------------
-set(_Dsqt_known_components Core Bridge Waffles TouchEngine Spout)
+set(_Dsqt_known_components Core Bridge Waffles TouchEngine Spout Touch)
 
 # ----------------------------------------------------------------------
 # Check requested components (from find_package(Dsqt COMPONENTS ...))
@@ -233,6 +282,30 @@ foreach(_comp IN LISTS Dsqt_FIND_COMPONENTS)
         string(APPEND _Dsqt_missing " ${_comp}")
     endif()
 endforeach()
+
+# ----------------------------------------------------------------------
+# Runtime DLL deployment helper
+# Usage: dsqt_deploy_runtime_dlls(myTarget)
+# Adds a post-build command that copies bundled runtime DLLs (tomlplusplus,
+# TouchEngine) from the DsQt install prefix into the target's output directory.
+# Call this once per executable target in consumer CMakeLists.txt.
+# ----------------------------------------------------------------------
+set(DSQT_RUNTIME_DLLS "")
+if(WIN32)
+    list(APPEND DSQT_RUNTIME_DLLS "tomlplusplus-3.dll")
+    list(APPEND DSQT_RUNTIME_DLLS "TouchEngine.dll")
+endif()
+
+macro(dsqt_deploy_runtime_dlls _target)
+    foreach(_dll IN LISTS DSQT_RUNTIME_DLLS)
+        add_custom_command(TARGET ${_target} POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "${DSQT_BIN_DIR}/$<CONFIG>/${_dll}"
+                "$<TARGET_FILE_DIR:${_target}>/${_dll}"
+            COMMENT "Deploying ${_dll} to $<TARGET_FILE_DIR:${_target}>"
+        )
+    endforeach()
+endmacro()
 
 # ----------------------------------------------------------------------
 # Standard CMake helper

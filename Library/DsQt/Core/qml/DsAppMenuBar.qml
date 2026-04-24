@@ -13,11 +13,13 @@ MenuBar {
     signal settingsApplicationTriggered()
     signal contentBrowseToggled(bool checked)  // Use a parameter for checkable actions
     signal helpShortcutsTriggered()
+    signal touchFilterDebugTriggered(bool checked)
 
     property alias logsApplicationChecked: logsApplicationAction.checked
     property alias logsBridgeSyncChecked: logsBridgeSyncAction.checked
     property alias logsAppHostChecked: logsAppHostAction.checked
     property alias contentBrowseChecked: contentBrowseAction.checked
+    property alias touchFilterDebugChecked: touchFilterDebugAction.checked
 
     Menu {
         id: fileMenu
@@ -76,6 +78,13 @@ MenuBar {
             text: "Content Browser"
             checkable: true
             onTriggered: menuBar.contentBrowseToggled(checked)
+        }
+
+        Action {
+            id: touchFilterDebugAction
+            text: "TouchFilter Debug"
+            checkable: true
+            onTriggered: menuBar.touchFilterDebugTriggered(checked)
         }
     }
     Menu {

@@ -1,0 +1,29 @@
+[engine]
+project_path = ["TouchFilter", {type="string"}]
+idle_timeout  = 600
+
+[engine.extra]
+engine = ["engine.font.toml", "touch_filter_settings.toml"]
+
+[engine.window]
+mode         = "window"
+displayIndex = 0
+width        = 1920
+height       = 1080
+
+[engine.resource]
+location    = "%LOCAL%/ds_waffles/"
+resource_db = "db.sqlite"
+
+[engine.reload]
+active = true
+paths = [
+  {path = "%APP%/settings/", recurse = true},
+  {path = "%APP%/qml/",      recurse = true},
+]
+prefixes = [
+  {from = "qrc:/qt/qml/TouchFilter/", to = "file:///%APP%/"},
+]
+
+[engine.logging]
+rules = [["*.verbose=false"]]
