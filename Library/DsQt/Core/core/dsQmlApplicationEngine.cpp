@@ -7,6 +7,7 @@
 #include "network/dsNodeWatcher.h"
 #include "settings/dsQmlSettingsProxy.h"
 #include "core/dsFontManager.h"
+#include "core/dsQmlAppHost.h"
 
 #include <QDir>
 #include <QDirIterator>
@@ -264,6 +265,16 @@ DsQmlSettingsProxy* DsQmlApplicationEngine::getAppSettingsProxy() const {
 
 DsQmlIdle* DsQmlApplicationEngine::idle() const {
     return mIdle;
+}
+
+void DsQmlApplicationEngine::quit()
+{
+    //if engine.askAppHostToQuit is set send message to DsAppHost
+    auto engSetting = dsqt::DsSettings::getSettings("engine");
+    if(engSetting && engSetting->getOr<bool>("appHost.exitOnQuit",true)){
+        DsQmlAppHost* appHost = this->singletonInstance<DsQmlAppHost*>("","AppHost");
+        appHost->exit();
+    }
 }
 
 } // namespace dsqt
