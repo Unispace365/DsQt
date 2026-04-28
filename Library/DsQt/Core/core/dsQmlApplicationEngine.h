@@ -133,6 +133,11 @@ class DsQmlApplicationEngine : public QQmlApplicationEngine {
      */
     DsQmlIdle* idle() const;
 
+    /**
+     * @brief controlled exit
+     */
+    Q_INVOKABLE void quit();
+
 
   private:
     /**

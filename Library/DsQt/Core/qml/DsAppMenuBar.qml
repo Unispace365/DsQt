@@ -36,6 +36,24 @@ MenuBar {
             shortcut: "CTRL+Q"
             onTriggered: Qt.quit()
         }
+
+        Action {
+            text: "Quit and Stop AppHost"
+            shortcut: "CTRL+SHIFT+Q"
+            onTriggered: Ds.engine.quit()
+        }
+
+        Action {
+            text: "Stop AppHost"
+            shortcut: "CTRL+SHIFT+Q"
+            onTriggered: AppHost.exit()
+        }
+
+        Action {
+            text: "Quit"
+            shortcut: "CTRL+Q"
+            onTriggered: Qt.quit()
+        }
     }
     Menu {
         id: logsMenu
