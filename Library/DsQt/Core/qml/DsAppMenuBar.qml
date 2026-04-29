@@ -45,15 +45,9 @@ MenuBar {
 
         Action {
             text: "Stop AppHost"
-            shortcut: "CTRL+SHIFT+Q"
             onTriggered: AppHost.exit()
         }
 
-        Action {
-            text: "Quit"
-            shortcut: "CTRL+Q"
-            onTriggered: Qt.quit()
-        }
     }
     Menu {
         id: logsMenu
