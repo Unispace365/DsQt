@@ -34,6 +34,7 @@ class DsQmlObj : public QObject {
     QML_NAMED_ELEMENT(Ds)
 
     Q_PROPERTY(dsqt::DsQmlEnvironment* env READ env CONSTANT)
+    Q_PROPERTY(dsqt::DsQmlSettingsProxy* engineSettings READ engineSettings CONSTANT)
     Q_PROPERTY(dsqt::DsQmlSettingsProxy* appSettings READ appSettings CONSTANT)
     Q_PROPERTY(dsqt::DsQmlApplicationEngine* engine READ engine CONSTANT)
     Q_PROPERTY(dsqt::DsQmlPathHelper* path READ path CONSTANT)
@@ -54,6 +55,12 @@ class DsQmlObj : public QObject {
      * \return Pointer to the newly created DsQmlObj instance.
      */
     static DsQmlObj* create(QQmlEngine* qmlEngine, QJSEngine* jsEngine = nullptr);
+
+    /**
+     * \brief Getter for the engine settings proxy.
+     * \return Pointer to DsQmlSettingsProxy, or nullptr if the engine is not available.
+     */
+    DsQmlSettingsProxy* engineSettings() const;
 
     /**
      * \brief Getter for the application settings proxy.

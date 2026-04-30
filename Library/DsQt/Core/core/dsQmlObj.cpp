@@ -21,6 +21,11 @@ DsQmlObj* DsQmlObj::create(QQmlEngine* qmlEngine, QJSEngine* jsEngine) {
     return new DsQmlObj(qmlEngine, jsEngine);
 }
 
+DsQmlSettingsProxy* DsQmlObj::engineSettings() const {
+    if (!mEngine) return nullptr;
+    return mEngine->getEngineSettingsProxy();
+}
+
 DsQmlSettingsProxy* DsQmlObj::appSettings() const {
     if (!mEngine) return nullptr;
     return mEngine->getAppSettingsProxy();

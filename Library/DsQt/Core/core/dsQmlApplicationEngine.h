@@ -110,6 +110,12 @@ class DsQmlApplicationEngine : public QQmlApplicationEngine {
     DsQmlEnvironment* getEnvQml() const;
 
     /**
+     * @brief Gets the engine settings proxy.
+     * @return Pointer to DsQmlSettingsProxy.
+     */
+    DsQmlSettingsProxy* getEngineSettingsProxy() const;
+
+    /**
      * @brief Gets the application settings proxy.
      * @return Pointer to DsQmlSettingsProxy.
      */
@@ -236,6 +242,9 @@ class DsQmlApplicationEngine : public QQmlApplicationEngine {
 
     /// Timer for triggering resets.
     QTimer mTrigger;
+
+    /// Pointer to the engine settings proxy.
+    DsQmlSettingsProxy* mEngineProxy = nullptr;
 
     /// Pointer to the application settings proxy.
     DsQmlSettingsProxy* mAppProxy = nullptr;
