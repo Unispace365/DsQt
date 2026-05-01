@@ -267,14 +267,19 @@ DsQmlIdle* DsQmlApplicationEngine::idle() const {
     return mIdle;
 }
 
-void DsQmlApplicationEngine::quit()
+void DsQmlApplicationEngine::quit(bool force)
 {
     //if engine.askAppHostToQuit is set send message to DsAppHost
     auto engSetting = dsqt::DsSettings::getSettings("engine");
-    if(engSetting && engSetting->getOr<bool>("appHost.exitOnQuit",true)){
-        DsQmlAppHost* appHost = this->singletonInstance<DsQmlAppHost*>("","AppHost");
-        appHost->exit();
+    auto exitOnQuit = engSetting->getOr("appHost.exitOnQuit",false);
+
+    DsQmlAppHost* appHost = new DsQmlAppHost(this);
+    if(exitOnQuit || force){
+        appHost->exit(true);
+    } else {
+        qApp->quit();
     }
+
 }
 
 } // namespace dsqt

@@ -15,7 +15,7 @@ class DsQmlAppHost : public QObject {
   public:
     explicit DsQmlAppHost(QObject* parent = nullptr);
 
-    Q_INVOKABLE void exit();
+    Q_INVOKABLE void exit(bool quit=false);
 
   signals:
   private:

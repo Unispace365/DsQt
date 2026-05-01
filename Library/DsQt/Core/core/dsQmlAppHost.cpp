@@ -3,6 +3,7 @@
 #include "QNetworkReply"
 #include "QNetworkRequest"
 #include "dsSettings.h"
+#include <qguiapplication.h>
 
 namespace dsqt {
 DsQmlAppHost::DsQmlAppHost(QObject* parent)
@@ -13,10 +14,16 @@ DsQmlAppHost::DsQmlAppHost(QObject* parent)
     manager = new QNetworkAccessManager(this);
 }
 
-void DsQmlAppHost::exit()
+void DsQmlAppHost::exit(bool quit)
 {
     QUrl exit("api/exit");
     auto response = manager->get(QNetworkRequest(baseUrl.resolved(exit)));
+    connect(response,&QNetworkReply::finished,this,[this,quit](){
+        if(quit){
+            qApp->quit();
+        }
+    });
+
 }
 
 

@@ -136,7 +136,7 @@ class DsQmlApplicationEngine : public QQmlApplicationEngine {
     /**
      * @brief controlled exit
      */
-    Q_INVOKABLE void quit();
+    Q_INVOKABLE void quit(bool force=false);
 
 
   private:
