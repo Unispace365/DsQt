@@ -16,12 +16,17 @@ DatabaseRecord DatabaseContent::getPlatform(const QString& typeName) const {
     return {};
 }
 
-DatabaseRecord DatabaseContent::getCurrentEvent(const QDateTime& localDateTime) const {
+DatabaseRecord DatabaseContent::getCurrentEvent(const QDateTime& localDateTime, const DatabaseRecord &platform) const {
     DatabaseRecordList records = events();
+    filterEvents(records, platform);
     filterEvents(records, localDateTime);
     sortEvents(records, localDateTime);
     if (!records.isEmpty()) return records.front();
     return {};
+}
+
+DatabaseRecord DatabaseContent::getCurrentEvent(const QDateTime& localDateTime) const {
+    return getCurrentEvent(localDateTime, getPlatform());
 }
 
 } // namespace dsqt::bridge

@@ -169,6 +169,7 @@ class DatabaseContent {
     /// Returns the currently active event record based on the current local date and time. If there are multiple active
     /// events, the one with the highest priority (lowest rank) is returned. If there are no active events, an empty
     /// record is returned.
+    DatabaseRecord getCurrentEvent(const QDateTime& localDateTime, const DatabaseRecord &platform) const;
     DatabaseRecord getCurrentEvent(const QDateTime& localDateTime) const;
 
   private:
