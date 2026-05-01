@@ -21,6 +21,18 @@ MenuBar {
     property alias contentBrowseChecked: contentBrowseAction.checked
     property alias touchFilterDebugChecked: touchFilterDebugAction.checked
 
+
+    contentItem: Item {
+        implicitHeight: row.implicitHeight
+        Row {
+            id: row
+            anchors.centerIn: parent
+            Repeater {
+                model: menuBar.contentModel
+            }
+        }
+    }
+
     Menu {
         id: fileMenu
         title: "File"
@@ -32,10 +44,23 @@ MenuBar {
         // }
         // MenuSeparator {}
         Action {
+            text: "Stop AppHost"
+            onTriggered: AppHost.exit()
+        }
+
+        Action {
+            text: "Quit and Stop AppHost"
+            shortcut: "CTRL+SHIFT+Q"
+            onTriggered: Ds.engine.quit(true)
+        }
+
+        //Quit should always be last.
+        Action {
             text: "Quit"
             shortcut: "CTRL+Q"
-            onTriggered: Qt.quit()
+            onTriggered: Ds.engine.quit(false)
         }
+
     }
     Menu {
         id: logsMenu
