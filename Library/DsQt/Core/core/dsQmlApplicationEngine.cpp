@@ -164,14 +164,12 @@ void dsqt::DsQmlApplicationEngine::readSettings(bool reset) {
 void DsQmlApplicationEngine::init() {
     // setup nodeWatcher
     readSettings();
+    if (!mEngineProxy) mEngineProxy = new DsQmlSettingsProxy(this);
     if (!mAppProxy) mAppProxy = new DsQmlSettingsProxy(this);
     // auto starts, but could also be this:
     // mNodeWatcher = new network::DsNodeWatcher(this,"localhost",7788,/*autostart*/false)
     // mNodeWatcher->start();
 
-    readSettings();
-    mAppProxy = new DsQmlSettingsProxy(this);
-    mQmlEnv   = new DsQmlEnvironment(this);
     // get watcher elements
     auto node = dsqt::DsEnvironment::engineSettings()->getRawNode("engine.reload.paths");
     if (node) {
@@ -197,6 +195,7 @@ void DsQmlApplicationEngine::init() {
     mIdle->setIdleTimeout(timeoutInSeconds * 1000);
     mIdle->startIdling(true);
 
+    mEngineProxy->setTarget("engine");
     mAppProxy->setTarget("app_settings");
 
     //lets load som fernts
@@ -256,6 +255,10 @@ void DsQmlApplicationEngine::clearQmlCache() {
 
 DsQmlEnvironment* DsQmlApplicationEngine::getEnvQml() const {
     return mQmlEnv;
+}
+
+DsQmlSettingsProxy* DsQmlApplicationEngine::getEngineSettingsProxy() const {
+    return mEngineProxy;
 }
 
 DsQmlSettingsProxy* DsQmlApplicationEngine::getAppSettingsProxy() const {
