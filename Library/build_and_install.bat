@@ -27,14 +27,11 @@ if defined PRINT_HELP (
 )
 
 :script_start
-
-REM Set up the MSVC developer environment if not already active
-if not defined VSINSTALLDIR (
-    call "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvarsall.bat" amd64
-    if %errorlevel% neq 0 (
-        echo Failed to set up MSVC environment.
-        exit /b %errorlevel%
-    )
+call :header "Setting up Build Tools"
+call "setup_build_env.bat"
+if errorlevel 1 (
+    powershell -NoProfile -Command "Write-Host 'Failed to setup MSVC environment' -ForegroundColor Red"
+    goto :error
 )
 
 set PRESET=ninja
@@ -87,13 +84,11 @@ if !PRINT_HELP!==1 (
 )
 
 :: --- Check if VCPKG is installed ---
-if not defined VCPKG_ROOT (
-    powershell -NoProfile -Command "Write-Host 'VCPKG_ROOT is not set. Please make sure VCPKG is properly installed.' -ForegroundColor Red"
-    exit /b 1
-)
-if not exist "%VCPKG_ROOT%\vcpkg.exe" (
-    powershell -NoProfile -Command "Write-Host 'vcpkg.exe not found in VCPKG_ROOT: %VCPKG_ROOT%' -ForegroundColor Red"
-    exit /b 1
+call :header "Setting up VCPKG"
+call "setup_vcpkg.bat"
+if errorlevel 1 (
+    powershell -NoProfile -Command "Write-Host 'Failed to setup VCPKG environment' -ForegroundColor Red"
+    goto :error
 )
 
 :: --- Pull the latest VCPKG ---
@@ -121,7 +116,7 @@ if defined QT_PATH (
     )
     if not exist "!QT_PATH!" (
         powershell -NoProfile -Command "Write-Host 'Qt path not found: !QT_PATH!' -ForegroundColor Red"
-        exit /b 1
+    	goto :error
     )
     powershell -NoProfile -Command "Write-Host '    Qt: !QT_PATH!' -ForegroundColor Yellow"
 )
@@ -135,11 +130,20 @@ if !DO_HARD_REBUILD!==1 (
     )
 )
 
+:: --- Make sure CMAKE is available ---
+call :header "Checking for CMake"
+call "setup_cmake.bat"
+if errorlevel 1 (
+    powershell -NoProfile -Command "Write-Host 'Failed to setup CMAKE environment' -ForegroundColor Red"
+    goto :error
+)
+
 :: --- Rebuild: clean then continue with full build ---
 if !DO_REBUILD!==1 (
     call :header "Rebuild - Cleaning %PRESET%"
     cmake --build --preset %PRESET%-debug --target clean 2>nul
     cmake --build --preset %PRESET%-release --target clean 2>nul
+    cmake --build --preset %PRESET%-relwithdebinfo --target clean 2>nul
     powershell -NoProfile -Command "Write-Host 'Clean complete.' -ForegroundColor Green"
 )
 
@@ -160,6 +164,7 @@ if !DO_CLEAN!==1 (
     call :header "Clean - %PRESET%"
     cmake --build --preset %PRESET%-debug --target clean
     cmake --build --preset %PRESET%-release --target clean
+    cmake --build --preset %PRESET%-relwithdebinfo --target clean
     powershell -NoProfile -Command "Write-Host 'Clean complete.' -ForegroundColor Green"
     goto :eof
 )
@@ -192,7 +197,7 @@ if %SKIP_CONFIGURE%==1 (
     %CMAKE_CONFIGURE%
     if %errorlevel% neq 0 (
         powershell -NoProfile -Command "Write-Host 'Configuration failed.' -ForegroundColor Red"
-        exit /b %errorlevel%
+        goto :error
     )
     call :gettime CONFIGURE_END
 )
@@ -209,7 +214,7 @@ set BUILD_EXIT=!errorlevel!
 call :gettime BUILD_DEBUG_END
 if not "!BUILD_EXIT!"=="0" (
     powershell -NoProfile -Command "Write-Host 'Debug build failed.' -ForegroundColor Red"
-    exit /b !BUILD_EXIT!
+    goto :error
 )
 :: Check if any .lib files were updated since the marker
 powershell -NoProfile -Command "if (-not (Get-ChildItem 'build\%PRESET%' -Recurse -Filter '*.lib' | Where-Object { $_.LastWriteTime -gt (Get-Item '!BUILD_MARKER!').LastWriteTime })) { exit 1 }"
@@ -256,17 +261,36 @@ set BUILD_EXIT=!errorlevel!
 call :gettime BUILD_RELEASE_END
 if not "!BUILD_EXIT!"=="0" (
     powershell -NoProfile -Command "Write-Host 'Release build failed.' -ForegroundColor Red"
-    exit /b !BUILD_EXIT!
+    goto :error
 )
 :: Check if any .lib files were updated since the marker
 powershell -NoProfile -Command "if (-not (Get-ChildItem 'build\%PRESET%' -Recurse -Filter '*.lib' | Where-Object { $_.LastWriteTime -gt (Get-Item '!BUILD_MARKER!').LastWriteTime })) { exit 1 }"
 if !errorlevel! neq 0 set RELEASE_NOOP=1
+
+:: --- Build RelWithDebInfo ---
+echo.
+call :header "Building Release with Debug Info"
+set RELWITHDEBINFO_NOOP=0
+copy /y nul "!BUILD_MARKER!" >nul 2>&1
+call :gettime BUILD_RELWITHDEBINFO_START
+cmake --build --preset %PRESET%-relwithdebinfo
+set BUILD_EXIT=!errorlevel!
+call :gettime BUILD_RELWITHDEBINFO_END
+if not "!BUILD_EXIT!"=="0" (
+    powershell -NoProfile -Command "Write-Host 'RelWithDebInfo build failed.' -ForegroundColor Red"
+    goto :error
+)
+:: Check if any .lib files were updated since the marker
+powershell -NoProfile -Command "if (-not (Get-ChildItem 'build\%PRESET%' -Recurse -Filter '*.lib' | Where-Object { $_.LastWriteTime -gt (Get-Item '!BUILD_MARKER!').LastWriteTime })) { exit 1 }"
+if !errorlevel! neq 0 set RELWITHDEBINFO_NOOP=1
 
 :: --- Install (skip if -no-install or both builds were no-ops) ---
 set INSTALL_DEBUG_START=0
 set INSTALL_DEBUG_END=0
 set INSTALL_RELEASE_START=0
 set INSTALL_RELEASE_END=0
+set INSTALL_RELWITHDEBINFO_START=0
+set INSTALL_RELWITHDEBINFO_END=0
 
 if !SKIP_INSTALL!==1 (
     echo.
@@ -286,7 +310,7 @@ call :gettime INSTALL_DEBUG_START
 cmake --install build/%PRESET% --config Debug
 if %errorlevel% neq 0 (
     powershell -NoProfile -Command "Write-Host 'Debug install failed.' -ForegroundColor Red"
-    exit /b %errorlevel%
+    goto :error
 )
 call :gettime INSTALL_DEBUG_END
 
@@ -296,9 +320,19 @@ call :gettime INSTALL_RELEASE_START
 cmake --install build/%PRESET% --config Release
 if %errorlevel% neq 0 (
     powershell -NoProfile -Command "Write-Host 'Release install failed.' -ForegroundColor Red"
-    exit /b %errorlevel%
+    goto :error
 )
 call :gettime INSTALL_RELEASE_END
+
+echo.
+call :header "Installing Release with Debug Info"
+call :gettime INSTALL_RELWITHDEBINFO_START
+cmake --install build/%PRESET% --config RelWithDebInfo
+if %errorlevel% neq 0 (
+    powershell -NoProfile -Command "Write-Host 'RelWithDebInfo install failed.' -ForegroundColor Red"
+    goto :error
+)
+call :gettime INSTALL_RELWITHDEBINFO_END
 
 :: --- Build and Install Tools (ProjectCloner + ClonerSource) ---
 if !BUILD_TOOLS!==1 (
@@ -316,7 +350,7 @@ if !BUILD_TOOLS!==1 (
     !TOOLS_CMAKE!
     if !errorlevel! neq 0 (
         powershell -NoProfile -Command "Write-Host 'ProjectCloner configure failed.' -ForegroundColor Red"
-        exit /b !errorlevel!
+        goto :error
     )
 
     echo.
@@ -324,7 +358,7 @@ if !BUILD_TOOLS!==1 (
     cmake --build "!TOOLS_BUILD!" --config Release
     if !errorlevel! neq 0 (
         powershell -NoProfile -Command "Write-Host 'ProjectCloner build failed.' -ForegroundColor Red"
-        exit /b !errorlevel!
+        goto :error
     )
 
     echo.
@@ -332,7 +366,7 @@ if !BUILD_TOOLS!==1 (
     cmake --install "!TOOLS_BUILD!" --config Release
     if !errorlevel! neq 0 (
         powershell -NoProfile -Command "Write-Host 'ProjectCloner install failed.' -ForegroundColor Red"
-        exit /b !errorlevel!
+        goto :error
     )
 
     echo.
@@ -341,7 +375,7 @@ if !BUILD_TOOLS!==1 (
     xcopy "!CLONER_SRC!" "!INSTALL_PREFIX!\Tools\ClonerSource\" /E /I /Q /Y >nul
     if !errorlevel! neq 0 (
         powershell -NoProfile -Command "Write-Host 'ClonerSource copy failed.' -ForegroundColor Red"
-        exit /b !errorlevel!
+        goto :error
     )
     powershell -NoProfile -Command "Write-Host 'Tools installed to: !INSTALL_PREFIX!\Tools' -ForegroundColor Green"
 )
@@ -353,18 +387,22 @@ call :gettime OVERALL_END
 call :elapsed !CONFIGURE_START!       !CONFIGURE_END!       CONFIGURE_SECS
 call :elapsed !BUILD_DEBUG_START!     !BUILD_DEBUG_END!     BUILD_DEBUG_SECS
 call :elapsed !BUILD_RELEASE_START!   !BUILD_RELEASE_END!   BUILD_RELEASE_SECS
+call :elapsed !BUILD_RELWITHDEBINFO_START! !BUILD_RELWITHDEBINFO_END! BUILD_RELWITHDEBINFO_SECS
 call :elapsed !INSTALL_DEBUG_START!   !INSTALL_DEBUG_END!   INSTALL_DEBUG_SECS
 call :elapsed !INSTALL_RELEASE_START! !INSTALL_RELEASE_END! INSTALL_RELEASE_SECS
+call :elapsed !INSTALL_RELWITHDEBINFO_START! !INSTALL_RELWITHDEBINFO_END! INSTALL_RELWITHDEBINFO_SECS
 call :elapsed !OVERALL_START!         !OVERALL_END!         OVERALL_SECS
 
-set /a TOTAL_BUILD_SECS   = BUILD_DEBUG_SECS   + BUILD_RELEASE_SECS
-set /a TOTAL_INSTALL_SECS = INSTALL_DEBUG_SECS + INSTALL_RELEASE_SECS
+set /a TOTAL_BUILD_SECS   = BUILD_DEBUG_SECS   + BUILD_RELEASE_SECS + BUILD_RELWITHDEBINFO_SECS
+set /a TOTAL_INSTALL_SECS = INSTALL_DEBUG_SECS + INSTALL_RELEASE_SECS + INSTALL_RELWITHDEBINFO_SECS
 
 call :fmt %CONFIGURE_SECS%       CONFIGURE_FMT
 call :fmt %BUILD_DEBUG_SECS%     BUILD_DEBUG_FMT
 call :fmt %BUILD_RELEASE_SECS%   BUILD_RELEASE_FMT
+call :fmt %BUILD_RELWITHDEBINFO_SECS% BUILD_RELWITHDEBINFO_FMT
 call :fmt %INSTALL_DEBUG_SECS%   INSTALL_DEBUG_FMT
 call :fmt %INSTALL_RELEASE_SECS% INSTALL_RELEASE_FMT
+call :fmt %INSTALL_RELWITHDEBINFO_SECS% INSTALL_RELWITHDEBINFO_FMT
 call :fmt %TOTAL_BUILD_SECS%     TOTAL_BUILD_FMT
 call :fmt %TOTAL_INSTALL_SECS%   TOTAL_INSTALL_FMT
 call :fmt %OVERALL_SECS%         OVERALL_FMT
@@ -374,6 +412,7 @@ call :header "Timing Summary"
 if !SKIP_CONFIGURE!==0 echo  Configure time      : %CONFIGURE_FMT%
 echo  Debug build time    : %BUILD_DEBUG_FMT%
 echo  Release build time  : %BUILD_RELEASE_FMT%
+echo  RelWithDebInfo build time  : %BUILD_RELWITHDEBINFO_FMT%
 echo  Total build time    : %TOTAL_BUILD_FMT%
 if !RUN_TESTS!==1 (
     call :elapsed !TEST_START! !TEST_END! TEST_SECS
@@ -383,12 +422,14 @@ if !RUN_TESTS!==1 (
 if !SKIP_INSTALL!==0 if not "!INSTALL_DEBUG_END!"=="0" (
     echo  Debug install time  : %INSTALL_DEBUG_FMT%
     echo  Release install time: %INSTALL_RELEASE_FMT%
+    echo  RelWithDebInfo install time: %INSTALL_RELWITHDEBINFO_FMT%
     echo  Total install time  : %TOTAL_INSTALL_FMT%
 )
 echo  Overall time        : %OVERALL_FMT%
 echo.
 powershell -NoProfile -Command "Write-Host 'Done.' -ForegroundColor Green"
-goto :eof
+pause
+exit /b 0
 
 :: Print a colored section header
 :header
@@ -417,3 +458,9 @@ set /a S = %~1 %% 60
 set RESULT=%M%m %S%s
 endlocal & set %~2=%RESULT%
 goto :eof
+
+:rerun
+
+:error
+pause
+exit /b 1
