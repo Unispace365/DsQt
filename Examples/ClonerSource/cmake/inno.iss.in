@@ -2,7 +2,7 @@
 ; this is the location of the DEPLOY Folder, which should contain the built
 ;executable and all necessary files to run the app. This is used to pull in
 ;the version number from the executable, so it needs to be correct for that to work.
-#define BASEDIR "@CMAKE_INSTALL_PREFIX@"
+#define BASEDIR "@CMAKE_INSTALL_PREFIX@/Release"
 ; What displays in the start menu, also used as the Unique app name / id
 #define APP_DISPLAY_NAME "@DS_APP_NAME@"
 ; Used for paths for the app directory. Recommend using the auto-generated values

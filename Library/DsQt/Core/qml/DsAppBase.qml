@@ -80,7 +80,7 @@ ApplicationWindow {
         sequence: "ESCAPE"
         autoRepeat: false
         context: Qt.ApplicationShortcut
-        onActivated: Qt.quit()
+        onActivated: Ds.engine.quit(false)
     }
 
     /// Provides access to the window settings.

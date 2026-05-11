@@ -104,7 +104,6 @@ private:
     QList<QString> m_excludeList;
     QList<QString> m_permanentExcludeList = {"CMakeLists.txt.user","build\\"};
     QString m_lastError;
-    QString m_description = "Another fine Downstream production.";
 
 private:
     bool processDirectory(QDir dir,QDir rootDir);

@@ -100,7 +100,8 @@ qt_add_qml_module(Core
         res/keyboard.qrc
         res/data.qrc
 
-        QML_FILES 
+        QML_FILES
+        SOURCES core/dsQmlAppHost.h core/dsQmlAppHost.cpp
 )
 
 set(CoreTargets ${CoreTargets} PARENT_SCOPE)

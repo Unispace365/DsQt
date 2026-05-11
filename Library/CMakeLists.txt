@@ -26,6 +26,15 @@ set(QT_FORCE_CMP0156_TO_VALUE NEW)
 # Consolidate all QML module output into a single directory structure
 set(QT_QML_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/qml")
 
+# Tell Qt Creator (and other IDEs) where to find the built QML modules.
+set(QML_TMP_PATH "${QT_QML_OUTPUT_DIRECTORY};${QML_IMPORT_PATH}")
+list(REMOVE_DUPLICATES QML_TMP_PATH)
+set(QML_IMPORT_PATH "${QML_TMP_PATH}" CACHE PATH "Qt Creator QML import path" FORCE)
+
+# Regenerate .qmlls.ini files in each module's source directory so qmlls
+# points at this build's output rather than any previously cached build.
+set(QT_QML_GENERATE_QMLLS_INI ON)
+
 if(PROJECT_IS_TOP_LEVEL)
     find_package(Doxygen COMPONENTS dot)
     option(BUILD_DOCUMENTATION "Create and install the HTML based API documentation (requires Doxygen)" ${DOXYGEN_FOUND})

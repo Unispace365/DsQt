@@ -56,7 +56,7 @@ project(${DS_APP_NAME} VERSION ${DS_APP_VERSION} LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_INSTALL_PREFIX "${CMAKE_BINARY_DIR}/DEPLOY/")
+set(CMAKE_INSTALL_PREFIX "${CMAKE_BINARY_DIR}/DEPLOY")
 set(QT_FORCE_CMP0156_TO_VALUE NEW)
 set(QT_QML_GENERATE_QMLLS_INI ON)
 find_package(Qt6 6.9 REQUIRED COMPONENTS Core Quick QuickControls2 Multimedia Gui GuiPrivate ShaderTools Concurrent Sql)
@@ -208,6 +208,10 @@ if(Dsqt_TouchEngine_FOUND)
     endif()
 endif()
 
+# Must be the first install() rule — appends the config name to the prefix so
+# Release and Debug deployments land in separate subdirectories.
+install(CODE "set(CMAKE_INSTALL_PREFIX \"\${CMAKE_INSTALL_PREFIX}/\${CMAKE_INSTALL_CONFIG_NAME}\")")
+
 install(TARGETS ${DS_EXE_NAME}
     BUNDLE DESTINATION .
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
@@ -222,14 +226,22 @@ if(WIN32 AND Dsqt_TouchEngine_FOUND)
     install(FILES "${DSQT_BIN_DIR}/$<CONFIG>/TouchEngine.dll" DESTINATION ${CMAKE_INSTALL_BINDIR} OPTIONAL)
 endif()
 
-# Install vcpkg runtime dependencies (tomlplusplus, etc.)
-# vcpkg in manifest mode installs DLLs to vcpkg_installed/x64-windows/bin
+# Install vcpkg runtime dependencies — select debug or release DLLs at install time.
+# file(GLOB) runs at configure time so it can't use $<CONFIG>; install(CODE) defers
+# the glob until cmake --install runs, when CMAKE_INSTALL_CONFIG_NAME is known.
 if(WIN32)
-    # Install all DLLs from vcpkg manifest installation
-    file(GLOB VCPKG_RUNTIME_DLLS "${CMAKE_BINARY_DIR}/vcpkg_installed/x64-windows/bin/*.dll")
-    if(VCPKG_RUNTIME_DLLS)
-        install(FILES ${VCPKG_RUNTIME_DLLS} DESTINATION ${CMAKE_INSTALL_BINDIR})
-    endif()
+    install(CODE "
+        if(\"\${CMAKE_INSTALL_CONFIG_NAME}\" STREQUAL \"Debug\")
+            set(_vcpkg_bin \"${CMAKE_BINARY_DIR}/vcpkg_installed/x64-windows/debug/bin\")
+        else()
+            set(_vcpkg_bin \"${CMAKE_BINARY_DIR}/vcpkg_installed/x64-windows/bin\")
+        endif()
+        file(GLOB _dlls \"\${_vcpkg_bin}/*.dll\")
+        if(_dlls)
+            file(INSTALL DESTINATION \"\${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}\"
+                 TYPE FILE FILES \${_dlls})
+        endif()
+    ")
 endif()
 
 qt_generate_deploy_qml_app_script(
