@@ -43,10 +43,6 @@ MenuBar {
         //     onTriggered: menuBar.fileInfoTriggered()
         // }
         // MenuSeparator {}
-        Action {
-            text: "Stop AppHost"
-            onTriggered: AppHost.exit()
-        }
 
         Action {
             text: "Quit and Stop AppHost"
@@ -61,6 +57,35 @@ MenuBar {
             onTriggered: Ds.engine.quit(false)
         }
 
+    }
+    Menu {
+        id: apphostMenu
+        title: "AppHost"
+        width: 200
+        Action {
+            text: "Stop AppHost"
+            onTriggered: AppHost.exit()
+        }
+
+        Action {
+            text: "Kiosk"
+            onTriggered: AppHost.kiosk()
+        }
+
+        Action {
+            text: "Un-Kiosk"
+            onTriggered: AppHost.unkiosk()
+        }
+
+        Action {
+            text: "Restart AppHost"
+            onTriggered: AppHost.reconfigure()
+        }
+
+        // Action {
+        //     text: "Status"
+        //     onTriggered: AppHost.getStatus()
+        // }
     }
     Menu {
         id: logsMenu

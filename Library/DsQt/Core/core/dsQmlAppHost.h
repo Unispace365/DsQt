@@ -17,6 +17,13 @@ class DsQmlAppHost : public QObject {
 
     Q_INVOKABLE void exit(bool quit=false);
 
+    Q_INVOKABLE void kiosk();
+    Q_INVOKABLE void unkiosk();
+
+    Q_INVOKABLE void reconfigure();
+
+    // Q_INVOKABLE QString getStatus();
+
   signals:
   private:
     QNetworkAccessManager* manager;
