@@ -167,6 +167,8 @@ void DsQmlApplicationEngine::init() {
     readSettings();
     if (!mEngineProxy) mEngineProxy = new DsQmlSettingsProxy(this);
     if (!mAppProxy) mAppProxy = new DsQmlSettingsProxy(this);
+    if (!mQmlEnv) mQmlEnv = new DsQmlEnvironment(this);
+
     // auto starts, but could also be this:
     // mNodeWatcher = new network::DsNodeWatcher(this,"localhost",7788,/*autostart*/false)
     // mNodeWatcher->start();
