@@ -26,5 +26,51 @@ void DsQmlAppHost::exit(bool quit)
 
 }
 
+void DsQmlAppHost::kiosk()
+{
+    {
+        QUrl doKiosk("api/kiosk");
+        auto response = manager->get(QNetworkRequest(baseUrl.resolved(doKiosk)));
+        connect(response,&QNetworkReply::finished,this, [this]{});
+    }
+
+    {
+        QUrl alwaysOnTop("api/alwaysontop/reset");
+        auto response = manager->get(QNetworkRequest(baseUrl.resolved(alwaysOnTop)));
+        connect(response,&QNetworkReply::finished,this, [this]{});
+    }
+}
+
+void DsQmlAppHost::unkiosk()
+{
+    {
+        QUrl doUnKiosk("api/unkiosk");
+        auto response = manager->get(QNetworkRequest(baseUrl.resolved(doUnKiosk)));
+        connect(response,&QNetworkReply::finished,this, [this]{});
+    }
+
+    {
+        QUrl noAlwaysOnTop("api/alwaysontop/disable");
+        auto response = manager->get(QNetworkRequest(baseUrl.resolved(noAlwaysOnTop)));
+        connect(response,&QNetworkReply::finished,this, [this]{});
+    }
+}
+
+void DsQmlAppHost::reconfigure()
+{
+    QUrl doReconfigure("api/Reconfigure");
+    auto response = manager->get(QNetworkRequest(baseUrl.resolved(doReconfigure)));
+    connect(response,&QNetworkReply::finished,this, [this]{});
+}
+
+// QString DsQmlAppHost::getStatus()
+// {
+//     QUrl doReconfigure("api/Status");
+//     auto response = manager->get(QNetworkRequest(baseUrl.resolved(doReconfigure)));
+//     connect(response,&QNetworkReply::finished,this, [this, response]{
+//         qInfo() << response->readAll();
+//       });
+//     return QString();
+// }
 
 }
