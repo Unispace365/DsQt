@@ -31,6 +31,7 @@ qt_add_qml_module(Waffles
         qml/ux/RightOuterControls.qml
         qml/ux/TitledMediaViewer.qml
         qml/ux/TopOuterControls.qml
+        qml/waffles/DsGlassBackground.qml
         qml/waffles/DsViewer.qml
         qml/waffles/DsWaffleStage.qml
         qml/waffles/media_viewer/DsControlSet.qml

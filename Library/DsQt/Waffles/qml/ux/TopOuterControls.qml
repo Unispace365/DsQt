@@ -20,13 +20,7 @@ DsControlSet {
             id: titleContainer
             height: 43
             width:topButtons.width
-            Rectangle {
-                anchors.fill: parent
-
-                topLeftRadius: 20
-                topRightRadius: 20
-                color: palette.button
-            }
+            // Background is provided by the viewer's glass panel behind this control set.
 
             Text {
                 id:titleText

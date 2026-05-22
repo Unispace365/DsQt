@@ -25,10 +25,6 @@ DsAppBase {
         preferredHeight: 1080
         fitEnabled: true
 
-        AnimatedBackground {
-            anchors.fill: parent
-        }
-
         Loader {
             id: main
             source: "/qt/qml/AssetViewer/qml/MainView.qml"

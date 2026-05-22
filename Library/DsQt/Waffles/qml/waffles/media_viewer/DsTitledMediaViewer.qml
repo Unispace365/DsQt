@@ -26,6 +26,17 @@ DsViewer {
     }
     property alias mediaViewer: mediaView.viewer
 
+    // Fill mode for the media. PreserveAspectFit letterboxes, revealing the glass behind.
+    property int mediaFillMode: Image.PreserveAspectCrop
+
+    // --- Glass config: defaults to the stage globals, override per-instance if needed ---
+    property bool  glassEnabled:     stage ? stage.glassEnabled : true
+    property color glassTint:        stage ? stage.glassTint : "#191F25"
+    property real  glassTintOpacity: stage ? stage.glassTintOpacity : 0.8
+    property real  glassBlur:        stage ? stage.glassBlur : 0.5
+    property int   glassBlurMax:     stage ? stage.glassBlurMax : 32
+    property real  glassRadius:      stage ? stage.glassRadius : 12
+
 
     QtObject {
         id: configObj
@@ -121,6 +132,31 @@ DsViewer {
         anchors.verticalCenterOffset: verticalOffset
     }
 
+    // One frosted-glass panel behind the whole viewer — the title bar (when present) plus the
+    // media area — so the title control set gets a seamless glass background continuous with the
+    // media's. A single blur (rather than one per region) keeps the seam invisible. Sits behind
+    // everything (z -1) and shows through letterbox gaps and transparent controls.
+    DsGlassBackground {
+        id: viewerGlass
+        z: -1
+        anchors.left: mediaView.left
+        anchors.right: mediaView.right
+        anchors.top: topOuter.enabled ? topOuter.top : mediaView.top
+        anchors.bottom: mediaView.bottom
+        source: root.backdropSource
+        sampleX: root.x + viewerGlass.x
+        sampleY: root.y + viewerGlass.y
+        blurEnabled: root.glassEnabled
+        tint: root.glassTint
+        tintOpacity: root.glassTintOpacity
+        blur: root.glassBlur
+        blurMax: root.glassBlurMax
+        topLeftRadius: root.glassRadius
+        topRightRadius: root.glassRadius
+        bottomLeftRadius: root.glassRadius
+        bottomRightRadius: root.glassRadius
+    }
+
     //this is the media view. It has several children that are designed to only show one based on the media
     //type. We should make this explicit so the we can use VectorImage and Web element as well.
     Item {
@@ -132,6 +168,7 @@ DsViewer {
             id: viewer
             anchors.fill: parent
             media: root.config.media
+            fillMode: root.mediaFillMode
             autoPlay: true
         }
     }
