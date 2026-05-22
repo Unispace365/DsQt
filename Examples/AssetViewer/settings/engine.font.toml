@@ -1,0 +1,94 @@
+# Qt QFont Configuration
+# This TOML file defines default font settings for Qt applications
+[engine.font]
+paths = [
+{ path = "%APP%/data/fonts/Inter/Inter-Italic-VariableFont_opsz,wght.ttf", name = "Inter Italic Variable Font opsz wght" },
+{ path = "%APP%/data/fonts/Inter/Inter-VariableFont_opsz,wght.ttf", name = "Inter Variable Font opsz wght" },
+{ path = "%APP%/data/fonts/Noto_Color_Emoji/NotoColorEmoji-Regular.ttf", name = "Noto Color Emoji Regular" },
+{ path = "%APP%/data/fonts/Noto_Emoji/NotoEmoji-VariableFont_wght.ttf", name = "Noto Emoji Variable Font wght" },
+{ path = "%APP%/data/fonts/Noto_Sans/NotoSans-Italic-VariableFont_wdth,wght.ttf", name = "Noto Sans Italic Variable Font wdth wght" },
+{ path = "%APP%/data/fonts/Noto_Sans/NotoSans-VariableFont_wdth,wght.ttf", name = "Noto Sans Variable Font wdth wght" },
+{ path = "%APP%/data/fonts/Noto_Sans_JP/NotoSansJP-VariableFont_wght.ttf", name = "Noto Sans JP Variable Font wght" }
+]
+
+[engine.font.default]
+# Font family settings
+# Primary font family
+family = "Inter"
+# Fallback font families (in order of preference)
+families = ["Inter", "Noto-sans", "DejaVu Sans", "sans-serif"]
+
+# Basic font properties
+bold = false
+italic = false
+underline = false
+overline = false
+strikeOut = false
+
+# Size settings (use either pointSize or pixelSize, not both)
+# Point size is resolution-independent
+pointSize = 12
+pointSizeF = 12.0  # Floating point version for more precision
+# pixelSize = 16  # Alternative: fixed pixel size (uncomment to use)
+
+# Weight: 100=Thin, 200=ExtraLight, 300=Light, 400=Normal, 500=Medium,
+#         600=DemiBold, 700=Bold, 800=ExtraBold, 900=Black
+weight = 400  # Normal weight
+
+# Stretch factor: percentage where 100 is normal
+# Range typically 50 (UltraCondensed) to 200 (UltraExpanded)
+stretch = 100
+
+# Style name (e.g., "Regular", "Bold", "Italic", "Bold Italic")
+styleName = "Regular"
+
+# Style enum: "StyleNormal", "StyleItalic", or "StyleOblique"
+style = "StyleNormal"
+
+# Capitalization: "MixedCase", "AllUppercase", "AllLowercase", "SmallCaps", or "Capitalize"
+capitalization = "MixedCase"
+
+# Fixed pitch font (monospace)
+fixedPitch = false
+
+# Kerning (automatic spacing adjustment between characters)
+kerning = true
+
+# Letter spacing
+# Type: "PercentageSpacing" or "AbsoluteSpacing"
+letterSpacingType = "PercentageSpacing"
+letterSpacing = 100.0  # 100% for normal spacing
+
+# Word spacing (additional space between words in pixels)
+wordSpacing = 0.0
+
+# Hinting preference for font rendering
+# Options: "PreferDefaultHinting", "PreferNoHinting", "PreferVerticalHinting", "PreferFullHinting"
+hintingPreference = "PreferDefaultHinting"
+
+# Style hint (font matching preference)
+# Options: "AnyStyle", "SansSerif", "Helvetica", "Serif", "Times", "TypeWriter",
+#          "Courier", "OldEnglish", "Decorative", "Monospace", "Fantasy", "Cursive"
+styleHint = "AnyStyle"
+
+# Style strategy (rendering strategy)
+# Options: "PreferDefault", "PreferBitmap", "PreferDevice", "PreferOutline",
+#          "ForceOutline", "PreferMatch", "PreferQuality", "PreferAntialias",
+#          "NoAntialias", "NoSubpixelAntialias", "PreferNoShaping", "NoFontMerging"
+styleStrategy = "PreferDefault"
+
+# OpenType features (optional)
+# Format: tag = value
+# Common tags: "kern" (kerning), "liga" (ligatures), "calt" (contextual alternatives)
+[engine.font.default.features]
+# kern = 1  # Enable kerning
+# liga = 1  # Enable standard ligatures
+# calt = 1  # Enable contextual alternatives
+
+# Variable font axes (optional)
+# Format: tag = value
+# Common tags: "wght" (weight), "wdth" (width), "slnt" (slant), "ital" (italic)
+[engine.font.default.variableAxes]
+# wght = 400.0  # Weight axis
+# wdth = 100.0  # Width axis
+# slnt = 0.0    # Slant axis

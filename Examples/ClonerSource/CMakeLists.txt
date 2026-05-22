@@ -63,7 +63,7 @@ find_package(Qt6 6.9 REQUIRED COMPONENTS Core Quick QuickControls2 Multimedia Gu
 qt_standard_project_setup(REQUIRES 6.9)
 
 # Find Dsqt from installed package (CMAKE_PREFIX_PATH set via CMakePresets.json)
-find_package(Dsqt REQUIRED COMPONENTS Core Bridge Waffles OPTIONAL_COMPONENTS TouchEngine Spout)
+find_package(Dsqt REQUIRED COMPONENTS Core Bridge Waffles OPTIONAL_COMPONENTS Spout)
 
 message("DSQT is at ${Dsqt_DIR}")
 
@@ -103,7 +103,6 @@ qt_add_qml_module(${DS_EXE_NAME}
         Fnt.qml
         qml/MainView.qml
         qml/CustomClock.qml
-        qml/TouchDesigner.qml
 
     IMPORT_PATH "${DSQT_QML_IMPORT_PATH}"
     DEPENDENCIES
@@ -157,11 +156,10 @@ find_package(glm CONFIG REQUIRED)
 
 target_include_directories(${DS_EXE_NAME} PRIVATE
     ${Dsqt_INCLUDES}
-    $<$<BOOL:${Dsqt_TouchEngine_FOUND}>:${TouchEngineQt_INCLUDES}>
 )
 
 # Provide DSQT_HAS_<MODULE> compile definitions for optional plugin imports
-foreach(_comp Core Bridge Waffles TouchEngine Spout)
+foreach(_comp Core Bridge Waffles Spout)
     if(Dsqt_${_comp}_FOUND)
         target_compile_definitions(${DS_EXE_NAME} PRIVATE DSQT_HAS_${_comp})
     endif()
@@ -172,7 +170,6 @@ target_link_libraries(${DS_EXE_NAME}
     PRIVATE
         Dsqt::Core
         Dsqt::Bridge
-        $<$<BOOL:${Dsqt_TouchEngine_FOUND}>:Dsqt::TouchEngine>
         Dsqt::Waffles
         $<$<BOOL:${Dsqt_Spout_FOUND}>:Dsqt::Spout>
 
@@ -193,21 +190,6 @@ target_link_libraries(${DS_EXE_NAME}
 message("HEADERS ${Dsqt_INCLUDES}")
 include(GNUInstallDirs)
 
-if(Dsqt_TouchEngine_FOUND)
-    # TouchEngine SDK DLL location (from installed package, config-specific subdirectory)
-    set(TOUCHENGINE_DLL "${DSQT_BIN_DIR}/$<CONFIG>/TouchEngine.dll")
-
-    # Copy TouchEngine.dll next to the executable during build
-    if(WIN32)
-        add_custom_command(TARGET ${DS_EXE_NAME} POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                "${TOUCHENGINE_DLL}"
-                $<TARGET_FILE_DIR:${DS_EXE_NAME}>
-            COMMENT "Copying TouchEngine.dll to output directory"
-        )
-    endif()
-endif()
-
 # Must be the first install() rule — appends the config name to the prefix so
 # Release and Debug deployments land in separate subdirectories.
 install(CODE "set(CMAKE_INSTALL_PREFIX \"\${CMAKE_INSTALL_PREFIX}/\${CMAKE_INSTALL_CONFIG_NAME}\")")
@@ -220,11 +202,6 @@ install(TARGETS ${DS_EXE_NAME}
 
 install(DIRECTORY "settings/" DESTINATION ${CMAKE_INSTALL_BINDIR}/settings OPTIONAL)
 install(DIRECTORY "data/" DESTINATION ${CMAKE_INSTALL_BINDIR}/data OPTIONAL)
-
-# Install TouchEngine.dll to the deploy directory
-if(WIN32 AND Dsqt_TouchEngine_FOUND)
-    install(FILES "${DSQT_BIN_DIR}/$<CONFIG>/TouchEngine.dll" DESTINATION ${CMAKE_INSTALL_BINDIR} OPTIONAL)
-endif()
 
 # Install vcpkg runtime dependencies — select debug or release DLLs at install time.
 # file(GLOB) runs at configure time so it can't use $<CONFIG>; install(CODE) defers

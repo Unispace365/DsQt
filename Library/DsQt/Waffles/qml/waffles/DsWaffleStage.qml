@@ -1,11 +1,12 @@
-import QtQuick 2.15
+import QtQuick
+import Dsqt.Waffles
 
 
 
 Item {
     id: wafflesRoot
-    property Component launcher: Qt.createComponent("menu_launcher/TestLauncher.qml")
-    property Component viewer: Qt.createComponent("TitledMediaViewer.qml");
+    property Component launcher: Component { DsTestLauncher {} }
+    property Component viewer: Component { TitledMediaViewer {} }
     property Component fullscreenController: Qt.createComponent("FullscreenController.qml")
     property Component presentationController: Qt.createComponent("PresentationController.qml")
     property bool menuShown: false
@@ -29,6 +30,8 @@ Item {
     Item {
         id: topLayer
         anchors.fill: wafflesRoot
+        // Keep viewers/launcher above any consumer content placed in the stage.
+        z: 1
     }
 
     //functions && _privates
@@ -46,7 +49,7 @@ Item {
 
     function completeMenu() {
         if(launcher.status == Component.Ready) {
-            _private.launcher = launcher.createObject(topLayer,{"opacity":1});
+            _private.launcher = launcher.createObject(topLayer,{"opacity":1, "stage":wafflesRoot});
             if(_private.launcher == null)
             {
                 console.log("Error creating menu");

@@ -30,10 +30,33 @@ if defined PRINT_HELP (
 
 REM Set up the MSVC developer environment if not already active
 if not defined VSINSTALLDIR (
-    call "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvarsall.bat" amd64
-    if %errorlevel% neq 0 (
-        echo Failed to set up MSVC environment.
-        exit /b %errorlevel%
+    set VSWHERE="%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe"
+    for /f "usebackq delims=" %%i in (`!VSWHERE! -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath`) do set VS_PATH=%%i
+    if not defined VS_PATH (
+        powershell -NoProfile -Command "Write-Host 'Visual Studio with C++ tools not found. Install VS with the Desktop C++ workload.' -ForegroundColor Red"
+        exit /b 1
+    )
+    call "!VS_PATH!\VC\Auxiliary\Build\vcvarsall.bat" amd64
+    if !errorlevel! neq 0 (
+        powershell -NoProfile -Command "Write-Host 'Failed to set up MSVC environment.' -ForegroundColor Red"
+        exit /b !errorlevel!
+    )
+)
+
+:: --- Ensure ninja is on PATH ---
+where ninja >nul 2>&1
+if !errorlevel! neq 0 (
+    if defined VSINSTALLDIR (
+        set NINJA_DIR=!VSINSTALLDIR!Common7\IDE\CommonExtensions\Microsoft\CMake\Ninja
+        if exist "!NINJA_DIR!\ninja.exe" (
+            set PATH=!NINJA_DIR!;!PATH!
+        ) else (
+            powershell -NoProfile -Command "Write-Host 'ninja.exe not found. Install the CMake tools component in Visual Studio.' -ForegroundColor Red"
+            exit /b 1
+        )
+    ) else (
+        powershell -NoProfile -Command "Write-Host 'ninja not on PATH and VSINSTALLDIR not set.' -ForegroundColor Red"
+        exit /b 1
     )
 )
 
@@ -277,7 +300,7 @@ if !SKIP_INSTALL!==1 (
 if !DEBUG_NOOP!==1 if !RELEASE_NOOP!==1 (
     echo.
     powershell -NoProfile -Command "Write-Host 'No changes detected - skipping install.' -ForegroundColor Yellow"
-    goto :timing
+    goto :tools_build
 )
 
 echo.
@@ -300,12 +323,22 @@ if %errorlevel% neq 0 (
 )
 call :gettime INSTALL_RELEASE_END
 
+:tools_build
 :: --- Build and Install Tools (ProjectCloner + ClonerSource) ---
 if !BUILD_TOOLS!==1 (
     set TOOLS_DIR=%~dp0..\Tools\ProjectCloner
     set CLONER_SRC=%~dp0..\Examples\ClonerSource
     set TOOLS_BUILD=!TOOLS_DIR!\build\%PRESET%
     set INSTALL_PREFIX=%USERPROFILE%\Documents\DsQt
+
+    :: If -qt was not specified, auto-detect Qt path from the cmake cache
+    if not defined QT_PATH (
+        for /f "tokens=2 delims==" %%i in ('findstr /i "Qt6_DIR:PATH" "build\%PRESET%\CMakeCache.txt" 2^>nul') do (
+            set "_QT6DIR_TEMP=%%i"
+            for /f "delims=" %%p in ('powershell -NoProfile -Command "Split-Path (Split-Path (Split-Path $env:_QT6DIR_TEMP))"') do set QT_PATH=%%p
+        )
+        if defined QT_PATH powershell -NoProfile -Command "Write-Host '    Qt (auto-detected for tools): !QT_PATH!' -ForegroundColor Yellow"
+    )
 
     echo.
     call :header "Configuring ProjectCloner"

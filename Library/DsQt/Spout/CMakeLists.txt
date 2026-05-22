@@ -43,6 +43,8 @@ endif()
 # Vulkan (optional — enables Vulkan backend for Spout texture import)
 # ----------------------------------------------------------------------
 find_package(Vulkan QUIET)
+# Propagate to parent scope so DsqtConfig.cmake.in can bake this in at install time.
+set(DSQT_SPOUT_HAS_VULKAN "${Vulkan_FOUND}" CACHE BOOL "DsSpout was built with Vulkan support" FORCE)
 
 # ----------------------------------------------------------------------
 # Spout module target

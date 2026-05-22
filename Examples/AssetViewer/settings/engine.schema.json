@@ -1,0 +1,18 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Engine Schema",
+    "description": "DSQt Engine file schema",
+    "type": "object",
+    "properties": {
+      "core" : {
+        "type" : "string"
+      }
+    },
+    "additionalProperties" : {
+      "type" : "object",
+      "additionalProperties" : {
+        "type" : "array"
+      }
+    }
+
+  }

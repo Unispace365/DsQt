@@ -1,0 +1,30 @@
+#colors
+color = {r=0,g=1,b=1,a=1.0}
+
+[colors]
+box = {r=0,g=0.56,b=0.78,a=1.0}
+
+[colors.fancy]
+box = {r=0,g=0.56,b=0.78,a=1.0}
+
+[colors.superFancy]
+box = {r=0,g=0.56,b=0.78,a=1.0}
+
+[platform]
+id = "ERvvM9LW0GPB" #16:9 Platform ID
+
+[quickMenu]
+closeDelay = 7000 #miliseconds
+
+[playlist.templateMap]
+default = "qrc:/qt/qml/AssetViewer/qml/templates/FullscreenTemplate.qml"
+15ZhnyA8lolv="qrc:/qt/qml/AssetViewer/qml/templates/ParticleMessageTemplate.qml"
+dKcQBtZY2jZ1="qrc:/qt/qml/AssetViewer/qml/templates/MessageTemplate.qml"
+z9P90ysGZv4V="qrc:/qt/qml/AssetViewer/qml/templates/FullscreenTemplate.qml"
+uTt8HaFq871J="qrc:/qt/qml/AssetViewer/qml/templates/AgendaTemplate.qml"
+lJTiZqezZIhl="qrc:/qt/qml/AssetViewer/qml/templates/CustomLayoutTemplate.qml"
+
+[app]
+#set this to the main Qml file you want to load
+mainView = "Main" #default main view type
+
