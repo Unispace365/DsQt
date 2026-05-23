@@ -1,0 +1,48 @@
+# Waffles configuration.
+#
+# Loaded into the "app_settings" collection via engine.toml's [engine.extra].app_settings,
+# so it is reachable from QML with a DsSettingsProxy { target: "app_settings"; prefix: "waffles" }.
+# Every waffles setting lives under the [waffles] table.
+#
+# NOTE: the live theme COLOURS are owned by the DsTheme QML singleton
+# (Library/DsQt/Waffles/qml/waffles/DsTheme.qml). The palette ramp below is the design
+# reference kept here for documentation / future settings-driven theming.
+# See Docs/articles/color_system.md.
+
+[waffles]
+# Brand / primary ramp
+primary0  = "#00ADF7"
+primary10 = "#4AB6F8"
+primary20 = "#6BBFF9"
+primary30 = "#85C8FA"
+primary40 = "#9CD1FB"
+primary50 = "#263238"
+
+# Tonal (neutral) ramp
+tonal0  = "#191F25"
+tonal10 = "#2E3439"
+tonal20 = "#454A4F"
+tonal30 = "#5D6166"
+tonal40 = "#76797E"
+tonal50 = "#8F9396"
+
+titleOpacity         = 0.8
+viewerPrimary        = "primary0"
+secondaryLightColor  = "#4f83cc"
+secondaryDarkColor   = "#002f6c"
+textOnSecondaryColor = "#ffffff"
+
+# Media-viewer sizing. Bounds are logical px (the stage is a 4K canvas); per-viewer
+# overridable on creation.
+[waffles.viewer]
+minWidth  = 400
+maxWidth  = 3200
+minHeight = 300
+maxHeight = 2000
+# Default width an image viewer uses when it fits itself to the media aspect ratio.
+imageWidth = 1400
+# Default open/close animations (per-viewer overridable on creation).
+# One of: fade | grow | growBounce | fadeRise | none
+enterAnimation = "fadeRise"
+exitAnimation  = "grow"
+animationDuration = 300

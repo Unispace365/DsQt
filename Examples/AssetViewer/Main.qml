@@ -17,12 +17,13 @@ DsAppBase {
         id: textMeasurer
     }
 
-    // Allow zooming and panning of the content.
+    // Allow zooming and panning of the content. The content (the waffle stage) is designed at a
+    // fixed 4K canvas and scaled to fit the actual window.
     DsFitView {
         id: fit
         anchors.fill: parent
-        preferredWidth: 1920
-        preferredHeight: 1080
+        preferredWidth: 3840
+        preferredHeight: 2160
         fitEnabled: true
 
         Loader {

@@ -49,7 +49,9 @@ __declspec(dllexport) int AmdPowerXpressRequestHighPerformance = 1;
 int main(int argc, char *argv[])
 {
     DsGuiApplication::configureGraphics({
-        .graphicsApi = QSGRendererInterface::Vulkan,
+        // D3D11 is the Qt WebEngine-supported QSG backend on Windows; 8-bit colour keeps the
+        // glass/tonal colours correct (10-bit was what threw them off).
+        .graphicsApi = QSGRendererInterface::Direct3D11,
         .colorDepth = 8,
     });
 
@@ -114,8 +116,8 @@ int main(int argc, char *argv[])
 
     engine.initialize();
 
-    //load waffles settings
-    dsqt::DsEnvironment::loadSettings("waffles","waffle_settings.toml","qrc:/waffles/settings");
+    // Waffles settings are now loaded into the app_settings collection via engine.toml's
+    // [engine.extra].app_settings (settings/waffles_settings.toml, under the [waffles] table).
 
     /*
     auto prefixes = dsqt::DsEnvironment::engineSettings()->getOr<QVariantList>("engine.reload.prefixes",QVariantList()).toList();

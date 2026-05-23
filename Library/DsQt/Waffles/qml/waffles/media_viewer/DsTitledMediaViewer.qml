@@ -47,21 +47,50 @@ DsViewer {
 
     // --- Sizing config ---
     // sizeToMedia: size the viewer to the media's natural dimensions. matchAspectRatio: preserve
-    // the media's aspect ratio while clamping. Bounds default from settings ([viewer] in
-    // app_settings.toml, via the stage); all are overridable on creation.
+    // the media's aspect ratio while clamping. imageWidth: the base width used when fitting to
+    // aspect (defaults to the app_settings value via the stage). Bounds default from settings
+    // ([waffles.viewer] in waffles_settings.toml, via the stage); all are overridable on creation.
     property bool sizeToMedia: false
     property bool matchAspectRatio: false
+    property real imageWidth: stage ? stage.viewerImageWidth : 800
     property real minWidth:  stage ? stage.viewerMinWidth : 200
     property real maxWidth:  stage ? stage.viewerMaxWidth : 1600
     property real minHeight: stage ? stage.viewerMinHeight : 150
     property real maxHeight: stage ? stage.viewerMaxHeight : 1200
     onSizeToMediaChanged: applySizing()
     onMatchAspectRatioChanged: applySizing()
+    onImageWidthChanged: applySizing()
+
+    // --- Enter/exit animation: defaults from the stage, overridable per viewer on creation ---
+    enterAnimation:    stage ? stage.viewerEnterAnimation : DsViewer.Anim.Fade
+    exitAnimation:     stage ? stage.viewerExitAnimation : DsViewer.Anim.Fade
+    animationDuration: stage ? stage.viewerAnimationDuration : 300
+
+    // Default the signal target to ourselves so the built-in controls (e.g. the close button)
+    // drive this viewer unless a consumer supplies its own controller object.
+    signalObject: root
+    // Called by the close button (via signalObject); asks the stage to close us with the exit
+    // animation. The stage destroys the viewer once the animation finishes.
+    function close() { root.closeRequested() }
 
     // Selected viewers show their title/controls; unselected ones hide them and the glass
     // shrinks to just the media area. The stage sets this and raises the selected viewer.
     property bool selected: false
     onSelectedChanged: selected ? showControls() : hideControls()
+
+    // Bumped (over a few frames, after layout) to force the glass to re-sample its real on-screen
+    // position. The glass origin is computed via mapToItem, which is NOT reactive to the control
+    // sets being reparented into their edge holders on creation — so without this nudge the
+    // controls keep sampling their initial (wrong, often blue) location until the viewer is moved.
+    property int glassRefreshTick: 0
+    Timer {
+        id: glassSettleTimer
+        interval: 16
+        repeat: true
+        property int ticks: 0
+        onTriggered: { root.glassRefreshTick++; if (++ticks >= 5) { ticks = 0; stop(); } }
+    }
+    function refreshGlass() { glassSettleTimer.ticks = 0; glassSettleTimer.restart(); }
 
     // The stage captures this (glass + content) into the slots viewers above sample, so an
     // upper viewer's glass shows the lower viewers WITH their glass — the compound look. Slots
@@ -96,22 +125,24 @@ DsViewer {
         property color borderColor: root.glassBorderColor
         property real  borderWidth: root.glassBorderWidth
         property real  radius: root.glassRadius
-        property real  refresh: root.x + root.y + root.width + root.height
+        property real  refresh: root.x + root.y + root.width + root.height + root.glassRefreshTick
     }
 
     width: mediaView.width;
     height: mediaView.height;
 
-    Component.onCompleted: { setControls(); applySizing(); if (!selected) hideControls(); }
+    Component.onCompleted: { setControls(); applySizing(); if (!selected) hideControls(); refreshGlass(); }
     onControlsChanged: setControls()
 
     // Sets viewerWidth/viewerHeight from the sizing config: optionally to the media's natural
-    // size, optionally preserving the media aspect ratio, always clamped to [min,max].
+    // size, optionally preserving the media aspect ratio, always clamped to [min,max]. When
+    // fitting to aspect (and not sizing to the media), the base width is `imageWidth` — the
+    // app_settings-driven default — so an image viewer becomes imageWidth-wide at the media aspect.
     function applySizing() {
         let media = (config && config.media) ? config.media : null;
         let mw = (media && media.width)  ? media.width  : viewerWidth;
         let mh = (media && media.height) ? media.height : viewerHeight;
-        let w = sizeToMedia ? mw : viewerWidth;
+        let w = sizeToMedia ? mw : (matchAspectRatio ? imageWidth : viewerWidth);
         let h = sizeToMedia ? mh : viewerHeight;
         if (matchAspectRatio && mw > 0 && mh > 0) {
             let aspect = mw / mh;
@@ -262,6 +293,53 @@ DsViewer {
             }
         }
 
+        // Solid surface-colour fill shown while the media is loading, so the spinner sits on a
+        // solid background rather than the glass / empty (or flashing) media region.
+        Rectangle {
+            anchors.fill: mediaView
+            color: DsTheme.surface
+            z: 0
+            visible: root.mediaViewer ? root.mediaViewer.loading : false
+        }
+
+        // Loading indicator: a themed (accent) rotating arc shown while the media is still
+        // loading (web pages, network images/videos). Cleared when the media reports it loaded.
+        Item {
+            id: loadingSpinner
+            width: 48
+            height: 48
+            z: 1
+            anchors.centerIn: mediaView
+            visible: root.mediaViewer ? root.mediaViewer.loading : false
+
+            Canvas {
+                id: spinnerCanvas
+                anchors.fill: parent
+                Component.onCompleted: requestPaint()
+                onPaint: {
+                    let ctx = getContext("2d");
+                    ctx.reset();
+                    let c = width / 2;
+                    let r = c - 4;
+                    ctx.lineWidth = 4;
+                    ctx.lineCap = "round";
+                    ctx.strokeStyle = DsTheme.accent;
+                    ctx.beginPath();
+                    ctx.arc(c, c, r, 0, Math.PI * 1.5);
+                    ctx.stroke();
+                }
+            }
+
+            RotationAnimator {
+                target: spinnerCanvas
+                from: 0
+                to: 360
+                duration: 900
+                loops: Animation.Infinite
+                running: loadingSpinner.visible
+            }
+        }
+
         //holders for the controlSets.
         Item {
             id:topOuter
@@ -348,6 +426,7 @@ DsViewer {
             let ctrl = root.controls[i];
             ctrl.opacity = 1;
         }
+        refreshGlass();
     }
 
 }

@@ -13,6 +13,7 @@ idle_timeout=600
 app_settings = [
   "content_settings.toml",
   "menu.toml",
+  "waffles_settings.toml",
 ]
 
 engine = [

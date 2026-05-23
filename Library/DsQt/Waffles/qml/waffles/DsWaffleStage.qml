@@ -42,12 +42,20 @@ Item {
     // The backdrop leaf, exposed so control glass can sample it without recursing through slots.
     readonly property Item glassBackdrop: backdrop
 
-    // Viewer size limits (from app_settings.toml [viewer]; per-viewer overridable on creation).
-    DsSettingsProxy { id: appSettings; target: "app_settings" }
+    // Viewer size limits (from [waffles.viewer] in waffles_settings.toml, merged into the
+    // app_settings collection; per-viewer overridable on creation).
+    DsSettingsProxy { id: appSettings; target: "app_settings"; prefix: "waffles" }
     property real viewerMinWidth:  appSettings.getFloat("viewer.minWidth", 200)
     property real viewerMaxWidth:  appSettings.getFloat("viewer.maxWidth", 1600)
     property real viewerMinHeight: appSettings.getFloat("viewer.minHeight", 150)
     property real viewerMaxHeight: appSettings.getFloat("viewer.maxHeight", 1200)
+    // Default width an image viewer uses when it fits itself to the media aspect ratio.
+    property real viewerImageWidth: appSettings.getFloat("viewer.imageWidth", 800)
+    // Enter/exit animation defaults (per-viewer overridable on creation). Stored as strings in
+    // settings (fade | grow | growBounce | fadeRise | none); mapped to the DsViewer.Anim enum.
+    property int viewerEnterAnimation:    _animFromString(appSettings.getString("viewer.enterAnimation", "growBounce"))
+    property int viewerExitAnimation:     _animFromString(appSettings.getString("viewer.exitAnimation", "grow"))
+    property int viewerAnimationDuration: appSettings.getInt("viewer.animationDuration", 300)
 
     // Live composite "slots" (stage-sized textures), one per viewer that has something above it.
     property var _glassSlots: []
@@ -55,6 +63,8 @@ Item {
     property int _topZ: 1
     // Currently selected viewer, to skip redundant reselects (avoids glass chain churn).
     property var _selectedViewer: null
+    // Counter used to cascade successive centred opens so they don't perfectly overlap.
+    property int _openCount: 0
 
     onGlassEnabledChanged: rebuildGlass()
 
@@ -166,10 +176,49 @@ Item {
             {
                 console.log("Error creating viewer");
             } else {
+                // Open centred in the stage unless the caller positioned the viewer itself.
+                if (!("x" in viewerProps) && !("y" in viewerProps))
+                    wafflesRoot.centerViewer(viewerInstance);
+                if (viewerInstance.closeRequested)
+                    viewerInstance.closeRequested.connect(()=>{ wafflesRoot.closeViewer(viewerInstance); });
                 selectViewer(viewerInstance);
+                if (viewerInstance.playEnter)
+                    viewerInstance.playEnter();
             }
         } else if (viewer.status === Component.Error) {
             console.log("Error loading component:", viewer.errorString());
+        }
+    }
+
+    // Closes a viewer: clears selection if it was selected, plays its exit animation, then
+    // destroys it. Destruction triggers topLayer.onChildrenChanged → rebuildGlass.
+    function closeViewer(v) {
+        if (!v) return;
+        if (_selectedViewer === v) _selectedViewer = null;
+        if (v.playExit)
+            v.playExit(()=>{ v.destroy(); });
+        else
+            v.destroy();
+    }
+
+    // Places a freshly created viewer centred in the stage, with a gentle cascade so successive
+    // opens don't perfectly overlap. The viewer is already sized (applySizing ran on completion).
+    function centerViewer(v) {
+        let off = ((wafflesRoot._openCount % 5) - 2) * 60;
+        wafflesRoot._openCount++;
+        v.x = Math.round((wafflesRoot.width  - v.width)  / 2 + off);
+        v.y = Math.round((wafflesRoot.height - v.height) / 2 + off);
+    }
+
+    // Maps a settings string to a DsViewer.Anim enum value.
+    function _animFromString(s) {
+        switch (String(s).toLowerCase()) {
+        case "none":       return DsViewer.Anim.None;
+        case "fade":       return DsViewer.Anim.Fade;
+        case "grow":       return DsViewer.Anim.Grow;
+        case "growbounce": return DsViewer.Anim.GrowBounce;
+        case "faderise":   return DsViewer.Anim.FadeRise;
+        default:           return DsViewer.Anim.Fade;
         }
     }
 

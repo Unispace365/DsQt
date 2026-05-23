@@ -11,8 +11,15 @@ Item {
 
     // The media resource, containing file path and crop information, among other things.
     property var media: undefined
-    // The file path of the media as reported by the CMS.
+    // The file path of the media as reported by the CMS (raw; used for type/extension detection).
     readonly property string source: media && media.filepath ? media.filepath : ""
+    // The source resolved to a loadable URL: network URLs (http/https) pass through, while local
+    // and %VAR%-prefixed paths are expanded into proper file URLs. This is what the actual media
+    // elements load, so both local and network images/videos work.
+    readonly property url resolvedSource: source !== "" ? Ds.env.expandUrl(source) : ""
+    // True while the current media is still loading; drives a loading indicator in the viewer.
+    // Set when a source is assigned, cleared when the media reports it has finished loading.
+    property bool loading: false
     // Preferred fill mode.
     property int fillMode: Image.PreserveAspectCrop
     // Preferred loop mode.
@@ -67,6 +74,10 @@ Item {
     onContentTypeChanged: {
         contentLoader.sourceComponent = root.getComponentForContent();
     }
+    // Show the loading indicator whenever a (non-empty) source is assigned; clear it when the
+    // loaded media emits mediaLoaded (images on full progress, video on buffered, web on success).
+    onResolvedSourceChanged: loading = (String(resolvedSource).length > 0)
+    onMediaLoaded: loading = false
 
     //SIGNALS
     signal mediaLoaded()
@@ -152,7 +163,7 @@ Item {
         asynchronous: true
         onLoaded: {
             if (item) {
-                if ('source' in item) item.source = Qt.binding(() => root.source)
+                if ('source' in item) item.source = Qt.binding(() => root.resolvedSource)
                 if ('fillMode' in item) item.fillMode = Qt.binding(() => root.fillMode)
                 if ('loops' in item) item.loops = Qt.binding(() => root.loops)
                 if ('autoPlay' in item) item.autoPlay = Qt.binding(() => root.autoPlay)
@@ -218,7 +229,7 @@ Item {
         Image {
             id: image
             anchors.fill: parent
-            source: root.source
+            source: root.resolvedSource
             fillMode: root.fillMode
             retainWhileLoading: true
             visible: root.isCropped
@@ -256,7 +267,7 @@ Item {
         AnimatedImage {
             id: animatedImage
             anchors.fill: parent
-            source: root.source
+            source: root.resolvedSource
             fillMode: root.fillMode
             retainWhileLoading: true
             playing: false
@@ -292,7 +303,7 @@ Item {
         VectorImage {
             id: vectorImage
             preferredRendererType: VectorImage.CurveRenderer
-            source: root.source
+            source: root.resolvedSource
             fillMode: root.fillMode === Image.PreserveAspectFit ? VectorImage.PreserveAspectFit : root.fillMode === Image.PreserveAspectCrop ? VectorImage.PreserveAspectCrop : undefined
 
             property bool loading: true

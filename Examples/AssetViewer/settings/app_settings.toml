@@ -16,12 +16,8 @@ id = "ERvvM9LW0GPB" #16:9 Platform ID
 [quickMenu]
 closeDelay = 7000 #miliseconds
 
-[viewer]
-# Min/max bounds (logical px) for media viewers; per-viewer overridable on creation.
-minWidth = 200
-maxWidth = 1600
-minHeight = 150
-maxHeight = 1200
+# NOTE: waffles settings (incl. viewer min/max sizing) live in settings/waffles_settings.toml
+# under the [waffles] table; it is merged into this app_settings collection via engine.toml.
 
 [playlist.templateMap]
 default = "qrc:/qt/qml/AssetViewer/qml/templates/FullscreenTemplate.qml"
