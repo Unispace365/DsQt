@@ -49,8 +49,8 @@ __declspec(dllexport) int AmdPowerXpressRequestHighPerformance = 1;
 int main(int argc, char *argv[])
 {
     DsGuiApplication::configureGraphics({
-        .graphicsApi = QSGRendererInterface::Direct3D12,
-        .colorDepth = 10,
+        .graphicsApi = QSGRendererInterface::Vulkan,
+        .colorDepth = 8,
     });
 
 

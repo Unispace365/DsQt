@@ -11,7 +11,7 @@ Item {
     // Tonal 0 base (from the theme) — the "background off" look, and the figma dark ambient.
     Rectangle {
         anchors.fill: parent
-        color: DsTheme.surface
+        color: "#060708"
     }
 
     component Blob: Rectangle {
