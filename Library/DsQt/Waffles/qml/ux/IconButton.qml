@@ -35,42 +35,16 @@ Button {
                                  edge === DsControlSet.Edge.TopInner ||
                                  edge === DsControlSet.Edge.LeftInner ? 20 : 0
 
-    // Offset of this button's background within the viewer; combined with the viewer's stage
-    // position to sample the right slice of the glass. Recomputed (via refresh) on viewer move.
-    readonly property point _bgOff: {
-        if (!glass || !glass.viewerItem)
-            return Qt.point(0, 0)
-        let r = glass.refresh
-        return bg.mapToItem(glass.viewerItem, 0, 0)
-    }
-
+    // Button background uses the same glass element + context as the viewer/control sets; it
+    // self-samples its own slice from the context's slot. Controls keep their own off-state colour.
     background: DsGlassBackground {
         id: bg
-        source: root.glass ? root.glass.source : null
-        sampleX: root.glass && root.glass.viewerItem ? root.glass.viewerX + root._bgOff.x : 0
-        sampleY: root.glass && root.glass.viewerItem ? root.glass.viewerY + root._bgOff.y : 0
-        blurEnabled: root.glass ? root.glass.enabled : false
-        tint: root.glass ? root.glass.tint : palette.button
-        tintOpacity: root.glass ? root.glass.tintOpacity : 1.0
-        blur: root.glass ? root.glass.blur : 0.5
-        blurMax: root.glass ? root.glass.blurMax : 32
-        // Controls keep their own off-state colour rather than the viewer's fallback.
+        context: root.glass
         fallbackColor: palette.button
         topLeftRadius: root._tlr
         topRightRadius: root._trr
         bottomLeftRadius: root._blr
         bottomRightRadius: root._brr
-
-        Rectangle {
-            anchors.fill: parent
-            color: "transparent"
-            border.width: 1
-            border.color: palette.light
-            topLeftRadius: root._tlr
-            topRightRadius: root._trr
-            bottomLeftRadius: root._blr
-            bottomRightRadius: root._brr
-        }
     }
     Item {
         x: {

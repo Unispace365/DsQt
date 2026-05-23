@@ -31,13 +31,32 @@ DsViewer {
 
     // --- Glass config: defaults to the stage globals, override per-instance if needed ---
     property bool  glassEnabled:     stage ? stage.glassEnabled : true
-    property color glassTint:        stage ? stage.glassTint : "#191F25"
-    property real  glassTintOpacity: stage ? stage.glassTintOpacity : 0.8
-    property real  glassBlur:        stage ? stage.glassBlur : 0.5
-    property int   glassBlurMax:     stage ? stage.glassBlurMax : 32
-    property real  glassRadius:      stage ? stage.glassRadius : 12
+    property color glassTint:        stage ? stage.glassTint : DsTheme.surface
+    property real  glassTintOpacity: stage ? stage.glassTintOpacity : DsTheme.glassTintOpacity
+    property real  glassBlur:        stage ? stage.glassBlur : DsTheme.glassBlur
+    property int   glassBlurMax:     stage ? stage.glassBlurMax : DsTheme.glassBlurMax
+    property real  glassRadius:      stage ? stage.glassRadius : DsTheme.glassRadius
+    property color glassBorderColor: stage ? stage.glassBorderColor : DsTheme.stroke
+    property real  glassBorderWidth: stage ? stage.glassBorderWidth : DsTheme.glassBorderWidth
     // Background shown behind the media when glass is off (developer configurable).
     property color glassFallbackColor: glassTint
+    // Whether the MEDIA region paints its own glass. Off by default: the media is opaque (like
+    // the design) and only the control sets (title bar, buttons) show glass. Turn on for glass
+    // behind letterbox bars / transparent media.
+    property bool  mediaGlassEnabled: false
+
+    // --- Sizing config ---
+    // sizeToMedia: size the viewer to the media's natural dimensions. matchAspectRatio: preserve
+    // the media's aspect ratio while clamping. Bounds default from settings ([viewer] in
+    // app_settings.toml, via the stage); all are overridable on creation.
+    property bool sizeToMedia: false
+    property bool matchAspectRatio: false
+    property real minWidth:  stage ? stage.viewerMinWidth : 200
+    property real maxWidth:  stage ? stage.viewerMaxWidth : 1600
+    property real minHeight: stage ? stage.viewerMinHeight : 150
+    property real maxHeight: stage ? stage.viewerMaxHeight : 1200
+    onSizeToMediaChanged: applySizing()
+    onMatchAspectRatioChanged: applySizing()
 
     // Selected viewers show their title/controls; unselected ones hide them and the glass
     // shrinks to just the media area. The stage sets this and raises the selected viewer.
@@ -63,9 +82,9 @@ DsViewer {
     // offset when the viewer moves/resizes.
     QtObject {
         id: glassContext
-        // Controls sample the backdrop leaf (not this viewer's slot) so capturing the controls
-        // into other viewers' slots can't recurse through the control glass.
-        property Item  source: root.stage ? root.stage.glassBackdrop : null
+        // Controls sample THIS viewer's slot so their glass shows the compound (lower viewers +
+        // backdrop), the same source the media region uses. Each panel self-samples its own slice.
+        property Item  source: root.backdropSource
         property Item  viewerItem: root
         property real  viewerX: root.x
         property real  viewerY: root.y
@@ -74,14 +93,40 @@ DsViewer {
         property real  tintOpacity: root.glassTintOpacity
         property real  blur: root.glassBlur
         property int   blurMax: root.glassBlurMax
+        property color borderColor: root.glassBorderColor
+        property real  borderWidth: root.glassBorderWidth
+        property real  radius: root.glassRadius
         property real  refresh: root.x + root.y + root.width + root.height
     }
 
     width: mediaView.width;
     height: mediaView.height;
 
-    Component.onCompleted: { setControls(); if (!selected) hideControls(); }
+    Component.onCompleted: { setControls(); applySizing(); if (!selected) hideControls(); }
     onControlsChanged: setControls()
+
+    // Sets viewerWidth/viewerHeight from the sizing config: optionally to the media's natural
+    // size, optionally preserving the media aspect ratio, always clamped to [min,max].
+    function applySizing() {
+        let media = (config && config.media) ? config.media : null;
+        let mw = (media && media.width)  ? media.width  : viewerWidth;
+        let mh = (media && media.height) ? media.height : viewerHeight;
+        let w = sizeToMedia ? mw : viewerWidth;
+        let h = sizeToMedia ? mh : viewerHeight;
+        if (matchAspectRatio && mw > 0 && mh > 0) {
+            let aspect = mw / mh;
+            w = Math.max(minWidth, Math.min(maxWidth, w));
+            h = w / aspect;
+            if (h < minHeight) { h = minHeight; w = h * aspect; }
+            if (h > maxHeight) { h = maxHeight; w = h * aspect; }
+            w = Math.max(minWidth, Math.min(maxWidth, w));
+        } else {
+            w = Math.max(minWidth, Math.min(maxWidth, w));
+            h = Math.max(minHeight, Math.min(maxHeight, h));
+        }
+        viewerWidth = Math.round(w);
+        viewerHeight = Math.round(h);
+    }
 
 
     //this function positions the control in their respective edges
@@ -162,29 +207,21 @@ DsViewer {
         id: contentLayer
         anchors.fill: parent
 
-        // Frosted-glass panel behind this viewer — the title bar (when present) plus the media
-        // area. Explicit geometry keeps it independent of declaration/layout order.
+        // The media region's OWN glass — off by default (media is opaque, like the design). It
+        // uses the same DsGlassBackground element + glass context as the control sets do. Turn on
+        // (mediaGlassEnabled) for glass behind letterbox bars / transparent media.
         DsGlassBackground {
-            id: viewerGlass
+            id: mediaGlass
             z: -1
-            x: 0
-            width: mediaView.width
-            y: (root.selected && topOuter.enabled) ? topOuter.y : 0
-            height: (root.selected && topOuter.enabled) ? (mediaView.height - topOuter.y) : mediaView.height
-            source: root.backdropSource
-            sampleX: root.x + viewerGlass.x
-            sampleY: root.y + viewerGlass.y
-            blurEnabled: root.glassEnabled
-            tint: root.glassTint
-            tintOpacity: root.glassTintOpacity
-            blur: root.glassBlur
-            blurMax: root.glassBlurMax
+            anchors.fill: mediaView
+            visible: root.mediaGlassEnabled
+            context: glassContext
             fallbackColor: root.glassFallbackColor
-            // Card is rounded at the top only (matching the title bar); square at the bottom.
+            borderWidth: 0   // media region has no border in the design
             topLeftRadius: root.glassRadius
             topRightRadius: root.glassRadius
-            bottomLeftRadius: 0
-            bottomRightRadius: 0
+            bottomLeftRadius: root.glassRadius
+            bottomRightRadius: root.glassRadius
         }
 
         // Consumes presses over the viewer body so a viewer on top blocks touches/clicks from

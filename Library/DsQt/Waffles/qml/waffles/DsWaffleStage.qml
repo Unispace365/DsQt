@@ -1,4 +1,5 @@
 import QtQuick
+import Dsqt.Core
 import Dsqt.Waffles
 
 
@@ -11,18 +12,42 @@ Item {
     property Component presentationController: Qt.createComponent("PresentationController.qml")
     property bool menuShown: false
 
-    // --- Glass / blurred-backdrop config (global defaults; per-viewer overridable) ---
+    // --- Glass / blurred-backdrop config (defaults from DsTheme tokens; per-viewer overridable) ---
     property bool  glassEnabled: true
-    property color glassTint: "#191F25"
-    property real  glassTintOpacity: 0.4
-    property real  glassBlur: 0.5
-    property int   glassBlurMax: 32
-    property real  glassRadius: 12
+    property color glassTint:        DsTheme.surface          // Tonal 0
+    property real  glassTintOpacity: DsTheme.glassTintOpacity // 80%
+    property real  glassBlur:        DsTheme.glassBlur
+    property int   glassBlurMax:     DsTheme.glassBlurMax
+    property real  glassRadius:      DsTheme.glassRadius
+    property color glassBorderColor: DsTheme.stroke           // Tonal 10
+    property real  glassBorderWidth: DsTheme.glassBorderWidth
+
+    // Control palette derived from the theme roles, so it propagates to every viewer/control
+    // (dark surfaces, white text/icons, Tonal-10 strokes). See Docs/articles/color_system.md.
+    palette.window:          DsTheme.surface
+    palette.base:            DsTheme.surface
+    palette.button:          DsTheme.surface
+    palette.windowText:      DsTheme.onSurface
+    palette.text:            DsTheme.onSurface
+    palette.buttonText:      DsTheme.onSurface
+    palette.brightText:      DsTheme.onSurface
+    palette.dark:            DsTheme.stroke
+    palette.mid:             DsTheme.stroke
+    palette.light:           DsTheme.stroke
+    palette.highlight:       DsTheme.accent
+    palette.highlightedText: DsTheme.onAccent
 
     // Content captured as the bottom of the glass stack (e.g. an animated background).
     property alias backgroundContent: backdrop.data
     // The backdrop leaf, exposed so control glass can sample it without recursing through slots.
     readonly property Item glassBackdrop: backdrop
+
+    // Viewer size limits (from app_settings.toml [viewer]; per-viewer overridable on creation).
+    DsSettingsProxy { id: appSettings; target: "app_settings" }
+    property real viewerMinWidth:  appSettings.getFloat("viewer.minWidth", 200)
+    property real viewerMaxWidth:  appSettings.getFloat("viewer.maxWidth", 1600)
+    property real viewerMinHeight: appSettings.getFloat("viewer.minHeight", 150)
+    property real viewerMaxHeight: appSettings.getFloat("viewer.maxHeight", 1200)
 
     // Live composite "slots" (stage-sized textures), one per viewer that has something above it.
     property var _glassSlots: []
