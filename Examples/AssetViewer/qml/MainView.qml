@@ -43,6 +43,7 @@ Item {
                                 "viewerWidth": 480,
                                 "viewerHeight": 480,
                                 "mediaFillMode": Image.PreserveAspectFit,
+                                "glassFallbackColor": Qt.hsva(Math.random(), 0.7, 0.95, 1.0),
                                 "stage": stage
                             })
                         }
@@ -55,6 +56,7 @@ Item {
                                 "model": { "title": "Web Viewer", "media": { "filepath": "https://example.com", "type": "web" } },
                                 "viewerWidth": 640,
                                 "viewerHeight": 480,
+                                "glassFallbackColor": Qt.hsva(Math.random(), 0.7, 0.95, 1.0),
                                 "stage": stage
                             })
                         }
@@ -116,6 +118,7 @@ Item {
                                         "viewerWidth": 480,
                                         "viewerHeight": 480,
                                         "mediaFillMode": Image.PreserveAspectFit,
+                                        "glassFallbackColor": Qt.hsva(Math.random(), 0.7, 0.95, 1.0),
                                         "stage": stage
                                     })
                                 }

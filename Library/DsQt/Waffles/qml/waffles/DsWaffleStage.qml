@@ -14,16 +14,22 @@ Item {
     // --- Glass / blurred-backdrop config (global defaults; per-viewer overridable) ---
     property bool  glassEnabled: true
     property color glassTint: "#191F25"
-    property real  glassTintOpacity: 0.8
+    property real  glassTintOpacity: 0.4
     property real  glassBlur: 0.5
     property int   glassBlurMax: 32
     property real  glassRadius: 12
 
     // Content captured as the bottom of the glass stack (e.g. an animated background).
     property alias backgroundContent: backdrop.data
+    // The backdrop leaf, exposed so control glass can sample it without recursing through slots.
+    readonly property Item glassBackdrop: backdrop
 
     // Live composite "slots" (stage-sized textures), one per viewer that has something above it.
     property var _glassSlots: []
+    // Incrementing z handed to the most recently selected viewer so it sits in front.
+    property int _topZ: 1
+    // Currently selected viewer, to skip redundant reselects (avoids glass chain churn).
+    property var _selectedViewer: null
 
     onGlassEnabledChanged: rebuildGlass()
 
@@ -35,19 +41,20 @@ Item {
 
     }
 
-    // C[0] of the glass chain: everything below the viewer layer (e.g. animated background).
-    Item {
-        id: backdrop
-        anchors.fill: wafflesRoot
-    }
-
-    // Off-screen holder for the cumulative composite chain. Each slot is a stage-sized
-    // texture of everything beneath one viewer. Kept invisible; its textures are pulled by
-    // the visible per-viewer glass surfaces, which is what keeps the live chain updating.
+    // Holder for the cumulative composite chain. Each slot is a stage-sized texture of
+    // everything beneath one viewer. It must actually be in the render tree for its nested live
+    // ShaderEffectSources to keep updating, so it stays visible but sits at the very back, fully
+    // covered by the opaque backdrop above it — the user never sees it directly.
     Item {
         id: glassSlotHolder
         anchors.fill: wafflesRoot
-        visible: false
+    }
+
+    // C[0] of the glass chain: everything below the viewer layer (animated background + gallery).
+    // Its opaque base also occludes glassSlotHolder beneath it.
+    Item {
+        id: backdrop
+        anchors.fill: wafflesRoot
     }
 
     Item {
@@ -58,35 +65,39 @@ Item {
         onChildrenChanged: wafflesRoot.rebuildGlass()
     }
 
-    // One link of the glass chain: composites the previous slot with the viewer just below.
+    // One slot = the backdrop plus every viewer below its owner, composited FLAT: each source is
+    // a leaf item (the backdrop, or a viewer's glass-free captureItem), never another slot. With
+    // no slot-to-slot nesting the chain has no depth, so the front (deepest) viewer can't blank
+    // out and there's no propagation lag. Each captured viewer is positioned at its stage rect
+    // (tracks dragging) using its captureItem's childrenRect to include overflowing control sets.
     Component {
         id: glassSlotComponent
         Item {
             id: slot
-            property Item prevSource: null
-            property Item viewerBelow: null
+            property var lowerViewers: []
             anchors.fill: parent
             ShaderEffectSource {
                 anchors.fill: parent
-                sourceItem: slot.prevSource
+                sourceItem: backdrop
                 live: true
                 hideSource: false
             }
-            // Capture the viewer's full extent (childrenRect), not just its root bounds,
-            // so control sets that overflow the media area (e.g. the title bar above) are
-            // composited into the slots that viewers above will sample.
-            ShaderEffectSource {
-                x: slot.viewerBelow ? slot.viewerBelow.x + slot.viewerBelow.childrenRect.x : 0
-                y: slot.viewerBelow ? slot.viewerBelow.y + slot.viewerBelow.childrenRect.y : 0
-                width: slot.viewerBelow ? slot.viewerBelow.childrenRect.width : 0
-                height: slot.viewerBelow ? slot.viewerBelow.childrenRect.height : 0
-                sourceItem: slot.viewerBelow
-                sourceRect: slot.viewerBelow
-                            ? Qt.rect(slot.viewerBelow.childrenRect.x, slot.viewerBelow.childrenRect.y,
-                                      slot.viewerBelow.childrenRect.width, slot.viewerBelow.childrenRect.height)
-                            : Qt.rect(0, 0, 0, 0)
-                live: true
-                hideSource: false
+            Repeater {
+                model: slot.lowerViewers
+                ShaderEffectSource {
+                    required property var modelData
+                    readonly property Item cap: modelData ? modelData.captureItem : null
+                    x: cap ? modelData.x + cap.childrenRect.x : 0
+                    y: cap ? modelData.y + cap.childrenRect.y : 0
+                    width: cap ? cap.childrenRect.width : 0
+                    height: cap ? cap.childrenRect.height : 0
+                    sourceItem: cap
+                    sourceRect: cap ? Qt.rect(cap.childrenRect.x, cap.childrenRect.y,
+                                              cap.childrenRect.width, cap.childrenRect.height)
+                                    : Qt.rect(0, 0, 0, 0)
+                    live: true
+                    hideSource: false
+                }
             }
         }
     }
@@ -129,6 +140,8 @@ Item {
             if(viewerInstance == null)
             {
                 console.log("Error creating viewer");
+            } else {
+                selectViewer(viewerInstance);
             }
         } else if (viewer.status === Component.Error) {
             console.log("Error loading component:", viewer.errorString());
@@ -137,6 +150,24 @@ Item {
 
     function openViewer(viewerProps: var){
         createViewer(viewerProps);
+    }
+
+    // Brings a viewer to the front and marks it selected (deselecting the rest). Selected
+    // viewers show their controls/title; the z bump reorders the glass chain so the front
+    // viewer samples everything beneath it. Pass null to deselect all (e.g. tap on empty space).
+    function selectViewer(v) {
+        if (v === _selectedViewer)
+            return;
+        _selectedViewer = v;
+        let kids = topLayer.children;
+        for (let i = 0; i < kids.length; i++) {
+            let p = kids[i];
+            if (p && ("selected" in p))
+                p.selected = (p === v);
+        }
+        if (v)
+            v.z = ++_topZ;
+        rebuildGlass();
     }
 
     // Rebuilds the cumulative glass chain. Each topLayer child is assigned a backdropSource
@@ -151,7 +182,15 @@ Item {
         }
         _glassSlots = [];
 
-        let parts = topLayer.children;
+        // Participants in paint order: sort topLayer children by z, then document order.
+        let kids = [];
+        for (let k = 0; k < topLayer.children.length; k++)
+            kids.push({ item: topLayer.children[k], idx: k });
+        kids.sort((a, b) => {
+            let d = (a.item.z || 0) - (b.item.z || 0);
+            return d !== 0 ? d : (a.idx - b.idx);
+        });
+        let parts = kids.map(k => k.item);
 
         // Glass disabled: drop every viewer's source so the live chain stops entirely.
         if (!glassEnabled) {
@@ -163,24 +202,22 @@ Item {
             return;
         }
 
-        let prevSource = backdrop;
         for (let i = 0; i < parts.length; i++) {
             let p = parts[i];
-            if (p && ("backdropSource" in p))
-                p.backdropSource = prevSource;
-
-            if (i < parts.length - 1) {
+            if (!(p && ("backdropSource" in p)))
+                continue;
+            if (i === 0) {
+                // Bottom-most viewer samples the backdrop leaf directly.
+                p.backdropSource = backdrop;
+            } else {
                 let slot = glassSlotComponent.createObject(glassSlotHolder, {
-                    "prevSource": prevSource,
-                    "viewerBelow": p
+                    "lowerViewers": parts.slice(0, i)
                 });
                 _glassSlots.push(slot);
-                prevSource = slot;
+                p.backdropSource = slot;
             }
         }
     }
-
-    signal hideControlsExcept(child:var)
 
     TapHandler {
         target: null
@@ -197,7 +234,7 @@ Item {
               }
 
             }
-            wafflesRoot.hideControlsExcept(inView);
+            wafflesRoot.selectViewer(inView);
 
         }
     }

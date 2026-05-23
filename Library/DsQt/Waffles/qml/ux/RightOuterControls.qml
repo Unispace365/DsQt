@@ -22,6 +22,7 @@ DsControlSet {
             Layout.alignment: Qt.AlignRight | Qt.AlignBottom
             signalObject: rightButtons.signalObject
             edge: rightButtons.edge
+            glass: rightButtons.glass
         }
 
         CloseButton {
@@ -30,7 +31,7 @@ DsControlSet {
             Layout.alignment: Qt.AlignRight | Qt.AlignBottom
             signalObject: rightButtons.signalObject
             edge: rightButtons.edge
-
+            glass: rightButtons.glass
         }
     }
 }

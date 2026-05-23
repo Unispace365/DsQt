@@ -36,6 +36,16 @@ DsViewer {
     property real  glassBlur:        stage ? stage.glassBlur : 0.5
     property int   glassBlurMax:     stage ? stage.glassBlurMax : 32
     property real  glassRadius:      stage ? stage.glassRadius : 12
+    // Background shown behind the media when glass is off (developer configurable).
+    property color glassFallbackColor: glassTint
+
+    // Selected viewers show their title/controls; unselected ones hide them and the glass
+    // shrinks to just the media area. The stage sets this and raises the selected viewer.
+    property bool selected: false
+    onSelectedChanged: selected ? showControls() : hideControls()
+
+    // The stage captures this (glass-free) content into other viewers' slots.
+    captureItem: contentLayer
 
 
     QtObject {
@@ -45,10 +55,30 @@ DsViewer {
         property var subtitle: model[root.modelConfig.subtitle]
     }
 
+    // Glass settings handed to the control sets so their backgrounds can match (or diverge
+    // from) the media area. viewerX/Y are the viewer's stage position; nested controls add
+    // their own offset within the viewer to sample the right region. refresh recomputes that
+    // offset when the viewer moves/resizes.
+    QtObject {
+        id: glassContext
+        // Controls sample the backdrop leaf (not this viewer's slot) so capturing the controls
+        // into other viewers' slots can't recurse through the control glass.
+        property Item  source: root.stage ? root.stage.glassBackdrop : null
+        property Item  viewerItem: root
+        property real  viewerX: root.x
+        property real  viewerY: root.y
+        property bool  enabled: root.glassEnabled
+        property color tint: root.glassTint
+        property real  tintOpacity: root.glassTintOpacity
+        property real  blur: root.glassBlur
+        property int   blurMax: root.glassBlurMax
+        property real  refresh: root.x + root.y + root.width + root.height
+    }
+
     width: mediaView.width;
     height: mediaView.height;
 
-    Component.onCompleted: setControls()
+    Component.onCompleted: { setControls(); if (!selected) hideControls(); }
     onControlsChanged: setControls()
 
 
@@ -58,6 +88,7 @@ DsViewer {
             let ctrl = controls[i];
             ctrl.config = config
             ctrl.model = model
+            ctrl.glass = glassContext
             let edge = ctrl.edge;
             switch(edge) {
             case DsControlSet.Edge.TopOuter:
@@ -122,27 +153,17 @@ DsViewer {
             }
         }
     }
-    Item {
-        id: background
-        property real horizontalOffset:0
-        property real verticalOffset:0
-        anchors.horizontalCenter: mediaView.horizontalCenter
-        anchors.verticalCenter: mediaView.verticalCenter
-        anchors.horizontalCenterOffset: horizontalOffset
-        anchors.verticalCenterOffset: verticalOffset
-    }
-
     // One frosted-glass panel behind the whole viewer — the title bar (when present) plus the
-    // media area — so the title control set gets a seamless glass background continuous with the
-    // media's. A single blur (rather than one per region) keeps the seam invisible. Sits behind
-    // everything (z -1) and shows through letterbox gaps and transparent controls.
+    // media area. It lives OUTSIDE contentLayer so it is never captured into other viewers'
+    // slots. Geometry is explicit (not anchored) because mediaView/topOuter live inside
+    // contentLayer and so aren't anchor-siblings of the glass.
     DsGlassBackground {
         id: viewerGlass
         z: -1
-        anchors.left: mediaView.left
-        anchors.right: mediaView.right
-        anchors.top: topOuter.enabled ? topOuter.top : mediaView.top
-        anchors.bottom: mediaView.bottom
+        x: 0
+        width: mediaView.width
+        y: (root.selected && topOuter.enabled) ? topOuter.y : 0
+        height: (root.selected && topOuter.enabled) ? (mediaView.height - topOuter.y) : mediaView.height
         source: root.backdropSource
         sampleX: root.x + viewerGlass.x
         sampleY: root.y + viewerGlass.y
@@ -151,116 +172,126 @@ DsViewer {
         tintOpacity: root.glassTintOpacity
         blur: root.glassBlur
         blurMax: root.glassBlurMax
+        fallbackColor: root.glassFallbackColor
+        // Card is rounded at the top only (matching the title bar); square at the bottom.
         topLeftRadius: root.glassRadius
         topRightRadius: root.glassRadius
-        bottomLeftRadius: root.glassRadius
-        bottomRightRadius: root.glassRadius
+        bottomLeftRadius: 0
+        bottomRightRadius: 0
     }
 
-    //this is the media view. It has several children that are designed to only show one based on the media
-    //type. We should make this explicit so the we can use VectorImage and Web element as well.
+    // Glass-free content (media + control-set holders). The stage captures THIS into other
+    // viewers' slots, so a capture never includes a glass layer (which would make the chain
+    // recurse and blank out the front viewer).
     Item {
-        id: mediaView
-        width: root.viewerWidth;
-        height: root.viewerHeight
-        property alias viewer: viewer
-        DsMediaViewer {
-            id: viewer
-            anchors.fill: parent
-            media: root.config.media
-            fillMode: root.mediaFillMode
-            autoPlay: true
+        id: contentLayer
+        anchors.fill: parent
+
+        Item {
+            id: background
+            property real horizontalOffset:0
+            property real verticalOffset:0
+            anchors.horizontalCenter: mediaView.horizontalCenter
+            anchors.verticalCenter: mediaView.verticalCenter
+            anchors.horizontalCenterOffset: horizontalOffset
+            anchors.verticalCenterOffset: verticalOffset
         }
-    }
 
-    //holders for the controlSets.
-    Item {
-        id:topOuter
-        property real offset:0
-        width: mediaView.width
-        height: childrenRect.height;
-        anchors.bottom: mediaView.top
-        anchors.bottomMargin: offset
+        //this is the media view. It has several children that are designed to only show one based on the media
+        //type. We should make this explicit so the we can use VectorImage and Web element as well.
+        Item {
+            id: mediaView
+            width: root.viewerWidth;
+            height: root.viewerHeight
+            property alias viewer: viewer
+            DsMediaViewer {
+                id: viewer
+                anchors.fill: parent
+                media: root.config.media
+                fillMode: root.mediaFillMode
+                autoPlay: true
+                visible: false // TEMP: media hidden to inspect the glass background
+            }
+        }
 
-    }
+        //holders for the controlSets.
+        Item {
+            id:topOuter
+            property real offset:0
+            width: mediaView.width
+            height: childrenRect.height;
+            anchors.bottom: mediaView.top
+            anchors.bottomMargin: offset
+        }
 
-    Item {
-        id:bottomOuter
-        property real offset:0
-        width: mediaView.width
-        height: childrenRect.height;
-        anchors.top: mediaView.bottom
-        anchors.topMargin: offset
-    }
+        Item {
+            id:bottomOuter
+            property real offset:0
+            width: mediaView.width
+            height: childrenRect.height;
+            anchors.top: mediaView.bottom
+            anchors.topMargin: offset
+        }
 
-    Item {
-        id:leftOuter
-        property real offset:0
-        width: childrenRect.width
-        height: mediaView.height;
-        anchors.right: mediaView.left
-        anchors.rightMargin: offset
-    }
+        Item {
+            id:leftOuter
+            property real offset:0
+            width: childrenRect.width
+            height: mediaView.height;
+            anchors.right: mediaView.left
+            anchors.rightMargin: offset
+        }
 
-    Item {
-        id:rightOuter
-        property real offset:0
-        width: childrenRect.width
-        height: mediaView.height;
-        anchors.left: mediaView.right
-        anchors.leftMargin: offset
-    }
+        Item {
+            id:rightOuter
+            property real offset:0
+            width: childrenRect.width
+            height: mediaView.height;
+            anchors.left: mediaView.right
+            anchors.leftMargin: offset
+        }
 
+        Item {
+            id:topInner
+            property real offset:0
+            width: mediaView.width
+            height: childrenRect.height;
+            anchors.top: mediaView.top
+            anchors.topMargin: offset
+        }
 
+        Item {
+            id:bottomInner
+            property real offset:0
+            width: mediaView.width
+            height: childrenRect.height;
+            anchors.bottom: mediaView.bottom
+            anchors.bottomMargin: offset
+        }
 
-    Item {
-        id:topInner
-        property real offset:0
-        width: mediaView.width
-        height: childrenRect.height;
-        anchors.top: mediaView.top
-        anchors.topMargin: offset
-    }
+        Item {
+            id:leftInner
+            property real offset:0
+            width: childrenRect.width
+            height: mediaView.height;
+            anchors.right: mediaView.left
+            anchors.rightMargin: offset
+        }
 
-    Item {
-        id:bottomInner
-        property real offset:0
-        width: mediaView.width
-        height: childrenRect.height;
-        anchors.bottom: mediaView.bottom
-        anchors.bottomMargin: offset
-    }
-
-    Item {
-        id:leftInner
-        property real offset:0
-        width: childrenRect.width
-        height: mediaView.height;
-        anchors.right: mediaView.left
-        anchors.rightMargin: offset
-    }
-
-    Item {
-        id:rightInner
-        property real offset:0
-        width: childrenRect.width
-        height: mediaView.height;
-        anchors.left: mediaView.right
-        anchors.leftMargin: offset
+        Item {
+            id:rightInner
+            property real offset:0
+            width: childrenRect.width
+            height: mediaView.height;
+            anchors.left: mediaView.right
+            anchors.leftMargin: offset
+        }
     }
 
     //this is a rudimentary
-    DragHandler {}
-    Connections {
-        target: root.stage
-        function onHideControlsExcept(viewer) {
-            //set opacity of all controls to 0 if viewer !== root
-            if(viewer !== root) {
-                root.hideControls()
-            } else {
-                root.showControls()
-            }
-        }
+    DragHandler {
+        // Moving a viewer brings it to the front (and selects it).
+        onActiveChanged: if (active && root.stage) root.stage.selectViewer(root)
     }
 
     function hideControls() {
