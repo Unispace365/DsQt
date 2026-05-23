@@ -44,7 +44,9 @@ DsViewer {
     property bool selected: false
     onSelectedChanged: selected ? showControls() : hideControls()
 
-    // The stage captures this (glass-free) content into other viewers' slots.
+    // The stage captures this (glass + content) into the slots viewers above sample, so an
+    // upper viewer's glass shows the lower viewers WITH their glass — the compound look. Slots
+    // are flat (leaf sources only), so this nesting has no depth chain that could blank out.
     captureItem: contentLayer
 
 
@@ -153,39 +155,48 @@ DsViewer {
             }
         }
     }
-    // One frosted-glass panel behind the whole viewer — the title bar (when present) plus the
-    // media area. It lives OUTSIDE contentLayer so it is never captured into other viewers'
-    // slots. Geometry is explicit (not anchored) because mediaView/topOuter live inside
-    // contentLayer and so aren't anchor-siblings of the glass.
-    DsGlassBackground {
-        id: viewerGlass
-        z: -1
-        x: 0
-        width: mediaView.width
-        y: (root.selected && topOuter.enabled) ? topOuter.y : 0
-        height: (root.selected && topOuter.enabled) ? (mediaView.height - topOuter.y) : mediaView.height
-        source: root.backdropSource
-        sampleX: root.x + viewerGlass.x
-        sampleY: root.y + viewerGlass.y
-        blurEnabled: root.glassEnabled
-        tint: root.glassTint
-        tintOpacity: root.glassTintOpacity
-        blur: root.glassBlur
-        blurMax: root.glassBlurMax
-        fallbackColor: root.glassFallbackColor
-        // Card is rounded at the top only (matching the title bar); square at the bottom.
-        topLeftRadius: root.glassRadius
-        topRightRadius: root.glassRadius
-        bottomLeftRadius: 0
-        bottomRightRadius: 0
-    }
-
-    // Glass-free content (media + control-set holders). The stage captures THIS into other
-    // viewers' slots, so a capture never includes a glass layer (which would make the chain
-    // recurse and blank out the front viewer).
+    // The viewer's captured appearance: its glass panel + media + controls. The stage captures
+    // THIS into the slots that viewers above sample, so an upper viewer's glass blurs the lower
+    // viewers together with their own glass (compound). childrenRect spans the glass + controls.
     Item {
         id: contentLayer
         anchors.fill: parent
+
+        // Frosted-glass panel behind this viewer — the title bar (when present) plus the media
+        // area. Explicit geometry keeps it independent of declaration/layout order.
+        DsGlassBackground {
+            id: viewerGlass
+            z: -1
+            x: 0
+            width: mediaView.width
+            y: (root.selected && topOuter.enabled) ? topOuter.y : 0
+            height: (root.selected && topOuter.enabled) ? (mediaView.height - topOuter.y) : mediaView.height
+            source: root.backdropSource
+            sampleX: root.x + viewerGlass.x
+            sampleY: root.y + viewerGlass.y
+            blurEnabled: root.glassEnabled
+            tint: root.glassTint
+            tintOpacity: root.glassTintOpacity
+            blur: root.glassBlur
+            blurMax: root.glassBlurMax
+            fallbackColor: root.glassFallbackColor
+            // Card is rounded at the top only (matching the title bar); square at the bottom.
+            topLeftRadius: root.glassRadius
+            topRightRadius: root.glassRadius
+            bottomLeftRadius: 0
+            bottomRightRadius: 0
+        }
+
+        // Consumes presses over the viewer body so a viewer on top blocks touches/clicks from
+        // reaching viewers or the gallery beneath it (a MouseArea accepts the press, unlike a
+        // PointerHandler). Also drags the viewer by its body and raises it on press. Sits below
+        // the media/controls so they (e.g. a web viewer or buttons) still get input first.
+        MouseArea {
+            anchors.fill: mediaView
+            acceptedButtons: Qt.AllButtons
+            drag.target: root
+            onPressed: (mouse) => { if (root.stage) root.stage.selectViewer(root) }
+        }
 
         Item {
             id: background
@@ -210,7 +221,7 @@ DsViewer {
                 media: root.config.media
                 fillMode: root.mediaFillMode
                 autoPlay: true
-                visible: false // TEMP: media hidden to inspect the glass background
+                visible: true // TEMP: media hidden to inspect the glass background
             }
         }
 
@@ -286,12 +297,6 @@ DsViewer {
             anchors.left: mediaView.right
             anchors.leftMargin: offset
         }
-    }
-
-    //this is a rudimentary
-    DragHandler {
-        // Moving a viewer brings it to the front (and selects it).
-        onActiveChanged: if (active && root.stage) root.stage.selectViewer(root)
     }
 
     function hideControls() {
