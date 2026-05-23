@@ -23,8 +23,10 @@ QtObject {
     property color surface:        tonal0     // panels / window / control backgrounds
     property color surfaceVariant: tonal10    // raised surfaces
     property color stroke:         tonal10    // borders / outlines
-    property color onSurface:      white      // text / icons on a surface
-    property color onAccent:       white      // text / icons on an accent fill
+    // NB: avoid names starting with "on"+Capital (e.g. onSurface) — QML reserves those for signal
+    // handlers, so such a property silently fails to resolve. Use surfaceText / accentText.
+    property color surfaceText:    white      // text / icons on a surface
+    property color accentText:     white      // text / icons on an accent fill
     // Translucent surface (e.g. the glass tint as a single premultiplied colour, if needed).
     readonly property color scrim: Qt.rgba(tonal0.r, tonal0.g, tonal0.b, glassTintOpacity)
 

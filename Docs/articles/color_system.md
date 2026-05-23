@@ -55,10 +55,15 @@ Role names are chosen to line up with Qt's palette.
 | `surface`       | `tonal0`     | Panel / window / control backgrounds      |
 | `surfaceVariant`| `tonal10`    | Raised surfaces, separators               |
 | `stroke`        | `tonal10`    | Borders / outlines                        |
-| `onSurface`     | `white`      | Text and icons on a surface               |
+| `surfaceText`     | `white`      | Text and icons on a surface               |
 | `accent`        | `accent`     | Selection, focus, primary actions         |
-| `onAccent`      | `white`      | Text/icons on an accent fill              |
+| `accentText`      | `white`      | Text/icons on an accent fill              |
 | `scrim`         | `tonal0_80`  | Translucent overlays (e.g. the glass tint)|
+
+> **QML naming gotcha:** the Material convention is `onSurface`/`onAccent`, but QML reserves
+> identifiers starting with `on` + an uppercase letter for signal handlers. A `property color
+> onSurface` silently fails to resolve (reads as default/black), so we use `surfaceText`/
+> `accentText` instead.
 
 Designers keep their tonal ramp; developers get stable role names. Re-theming means
 **re-pointing the roles**, never touching the call sites.
@@ -82,10 +87,10 @@ Designers keep their tonal ramp; developers get stable role names. Re-theming me
 | `surface`        | `window`, `base`                            |
 | `surfaceVariant` | `midlight` / `mid`                          |
 | `stroke`         | `dark` / `mid`                              |
-| `onSurface`      | `text`, `windowText`, `buttonText`          |
+| `surfaceText`      | `text`, `windowText`, `buttonText`          |
 | `surface` (btn)  | `button`                                    |
 | `accent`         | `accent`, `highlight`                       |
-| `onAccent`       | `highlightedText`, `brightText`             |
+| `accentText`       | `highlightedText`, `brightText`             |
 
 # What changes
 
@@ -93,7 +98,7 @@ Designers keep their tonal ramp; developers get stable role names. Re-theming me
 
 Add a **semantic roles** variable collection that *references* the existing tonal primitives
 (Figma variables can alias other variables). The tonal collection stays as-is. Components bind
-to **roles** (`surface`, `onSurface`, …), not to `Tonal N` directly.
+to **roles** (`surface`, `surfaceText`, …), not to `Tonal N` directly.
 
 ## In code
 
@@ -121,8 +126,8 @@ QtObject {
     readonly property color surface:        tonal0
     readonly property color surfaceVariant: tonal10
     readonly property color stroke:         tonal10
-    readonly property color onSurface:      white
-    readonly property color onAccent:       white
+    readonly property color surfaceText:      white
+    readonly property color accentText:       white
     readonly property color scrim:          tonal0_80   // glass tint
 }
 ```
@@ -132,14 +137,14 @@ QtObject {
 palette.window:          Theme.surface
 palette.base:            Theme.surface
 palette.button:          Theme.surface
-palette.text:            Theme.onSurface
-palette.buttonText:      Theme.onSurface
+palette.text:            Theme.surfaceText
+palette.buttonText:      Theme.surfaceText
 palette.dark:            Theme.stroke
 palette.accent:          Theme.accent
 palette.highlight:       Theme.accent
-palette.highlightedText: Theme.onAccent
+palette.highlightedText: Theme.accentText
 // disabled group → automatic dimming
-palette.disabled.text:   Qt.alpha(Theme.onSurface, 0.4)
+palette.disabled.text:   Qt.alpha(Theme.surfaceText, 0.4)
 ```
 
 # What palette does NOT carry
@@ -158,7 +163,7 @@ component properties), not palette roles:
 
 # White-label workflow
 
-1. Per brand, define a role set (`surface`, `onSurface`, `accent`, …). Brands may share the tonal
+1. Per brand, define a role set (`surface`, `surfaceText`, `accent`, …). Brands may share the tonal
    primitives or supply their own.
 2. Point the brand's `Theme` roles at its primitives.
 3. Everything else is unchanged: `palette` re-derives from the roles, Controls inherit it, and the

@@ -218,10 +218,10 @@ DsViewer {
             context: glassContext
             fallbackColor: root.glassFallbackColor
             borderWidth: 0   // media region has no border in the design
-            topLeftRadius: root.glassRadius
-            topRightRadius: root.glassRadius
-            bottomLeftRadius: root.glassRadius
-            bottomRightRadius: root.glassRadius
+            topLeftRadius: 0
+            topRightRadius: 0
+            bottomLeftRadius: 0
+            bottomRightRadius: 0
         }
 
         // Consumes presses over the viewer body so a viewer on top blocks touches/clicks from

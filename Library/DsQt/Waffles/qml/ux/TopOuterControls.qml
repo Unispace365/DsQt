@@ -40,13 +40,13 @@ DsControlSet {
                 verticalAlignment: Text.AlignVCenter
                 x:20
                 y: 8.5
-                color: palette.text
+                color: DsTheme.surfaceText
                 text: topButtons.model.title ?? "Media"
             }
         }
+
         Item { //spacer
             Layout.fillWidth: true
         }
     }
 }
-

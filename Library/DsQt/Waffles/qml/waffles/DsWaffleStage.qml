@@ -27,15 +27,15 @@ Item {
     palette.window:          DsTheme.surface
     palette.base:            DsTheme.surface
     palette.button:          DsTheme.surface
-    palette.windowText:      DsTheme.onSurface
-    palette.text:            DsTheme.onSurface
-    palette.buttonText:      DsTheme.onSurface
-    palette.brightText:      DsTheme.onSurface
+    palette.windowText:      DsTheme.surfaceText
+    palette.text:            DsTheme.surfaceText
+    palette.buttonText:      DsTheme.surfaceText
+    palette.brightText:      DsTheme.surfaceText
     palette.dark:            DsTheme.stroke
     palette.mid:             DsTheme.stroke
     palette.light:           DsTheme.stroke
     palette.highlight:       DsTheme.accent
-    palette.highlightedText: DsTheme.onAccent
+    palette.highlightedText: DsTheme.accentText
 
     // Content captured as the bottom of the glass stack (e.g. an animated background).
     property alias backgroundContent: backdrop.data

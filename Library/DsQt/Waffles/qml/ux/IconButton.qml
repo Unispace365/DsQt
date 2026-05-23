@@ -40,7 +40,7 @@ Button {
     background: DsGlassBackground {
         id: bg
         context: root.glass
-        fallbackColor: palette.button
+        fallbackColor: DsTheme.surface
         topLeftRadius: root._tlr
         topRightRadius: root._trr
         bottomLeftRadius: root._blr
@@ -96,7 +96,7 @@ Button {
             layer.live: true
             layer.effect: MultiEffect  {
                 colorization: 1.0
-                colorizationColor: palette.text
+                colorizationColor: DsTheme.surfaceText
             }
         }
 
