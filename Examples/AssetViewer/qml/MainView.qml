@@ -15,7 +15,7 @@ Item {
 
         // Everything below the viewers and captured by the glass: animated background + gallery UI.
         backgroundContent: [
-            AnimatedBackground { anchors.fill: parent },
+            AnimatedBackground { id: animBg; anchors.fill: parent },
 
             ColumnLayout {
                 anchors.fill: parent
@@ -42,7 +42,7 @@ Item {
                                 "model": { "title": "Image " + seed, "media": { "filepath": "https://picsum.photos/seed/" + seed + "/800/600", "type": "image", "width": 800, "height": 600 } },
                                 "viewerWidth": 480,
                                 "viewerHeight": 480,
-                                "mediaFillMode": Image.PreserveAspectFit,
+                                "mediaFillMode": Image.PreserveAspectCrop,
                                 "glassFallbackColor": Qt.hsva(Math.random(), 0.7, 0.95, 1.0),
                                 "stage": stage
                             })
@@ -63,8 +63,28 @@ Item {
                     }
 
                     Button {
+                        text: "Add Glass Viewer"
+                        onClicked: {
+                            // No media + media-region glass on = a pure glass panel to compare to Figma.
+                            stage.createViewer({
+                                "model": { "title": "Glass", "media": {} },
+                                "viewerWidth": 480,
+                                "viewerHeight": 320,
+                                "mediaGlassEnabled": true,
+                                "glassFallbackColor": Qt.hsva(Math.random(), 0.7, 0.95, 1.0),
+                                "stage": stage
+                            })
+                        }
+                    }
+
+                    Button {
                         text: stage.glassEnabled ? "Glass: On" : "Glass: Off"
                         onClicked: stage.glassEnabled = !stage.glassEnabled
+                    }
+
+                    Button {
+                        text: animBg.animated ? "Background: On" : "Background: Off"
+                        onClicked: animBg.animated = !animBg.animated
                     }
                 }
 
@@ -117,7 +137,7 @@ Item {
                                         "model": { "title": "Image " + (imgIndex + 1), "media": { "filepath": "https://picsum.photos/seed/" + imgIndex + "/800/600", "type": "image", "width": 800, "height": 600 } },
                                         "viewerWidth": 480,
                                         "viewerHeight": 480,
-                                        "mediaFillMode": Image.PreserveAspectFit,
+                                        "mediaFillMode": Image.PreserveAspectCrop,
                                         "glassFallbackColor": Qt.hsva(Math.random(), 0.7, 0.95, 1.0),
                                         "stage": stage
                                     })

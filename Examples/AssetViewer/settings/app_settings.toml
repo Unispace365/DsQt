@@ -16,6 +16,13 @@ id = "ERvvM9LW0GPB" #16:9 Platform ID
 [quickMenu]
 closeDelay = 7000 #miliseconds
 
+[viewer]
+# Min/max bounds (logical px) for media viewers; per-viewer overridable on creation.
+minWidth = 200
+maxWidth = 1600
+minHeight = 150
+maxHeight = 1200
+
 [playlist.templateMap]
 default = "qrc:/qt/qml/AssetViewer/qml/templates/FullscreenTemplate.qml"
 15ZhnyA8lolv="qrc:/qt/qml/AssetViewer/qml/templates/ParticleMessageTemplate.qml"

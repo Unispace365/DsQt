@@ -2,6 +2,7 @@
 # This TOML file defines default font settings for Qt applications
 [engine.font]
 paths = [
+{ path = "%APP%/data/fonts/Roboto/Roboto-VariableFont_wdth,wght.ttf", name = "Roboto" },
 { path = "%APP%/data/fonts/Inter/Inter-Italic-VariableFont_opsz,wght.ttf", name = "Inter Italic Variable Font opsz wght" },
 { path = "%APP%/data/fonts/Inter/Inter-VariableFont_opsz,wght.ttf", name = "Inter Variable Font opsz wght" },
 { path = "%APP%/data/fonts/Noto_Color_Emoji/NotoColorEmoji-Regular.ttf", name = "Noto Color Emoji Regular" },
@@ -14,9 +15,9 @@ paths = [
 [engine.font.default]
 # Font family settings
 # Primary font family
-family = "Inter"
+family = "Roboto"
 # Fallback font families (in order of preference)
-families = ["Inter", "Noto-sans", "DejaVu Sans", "sans-serif"]
+families = ["Roboto", "Inter", "Noto-sans", "DejaVu Sans", "sans-serif"]
 
 # Basic font properties
 bold = false

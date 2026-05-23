@@ -17,7 +17,7 @@ Item {
 
     //font definitions
     readonly property font bitcountClk: ({ family: bitcountPropSingle_var.name, pixelSize: 20, weight: 450 })
-    readonly property font main: ({ family: "Inter", pixelSize: 40, weight: 450 })
-    readonly property font menuTitle: ({ family: "Inter", pixelSize: 40, weight: 700 })
+    readonly property font main: ({ family: "Roboto", pixelSize: 40, weight: 450 })
+    readonly property font menuTitle: ({ family: "Roboto", pixelSize: 40, weight: 700 })
 
 }
