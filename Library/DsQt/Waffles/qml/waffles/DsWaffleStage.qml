@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Effects
 import Dsqt.Core
 import Dsqt.Waffles
 
@@ -8,8 +9,11 @@ Item {
     id: wafflesRoot
     property Component launcher: Component { DsTestLauncher {} }
     property Component viewer: Component { TitledMediaViewer {} }
-    property Component fullscreenController: Qt.createComponent("FullscreenController.qml")
+    // Per-type fullscreen controllers (shown while a viewer of that type is fullscreen).
+    property Component fullscreenController: Component { FullscreenController {} }
     property Component presentationController: Qt.createComponent("PresentationController.qml")
+    // The live controller instance (created lazily, reused across fullscreen sessions).
+    property var _fsController: null
     property bool menuShown: false
 
     // --- Glass / blurred-backdrop config (defaults from DsTheme tokens; per-viewer overridable) ---
@@ -51,11 +55,31 @@ Item {
     property real viewerMaxHeight: appSettings.getFloat("viewer.maxHeight", 1200)
     // Default width an image viewer uses when it fits itself to the media aspect ratio.
     property real viewerImageWidth: appSettings.getFloat("viewer.imageWidth", 800)
+    // Controls auto-hide after this idle time (ms). 0 disables auto-hide. Per-viewer overridable.
+    property int controlsIdleMs: appSettings.getInt("controlsIdleSeconds", 4) * 1000
     // Enter/exit animation defaults (per-viewer overridable on creation). Stored as strings in
     // settings (fade | grow | growBounce | fadeRise | none); mapped to the DsViewer.Anim enum.
     property int viewerEnterAnimation:    _animFromString(appSettings.getString("viewer.enterAnimation", "growBounce"))
     property int viewerExitAnimation:     _animFromString(appSettings.getString("viewer.exitAnimation", "grow"))
     property int viewerAnimationDuration: appSettings.getInt("viewer.animationDuration", 300)
+
+    // --- Fullscreen config. A fullscreen viewer fits the stage (minus margin), over a scrim that
+    //     blocks the rest of the UI. The scrim style follows the viewer's resolved glass state
+    //     (blur on -> blurred scrim; off -> tint+alpha), or the viewer's fullscreenScrim override. ---
+    property real  fullscreenMargin:              appSettings.getFloat("fullscreen.margin", 80)
+    property color fullscreenScrimColor:          DsTheme.surface
+    property real  fullscreenScrimOpacity:        appSettings.getFloat("fullscreen.scrimOpacity", 0.6)
+    property real  fullscreenScrimBlurTintOpacity: appSettings.getFloat("fullscreen.scrimBlurTintOpacity", 0.3)
+    property int   fullscreenDuration:            viewerAnimationDuration
+
+    // The single fullscreen viewer (only one at a time), the resolved scrim mode, whether the
+    // scrim is shown, and the geometry to restore on exit. Scrim sits at _scrimZ; the fullscreen
+    // viewer one above it.
+    property var    _fullscreenViewer: null
+    property string _scrimMode: "tint"     // blur | tint | none
+    property bool   _scrimShown: false
+    property rect   _fsRestore: Qt.rect(0, 0, 0, 0)
+    readonly property int _scrimZ: 9000
 
     // Live composite "slots" (stage-sized textures), one per viewer that has something above it.
     property var _glassSlots: []
@@ -98,6 +122,61 @@ Item {
         // Keep viewers/launcher above any consumer content placed in the stage.
         z: 1
         onChildrenChanged: wafflesRoot.rebuildGlass()
+
+        // Fullscreen scrim: blocks the rest of the UI behind the fullscreen viewer. Sits just
+        // below it (z 9000 < 9001). Blur mode samples the fullscreen viewer's backdrop slot
+        // (everything behind it) and blurs it; tint mode is a flat colour+alpha. Always input-
+        // blocking while shown; tapping a margin exits fullscreen.
+        Item {
+            id: scrimLayer
+            anchors.fill: parent
+            z: wafflesRoot._scrimZ
+            visible: opacity > 0
+            opacity: wafflesRoot._scrimShown ? 1 : 0
+            Behavior on opacity { NumberAnimation { duration: wafflesRoot.fullscreenDuration; easing.type: Easing.OutCubic } }
+
+            ShaderEffectSource {
+                id: scrimGrab
+                anchors.fill: parent
+                visible: false
+                live: wafflesRoot._scrimMode === "blur" && wafflesRoot._fullscreenViewer !== null
+                hideSource: false
+                sourceItem: wafflesRoot._fullscreenViewer ? wafflesRoot._fullscreenViewer.backdropSource : null
+            }
+            MultiEffect {
+                anchors.fill: parent
+                visible: wafflesRoot._scrimMode === "blur"
+                source: scrimGrab
+                autoPaddingEnabled: false
+                blurEnabled: true
+                blur: wafflesRoot.glassBlur
+                blurMax: wafflesRoot.glassBlurMax
+            }
+            Rectangle {
+                anchors.fill: parent
+                color: wafflesRoot.fullscreenScrimColor
+                opacity: wafflesRoot._scrimMode === "tint" ? wafflesRoot.fullscreenScrimOpacity
+                       : wafflesRoot._scrimMode === "blur" ? wafflesRoot.fullscreenScrimBlurTintOpacity
+                       : 0
+            }
+            MouseArea {
+                anchors.fill: parent
+                enabled: wafflesRoot._scrimShown
+                acceptedButtons: Qt.AllButtons
+                onClicked: if (wafflesRoot._fullscreenViewer) wafflesRoot.setFullscreen(wafflesRoot._fullscreenViewer, false)
+            }
+        }
+    }
+
+    // Drives the fullscreen enter/exit geometry transition for whichever viewer is targeted.
+    ParallelAnimation {
+        id: _fsAnim
+        property var _done: null
+        NumberAnimation { id: _fsX; property: "x";            duration: wafflesRoot.fullscreenDuration; easing.type: Easing.OutCubic }
+        NumberAnimation { id: _fsY; property: "y";            duration: wafflesRoot.fullscreenDuration; easing.type: Easing.OutCubic }
+        NumberAnimation { id: _fsW; property: "viewerWidth";  duration: wafflesRoot.fullscreenDuration; easing.type: Easing.OutCubic }
+        NumberAnimation { id: _fsH; property: "viewerHeight"; duration: wafflesRoot.fullscreenDuration; easing.type: Easing.OutCubic }
+        onFinished: { let cb = _fsAnim._done; _fsAnim._done = null; if (cb) cb(); }
     }
 
     // One slot = the backdrop plus every viewer below its owner, composited FLAT: each source is
@@ -181,6 +260,8 @@ Item {
                     wafflesRoot.centerViewer(viewerInstance);
                 if (viewerInstance.closeRequested)
                     viewerInstance.closeRequested.connect(()=>{ wafflesRoot.closeViewer(viewerInstance); });
+                if (viewerInstance.fullscreenRequested)
+                    viewerInstance.fullscreenRequested.connect((want)=>{ wafflesRoot.setFullscreen(viewerInstance, want); });
                 selectViewer(viewerInstance);
                 if (viewerInstance.playEnter)
                     viewerInstance.playEnter();
@@ -194,6 +275,12 @@ Item {
     // destroys it. Destruction triggers topLayer.onChildrenChanged → rebuildGlass.
     function closeViewer(v) {
         if (!v) return;
+        // If the viewer being closed is fullscreen, tear down the scrim + controller first.
+        if (v === _fullscreenViewer) {
+            _hideController();
+            _scrimShown = false;
+            _fullscreenViewer = null;
+        }
         if (_selectedViewer === v) _selectedViewer = null;
         if (v.playExit)
             v.playExit(()=>{ v.destroy(); });
@@ -208,6 +295,97 @@ Item {
         wafflesRoot._openCount++;
         v.x = Math.round((wafflesRoot.width  - v.width)  / 2 + off);
         v.y = Math.round((wafflesRoot.height - v.height) / 2 + off);
+    }
+
+    // Enters/leaves fullscreen for v. Only one viewer is fullscreen at a time; entering while
+    // another is fullscreen snaps the previous one back first. Entering animates v to a margin-fit
+    // of the stage over the scrim; leaving animates it back to its pre-fullscreen geometry.
+    function setFullscreen(v, on) {
+        if (!v) return;
+        if (on) {
+            if (wafflesRoot._fullscreenViewer === v) return;
+            if (wafflesRoot._fullscreenViewer) {
+                let prev = wafflesRoot._fullscreenViewer;
+                let pr = wafflesRoot._fsRestore;
+                prev.fullscreen = false;
+                prev.x = pr.x; prev.y = pr.y; prev.viewerWidth = pr.width; prev.viewerHeight = pr.height;
+                prev.z = ++wafflesRoot._topZ;
+                wafflesRoot._fullscreenViewer = null;
+            }
+            wafflesRoot._fsRestore = Qt.rect(v.x, v.y, v.viewerWidth, v.viewerHeight);
+            wafflesRoot._scrimMode = wafflesRoot._scrimModeFor(v);
+            v.fullscreen = true;
+            v.z = wafflesRoot._scrimZ + 1;
+            wafflesRoot._fullscreenViewer = v;
+            wafflesRoot._scrimShown = true;
+            rebuildGlass();
+            let r = wafflesRoot._fullscreenFit(v);
+            wafflesRoot._animateViewer(v, r.x, r.y, r.width, r.height, null);
+            wafflesRoot._showController(v);
+        } else {
+            if (wafflesRoot._fullscreenViewer !== v) return;
+            let rr = wafflesRoot._fsRestore;
+            v.fullscreen = false;
+            wafflesRoot._scrimShown = false;
+            wafflesRoot._hideController();
+            wafflesRoot._animateViewer(v, rr.x, rr.y, rr.width, rr.height, function() {
+                v.z = ++wafflesRoot._topZ;
+                if (wafflesRoot._fullscreenViewer === v) wafflesRoot._fullscreenViewer = null;
+                wafflesRoot.rebuildGlass();
+            });
+        }
+    }
+
+    // Resolves the scrim style for a viewer: its fullscreenScrim override, or "auto" -> blur when
+    // both the viewer and the stage have glass on, else tint.
+    function _scrimModeFor(v) {
+        let m = (v && ("fullscreenScrim" in v)) ? v.fullscreenScrim : "auto";
+        if (m === "auto")
+            m = (v && ("glassEnabled" in v) && v.glassEnabled && wafflesRoot.glassEnabled) ? "blur" : "tint";
+        return m;
+    }
+
+    // Largest rect inside the stage (minus margin) that preserves the viewer's current aspect.
+    function _fullscreenFit(v) {
+        let availW = wafflesRoot.width  - 2 * wafflesRoot.fullscreenMargin;
+        let availH = wafflesRoot.height - 2 * wafflesRoot.fullscreenMargin;
+        let aspect = (v.viewerHeight > 0) ? (v.viewerWidth / v.viewerHeight) : (availW / availH);
+        let w = availW, h = availW / aspect;
+        if (h > availH) { h = availH; w = h * aspect; }
+        return Qt.rect(Math.round((wafflesRoot.width - w) / 2), Math.round((wafflesRoot.height - h) / 2),
+                       Math.round(w), Math.round(h));
+    }
+
+    function _animateViewer(v, x, y, w, h, done) {
+        _fsAnim.stop();
+        _fsX.target = v; _fsX.to = x;
+        _fsY.target = v; _fsY.to = y;
+        _fsW.target = v; _fsW.to = w;
+        _fsH.target = v; _fsH.to = h;
+        _fsAnim._done = done || null;
+        _fsAnim.start();
+    }
+
+    // Shows the per-type fullscreen controller, bound to v, above the fullscreen viewer. The
+    // viewer hides its own edge controls while fullscreen, so the controller carries them.
+    function _showController(v) {
+        let comp = wafflesRoot.fullscreenController;   // (could vary by v.viewerType later)
+        if (!comp || comp.status !== Component.Ready) return;
+        if (!wafflesRoot._fsController) {
+            wafflesRoot._fsController = comp.createObject(topLayer, { "z": wafflesRoot._scrimZ + 2 });
+        }
+        if (wafflesRoot._fsController) {
+            wafflesRoot._fsController.viewer = v;
+            wafflesRoot._fsController.collapsed = false;
+            wafflesRoot._fsController.shown = true;
+        }
+    }
+
+    function _hideController() {
+        if (wafflesRoot._fsController) {
+            wafflesRoot._fsController.shown = false;
+            wafflesRoot._fsController.viewer = null;
+        }
     }
 
     // Maps a settings string to a DsViewer.Anim enum value.
@@ -296,6 +474,8 @@ Item {
     TapHandler {
         target: null
         onTapped: (point,button)=>{
+            // While fullscreen the scrim handles taps (margin tap exits); ignore stage taps.
+            if (wafflesRoot._fullscreenViewer) return;
             if(tapCount == 2){
                 _private.launcher.x = point.position.x
                 _private.launcher.y = point.position.y
@@ -303,6 +483,7 @@ Item {
             let inView = null;
             for(let i=0;i<topLayer.children.length;i++){
               let child = topLayer.children[i];
+              if (child === scrimLayer) continue;
               if(child.contains(child.mapFromGlobal(point.globalPosition))){
                   inView = child;
               }

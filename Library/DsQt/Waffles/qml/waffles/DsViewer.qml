@@ -33,6 +33,16 @@ Item {
     // a glass layer override this to point at their glass-free content layer.
     property Item captureItem: dsViewer
 
+    // --- Fullscreen state. The stage owns the transition (scrim + geometry animation) and
+    //     enforces a single fullscreen viewer. fullscreenScrim selects the scrim style:
+    //     "auto" follows the viewer's glass (blur on -> blurred scrim, off -> tinted),
+    //     or force "blur" | "tint" | "none". ---
+    property bool   fullscreen: false
+    property string fullscreenScrim: "auto"
+    // Emitted (e.g. by the fullscreen button) to ask the stage to enter/leave fullscreen.
+    signal fullscreenRequested(bool wantFullscreen)
+    function toggleFullscreen() { dsViewer.fullscreenRequested(!dsViewer.fullscreen) }
+
     // --- Enter/exit animation config (defaults supplied by the stage; per-viewer overridable) ---
     property int  enterAnimation:    DsViewer.Anim.Fade
     property int  exitAnimation:     DsViewer.Anim.Fade

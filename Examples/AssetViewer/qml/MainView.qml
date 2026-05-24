@@ -215,6 +215,36 @@ Item {
                             }
                         }
 
+                        ActionButton {
+                            text: "Add PDF"
+                            onClicked: {
+                                // Multi-page local PDF (exercises the pdf controls: page nav + lock).
+                                stage.createViewer({
+                                    "model": { "title": "Sample PDF", "media": { "filepath": "%APP%/data/media/sample.pdf", "type": "pdf", "width": 612, "height": 792 } },
+                                    "viewerWidth": 900,
+                                    "viewerHeight": 1165,
+                                    "mediaFillMode": Image.PreserveAspectFit,
+                                    "glassFallbackColor": Qt.hsva(Math.random(), 0.7, 0.95, 1.0),
+                                    "stage": stage
+                                })
+                            }
+                        }
+
+                        ActionButton {
+                            text: "Add GIF"
+                            onClicked: {
+                                // Animated local GIF (image type -> AnimatedImage; no media controls).
+                                stage.createViewer({
+                                    "model": { "title": "Animated GIF", "media": { "filepath": "%APP%/data/media/earth.gif", "type": "image", "width": 400, "height": 400 } },
+                                    "viewerWidth": 700,
+                                    "viewerHeight": 700,
+                                    "mediaFillMode": Image.PreserveAspectFit,
+                                    "glassFallbackColor": Qt.hsva(Math.random(), 0.7, 0.95, 1.0),
+                                    "stage": stage
+                                })
+                            }
+                        }
+
                         // Group separator between content actions and view toggles.
                         Rectangle { width: 2; height: 72; color: DsTheme.stroke; opacity: 0.6 }
 

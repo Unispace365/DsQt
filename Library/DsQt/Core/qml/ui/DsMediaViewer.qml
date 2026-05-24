@@ -17,6 +17,32 @@ Item {
     // and %VAR%-prefixed paths are expanded into proper file URLs. This is what the actual media
     // elements load, so both local and network images/videos work.
     readonly property url resolvedSource: source !== "" ? Ds.env.expandUrl(source) : ""
+    // The currently loaded content item (video/web/pdf/image element); lets controls drive it.
+    readonly property var mediaItem: contentLoader.item
+    // Resolved media kind ("video" | "image" | "web" | "pdf" | "vector" | ""), from the explicit
+    // contentType, else the model type, else the file extension. Drives which controls to show.
+    readonly property string mediaType: {
+        let ct = contentType.toLowerCase().trim()
+        if (!ct) ct = (media && media.type) ? String(media.type).toLowerCase() : ""
+        if (ct === "video" || ct === "video stream") return "video"
+        if (ct === "image" || ct === "image sequence") return "image"
+        if (ct === "vector" || ct === "vector sequence") return "vector"
+        if (ct === "web" || ct === "youtube") return "web"
+        if (ct === "pdf") return "pdf"
+        if (source) {
+            let ext = source.toLowerCase().split('.').pop()
+            if (['mp4','avi','mov','mkv','webm'].indexOf(ext) !== -1) return "video"
+            if (['jpg','jpeg','png','gif','bmp','webp'].indexOf(ext) !== -1) return "image"
+            if (['svg','lottie'].indexOf(ext) !== -1) return "vector"
+            if (['html','htm'].indexOf(ext) !== -1 || source.startsWith("http")) return "web"
+            if (ext === 'pdf') return "pdf"
+        }
+        return ""
+    }
+    // Video transport handle: the loaded item when it is a video (exposes position/duration/
+    // playbackState/volume/loops + play/pause/seek), otherwise null. Lets controls drive playback.
+    readonly property bool isVideo: contentLoader.item ? ("playbackState" in contentLoader.item) : false
+    readonly property var videoItem: isVideo ? contentLoader.item : null
     // True while the current media is still loading; drives a loading indicator in the viewer.
     // Set when a source is assigned, cleared when the media reports it has finished loading.
     property bool loading: false

@@ -28,7 +28,10 @@ qt_add_qml_module(Waffles
 
         qml/ux/BottomOuterControls.qml
         qml/ux/CloseButton.qml
+        qml/ux/DsCtrlIcon.qml
+        qml/ux/DsMediaControls.qml
         qml/ux/FullscreenButton.qml
+        qml/ux/FullscreenController.qml
         qml/ux/IconButton.qml
         qml/ux/LeftOuterControls.qml
         qml/ux/RightOuterControls.qml

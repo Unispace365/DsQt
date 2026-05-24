@@ -32,6 +32,10 @@ secondaryLightColor  = "#4f83cc"
 secondaryDarkColor   = "#002f6c"
 textOnSecondaryColor = "#ffffff"
 
+# Controls fade out after this many seconds of no interaction with the viewer, and return on
+# touch/interaction. 0 disables auto-hide.
+controlsIdleSeconds = 4
+
 # Media-viewer sizing. Bounds are logical px (the stage is a 4K canvas); per-viewer
 # overridable on creation.
 [waffles.viewer]
@@ -46,3 +50,10 @@ imageWidth = 1400
 enterAnimation = "fadeRise"
 exitAnimation  = "grow"
 animationDuration = 300
+
+# Fullscreen: a viewer fits the stage minus this margin, over a scrim that blocks the rest of
+# the UI. The scrim is blurred when the viewer's glass is on, else a tint at scrimOpacity.
+[waffles.fullscreen]
+margin = 0
+scrimOpacity = 0.6
+scrimBlurTintOpacity = 0.3

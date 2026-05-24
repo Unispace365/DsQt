@@ -7,6 +7,10 @@ Video {
     signal mediaLoaded()
     signal videoFinished()
 
+    // Hold the last frame when playback ends (instead of clearing to black). Looping is driven
+    // separately via `loops` (set to MediaPlayer.Infinite by the controller / media metadata).
+    endOfStreamPolicy: VideoOutput.KeepLastFrame
+
     onBufferProgressChanged: {
         if (loading && bufferProgress >= 1) {
             loading = false

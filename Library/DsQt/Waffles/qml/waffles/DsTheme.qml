@@ -16,6 +16,7 @@ QtObject {
     // --- Tier 1: primitives (tonal ramp) ---
     property color tonal0:  "#191F25"
     property color tonal10: "#2E3439"
+    property color tonal30: "#5D6166"
     property color white:   "#FFFFFF"
     property color accent:  "#00ADF7"
 
@@ -27,6 +28,7 @@ QtObject {
     // handlers, so such a property silently fails to resolve. Use surfaceText / accentText.
     property color surfaceText:    white      // text / icons on a surface
     property color accentText:     white      // text / icons on an accent fill
+    property color track:          tonal30    // slider / scrubber tracks
     // Translucent surface (e.g. the glass tint as a single premultiplied colour, if needed).
     readonly property color scrim: Qt.rgba(tonal0.r, tonal0.g, tonal0.b, glassTintOpacity)
 

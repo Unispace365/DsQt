@@ -19,6 +19,12 @@ DsTitledMediaViewer {
                 RightOuterControls {
                     id: rightButtons
                     signalObject: viewer.signalObject
+                },
+                DsMediaControls {
+                    id: mediaControls
+                    edge: DsControlSet.Edge.BottomInner
+                    offset: 40
+                    signalObject: viewer.signalObject
                 }
             ]
         }

@@ -76,7 +76,45 @@ DsViewer {
     // Selected viewers show their title/controls; unselected ones hide them and the glass
     // shrinks to just the media area. The stage sets this and raises the selected viewer.
     property bool selected: false
-    onSelectedChanged: selected ? showControls() : hideControls()
+    // Auto-hide: controls fade out after controlsIdleMs of no interaction (so they stop covering
+    // the content) and return when the viewer is touched/hovered/dragged. 0 disables auto-hide.
+    property int  controlsIdleMs: stage ? stage.controlsIdleMs : 4000
+    property bool controlsAwake: true
+    Timer { id: idleTimer; interval: root.controlsIdleMs; onTriggered: root.controlsAwake = false }
+
+    // Outer controls (title, corner buttons) show whenever the viewer is selected and not
+    // fullscreen (fullscreen hands controls to the stage's fullscreen controller). INNER controls
+    // (over the content, e.g. the media transport bar) additionally auto-hide when idle and return
+    // on interaction, so they don't cover the content.
+    onSelectedChanged: { if (selected) { wake(); refreshGlass(); } else _applyControls() }
+    onFullscreenChanged: { if (!fullscreen && selected) { wake(); refreshGlass(); } else _applyControls() }
+    onControlsAwakeChanged: _applyControls()
+    function _applyControls() {
+        let base = selected && !fullscreen;
+        let innerOn = base && (controlsAwake || controlsIdleMs <= 0);
+        for (var i = 0; i < root.controls.length; i++) {
+            let c = root.controls[i];
+            c.opacity = ((_edgeIsInner(c.edge) ? innerOn : base) ? 1 : 0);
+        }
+    }
+    function _edgeIsInner(e) {
+        return e === DsControlSet.Edge.TopInner || e === DsControlSet.Edge.BottomInner
+            || e === DsControlSet.Edge.LeftInner || e === DsControlSet.Edge.RightInner
+            || e === DsControlSet.Edge.Center;
+    }
+    // Resets the inner-controls idle timer and re-applies visibility; called on any interaction.
+    function wake() {
+        controlsAwake = true;
+        if (controlsIdleMs > 0 && selected && !fullscreen) idleTimer.restart();
+        _applyControls();
+    }
+    // Dragging (incl. the title-bar DragHandler, which moves the viewer) keeps inner controls awake.
+    onXChanged: wake()
+    onYChanged: wake()
+
+    // When true the content (web page / pdf) ignores input so the viewer can be dragged instead;
+    // the media controls' lock button toggles this. Implemented as an input-swallowing overlay.
+    property bool contentLocked: false
 
     // Bumped (over a few frames, after layout) to force the glass to re-sample its real on-screen
     // position. The glass origin is computed via mapToItem, which is NOT reactive to the control
@@ -131,8 +169,15 @@ DsViewer {
     width: mediaView.width;
     height: mediaView.height;
 
-    Component.onCompleted: { setControls(); applySizing(); if (!selected) hideControls(); refreshGlass(); }
+    Component.onCompleted: { setControls(); applySizing(); _applyControls(); refreshGlass(); _connectInteractions(); }
     onControlsChanged: setControls()
+
+    // Connects each control set's `interacted` signal to wake() so using a control (e.g. the
+    // scrubber) resets the idle auto-hide. Run once after creation.
+    function _connectInteractions() {
+        for (var i = 0; i < root.controls.length; i++)
+            root.controls[i].interacted.connect(root.wake)
+    }
 
     // Sets viewerWidth/viewerHeight from the sizing config: optionally to the media's natural
     // size, optionally preserving the media aspect ratio, always clamped to [min,max]. When
@@ -262,9 +307,12 @@ DsViewer {
         MouseArea {
             anchors.fill: mediaView
             acceptedButtons: Qt.AllButtons
-            drag.target: root
-            onPressed: (mouse) => { if (root.stage) root.stage.selectViewer(root) }
+            drag.target: root.fullscreen ? null : root
+            onPressed: (mouse) => { if (root.stage) root.stage.selectViewer(root); root.wake(); }
         }
+
+        // Mouse movement anywhere over the viewer (incl. over the controls) keeps controls awake.
+        HoverHandler { onPointChanged: root.wake() }
 
         Item {
             id: background
@@ -291,6 +339,17 @@ DsViewer {
                 autoPlay: true
                 visible: true // TEMP: media hidden to inspect the glass background
             }
+        }
+
+        // Lock overlay: while contentLocked, swallow input over the media so interactive content
+        // (web / pdf) doesn't receive it and the viewer can be dragged instead.
+        MouseArea {
+            anchors.fill: mediaView
+            visible: root.contentLocked
+            enabled: root.contentLocked
+            acceptedButtons: Qt.AllButtons
+            drag.target: root.fullscreen ? null : root
+            onPressed: (mouse) => { if (root.stage) root.stage.selectViewer(root) }
         }
 
         // Solid surface-colour fill shown while the media is loading, so the spinner sits on a
@@ -412,21 +471,6 @@ DsViewer {
             anchors.left: mediaView.right
             anchors.leftMargin: offset
         }
-    }
-
-    function hideControls() {
-        for(var i=0; i <root.controls.length; i++){
-            let ctrl = root.controls[i];
-            ctrl.opacity = 0;
-        }
-    }
-
-    function showControls() {
-        for(var i=0; i <root.controls.length; i++){
-            let ctrl = root.controls[i];
-            ctrl.opacity = 1;
-        }
-        refreshGlass();
     }
 
 }
