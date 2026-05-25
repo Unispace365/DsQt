@@ -70,6 +70,10 @@ Item {
     property color fullscreenScrimColor:          DsTheme.surface
     property real  fullscreenScrimOpacity:        appSettings.getFloat("fullscreen.scrimOpacity", 0.6)
     property real  fullscreenScrimBlurTintOpacity: appSettings.getFloat("fullscreen.scrimBlurTintOpacity", 0.3)
+    // Blur for the blur-mode scrim. Defaults to the glass tokens so the scrim matches the viewer
+    // glass; set fullscreen.scrimBlur / scrimBlurMax in settings to give the scrim its own blur.
+    property real  fullscreenScrimBlur:           appSettings.getFloat("fullscreen.scrimBlur", DsTheme.glassBlur)
+    property int   fullscreenScrimBlurMax:        appSettings.getInt("fullscreen.scrimBlurMax", DsTheme.glassBlurMax)
     property int   fullscreenDuration:            viewerAnimationDuration
 
     // The single fullscreen viewer (only one at a time), the resolved scrim mode, whether the
@@ -149,8 +153,8 @@ Item {
                 source: scrimGrab
                 autoPaddingEnabled: false
                 blurEnabled: true
-                blur: wafflesRoot.glassBlur
-                blurMax: wafflesRoot.glassBlurMax
+                blur: wafflesRoot.fullscreenScrimBlur
+                blurMax: wafflesRoot.fullscreenScrimBlurMax
             }
             Rectangle {
                 anchors.fill: parent

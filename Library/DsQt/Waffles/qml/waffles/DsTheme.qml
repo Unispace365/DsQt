@@ -1,5 +1,6 @@
 pragma Singleton
 import QtQuick
+import Dsqt.Core
 
 // Two-tier design-token singleton (see Docs/articles/color_system.md).
 //
@@ -8,17 +9,22 @@ import QtQuick
 //            are what viewers/controls reference.
 //   Glass tokens: the non-colour design tokens palette can't carry.
 //
-// Everything is writable, so a white-label app re-skins by assigning the primitives (or roles)
-// once at startup — e.g. DsTheme.tonal0 = "#102018" — and the palette + glass re-derive.
+// Tier-1 primitives and the glass tokens are seeded from settings ([waffles.theme] in
+// waffles_settings.toml), falling back to the defaults below. They remain writable, so a
+// white-label app can also re-skin at runtime — e.g. DsTheme.tonal0 = "#102018" — and the roles,
+// palette and glass re-derive.
 QtObject {
     id: theme
 
-    // --- Tier 1: primitives (tonal ramp) ---
-    property color tonal0:  "#191F25"
-    property color tonal10: "#2E3439"
-    property color tonal30: "#5D6166"
-    property color white:   "#FFFFFF"
-    property color accent:  "#00ADF7"
+    // Reads [waffles.theme] from the merged app_settings collection.
+    property DsSettingsProxy _s: DsSettingsProxy { target: "app_settings"; prefix: "waffles.theme" }
+
+    // --- Tier 1: primitives (tonal ramp + brand hue) ---
+    property color tonal0:  _s.getColor("tonal0",  "#191F25")
+    property color tonal10: _s.getColor("tonal10", "#2E3439")
+    property color tonal30: _s.getColor("tonal30", "#5D6166")
+    property color white:   _s.getColor("white",   "#FFFFFF")
+    property color accent:  _s.getColor("accent",  "#00ADF7")
 
     // --- Tier 2: semantic roles (alias primitives) ---
     property color surface:        tonal0     // panels / window / control backgrounds
@@ -33,9 +39,9 @@ QtObject {
     readonly property color scrim: Qt.rgba(tonal0.r, tonal0.g, tonal0.b, glassTintOpacity)
 
     // --- Glass tokens (non-colour; palette can't carry these) ---
-    property real glassTintOpacity: 0.8       // surface @ 80%
-    property real glassBlur:        0.5
-    property int  glassBlurMax:     32
-    property real glassRadius:      12
-    property real glassBorderWidth: 1
+    property real glassTintOpacity: _s.getFloat("glassTintOpacity", 0.8)   // surface @ 80%
+    property real glassBlur:        _s.getFloat("glassBlur", 0.5)
+    property int  glassBlurMax:     _s.getInt("glassBlurMax", 32)
+    property real glassRadius:      _s.getFloat("glassRadius", 12)
+    property real glassBorderWidth: _s.getFloat("glassBorderWidth", 1)
 }
