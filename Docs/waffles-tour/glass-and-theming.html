@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Glass &amp; Theming — Waffles Tour</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="layout">
+  <nav class="sidebar">
+    <div class="brand"><span class="logo">Waffles</span><span class="sub">source tour</span></div>
+    <div class="nav-group"><h4>Start here</h4><a href="index.html">Overview &amp; architecture</a></div>
+    <div class="nav-group"><h4>The pieces</h4>
+      <a href="stage.html">1 · The Stage</a>
+      <a href="viewers.html">2 · Viewers</a>
+      <a href="media.html">3 · Media</a>
+      <a href="controls.html">4 · Controls</a>
+      <a href="glass-and-theming.html" class="active">5 · Glass &amp; theming</a>
+    </div>
+    <div class="nav-group"><h4>Practical</h4><a href="demo-and-recipes.html">6 · Demo &amp; recipes</a></div>
+  </nav>
+
+  <main class="content"><div class="col">
+    <h1>5 · Glass &amp; theming</h1>
+    <p class="lede">The frosted-glass effect — how a viewer's chrome shows a blurred copy of everything
+      behind it — plus the two-tier design tokens (<code>DsTheme</code>) and the settings that feed them.</p>
+
+    <div class="files">
+      <h4>Key files</h4>
+      <ul>
+        <li><span class="path">waffles/DsGlassBackground.qml</span> — the reusable glass element</li>
+        <li><span class="path">waffles/DsWaffleStage.qml</span> — builds &amp; maintains the slot chain</li>
+        <li><span class="path">waffles/DsTheme.qml</span> — the design-token singleton</li>
+        <li><span class="path">Docs/articles/color_system.md</span> — the colour philosophy in depth</li>
+        <li><span class="path">Examples/AssetViewer/settings/waffles_settings.toml</span> — the values</li>
+      </ul>
+    </div>
+
+    <h2>The idea</h2>
+    <p>A viewer's title bar, buttons and panels are <em>frosted glass</em>: each samples the pixels
+      directly behind it, blurs them, and lays a dark tint on top. The hard part is "directly behind
+      it" — a viewer must see the backdrop <strong>and</strong> any viewers below it, but never itself or
+      anything above (which would feed back).</p>
+
+    <h2>The slot chain</h2>
+    <p>The stage solves this with <strong>slots</strong>. A slot is a stage-sized, live composite of
+      everything beneath one viewer. The stage assigns slot <code>i</code> to viewer <code>i</code> as its
+      <code>backdropSource</code>:</p>
+    <div class="diagram">backdrop  = your app content (animated bg, gallery…)
+
+slot[0]   = backdrop                         → viewer[0].backdropSource
+slot[1]   = backdrop + capture(viewer[0])    → viewer[1].backdropSource
+slot[2]   = backdrop + capture(viewer[0],1)  → viewer[2].backdropSource
+…
+viewer[i] then samples its OWN rectangle out of slot[i].</div>
+    <p>Built in <code>rebuildGlass()</code>: viewers are sorted by z, the bottom one points straight at the
+      <code>backdrop</code> leaf, and each higher viewer gets a slot composed of the backdrop plus the
+      <code>captureItem</code> of every viewer below it:</p>
+<pre><code><span class="k">function</span> <span class="p">rebuildGlass</span>() {
+    …destroy old slots…
+    <span class="k">let</span> parts = topLayer.children sorted by z;
+    <span class="k">for</span> (<span class="k">let</span> i = <span class="n">0</span>; i &lt; parts.length; i++) {
+        <span class="k">if</span> (i === <span class="n">0</span>) parts[i].backdropSource = backdrop;          <span class="c">// bottom samples backdrop</span>
+        <span class="k">else</span>       parts[i].backdropSource = makeSlot(parts.slice(<span class="n">0</span>, i)); <span class="c">// composite below</span>
+    }
+}</code></pre>
+    <div class="callout concept">
+      <span class="tag">Flat slots, not slot-of-slot</span>
+      <p>Each slot composites <strong>leaf</strong> sources only — the <code>backdrop</code> and each lower viewer's
+      <code>captureItem</code> (its glass-free <code>contentLayer</code>) — never another slot. A flat chain has no
+      depth, so the front-most viewer can't "blank out" and there's no propagation lag. Capturing
+      <code>contentLayer</code> (media + controls, minus that viewer's own glass) is what makes upper glass
+      show lower viewers <em>with</em> their chrome — "compound" glass — without recursion.</p>
+    </div>
+    <div class="callout concept">
+      <span class="tag">It updates for free</span>
+      <p>Slots are built from <strong>live</strong> <code>ShaderEffectSource</code>s, so viewer movement and
+      animated content reflect instantly. Only <em>structural</em> changes — add / remove / re-order a
+      viewer — trigger a <code>rebuildGlass()</code> (via <code>topLayer.onChildrenChanged</code> and
+      <code>selectViewer</code>).</p>
+    </div>
+
+    <h2><code>DsGlassBackground</code> — the element</h2>
+    <p>Any surface (a viewer's media region, a control set, a button) drops in a <code>DsGlassBackground</code>
+      the same way: give it a <code>context</code> (the bundle the viewer hands its controls) plus its own
+      size/corner radii. It samples its slice of the source slot, blurs, tints, masks corners, outlines:</p>
+<pre><code><span class="k">DsGlassBackground</span> {
+    <span class="p">context</span>: glassContext           <span class="c">// {source, viewerItem, refresh, enabled, tint, blur, …}</span>
+    <span class="p">topLeftRadius</span>: <span class="n">12</span>; <span class="p">topRightRadius</span>: <span class="n">12</span>
+    <span class="p">fallbackColor</span>: DsTheme.surface  <span class="c">// shown when glass is off / no source</span>
+}</code></pre>
+    <p>Internally: a hidden <code>ShaderEffectSource</code> grabs <code>source</code> at <code>sourceRect = the
+      element's rect in stage coords</code> (worked out with <code>mapToItem</code> + the <code>refresh</code> tick),
+      a <code>MultiEffect</code> blurs it, a tint <code>Rectangle</code> sits on top, and a masked rounded shape +
+      border finish it. When <code>blurEnabled</code> is false (or there's no source) it shows
+      <code>fallbackComponent</code> or a solid <code>fallbackColor</code> instead.</p>
+    <div class="callout gotcha">
+      <span class="tag">MultiEffect.autoPaddingEnabled = false</span>
+      <p><code>MultiEffect</code> defaults to padding/scaling its output for the blur — which silently
+      offsets &amp; scales the glass. Always set <code>autoPaddingEnabled: false</code> here. (And remember the
+      glass origin uses <code>mapToItem</code>, which isn't reactive to re-parenting — hence the
+      <code>refresh</code> tick the viewer bumps after layout; see <a href="viewers.html">Viewers</a>.)</p>
+    </div>
+
+    <h2>The glass tokens — how the blur is built</h2>
+    <p>The blurred look isn't one value, it's a short pipeline. The grab of the backdrop is run
+      through a <code>MultiEffect</code>, a tint is laid over it, the corners are masked round, and a thin
+      stroke is drawn on top:</p>
+    <div class="diagram">grab (ShaderEffectSource)  →  MultiEffect blur  →  tint Rectangle  →  rounded mask  →  border
+                                  ▲                    ▲                  ▲              ▲
+                          glassBlur + glassBlurMax  glassTintOpacity   glassRadius   glassBorderWidth</div>
+
+    <p>The <strong>blur strength</strong> comes from <em>two</em> tokens working together, because that's how
+      <code>MultiEffect</code> models blur:</p>
+    <ul>
+      <li><code>glassBlur</code> is the <strong>amount</strong> — a dial from <code>0.0</code> (no blur) to <code>1.0</code>
+        (full blur).</li>
+      <li><code>glassBlurMax</code> is the <strong>ceiling</strong> — the pixel radius that <code>glassBlur = 1.0</code>
+        actually reaches. Its meaningful range is <code>2</code> (subtle) to <code>64</code> (heavy); default <code>32</code>.
+        It decides what "full" <em>means</em>, and a bigger ceiling costs more (more texture samples per pixel).</li>
+    </ul>
+    <p>So the on-screen radius is roughly the amount scaled by the ceiling:</p>
+    <div class="diagram">radius ≈ glassBlur × glassBlurMax          (px)
+            │              │
+   amount 0–1 ─┘              └─ ceiling 2–64 (default 32)
+
+glassBlur 0.5 · glassBlurMax 32   →  ~16 px   medium — the default frosted look
+glassBlur 1.0 · glassBlurMax 32   →  ~32 px   heavy
+glassBlur 0.5 · glassBlurMax 64   →  ~32 px   same radius, finer quality, ~2× the cost</div>
+    <p>To make glass blurrier, turn the <em>amount</em> up first (it's free); only raise the <em>ceiling</em>
+      when you want a radius bigger than the current max can reach. The remaining tokens are
+      independent of the blur:</p>
+    <table>
+      <thead><tr><th>Token</th><th>Role</th><th>Default</th></tr></thead>
+      <tbody>
+        <tr><td><code>glassBlur</code></td><td>Blur amount (0–1 dial).</td><td><code>0.5</code></td></tr>
+        <tr><td><code>glassBlurMax</code></td><td>Max blur radius in px at amount 1.0 (2–64).</td><td><code>32</code></td></tr>
+        <tr><td><code>glassTintOpacity</code></td><td>Opacity of the dark surface tint over the blur (also baked into <code>DsTheme.scrim</code>).</td><td><code>0.8</code></td></tr>
+        <tr><td><code>glassRadius</code></td><td>Corner radius of the rounded mask.</td><td><code>12</code></td></tr>
+        <tr><td><code>glassBorderWidth</code></td><td>Width of the stroke outline (Tonal-10).</td><td><code>1</code></td></tr>
+      </tbody>
+    </table>
+    <div class="callout tip">
+      <span class="tag">Beyond the ceiling, and out-of-range amounts</span>
+      <p><code>glassBlur</code> is clamped to <code>0.0–1.0</code>, so a value above <code>1.0</code> just reads as full
+      blur. If you need a wider radius than <code>glassBlurMax 64</code> gives, <code>MultiEffect</code> also has
+      <code>blurMultiplier</code> — it extends the radius <em>without</em> extra texture lookups (cheaper than a
+      bigger <code>blurMax</code>) at some loss of quality. Waffles doesn't expose it as a token yet; add one
+      the same way the others are wired if a design needs it.</p>
+    </div>
+
+    <h2>The fullscreen scrim</h2>
+    <p>Fullscreen reuses the same machinery. The scrim (which blocks the rest of the UI behind a
+      fullscreen viewer) is <strong>blurred</strong> when the viewer's glass is on — it samples the
+      fullscreen viewer's own <code>backdropSource</code> slot and blurs it full-screen — or a flat
+      <strong>tint</strong> when glass is off. Resolved by <code>_scrimModeFor()</code> on the stage, overridable
+      per viewer via <code>fullscreenScrim</code>.</p>
+    <p>The blur-mode scrim uses the <strong>same <code>glassBlur</code> / <code>glassBlurMax</code> by default</strong>,
+      so it matches the viewer glass. If you want the backdrop behind a fullscreen viewer blurred
+      <em>differently</em> from the viewer's own chrome, set <code>scrimBlur</code> / <code>scrimBlurMax</code> under
+      <code>[waffles.fullscreen]</code> — the stage reads them into <code>fullscreenScrimBlur</code> /
+      <code>fullscreenScrimBlurMax</code>, falling back to the glass tokens when unset.</p>
+
+    <h2>Theming with <code>DsTheme</code></h2>
+    <p><code>DsTheme</code> is a singleton (<code>pragma Singleton</code>, registered with
+      <code>QT_QML_SINGLETON_TYPE</code> in CMake). It's a <strong>two-tier</strong> token system: raw
+      primitives, then semantic roles that alias them. Components reference roles; re-skinning means
+      re-pointing roles, not editing call sites.</p>
+<pre><code><span class="k">QtObject</span> {                       <span class="c">// DsTheme.qml</span>
+    <span class="c">// Tier 1 — primitives (the tonal ramp + brand hue)</span>
+    <span class="p">property color</span> tonal0: <span class="s">"#191F25"</span>; <span class="p">property color</span> tonal10: <span class="s">"#2E3439"</span>
+    <span class="p">property color</span> tonal30: <span class="s">"#5D6166"</span>; <span class="p">property color</span> white: <span class="s">"#FFFFFF"</span>
+    <span class="p">property color</span> accent: <span class="s">"#00ADF7"</span>
+    <span class="c">// Tier 2 — semantic roles (alias primitives by purpose)</span>
+    <span class="p">property color</span> surface: tonal0; <span class="p">property color</span> surfaceVariant: tonal10
+    <span class="p">property color</span> stroke: tonal10; <span class="p">property color</span> surfaceText: white
+    <span class="p">property color</span> accentText: white; <span class="p">property color</span> track: tonal30
+    <span class="p">readonly property color</span> scrim: Qt.rgba(tonal0.r, tonal0.g, tonal0.b, glassTintOpacity)
+    <span class="c">// Glass tokens (non-colour; palette can't carry these)</span>
+    <span class="p">property real</span> glassTintOpacity: <span class="n">0.8</span>; <span class="p">property real</span> glassBlur: <span class="n">0.5</span>
+    <span class="p">property int</span>  glassBlurMax: <span class="n">32</span>; <span class="p">property real</span> glassRadius: <span class="n">12</span>; <span class="p">property real</span> glassBorderWidth: <span class="n">1</span>
+}</code></pre>
+    <p>The stage assigns Qt's <code>palette</code> from these roles once, high in the tree, so Qt Quick
+      Controls inherit it (dark surfaces, white text, Tonal-10 strokes, accent highlight):</p>
+<pre><code><span class="p">palette.window</span>: DsTheme.surface;   <span class="p">palette.text</span>: DsTheme.surfaceText
+<span class="p">palette.highlight</span>: DsTheme.accent; <span class="p">palette.highlightedText</span>: DsTheme.accentText  <span class="c">// …etc</span></code></pre>
+    <div class="callout gotcha">
+      <span class="tag">Never name a role <code>on&lt;Capital&gt;</code></span>
+      <p>QML reserves identifiers starting with <code>on</code>+uppercase for signal handlers, so a
+      <code>property color onSurface</code> silently fails to resolve (reads as black). That's why the roles
+      are <code>surfaceText</code> / <code>accentText</code>, not the Material-style <code>onSurface</code> / <code>onAccent</code>.</p>
+    </div>
+    <p>See <span class="path">Docs/articles/color_system.md</span> for the full rationale (primitives vs roles, mapping to Qt's palette, what palette deliberately doesn't carry).</p>
+
+    <h2>Settings</h2>
+    <p>Waffles values live in <span class="path">Examples/AssetViewer/settings/waffles_settings.toml</span>, all
+      under a <code>[waffles]</code> table, and are <strong>merged into the <code>app_settings</code> collection</strong>
+      by listing the file in <code>engine.toml</code>:</p>
+<pre><code><span class="c"># engine.toml</span>
+[engine.extra]
+app_settings = [ <span class="s">"content_settings.toml"</span>, <span class="s">"menu.toml"</span>, <span class="s">"waffles_settings.toml"</span> ]
+
+<span class="c"># waffles_settings.toml</span>
+[waffles]
+controlsIdleSeconds = <span class="n">4</span>
+[waffles.theme]               <span class="c"># seeds DsTheme</span>
+tonal0 = <span class="s">"#191F25"</span>
+accent = <span class="s">"#00ADF7"</span>
+glassTintOpacity = <span class="n">0.8</span>
+[waffles.viewer]
+minWidth = <span class="n">400</span>
+imageWidth = <span class="n">1400</span>
+[waffles.fullscreen]
+margin = <span class="n">0</span>
+scrimOpacity = <span class="n">0.6</span>
+<span class="c">#scrimBlur = 0.7        # optional; defaults to glassBlur</span>
+<span class="c">#scrimBlurMax = 48      # optional; defaults to glassBlurMax</span></code></pre>
+    <p>QML reads them through a <code>DsSettingsProxy</code> with the <code>waffles</code> prefix, so
+      <code>getFloat("viewer.minWidth")</code> resolves <code>waffles.viewer.minWidth</code>:</p>
+<pre><code><span class="k">DsSettingsProxy</span> { <span class="p">id</span>: appSettings; <span class="p">target</span>: <span class="s">"app_settings"</span>; <span class="p">prefix</span>: <span class="s">"waffles"</span> }</code></pre>
+    <div class="callout tip">
+      <span class="tag">Colours: token vs setting</span>
+      <p><code>DsTheme</code> <strong>seeds its Tier-1 primitives &amp; glass tokens from <code>[waffles.theme]</code></strong>
+      (via its own <code>DsSettingsProxy { prefix: "waffles.theme" }</code>), falling back to built-in
+      defaults; the semantic roles are still derived in <code>DsTheme</code>. So white-label colours live in
+      the TOML, while <code>DsTheme</code> remains the runtime source of truth (and is still writable for
+      runtime re-skinning). See <span class="path">settings_guide.md</span> for the full settings format.</p>
+    </div>
+
+    <div class="pager">
+      <a href="controls.html"><span class="dir">← Prev</span>4 · Controls</a>
+      <a class="next" href="demo-and-recipes.html"><span class="dir">Next →</span>6 · Demo &amp; recipes</a>
+    </div>
+  </div></main>
+</div>
+</body>
+</html>

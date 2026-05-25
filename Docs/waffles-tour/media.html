@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Media — Waffles Tour</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="layout">
+  <nav class="sidebar">
+    <div class="brand"><span class="logo">Waffles</span><span class="sub">source tour</span></div>
+    <div class="nav-group"><h4>Start here</h4><a href="index.html">Overview &amp; architecture</a></div>
+    <div class="nav-group"><h4>The pieces</h4>
+      <a href="stage.html">1 · The Stage</a>
+      <a href="viewers.html">2 · Viewers</a>
+      <a href="media.html" class="active">3 · Media</a>
+      <a href="controls.html">4 · Controls</a>
+      <a href="glass-and-theming.html">5 · Glass &amp; theming</a>
+    </div>
+    <div class="nav-group"><h4>Practical</h4><a href="demo-and-recipes.html">6 · Demo &amp; recipes</a></div>
+  </nav>
+
+  <main class="content"><div class="col">
+    <h1>3 · Media</h1>
+    <p class="lede">How a plain data <em>model</em> becomes the right on-screen element — image, animated
+      image, vector, video, web page or PDF — and how local &amp; network sources both "just work".</p>
+
+    <div class="files">
+      <h4>Key files</h4>
+      <ul>
+        <li><span class="path">Core/qml/ui/DsMediaViewer.qml</span> — the dispatcher (note: in <strong>Dsqt.Core</strong>)</li>
+        <li><span class="path">Waffles/qml/ui/DsVideoViewer.qml · DsWebViewer.qml · DsPdfViewer.qml</span> — per-type wrappers</li>
+      </ul>
+    </div>
+
+    <h2>The media model</h2>
+    <p>A viewer's <code>model.media</code> is a JS object describing the resource. Common keys:</p>
+<pre><code><span class="s">"media"</span>: {
+    <span class="s">"filepath"</span>: <span class="s">"%APP%/data/media/sample.pdf"</span>,  <span class="c">// local (%VAR% ok) or http(s) URL</span>
+    <span class="s">"type"</span>:     <span class="s">"pdf"</span>,        <span class="c">// image | video | web | pdf | vector | image sequence …</span>
+    <span class="s">"width"</span>:  <span class="n">612</span>, <span class="s">"height"</span>: <span class="n">792</span>, <span class="c">// natural size (drives aspect-fit sizing)</span>
+    <span class="s">"crop"</span>: [<span class="n">0</span>,<span class="n">0</span>,<span class="n">1</span>,<span class="n">1</span>]            <span class="c">// optional normalized crop rect</span>
+}</code></pre>
+
+    <h2><code>DsMediaViewer</code> — the dispatcher</h2>
+    <p><code>DsTitledMediaViewer.mediaView</code> contains a single <code>DsMediaViewer</code>. It looks at the
+      model's <code>type</code> (or, failing that, the file extension) and loads the matching element into an
+      internal <code>Loader</code>:</p>
+<pre><code><span class="k">function</span> <span class="p">getComponentForContent</span>() {
+    <span class="k">let</span> ctype = contentType || media.type || <span class="s">""</span>;
+    <span class="k">if</span> (ctype === <span class="s">"video"</span>)  <span class="k">return</span> _lazyLoad(<span class="s">"_videoComponent"</span>, <span class="s">"DsVideoViewer"</span>);
+    <span class="k">if</span> (ctype === <span class="s">"image"</span>)  <span class="k">return</span> isCropped ? imageComponent : animatedImageComponent;
+    <span class="k">if</span> (ctype === <span class="s">"web"</span>)    <span class="k">return</span> _lazyLoad(<span class="s">"_webComponent"</span>, <span class="s">"DsWebViewer"</span>);
+    <span class="k">if</span> (ctype === <span class="s">"pdf"</span>)    <span class="k">return</span> _lazyLoad(<span class="s">"_pdfComponent"</span>, <span class="s">"DsPdfViewer"</span>);
+    …
+    <span class="k">return</span> getComponentForExtension();  <span class="c">// .mp4/.jpg/.gif/.svg/.html/.pdf fallback</span>
+}</code></pre>
+    <table>
+      <tr><th>type / ext</th><th>element</th></tr>
+      <tr><td><code>image</code> (jpg/png/<strong>gif</strong>/webp…)</td><td><code>Image</code> if cropped, else <code>AnimatedImage</code> (so GIFs animate)</td></tr>
+      <tr><td><code>video</code> (mp4/mov/webm…)</td><td><code>DsVideoViewer</code></td></tr>
+      <tr><td><code>web</code> / <code>youtube</code> / http(s) / html</td><td><code>DsWebViewer</code></td></tr>
+      <tr><td><code>pdf</code></td><td><code>DsPdfViewer</code></td></tr>
+      <tr><td><code>vector</code> (svg/lottie)</td><td><code>VectorImage</code></td></tr>
+    </table>
+    <div class="callout gotcha">
+      <span class="tag">Lazy-load workaround</span>
+      <p>The per-type wrappers live in <strong>Dsqt.Waffles</strong> but <code>DsMediaViewer</code> is in
+      <strong>Dsqt.Core</strong> — Core can't statically import Waffles (would be a cycle). So it loads them
+      at runtime via <code>Qt.createComponent("Dsqt.Waffles", "DsVideoViewer")</code>. That's why
+      WebEngine/Pdf can be <em>optional</em> Qt components: if the type isn't built, the lazy load just
+      warns instead of failing the whole module.</p>
+    </div>
+
+    <h2>Source resolution — local <em>and</em> network</h2>
+    <p>The dispatcher keeps two strings: the raw <code>source</code> (for type/extension detection) and a
+      <code>resolvedSource</code> the actual elements load:</p>
+<pre><code><span class="p">readonly property string</span> source: media &amp;&amp; media.filepath ? media.filepath : <span class="s">""</span>
+<span class="p">readonly property url</span>    resolvedSource: source !== <span class="s">""</span> ? Ds.env.<span class="p">expandUrl</span>(source) : <span class="s">""</span></code></pre>
+    <p><code>Ds.env.expandUrl()</code> (from <span class="path">Dsqt.Core</span>) is the key: <code>http(s)</code> /
+      <code>qrc</code> / <code>file</code> URLs pass through unchanged, while bare local paths and <code>%VAR%</code>
+      paths (<code>%APP%</code>, <code>%LOCAL%</code>, …) are expanded and turned into proper <code>file://</code>
+      URLs. So the same code path handles a CMS http URL and a bundled <code>%APP%/data/...</code> file.</p>
+
+    <h2>Loading state &amp; the spinner</h2>
+    <p>The dispatcher exposes <code>loading</code>; the viewer shows a themed spinner (and a solid surface
+      fill) over the media region while it's <code>true</code>:</p>
+<pre><code><span class="p">onResolvedSourceChanged</span>: loading = (String(resolvedSource).length &gt; <span class="n">0</span>)
+<span class="p">onMediaLoaded</span>:           loading = <span class="k">false</span>
+<span class="c">// each element emits mediaLoaded: images on full progress, video on buffered,</span>
+<span class="c">// web on LoadSucceeded, pdf when the page is rendered.</span></code></pre>
+
+    <h2>Handles for the controls</h2>
+    <p>So the media-controls UI can drive playback/navigation without knowing the concrete type, the
+      dispatcher exposes:</p>
+    <table>
+      <tr><th>Property</th><th>Use</th></tr>
+      <tr><td><code>mediaType</code></td><td><code>"video"/"image"/"web"/"pdf"/"vector"/""</code> — which control row to show</td></tr>
+      <tr><td><code>mediaItem</code></td><td>the loaded element itself (drive it directly)</td></tr>
+      <tr><td><code>isVideo</code> / <code>videoItem</code></td><td>convenience for the most common case</td></tr>
+    </table>
+
+    <h2>The per-type wrappers (<code>ui/</code>)</h2>
+    <p>Each wrapper is thin: it adapts a Qt element to the common interface the dispatcher/controls
+      expect (a <code>source</code>, a <code>mediaLoaded()</code> signal, and <code>renderedWidth/Height/OffsetX/OffsetY</code>
+      for letterbox-aware overlays).</p>
+
+    <h3><code>DsVideoViewer</code> (QtMultimedia <code>Video</code>)</h3>
+<pre><code><span class="k">Video</span> {
+    <span class="p">property bool</span> loading: <span class="k">true</span>
+    <span class="p">signal</span> mediaLoaded()
+    <span class="p">onBufferProgressChanged</span>: <span class="k">if</span> (loading &amp;&amp; bufferProgress &gt;= <span class="n">1</span>) { loading = <span class="k">false</span>; mediaLoaded() }
+    <span class="c">// hold the last frame at end-of-stream instead of clearing to black:</span>
+    <span class="p">endOfStreamPolicy</span>: VideoOutput.KeepLastFrame
+}</code></pre>
+    <p>The controls drive it via the standard <code>Video</code> API: <code>position</code> (writable → seek),
+      <code>duration</code>, <code>playbackState</code>, <code>volume</code>/<code>muted</code>, <code>play()/pause()</code>, and
+      <code>loops</code> (set to <code>MediaPlayer.Infinite</code> to loop).</p>
+
+    <h3><code>DsWebViewer</code> (<code>WebEngineView</code>)</h3>
+    <p>Two non-obvious things here:</p>
+    <ul>
+      <li>WebEngineView's URL property is <code>url</code>, not <code>source</code> — so the wrapper exposes a
+        <code>source</code> and forwards it: <code>onSourceChanged: root.url = source</code>. (Without this the page
+        never loads.)</li>
+      <li>WebEngine's GPU compositing needs a compatible QSG backend — the app runs <strong>Direct3D11</strong>
+        (set in <span class="path">Examples/AssetViewer/main.cpp</span> via <code>DsGuiApplication::configureGraphics</code>).
+        On Vulkan the web view renders broken.</li>
+    </ul>
+    <p>The web controls use the built-in <code>canGoBack/canGoForward/goBack()/goForward()/reload()</code>.</p>
+
+    <h3><code>DsPdfViewer</code> (<code>PdfScrollablePageView</code>)</h3>
+    <p>A self-contained single-page view that centers &amp; fits one page (navigate with the controls).
+      It exposes the page API the controls need and fits robustly:</p>
+<pre><code><span class="p">readonly property int</span> pageCount:   pdfDoc.pageCount
+<span class="p">readonly property int</span> currentPage: pdfView.currentPage   <span class="c">// 0-based</span>
+<span class="p">function</span> goToPage(n) { pdfView.<span class="p">goToPage</span>(clamp(n)) }
+
+<span class="p">onWidthChanged</span>: pdfView.fitToView()      <span class="c">// refit on resize (e.g. fullscreen)</span>
+<span class="p">onStatusChanged</span>: <span class="k">if</span> (status === Image.Ready &amp;&amp; !loaded) { loaded = <span class="k">true</span>; fitToView(); mediaLoaded() }</code></pre>
+    <div class="callout gotcha">
+      <span class="tag">Why key "loaded" off <code>Image.Ready</code></span>
+      <p>A <code>PdfDocument</code> loads asynchronously, so at <code>Component.onCompleted</code> the page count
+      is still 0. Initialise the view (fit + go-to-page + emit <code>mediaLoaded</code>) when the
+      <em>page render</em> reaches <code>Image.Ready</code>, not at completion — otherwise the page never
+      fits to the frame and the loading spinner never clears.</p>
+    </div>
+
+    <div class="pager">
+      <a href="viewers.html"><span class="dir">← Prev</span>2 · Viewers</a>
+      <a class="next" href="controls.html"><span class="dir">Next →</span>4 · Controls</a>
+    </div>
+  </div></main>
+</div>
+</body>
+</html>

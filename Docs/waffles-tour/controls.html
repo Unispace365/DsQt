@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Controls — Waffles Tour</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="layout">
+  <nav class="sidebar">
+    <div class="brand"><span class="logo">Waffles</span><span class="sub">source tour</span></div>
+    <div class="nav-group"><h4>Start here</h4><a href="index.html">Overview &amp; architecture</a></div>
+    <div class="nav-group"><h4>The pieces</h4>
+      <a href="stage.html">1 · The Stage</a>
+      <a href="viewers.html">2 · Viewers</a>
+      <a href="media.html">3 · Media</a>
+      <a href="controls.html" class="active">4 · Controls</a>
+      <a href="glass-and-theming.html">5 · Glass &amp; theming</a>
+    </div>
+    <div class="nav-group"><h4>Practical</h4><a href="demo-and-recipes.html">6 · Demo &amp; recipes</a></div>
+  </nav>
+
+  <main class="content"><div class="col">
+    <h1>4 · Controls</h1>
+    <p class="lede">Control sets are groups of buttons/widgets that dock to a viewer's edges. The same
+      per-type media controls are reused windowed and in the fullscreen controller, and "inner"
+      controls auto-hide when idle.</p>
+
+    <div class="files">
+      <h4>Key files</h4>
+      <ul>
+        <li><span class="path">waffles/media_viewer/DsControlSet.qml</span> — base type for a control group</li>
+        <li><span class="path">ux/DsMediaControls.qml</span> — per-type transport/nav (video/pdf/web)</li>
+        <li><span class="path">ux/TopOuterControls.qml · RightOuterControls.qml</span> — title &amp; corner buttons</li>
+        <li><span class="path">ux/IconButton.qml · DsCtrlIcon.qml · CloseButton.qml · FullscreenButton.qml</span></li>
+        <li><span class="path">waffles/DsController.qml</span> — base for fullscreen controllers (contract + frosted glass)</li>
+        <li><span class="path">ux/FullscreenController.qml</span> — the docked fullscreen bar (media viewers)</li>
+      </ul>
+    </div>
+
+    <h2><code>DsControlSet</code> — the base</h2>
+    <p>Every control group derives from <code>DsControlSet</code>. It declares the contract the viewer uses
+      to place &amp; drive it:</p>
+<pre><code><span class="k">Item</span> {
+    <span class="p">enum</span> Edge { TopInner, TopOuter, LeftInner, LeftOuter, BottomInner, BottomOuter,
+                RightInner, RightOuter, Center, CenterBack }
+    <span class="p">required property int</span> edge        <span class="c">// where it docks</span>
+    <span class="p">property var</span>  config, model           <span class="c">// set by the viewer (from its model)</span>
+    <span class="p">property var</span>  glass: <span class="k">null</span>            <span class="c">// the viewer's glassContext (match the chrome)</span>
+    <span class="p">property var</span>  signalObject: <span class="k">null</span>     <span class="c">// usually the viewer (buttons call it)</span>
+    <span class="p">property real</span> offset                  <span class="c">// gap from the edge</span>
+    <span class="p">signal</span> interacted()                  <span class="c">// "user touched me" → resets idle auto-hide</span>
+
+    <span class="c">// control sets start hidden and fade; visible follows opacity so a faded</span>
+    <span class="c">// control doesn't keep eating input.</span>
+    <span class="p">opacity</span>: <span class="n">0</span>
+    <span class="p">visible</span>: opacity &gt; <span class="n">0</span>
+    <span class="k">Behavior</span> <span class="k">on</span> opacity { <span class="k">NumberAnimation</span> { <span class="p">duration</span>: <span class="n">200</span> } }
+}</code></pre>
+
+    <h2>Edges &amp; how a control set is placed</h2>
+    <p>The viewer's <code>setControls()</code> walks its <code>controls</code> list and re-parents each one into an
+      edge "holder" by its <code>edge</code>, binding width/height/offset. The holders sit relative to the
+      media region:</p>
+    <figure class="svgfig">
+      <svg viewBox="0 0 720 470" role="img" aria-label="Control-set edges around a media viewer: outer edges (TopOuter, BottomOuter, LeftOuter, RightOuter) sit around the media; inner edges (TopInner, BottomInner, LeftInner, RightInner) and Center overlay the content; CenterBack is the layer behind the media.">
+        <!-- viewer footprint -->
+        <rect x="60" y="40" width="600" height="360" rx="14" fill="none" stroke="#5D6166" stroke-width="1.5" stroke-dasharray="7 6"/>
+        <text x="62" y="32" font-family="Segoe UI, Roboto, sans-serif" font-size="11" fill="#6b7780">viewer footprint</text>
+        <!-- CenterBack: the layer behind the media -->
+        <rect x="210" y="130" width="320" height="200" rx="8" fill="#00ADF7" fill-opacity="0.05" stroke="#3a4147" stroke-dasharray="4 4"/>
+        <!-- media region -->
+        <rect x="200" y="120" width="320" height="200" rx="8" fill="#161c22" stroke="#454A4F" stroke-width="1.5"/>
+        <text x="208" y="140" font-family="Segoe UI, Roboto, sans-serif" font-size="11" fill="#6b7780">media region</text>
+        <line x1="528" y1="326" x2="540" y2="326" stroke="#6b7780" stroke-width="1"/>
+        <text x="544" y="330" font-family="Segoe UI, Roboto, sans-serif" font-size="11" fill="#76797E">CenterBack</text>
+
+        <!-- outer edges (around the media) -->
+        <g font-family="Segoe UI, Roboto, sans-serif" font-size="12.5" text-anchor="middle">
+          <rect x="300" y="64"  width="120" height="30" rx="6" fill="#20262c" stroke="#454A4F"/>
+          <text x="360" y="83"  fill="#aeb4ba">TopOuter</text>
+          <rect x="300" y="345" width="120" height="30" rx="6" fill="#20262c" stroke="#454A4F"/>
+          <text x="360" y="364" fill="#aeb4ba">BottomOuter</text>
+          <rect x="74"  y="205" width="112" height="30" rx="6" fill="#20262c" stroke="#454A4F"/>
+          <text x="130" y="224" fill="#aeb4ba">LeftOuter</text>
+          <rect x="534" y="205" width="112" height="30" rx="6" fill="#20262c" stroke="#454A4F"/>
+          <text x="590" y="224" fill="#aeb4ba">RightOuter</text>
+        </g>
+
+        <!-- inner edges + center (over the content) -->
+        <g font-family="Segoe UI, Roboto, sans-serif" font-size="13" text-anchor="middle">
+          <rect x="314" y="132" width="92" height="28" rx="6" fill="#00ADF7" fill-opacity="0.16" stroke="#00ADF7"/>
+          <text x="360" y="150" fill="#cdeefc">TopInner</text>
+          <rect x="314" y="279" width="92" height="28" rx="6" fill="#00ADF7" fill-opacity="0.16" stroke="#00ADF7"/>
+          <text x="360" y="297" fill="#cdeefc">BottomInner</text>
+          <rect x="212" y="206" width="92" height="28" rx="6" fill="#00ADF7" fill-opacity="0.16" stroke="#00ADF7"/>
+          <text x="258" y="224" fill="#cdeefc">LeftInner</text>
+          <rect x="416" y="206" width="92" height="28" rx="6" fill="#00ADF7" fill-opacity="0.16" stroke="#00ADF7"/>
+          <text x="462" y="224" fill="#cdeefc">RightInner</text>
+          <rect x="314" y="206" width="92" height="28" rx="6" fill="#00ADF7" fill-opacity="0.16" stroke="#00ADF7"/>
+          <text x="360" y="224" fill="#cdeefc">Center</text>
+        </g>
+      </svg>
+      <figcaption>
+        <span class="swatch" style="background:rgba(0,173,247,.18);border:1px solid #00ADF7"></span>
+        <strong>Inner</strong> edges &amp; <strong>Center</strong> overlay the content (these auto-hide when idle).
+        <span class="swatch" style="background:#20262c;border:1px solid #454A4F"></span>
+        <strong>Outer</strong> edges sit around the media (shown while the viewer is selected).
+        <strong>CenterBack</strong> is the layer behind the media — used for the media glass.
+      </figcaption>
+    </figure>
+    <p><strong>Outer</strong> edges sit <em>around</em> the media (not covering it); <strong>inner</strong> edges sit
+      <em>over</em> the content. That distinction drives idle auto-hide (below).</p>
+
+    <h2>The buttons</h2>
+    <table>
+      <tr><th>Type</th><th>What it is</th></tr>
+      <tr><td><code>IconButton</code></td><td>a <code>Button</code> with a <code>DsGlassBackground</code> and a colourised <code>VectorImage</code> icon; rounds the corners that face "out" based on its <code>edge</code></td></tr>
+      <tr><td><code>FullscreenButton</code> / <code>CloseButton</code></td><td><code>IconButton</code>s that call <code>signalObject.toggleFullscreen()</code> / <code>signalObject.close()</code> — i.e. they ask the viewer, which asks the stage</td></tr>
+      <tr><td><code>DsCtrlIcon</code></td><td>a flat (no background) centred, colourised icon used inside <code>DsMediaControls</code>; dims when disabled, tints to <code>accent</code> when <code>active</code></td></tr>
+    </table>
+    <div class="callout concept">
+      <span class="tag">Icons are colourised SVGs</span>
+      <p>Icons are SVGs drawn through <code>VectorImage</code> + a <code>MultiEffect</code> with
+      <code>colorization: 1.0; colorizationColor: DsTheme.surfaceText</code> — so one white SVG re-tints to
+      the theme (or to <code>accent</code> when active). Icon assets live under
+      <span class="path">%APP%/data/images/waffles/</span> (<code>window/</code> for chrome, <code>media/</code> for transport).</p>
+    </div>
+
+    <h2><code>DsMediaControls</code> — per-type controls, windowed &amp; fullscreen</h2>
+    <p>This is the transport/navigation bar. It <em>is</em> a <code>DsControlSet</code> and it dispatches on the
+      media type, showing nothing for images:</p>
+    <table>
+      <tr><th>mediaType</th><th>row</th></tr>
+      <tr><td>video / audio</td><td>play/pause · scrubber · loop · mute · volume</td></tr>
+      <tr><td>pdf</td><td>page label · prev · page slider · next · lock</td></tr>
+      <tr><td>web</td><td>keyboard&nbsp;(stub) · back · forward · reload · lock</td></tr>
+      <tr><td>image</td><td>— (hidden)</td></tr>
+    </table>
+<pre><code><span class="k">DsControlSet</span> {
+    <span class="p">id</span>: mc
+    <span class="p">property bool</span> chrome: <span class="k">true</span>      <span class="c">// draw own glass pill (windowed) vs none (in FS bar)</span>
+    <span class="p">readonly property var</span>    item:  mv ? mv.mediaItem : <span class="k">null</span>
+    <span class="p">readonly property string</span> mtype: mv ? mv.mediaType : <span class="s">""</span>
+    <span class="p">visible</span>: hasControls &amp;&amp; opacity &gt; <span class="n">0</span>
+
+    <span class="k">Loader</span> { <span class="p">sourceComponent</span>: mtype===<span class="s">"video"</span> ? videoComp : mtype===<span class="s">"pdf"</span> ? pdfComp
+                                            : mtype===<span class="s">"web"</span> ? webComp : <span class="k">null</span> }
+    <span class="c">// each row drives `item` directly, e.g. item.play(), item.goToPage(n), item.goBack()</span>
+    <span class="c">// and calls mc.interacted() (poke) on every press so the idle timer resets.</span>
+}</code></pre>
+    <p>Because it's bound to <code>signalObject</code> (the viewer) it can reach <code>viewer.mediaViewer</code>
+      (the dispatcher) for <code>mediaItem</code>/<code>mediaType</code>, and <code>viewer.contentLocked</code> for the lock
+      toggle. The <strong>lock</strong> button flips <code>contentLocked</code> so an interactive web/pdf stops
+      eating input and the viewer can be dragged.</p>
+
+    <h2>Idle auto-hide (inner controls only)</h2>
+    <p>Controls that sit <em>over</em> the content get in the way, so inner control sets fade out after an
+      idle period and return on interaction. Outer controls (title, corner buttons) do <strong>not</strong>
+      auto-hide — they show whenever the viewer is selected. The logic lives in the viewer:</p>
+<pre><code><span class="p">property int</span>  controlsIdleMs: stage ? stage.controlsIdleMs : <span class="n">4000</span>
+<span class="p">property bool</span> controlsAwake: <span class="k">true</span>
+<span class="k">Timer</span> { <span class="p">id</span>: idleTimer; <span class="p">interval</span>: controlsIdleMs; <span class="p">onTriggered</span>: controlsAwake = <span class="k">false</span> }
+
+<span class="k">function</span> <span class="p">wake</span>() { controlsAwake = <span class="k">true</span>; idleTimer.restart(); _applyControls(); }
+<span class="c">// wake() is called from: body press, HoverHandler.onPointChanged, onX/YChanged (drag),</span>
+<span class="c">// and each control set's `interacted` signal (connected once at creation).</span></code></pre>
+    <div class="callout gotcha">
+      <span class="tag">A no-op property write emits no signal</span>
+      <p>Writing a property the value it already holds fires no <code>…Changed</code> signal — so don't rely
+      on <code>onXChanged</code> to re-run logic after such a write; call the apply function directly (which
+      is why <code>wake()</code> re-applies visibility itself rather than leaning on <code>onControlsAwakeChanged</code>).
+      Also: faded control sets set <code>visible:false</code>, so a tap "through" them reaches the viewer and
+      wakes them.</p>
+    </div>
+    <p>Configure the timeout with <code>waffles.controlsIdleSeconds</code> (default 4; <code>0</code> disables).</p>
+
+    <h2>The fullscreen controller</h2>
+    <p>When a viewer goes fullscreen, its own controls hide and the stage shows a
+      <code>FullscreenController</code> — a docked bar carrying the title, the same <code>DsMediaControls</code>,
+      and the window buttons. It is <strong>moveable and collapsible</strong>, and does <strong>not</strong>
+      auto-hide (those affordances replace fading):</p>
+    <div class="diagram">┌──┐  ┌──────────────────────────────────────────────────────┐
+│◧ │  │  Title                                                  │   collapse tab on the left
+│  │  │  ▶  ──────●─────────  ↻  🔊 ──●──   ⤢   ✕             │   title + DsMediaControls + window btns
+└──┘  └──────────────────────────────────────────────────────┘</div>
+    <ul>
+      <li><strong>Built on <code>DsController</code>:</strong> the controller <em>contract</em> lives in
+        <code>waffles/DsController.qml</code> — the stage drives <code>viewer</code> / <code>shown</code> /
+        <code>collapsed</code>, and the base supplies a <strong>frosted <code>glassContext</code></strong> that
+        samples the fullscreen viewer's own content, so the bar &amp; tab are real glass over the media
+        (a solid colour when glass is off), not a flat scrim.</li>
+      <li><strong>Moveable:</strong> the controller's origin (0,0) is the centre of the collapse tab, so
+        the tab stays put through collapse/expand; a <code>DragHandler</code> on the tab and one on the bar
+        (any non-interactive part — title, gaps, or an image's empty controls area) move it, clamped to
+        the stage.</li>
+      <li><strong>Collapsible:</strong> the left tab toggles <code>collapsed</code>; collapsed shows only the
+        tab and the bar is dropped.</li>
+      <li><strong>Per type:</strong> the stage picks the controller component by viewer type
+        (<code>fullscreenController</code> / <code>presentationController</code>); a new look is just another
+        <code>DsController</code> subclass pointed at by the stage. The embedded <code>DsMediaControls</code>
+        runs with <code>chrome:false</code> so it has no pill of its own.</li>
+    </ul>
+
+    <div class="callout tip">
+      <span class="tag">Adding a button to a viewer</span>
+      <p>Make an <code>IconButton</code> (or reuse one), drop it into a control set (e.g.
+      <code>RightOuterControls</code>), and either call <code>signalObject.something()</code> or emit a signal the
+      viewer/stage handles. Then make sure the control set emits <code>interacted()</code> on press so it
+      participates in idle auto-hide. Full recipe on the <a href="demo-and-recipes.html">recipes</a> page.</p>
+    </div>
+
+    <div class="pager">
+      <a href="media.html"><span class="dir">← Prev</span>3 · Media</a>
+      <a class="next" href="glass-and-theming.html"><span class="dir">Next →</span>5 · Glass &amp; theming</a>
+    </div>
+  </div></main>
+</div>
+</body>
+</html>

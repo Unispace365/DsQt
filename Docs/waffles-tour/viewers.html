@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Viewers — Waffles Tour</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="layout">
+  <nav class="sidebar">
+    <div class="brand"><span class="logo">Waffles</span><span class="sub">source tour</span></div>
+    <div class="nav-group"><h4>Start here</h4><a href="index.html">Overview &amp; architecture</a></div>
+    <div class="nav-group"><h4>The pieces</h4>
+      <a href="stage.html">1 · The Stage</a>
+      <a href="viewers.html" class="active">2 · Viewers</a>
+      <a href="media.html">3 · Media</a>
+      <a href="controls.html">4 · Controls</a>
+      <a href="glass-and-theming.html">5 · Glass &amp; theming</a>
+    </div>
+    <div class="nav-group"><h4>Practical</h4><a href="demo-and-recipes.html">6 · Demo &amp; recipes</a></div>
+  </nav>
+
+  <main class="content"><div class="col">
+    <h1>2 · Viewers</h1>
+    <p class="lede">A viewer is one draggable "window" on the stage. <code>DsViewer</code> defines the
+      contract every stage-hosted item must satisfy; <code>DsTitledMediaViewer</code> is the real media
+      viewer built on top of it.</p>
+
+    <div class="files">
+      <h4>Key files</h4>
+      <ul>
+        <li><span class="path">waffles/DsViewer.qml</span> — the base contract</li>
+        <li><span class="path">waffles/media_viewer/DsTitledMediaViewer.qml</span> — the media viewer behaviour</li>
+        <li><span class="path">ux/TitledMediaViewer.qml</span> — assembles the viewer + its control sets (the skin)</li>
+      </ul>
+    </div>
+
+    <h2>The <code>DsViewer</code> contract</h2>
+    <p>Everything the stage hosts (media viewers, the launcher, future controllers) derives from
+      <code>DsViewer</code>. It carries the properties &amp; signals the stage relies on:</p>
+<pre><code><span class="k">Item</span> {
+    <span class="p">enum</span> ViewerType { TitledMediaViewer, Launcher, PresentationController, FullscreenController, Unknown }
+    <span class="p">enum</span> Anim       { None, Fade, Grow, GrowBounce, FadeRise }
+
+    <span class="p">property int</span>  viewerType: DsViewer.ViewerType.Unknown
+    <span class="p">property int</span>  viewerWidth: <span class="n">400</span>
+    <span class="p">property int</span>  viewerHeight: <span class="n">300</span>
+
+    <span class="c">// the stage assigns this: a stage-sized item of everything below this viewer.</span>
+    <span class="p">property Item</span> backdropSource: <span class="k">null</span>
+    <span class="c">// what the stage captures into OTHER viewers' slots (must be glass-free, at 0,0).</span>
+    <span class="p">property Item</span> captureItem: dsViewer
+
+    <span class="c">// enter/exit animation config (defaulted by the stage, overridable per viewer).</span>
+    <span class="p">property int</span>  enterAnimation: DsViewer.Anim.Fade
+    <span class="p">property int</span>  exitAnimation:  DsViewer.Anim.Fade
+    <span class="p">property int</span>  animationDuration: <span class="n">300</span>
+
+    <span class="p">signal</span> closeRequested()
+    <span class="p">signal</span> fullscreenRequested(<span class="k">bool</span> wantFullscreen)
+    <span class="p">function</span> toggleFullscreen() { fullscreenRequested(!fullscreen) }
+    <span class="p">property bool</span>   fullscreen: <span class="k">false</span>
+    <span class="p">property string</span> fullscreenScrim: <span class="s">"auto"</span>   <span class="c">// auto | blur | tint | none</span>
+
+    <span class="p">function</span> playEnter() { … }
+    <span class="p">function</span> playExit(onDone) { … }
+}</code></pre>
+    <table>
+      <tr><th>Member</th><th>Who sets it</th><th>Who reads it</th></tr>
+      <tr><td><code>viewerWidth/Height</code></td><td>the viewer (sizing logic) / creator</td><td>the viewer's layout; the stage's fullscreen fit</td></tr>
+      <tr><td><code>backdropSource</code></td><td><strong>the stage</strong> (<code>rebuildGlass</code>)</td><td>the viewer's glass, to sample its slice</td></tr>
+      <tr><td><code>captureItem</code></td><td>the viewer (overrides to its glass-free layer)</td><td>the stage, to composite this viewer into others' slots</td></tr>
+      <tr><td><code>closeRequested / fullscreenRequested</code></td><td>the viewer's buttons</td><td>the stage (performs the action)</td></tr>
+    </table>
+
+    <h3>Enter / exit animations</h3>
+    <p>One reusable <code>ParallelAnimation</code> drives all styles; <code>playEnter()/playExit()</code> set up
+      opacity / scale / a translate offset for the chosen <code>Anim</code> and run it. A separate
+      <code>transform: Translate</code> is used for the rise/sink so it doesn't fight dragging (which writes
+      <code>x</code>/<code>y</code> directly). The stage calls <code>playEnter()</code> after creating a viewer and
+      <code>playExit(cb)</code> before destroying it.</p>
+
+    <h2><code>DsTitledMediaViewer</code> — the media viewer</h2>
+    <p>This is where most viewer behaviour lives. Its visual tree is a single <code>contentLayer</code>
+      (the capture target) containing the media region and the edge "holders" that control sets dock into:</p>
+    <div class="diagram">DsTitledMediaViewer (DsViewer)
+└── contentLayer            ← captureItem (glass-free; what other viewers' glass samples)
+    ├── mediaGlass          DsGlassBackground for the media region (off by default)
+    ├── lock overlay        swallows input when contentLocked (so you can drag locked web/pdf)
+    ├── body MouseArea      drag + select + "wake" the controls
+    ├── mediaView           the DsMediaViewer (image/video/web/pdf)
+    ├── loading fill + spinner
+    └── edge holders:  topOuter / topInner / bottomOuter / bottomInner /
+                       leftOuter / leftInner / rightOuter / rightInner / background</div>
+
+    <div class="callout concept">
+      <span class="tag">captureItem = contentLayer</span>
+      <p>The viewer sets <code>captureItem: contentLayer</code>. The stage composites <em>that</em> (media +
+      controls, but <strong>not</strong> the viewer's own glass) into the slots other viewers sample —
+      so an upper viewer's glass shows the lower viewers <em>with their chrome</em>, without feedback
+      loops. This is the "compound glass" trick.</p>
+    </div>
+
+    <h3>Sizing config</h3>
+    <p>How big a viewer opens is declarative. The relevant properties (defaulted from the stage's
+      settings, overridable at creation):</p>
+    <table>
+      <tr><th>Property</th><th>Meaning</th></tr>
+      <tr><td><code>sizeToMedia</code></td><td>size the viewer to the media's natural dimensions</td></tr>
+      <tr><td><code>matchAspectRatio</code></td><td>preserve the media aspect ratio; base width is <code>imageWidth</code></td></tr>
+      <tr><td><code>imageWidth</code></td><td>the target width when fitting to aspect (default from <code>waffles.viewer.imageWidth</code>)</td></tr>
+      <tr><td><code>minWidth/maxWidth/minHeight/maxHeight</code></td><td>clamp bounds (default from <code>waffles.viewer.*</code>)</td></tr>
+    </table>
+<pre><code><span class="k">function</span> <span class="p">applySizing</span>() {
+    <span class="k">let</span> mw = media.width  || viewerWidth,  mh = media.height || viewerHeight;
+    <span class="k">let</span> w = sizeToMedia ? mw : (matchAspectRatio ? imageWidth : viewerWidth);
+    <span class="k">let</span> h = …;
+    <span class="k">if</span> (matchAspectRatio &amp;&amp; mw &gt; <span class="n">0</span> &amp;&amp; mh &gt; <span class="n">0</span>) { <span class="c">// fit w/h to aspect, then clamp to [min,max] …</span> }
+    viewerWidth = Math.round(w); viewerHeight = Math.round(h);
+}</code></pre>
+    <p>Called on <code>Component.onCompleted</code> and whenever a sizing input changes.</p>
+
+    <h3>Selection &amp; control visibility</h3>
+    <p>The stage sets <code>selected</code>. The viewer maps selection (and fullscreen, and an idle timer)
+      onto which control sets are visible:</p>
+<pre><code><span class="p">property bool</span> selected: <span class="k">false</span>
+<span class="p">property bool</span> controlsAwake: <span class="k">true</span>      <span class="c">// reset by interaction; cleared by the idle timer</span>
+
+<span class="k">function</span> <span class="p">_applyControls</span>() {
+    <span class="k">let</span> base = selected &amp;&amp; !fullscreen;            <span class="c">// outer controls follow this</span>
+    <span class="k">let</span> innerOn = base &amp;&amp; (controlsAwake || controlsIdleMs &lt;= <span class="n">0</span>); <span class="c">// inner also idle-hide</span>
+    <span class="k">for</span> (…controls…) c.opacity = (_edgeIsInner(c.edge) ? innerOn : base) ? <span class="n">1</span> : <span class="n">0</span>;
+}</code></pre>
+    <p>So <strong>outer</strong> controls (title, corner buttons) show while selected; <strong>inner</strong>
+      controls (over the content, e.g. the transport bar) additionally fade after idle and return on
+      interaction. In <em>fullscreen</em>, the viewer hides its own controls and the stage's fullscreen
+      controller carries them. (Full detail on the <a href="controls.html">Controls</a> page.)</p>
+
+    <h3>Content lock</h3>
+    <p>Interactive media (web/pdf) grabs input, which would block dragging the viewer. The
+      <code>contentLocked</code> flag raises an input-swallowing <code>MouseArea</code> over the media so a locked
+      viewer can be moved/used as a panel; the media controls' lock button toggles it.</p>
+
+    <h3>How controls get their glass</h3>
+    <p>The viewer hands its control sets a <code>glassContext</code> object — the source slot, the viewer's
+      geometry, the tint/blur/border tokens, and a <code>refresh</code> tick. A control set drops a
+      <code>DsGlassBackground</code> bound to that context and it self-samples the right slice (see
+      <a href="glass-and-theming.html">Glass &amp; theming</a>). The <code>refresh</code> tick is bumped after
+      layout because the glass origin is computed with <code>mapToItem</code>, which isn't reactive to the
+      controls being re-parented into their edge holders.</p>
+
+    <h2>The assembly: <code>ux/TitledMediaViewer.qml</code></h2>
+    <p><code>DsTitledMediaViewer</code> defines <em>behaviour</em> but ships with no controls. The
+      <code>ux/</code> assembly is the skin that lists which control sets to mount and wires them to the
+      viewer's <code>signalObject</code> (itself):</p>
+<pre><code><span class="k">DsTitledMediaViewer</span> {
+    <span class="p">id</span>: viewer
+    <span class="p">controls</span>: [
+        <span class="k">TopOuterControls</span>   { <span class="p">signalObject</span>: viewer.signalObject; <span class="p">model</span>: viewer.model
+                              <span class="k">DragHandler</span> { <span class="p">target</span>: viewer } },   <span class="c">// drag by the title</span>
+        <span class="k">RightOuterControls</span> { <span class="p">signalObject</span>: viewer.signalObject },     <span class="c">// fullscreen + close</span>
+        <span class="k">DsMediaControls</span>    { <span class="p">edge</span>: DsControlSet.Edge.BottomInner; <span class="p">offset</span>: <span class="n">40</span>
+                              <span class="p">signalObject</span>: viewer.signalObject }      <span class="c">// per-type transport</span>
+    ]
+}</code></pre>
+    <div class="callout tip">
+      <span class="tag">Want a different chrome?</span>
+      <p>Copy <code>ux/TitledMediaViewer.qml</code>, change the <code>controls:</code> list (add/remove control
+      sets, swap edges), register your file, and point <code>DsWaffleStage.viewer</code> at it. The
+      <code>waffles/</code> behaviour stays untouched.</p>
+    </div>
+
+    <div class="pager">
+      <a href="stage.html"><span class="dir">← Prev</span>1 · The Stage</a>
+      <a class="next" href="media.html"><span class="dir">Next →</span>3 · Media</a>
+    </div>
+  </div></main>
+</div>
+</body>
+</html>

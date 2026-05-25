@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Stage — Waffles Tour</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="layout">
+  <nav class="sidebar">
+    <div class="brand"><span class="logo">Waffles</span><span class="sub">source tour</span></div>
+    <div class="nav-group"><h4>Start here</h4><a href="index.html">Overview &amp; architecture</a></div>
+    <div class="nav-group"><h4>The pieces</h4>
+      <a href="stage.html" class="active">1 · The Stage</a>
+      <a href="viewers.html">2 · Viewers</a>
+      <a href="media.html">3 · Media</a>
+      <a href="controls.html">4 · Controls</a>
+      <a href="glass-and-theming.html">5 · Glass &amp; theming</a>
+    </div>
+    <div class="nav-group"><h4>Practical</h4><a href="demo-and-recipes.html">6 · Demo &amp; recipes</a></div>
+  </nav>
+
+  <main class="content"><div class="col">
+    <h1>1 · The Stage</h1>
+    <p class="lede"><code>DsWaffleStage</code> is the root you put in your scene. It owns the layer of
+      viewers, the live glass "slots", the fullscreen transition, and the selection/z-order logic.</p>
+
+    <div class="files">
+      <h4>Key file</h4>
+      <ul><li><span class="path">Library/DsQt/Waffles/qml/waffles/DsWaffleStage.qml</span></li></ul>
+    </div>
+
+    <h2>Putting a stage on screen</h2>
+    <p>You give the stage your app content via <code>backgroundContent</code> and then ask it to open
+      viewers. Minimal usage (see the demo's <span class="path">MainView.qml</span> for the real thing):</p>
+<pre><code><span class="k">DsWaffleStage</span> {
+    <span class="p">id</span>: stage
+    <span class="p">anchors.fill</span>: parent
+
+    <span class="c">// Everything below the viewers, and captured by the glass.</span>
+    <span class="p">backgroundContent</span>: [
+        <span class="k">AnimatedBackground</span> { <span class="p">anchors.fill</span>: parent },
+        <span class="k">MyGalleryUI</span> { <span class="p">anchors.fill</span>: parent }
+    ]
+}
+
+<span class="c">// Open a viewer from anywhere that can see `stage`:</span>
+stage.<span class="p">createViewer</span>({
+    <span class="s">"model"</span>: { <span class="s">"title"</span>: <span class="s">"Hello"</span>,
+               <span class="s">"media"</span>: { <span class="s">"filepath"</span>: <span class="s">"%APP%/data/x.jpg"</span>, <span class="s">"type"</span>: <span class="s">"image"</span>, <span class="s">"width"</span>: <span class="n">1200</span>, <span class="s">"height"</span>: <span class="n">800</span> } },
+    <span class="s">"matchAspectRatio"</span>: true,
+    <span class="s">"stage"</span>: stage
+});</code></pre>
+
+    <h2>The three layers</h2>
+    <p>Inside the stage, three sibling <code>Item</code>s stack up. Order matters:</p>
+    <table>
+      <tr><th>Layer (id)</th><th>What it holds</th><th>Why</th></tr>
+      <tr><td><code>glassSlotHolder</code></td><td>the live composite "slots"</td><td>must be in the render tree so its live <code>ShaderEffectSource</code>s keep updating; sits at the very back, hidden behind the backdrop</td></tr>
+      <tr><td><code>backdrop</code></td><td><code>backgroundContent</code> (alias)</td><td>your app content; this is the bottom of the glass stack — the deepest viewer samples it directly</td></tr>
+      <tr><td><code>topLayer</code> (z:1)</td><td>viewers, launcher, fullscreen scrim</td><td>kept above any backdrop content; its <code>onChildrenChanged</code> rebuilds the glass chain</td></tr>
+    </table>
+    <div class="callout concept">
+      <span class="tag">backgroundContent is an alias</span>
+      <p><code>property alias backgroundContent: backdrop.data</code> — assigning to it parents your items
+      into the <code>backdrop</code> layer, where they're both <em>shown</em> and <em>captured into the glass</em>.</p>
+    </div>
+
+    <h2>The viewer lifecycle</h2>
+    <p>Viewers are created from a <code>Component</code> the stage holds, and parented into <code>topLayer</code>.
+      The default viewer type is the demo skin <code>TitledMediaViewer</code> (a <code>ux/</code> file):</p>
+<pre><code><span class="p">property Component</span> viewer: <span class="k">Component</span> { <span class="k">TitledMediaViewer</span> {} }
+
+<span class="k">function</span> <span class="p">createViewer</span>(viewerProps) { … <span class="p">completeViewer</span>(viewerProps) … }
+
+<span class="k">function</span> <span class="p">completeViewer</span>(viewerProps) {
+    <span class="k">let</span> v = viewer.<span class="p">createObject</span>(topLayer, viewerProps);
+    <span class="k">if</span> (!(<span class="s">"x"</span> <span class="k">in</span> viewerProps) &amp;&amp; !(<span class="s">"y"</span> <span class="k">in</span> viewerProps))
+        <span class="p">centerViewer</span>(v);                         <span class="c">// open centred unless positioned</span>
+    v.<span class="p">closeRequested</span>.connect(() =&gt; closeViewer(v));
+    v.<span class="p">fullscreenRequested</span>.connect((on) =&gt; setFullscreen(v, on));
+    <span class="p">selectViewer</span>(v);                            <span class="c">// raise + show controls</span>
+    v.<span class="p">playEnter</span>();                               <span class="c">// run the open animation</span>
+}</code></pre>
+    <p>So the flow is: <strong>create → place → wire signals → select → animate in</strong>.
+    <code>viewerProps</code> is just a JS object whose keys are set as properties on the new viewer
+    (model, sizing flags, animation overrides, the <code>stage</code> back-reference, …).</p>
+
+    <div class="callout tip">
+      <span class="tag">Signals, not direct calls</span>
+      <p>A viewer never closes or fullscreens <em>itself</em>. Its buttons emit <code>closeRequested()</code> /
+      <code>fullscreenRequested(bool)</code> and the <strong>stage</strong> performs the action. That keeps the
+      stage the single owner of lifecycle &amp; z-order.</p>
+    </div>
+
+    <h2>Selection &amp; z-order</h2>
+    <p>One viewer is "selected" at a time. Selecting raises it to the front and tells every viewer
+      whether it's the selected one (which drives whether its controls show):</p>
+<pre><code><span class="k">function</span> <span class="p">selectViewer</span>(v) {
+    <span class="k">if</span> (v === _selectedViewer) <span class="k">return</span>;
+    _selectedViewer = v;
+    <span class="k">for</span> (…topLayer.children…)  child.selected = (child === v);
+    <span class="k">if</span> (v) v.z = ++_topZ;        <span class="c">// incrementing z keeps the newest on top</span>
+    <span class="p">rebuildGlass</span>();              <span class="c">// re-order the glass chain to match</span>
+}</code></pre>
+    <p>Tapping empty space calls <code>selectViewer(null)</code> (deselect all). Dragging a viewer also
+      selects+raises it. A <code>TapHandler</code> on the stage drives this.</p>
+
+    <h2>Closing</h2>
+<pre><code><span class="k">function</span> <span class="p">closeViewer</span>(v) {
+    <span class="k">if</span> (v === _fullscreenViewer) { _hideController(); _scrimShown = false; _fullscreenViewer = null; }
+    <span class="k">if</span> (_selectedViewer === v) _selectedViewer = null;
+    v.<span class="p">playExit</span>(() =&gt; v.destroy());   <span class="c">// animate out, then destroy</span>
+}</code></pre>
+    <p>Destroying the viewer fires <code>topLayer.onChildrenChanged → rebuildGlass()</code>, which rewires
+      the remaining viewers' glass.</p>
+
+    <h2>Fullscreen orchestration</h2>
+    <p>The stage owns fullscreen because only one viewer may be fullscreen and there's a shared scrim.
+      <code>setFullscreen(v, on)</code> animates the viewer's geometry to a margin-fit of the stage, shows a
+      scrim that blocks the rest of the UI, raises the viewer above the scrim, and shows the
+      <strong>fullscreen controller</strong>:</p>
+<pre><code><span class="k">function</span> <span class="p">setFullscreen</span>(v, on) {
+    <span class="k">if</span> (on) {
+        <span class="k">if</span> (_fullscreenViewer) …snap previous one back…  <span class="c">// only one at a time</span>
+        _fsRestore = Qt.rect(v.x, v.y, v.viewerWidth, v.viewerHeight); <span class="c">// remember</span>
+        _scrimMode = _scrimModeFor(v);    <span class="c">// "blur" if glass on, else "tint"</span>
+        v.fullscreen = true; v.z = _scrimZ + 1; _fullscreenViewer = v; _scrimShown = true;
+        rebuildGlass();
+        _animateViewer(v, …_fullscreenFit(v)…);
+        _showController(v);
+    } <span class="k">else</span> { …animate back to _fsRestore, hide scrim + controller… }
+}</code></pre>
+    <table>
+      <tr><th>Concept</th><th>How</th></tr>
+      <tr><td>Scrim style follows the viewer's glass</td><td><code>_scrimModeFor()</code> → <code>"blur"</code> when the viewer &amp; stage glass are on, else <code>"tint"</code>; per-viewer override via <code>fullscreenScrim</code> (<code>auto</code>/<code>blur</code>/<code>tint</code>/<code>none</code>)</td></tr>
+      <tr><td>Tap a margin to exit</td><td>the scrim is a <code>MouseArea</code>; tapping it calls <code>setFullscreen(_fullscreenViewer, false)</code></td></tr>
+      <tr><td>Controller is per type</td><td><code>property Component fullscreenController: Component { FullscreenController {} }</code>; instance created lazily &amp; reused</td></tr>
+    </table>
+    <p>Details of the scrim + controller are on the <a href="controls.html">Controls</a> and
+      <a href="glass-and-theming.html">Glass</a> pages.</p>
+
+    <h2>Settings the stage reads</h2>
+    <p>The stage pulls its defaults from the merged <code>app_settings</code> collection, under the
+      <code>waffles</code> prefix (see <a href="glass-and-theming.html">theming &amp; settings</a>):</p>
+<pre><code><span class="k">DsSettingsProxy</span> { <span class="p">id</span>: appSettings; <span class="p">target</span>: <span class="s">"app_settings"</span>; <span class="p">prefix</span>: <span class="s">"waffles"</span> }
+<span class="p">property real</span> viewerMinWidth:   appSettings.<span class="p">getFloat</span>(<span class="s">"viewer.minWidth"</span>, <span class="n">200</span>)
+<span class="p">property real</span> viewerImageWidth: appSettings.<span class="p">getFloat</span>(<span class="s">"viewer.imageWidth"</span>, <span class="n">800</span>)
+<span class="p">property int</span>  viewerEnterAnimation: _animFromString(appSettings.<span class="p">getString</span>(<span class="s">"viewer.enterAnimation"</span>, <span class="s">"growBounce"</span>))
+<span class="p">property int</span>  controlsIdleMs:   appSettings.<span class="p">getInt</span>(<span class="s">"controlsIdleSeconds"</span>, <span class="n">4</span>) * <span class="n">1000</span>
+<span class="p">property real</span> fullscreenMargin: appSettings.<span class="p">getFloat</span>(<span class="s">"fullscreen.margin"</span>, <span class="n">80</span>)</code></pre>
+    <p>Viewers default <em>their</em> per-instance properties from these stage values, so you can set a
+      project-wide default in TOML and still override per viewer at creation.</p>
+
+    <div class="pager">
+      <a href="index.html"><span class="dir">← Prev</span>Overview</a>
+      <a class="next" href="viewers.html"><span class="dir">Next →</span>2 · Viewers</a>
+    </div>
+  </div></main>
+</div>
+</body>
+</html>

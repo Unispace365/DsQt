@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Demo &amp; Recipes — Waffles Tour</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="layout">
+  <nav class="sidebar">
+    <div class="brand"><span class="logo">Waffles</span><span class="sub">source tour</span></div>
+    <div class="nav-group"><h4>Start here</h4><a href="index.html">Overview &amp; architecture</a></div>
+    <div class="nav-group"><h4>The pieces</h4>
+      <a href="stage.html">1 · The Stage</a>
+      <a href="viewers.html">2 · Viewers</a>
+      <a href="media.html">3 · Media</a>
+      <a href="controls.html">4 · Controls</a>
+      <a href="glass-and-theming.html">5 · Glass &amp; theming</a>
+    </div>
+    <div class="nav-group"><h4>Practical</h4><a href="demo-and-recipes.html" class="active">6 · Demo &amp; recipes</a></div>
+  </nav>
+
+  <main class="content"><div class="col">
+    <h1>6 · Demo &amp; recipes</h1>
+    <p class="lede">The AssetViewer example is the reference integration. Read it once end-to-end, then
+      use the recipes below for the things you'll actually do.</p>
+
+    <h2>How AssetViewer is wired</h2>
+    <div class="files">
+      <h4>Key files</h4>
+      <ul>
+        <li><span class="path">Examples/AssetViewer/main.cpp</span> — graphics backend, engine bootstrap</li>
+        <li><span class="path">Examples/AssetViewer/Main.qml</span> — window, fit-view, loads the main view</li>
+        <li><span class="path">Examples/AssetViewer/qml/MainView.qml</span> — the stage + toolbar + galleries</li>
+        <li><span class="path">Examples/AssetViewer/settings/</span> — <code>engine.toml</code>, <code>app_settings.toml</code>, <code>waffles_settings.toml</code></li>
+        <li><span class="path">Examples/AssetViewer/data/</span> — bundled media &amp; icons (deployed next to the app)</li>
+      </ul>
+    </div>
+
+    <h3>main.cpp</h3>
+    <p>Sets a WebEngine-compatible render backend, initialises WebEngine, creates the DsQt engine,
+      and loads the QML entry point:</p>
+<pre><code><span class="k">DsGuiApplication</span>::configureGraphics({ .graphicsApi = QSGRendererInterface::Direct3D11, .colorDepth = <span class="n">8</span> });
+QtWebEngineQuick::initialize();
+dsqt::DsQmlApplicationEngine engine;
+… query.initialize(); engine.initialize(); …
+engine.loadFromModule(<span class="s">"AssetViewer"</span>, <span class="s">"Main"</span>);  <span class="c">// app.mainView from settings</span></code></pre>
+    <div class="callout gotcha">
+      <span class="tag">8-bit + D3D11</span>
+      <p>Use <strong>8-bit</strong> colour — 10-bit shifts the tonal/glass colours. And WebEngine's GPU
+      compositing needs D3D11/Metal/OpenGL — <strong>not Vulkan</strong> — or the web viewer renders broken.</p>
+    </div>
+
+    <h3>Main.qml — the 4K fit-view</h3>
+    <p>The whole UI is authored on a fixed <strong>4K canvas</strong> and scaled to the window by
+      <code>DsFitView</code>. Press <span class="kbd">S</span> to toggle fit, <span class="kbd">0</span> for 1:1,
+      <span class="kbd">Space</span> to toggle centring:</p>
+<pre><code><span class="k">DsFitView</span> {
+    <span class="p">preferredWidth</span>: <span class="n">3840</span>; <span class="p">preferredHeight</span>: <span class="n">2160</span>; <span class="p">fitEnabled</span>: <span class="k">true</span>
+    <span class="k">Loader</span> { <span class="p">source</span>: <span class="s">"/qt/qml/AssetViewer/qml/MainView.qml"</span>; <span class="p">anchors.fill</span>: parent }
+}</code></pre>
+
+    <h3>MainView.qml — the stage in use</h3>
+    <p>Creates the <code>DsWaffleStage</code>, fills <code>backgroundContent</code> with the animated background +
+      a toolbar + thumbnail galleries, and opens viewers via small helper functions. The pattern to
+      copy:</p>
+<pre><code><span class="k">function</span> <span class="p">openLocalImage</span>(file) {
+    stage.<span class="p">createViewer</span>({
+        <span class="s">"model"</span>: { <span class="s">"title"</span>: file,
+                   <span class="s">"media"</span>: { <span class="s">"filepath"</span>: <span class="s">"%APP%/data/images/gallery/"</span> + file,
+                              <span class="s">"type"</span>: <span class="s">"image"</span>, <span class="s">"width"</span>: <span class="n">1200</span>, <span class="s">"height"</span>: <span class="n">800</span> } },
+        <span class="s">"matchAspectRatio"</span>: <span class="k">true</span>,
+        <span class="s">"mediaFillMode"</span>: Image.PreserveAspectCrop,
+        <span class="s">"stage"</span>: stage
+    });
+}</code></pre>
+
+    <hr>
+    <h2>Recipes</h2>
+
+    <h3>Open a viewer</h3>
+    <p>Call <code>stage.createViewer(props)</code>. Every key in <code>props</code> becomes a property on the new
+      viewer. The essentials are <code>model</code> (with <code>media</code>) and <code>stage</code>; everything else is
+      optional sizing/animation overrides:</p>
+<pre><code>stage.createViewer({
+    <span class="s">"model"</span>: { <span class="s">"title"</span>: <span class="s">"Network video"</span>,
+               <span class="s">"media"</span>: { <span class="s">"filepath"</span>: <span class="s">"https://…/clip.mp4"</span>, <span class="s">"type"</span>: <span class="s">"video"</span>, <span class="s">"width"</span>: <span class="n">640</span>, <span class="s">"height"</span>: <span class="n">360</span> } },
+    <span class="s">"matchAspectRatio"</span>: <span class="k">true</span>,
+    <span class="s">"enterAnimation"</span>: DsViewer.Anim.FadeRise,   <span class="c">// override the settings default</span>
+    <span class="s">"stage"</span>: stage
+});</code></pre>
+    <p>Local vs network is automatic — a <code>%APP%/…</code> path and an <code>http(s)</code> URL both work (see
+      <a href="media.html">Media → source resolution</a>). Omit <code>x</code>/<code>y</code> to open centred.</p>
+
+    <h3>Add a button to a viewer</h3>
+    <ol>
+      <li>Make (or reuse) an <code>IconButton</code> that signals intent:
+<pre><code><span class="c">// ux/PinButton.qml</span>
+<span class="k">IconButton</span> {
+    <span class="p">iconSource</span>: <span class="s">"file:///%APP%/data/images/waffles/window/lock.svg"</span>
+    <span class="p">onPressed</span>: signalObject?.pinToggled?.()
+}</code></pre></li>
+      <li>Drop it into a control set (e.g. <code>RightOuterControls</code>) so it docks at an edge.</li>
+      <li>Handle the call on the viewer (its <code>signalObject</code>), or add a <code>signal</code> the stage handles
+        — mirror how <code>closeRequested</code>/<code>fullscreenRequested</code> flow up to the stage.</li>
+      <li>Emit <code>interacted()</code> from the control set on press so the button keeps the controls awake.</li>
+      <li><strong>Register the file</strong> in <code>QML_FILES</code> (see below).</li>
+    </ol>
+
+    <h3>Add a new media type</h3>
+    <ol>
+      <li>Write a thin wrapper in <span class="path">Waffles/qml/ui/</span> exposing <code>source</code>, a
+        <code>mediaLoaded()</code> signal, and <code>renderedWidth/Height/OffsetX/OffsetY</code>.</li>
+      <li>Teach the dispatcher about it in <span class="path">Core/qml/ui/DsMediaViewer.qml</span> —
+        add a branch in <code>getComponentForContent()</code> / <code>getComponentForExtension()</code> that
+        <code>_lazyLoad("_xComponent", "DsXViewer")</code>, and extend <code>mediaType</code>.</li>
+      <li>If it has controls, add a row to <code>DsMediaControls</code> for that <code>mtype</code>.</li>
+      <li>Register both files in <code>QML_FILES</code>.</li>
+    </ol>
+
+    <h3>Re-skin the viewer (new chrome)</h3>
+    <p>Copy <span class="path">ux/TitledMediaViewer.qml</span>, edit its <code>controls:</code> list (different
+      control sets, edges, offsets), register it, and point the stage at it:</p>
+<pre><code><span class="k">DsWaffleStage</span> { <span class="p">viewer</span>: <span class="k">Component</span> { <span class="k">MyTitledMediaViewer</span> {} } }</code></pre>
+    <p>The <code>waffles/</code> behaviour (sizing, glass, fullscreen, idle) is untouched.</p>
+
+    <h3>White-label the theme</h3>
+    <p>Re-point <code>DsTheme</code> roles/primitives once at startup — the palette and glass re-derive,
+      no call sites change:</p>
+<pre><code>DsTheme.tonal0 = <span class="s">"#0E1A14"</span>;   <span class="c">// new surface</span>
+DsTheme.accent = <span class="s">"#22C38A"</span>;   <span class="c">// new brand hue</span></code></pre>
+
+    <h3>Change behaviour via settings (no code)</h3>
+    <p>Edit <span class="path">settings/waffles_settings.toml</span> — viewer bounds, default open width,
+      enter/exit animation names, idle timeout, fullscreen scrim. They flow into the stage and become
+      the per-viewer defaults.</p>
+
+    <h3>Register a new QML file</h3>
+    <p>Anything new under <span class="path">Waffles/qml/</span> must be listed in
+      <span class="path">Library/DsQt/Waffles/CMakeLists.txt</span> under <code>QML_FILES</code> (singletons also
+      need <code>set_source_files_properties(... QT_QML_SINGLETON_TYPE TRUE)</code>). Forgetting this is the
+      #1 "my type isn't found" cause.</p>
+
+    <hr>
+    <h2>Working notes</h2>
+    <ul>
+      <li><strong>Validate QML fast</strong> without a full build with <code>qmllint</code> against the built
+        module + Qt import paths. After adding a type/property you'll see stale "not found" warnings
+        until the module is rebuilt — those clear on rebuild; real syntax errors show as <code>Error:</code>.</li>
+      <li><strong>Deploy</strong>: <code>settings/</code> and <code>data/</code> are installed next to the app
+        (<code>install(DIRECTORY …)</code>). New media/icons/settings need a re-run of install/deploy, or the
+        app won't find them (e.g. a PDF that never reaches <code>Ready</code>).</li>
+      <li><strong>Binary assets</strong> are tracked with <strong>Git LFS</strong> (<code>*.png/.jpg/.svg/.mp4/.gif/.pdf…</code>
+        in <span class="path">.gitattributes</span>) — new asset extensions should be added there too.</li>
+      <li><strong>Optional Qt bits</strong>: web needs <code>WebEngineQuick</code>, pdf needs <code>Pdf</code>. If a
+        component isn't built, that media type lazy-loads to a warning rather than breaking the module.</li>
+    </ul>
+
+    <div class="callout tip">
+      <span class="tag">Still open in the codebase</span>
+      <p>A couple of intentionally-unfinished spots you may meet: the web controls' <strong>keyboard</strong>
+      button is a stub (on-screen keyboard TODO), and metadata-driven <strong>auto-loop</strong>
+      (<code>media.loop</code> → loop on open) isn't wired yet (the loop <em>toggle</em> and hold-last-frame are).
+      The <code>menu_launcher/</code> radial menu is also a work in progress.</p>
+    </div>
+
+    <div class="pager">
+      <a href="glass-and-theming.html"><span class="dir">← Prev</span>5 · Glass &amp; theming</a>
+      <a class="next" href="index.html"><span class="dir">Back to →</span>Overview</a>
+    </div>
+  </div></main>
+</div>
+</body>
+</html>
