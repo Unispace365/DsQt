@@ -1,4 +1,4 @@
-import QtQuick 2.15
+import QtQuick
 import QtMultimedia
 import Dsqt.Core
 import Dsqt.Waffles
@@ -60,6 +60,16 @@ DsViewer {
     onSizeToMediaChanged: applySizing()
     onMatchAspectRatioChanged: applySizing()
     onImageWidthChanged: applySizing()
+
+    // --- Pinch-zoom config ---
+    // Opt-in (default off). When true, viewers can be resized by:
+    //   - touch multi-touch pinch
+    //   - Alt + click-and-drag (mouse): vertical drag distance maps to scale (up = in, down = out)
+    //   - Alt + scroll wheel (mouse)
+    // The resize is uniform (preserves aspect) and clamped to [minWidth, maxWidth] / [minHeight,
+    // maxHeight] — i.e. honours the same bounds applySizing() does — and stays centred on the
+    // viewer's centre point so it doesn't snap to a corner.
+    property bool pinchEnabled: false
 
     // --- Enter/exit animation: defaults from the stage, overridable per viewer on creation ---
     enterAnimation:    stage ? stage.viewerEnterAnimation : DsViewer.Anim.Fade
@@ -204,6 +214,27 @@ DsViewer {
         viewerHeight = Math.round(h);
     }
 
+    // Resize uniformly to newW x newH, preserving the requested aspect ratio, clamping to
+    // [minWidth, maxWidth] / [minHeight, maxHeight], and re-centring the viewer on its own
+    // centre point (so the zoom doesn't shift the panel toward 0,0). Used by the pinch /
+    // Alt-drag / Alt-wheel handlers below.
+    function _zoomTo(newW, newH) {
+        if (newW <= 0 || newH <= 0) return;
+        const aspect = newW / newH;
+        let w = Math.max(minWidth, Math.min(maxWidth, newW));
+        let h = w / aspect;
+        if (h < minHeight) { h = minHeight; w = h * aspect; }
+        if (h > maxHeight) { h = maxHeight; w = h * aspect; }
+        w = Math.max(minWidth, Math.min(maxWidth, w));
+        h = w / aspect;
+        const dx = (root.viewerWidth - w) / 2;
+        const dy = (root.viewerHeight - h) / 2;
+        root.x = Math.round(root.x + dx);
+        root.y = Math.round(root.y + dy);
+        root.viewerWidth = Math.round(w);
+        root.viewerHeight = Math.round(h);
+    }
+
 
     //this function positions the control in their respective edges
     function setControls() {
@@ -276,6 +307,63 @@ DsViewer {
             }
         }
     }
+    // --- Pinch / Alt-drag / Alt-wheel zoom handlers (gated on pinchEnabled) ---
+    // All three apply via the same _zoomTo() helper, so the clamp + recentre logic is shared.
+    // PinchHandler covers real multi-touch and trackpad-pinch on platforms that emit it; the
+    // mouse handlers limit to Mouse + Alt modifier so they don't fight normal interaction.
+    PinchHandler {
+        id: pinchZoom
+        enabled: root.pinchEnabled
+        target: null
+        minimumScale: 0.05
+        maximumScale: 20
+        property real baseW: 0
+        property real baseH: 0
+        onActiveChanged: {
+            if (active) { pinchZoom.baseW = root.viewerWidth; pinchZoom.baseH = root.viewerHeight; }
+        }
+        onActiveScaleChanged: {
+            if (!pinchZoom.active) return;
+            root._zoomTo(pinchZoom.baseW * pinchZoom.activeScale,
+                         pinchZoom.baseH * pinchZoom.activeScale);
+        }
+    }
+
+    DragHandler {
+        id: altZoomDrag
+        enabled: root.pinchEnabled
+        target: null
+        acceptedButtons: Qt.LeftButton
+        acceptedDevices: PointerDevice.Mouse
+        acceptedModifiers: Qt.AltModifier
+        grabPermissions: PointerHandler.CanTakeOverFromAnything | PointerHandler.ApprovesTakeOverByAnything
+        property real baseW: 0
+        property real baseH: 0
+        onActiveChanged: {
+            if (active) { altZoomDrag.baseW = root.viewerWidth; altZoomDrag.baseH = root.viewerHeight; }
+        }
+        onActiveTranslationChanged: {
+            if (!altZoomDrag.active) return;
+            // Vertical drag → exponential scale: up = zoom in, down = zoom out.
+            // 200 px of drag ≈ 2× change.
+            const factor = Math.exp(-altZoomDrag.activeTranslation.y / 200 * Math.LN2);
+            root._zoomTo(altZoomDrag.baseW * factor, altZoomDrag.baseH * factor);
+        }
+    }
+
+    WheelHandler {
+        id: altZoomWheel
+        enabled: root.pinchEnabled
+        acceptedDevices: PointerDevice.Mouse
+        acceptedModifiers: Qt.AltModifier
+        onWheel: (event) => {
+            // 1 standard wheel tick (120 angleDelta) ≈ 10% zoom.
+            const factor = Math.pow(1.1, event.angleDelta.y / 120);
+            root._zoomTo(root.viewerWidth * factor, root.viewerHeight * factor);
+            event.accepted = true;
+        }
+    }
+
     // The viewer's captured appearance: its glass panel + media + controls. The stage captures
     // THIS into the slots that viewers above sample, so an upper viewer's glass blurs the lower
     // viewers together with their own glass (compound). childrenRect spans the glass + controls.
@@ -304,11 +392,21 @@ DsViewer {
         // reaching viewers or the gallery beneath it (a MouseArea accepts the press, unlike a
         // PointerHandler). Also drags the viewer by its body and raises it on press. Sits below
         // the media/controls so they (e.g. a web viewer or buttons) still get input first.
+        //
+        // When pinchEnabled is on and the user presses with Alt held, body-drag is suppressed
+        // so the Alt-drag zoom handler (declared at root scope below) gets to run uncontested.
         MouseArea {
+            id: bodyDrag
             anchors.fill: mediaView
             acceptedButtons: Qt.AllButtons
-            drag.target: root.fullscreen ? null : root
-            onPressed: (mouse) => { if (root.stage) root.stage.selectViewer(root); root.wake(); }
+            property int _pressMods: 0
+            drag.target: (root.fullscreen || (root.pinchEnabled && (bodyDrag._pressMods & Qt.AltModifier))) ? null : root
+            onPressed: (mouse) => {
+                bodyDrag._pressMods = mouse.modifiers;
+                if (root.stage) root.stage.selectViewer(root);
+                root.wake();
+            }
+            onReleased: bodyDrag._pressMods = 0
         }
 
         // Mouse movement anywhere over the viewer (incl. over the controls) keeps controls awake.

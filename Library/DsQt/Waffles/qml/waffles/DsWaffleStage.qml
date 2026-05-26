@@ -8,6 +8,10 @@ import Dsqt.Waffles
 Item {
     id: wafflesRoot
     property Component launcher: Component { DsTestLauncher {} }
+    // Data adapter for the launcher (e.g. ContentLauncherModel). Passed through to the launcher
+    // instance as `model` when the stage creates it. Bridge-agnostic — apps wire their own
+    // adapter; the launcher just consumes the shape it defines.
+    property var launcherModel: null
     property Component viewer: Component { TitledMediaViewer {} }
     // Per-type fullscreen controllers (shown while a viewer of that type is fullscreen).
     property Component fullscreenController: Component { FullscreenController {} }
@@ -235,7 +239,11 @@ Item {
 
     function completeMenu() {
         if(launcher.status == Component.Ready) {
-            _private.launcher = launcher.createObject(topLayer,{"opacity":1, "stage":wafflesRoot});
+            _private.launcher = launcher.createObject(topLayer, {
+                "opacity": 1,
+                "stage": wafflesRoot,
+                "model": wafflesRoot.launcherModel
+            });
             if(_private.launcher == null)
             {
                 console.log("Error creating menu");
@@ -480,9 +488,13 @@ Item {
         onTapped: (point,button)=>{
             // While fullscreen the scrim handles taps (margin tap exits); ignore stage taps.
             if (wafflesRoot._fullscreenViewer) return;
-            if(tapCount == 2){
-                _private.launcher.x = point.position.x
-                _private.launcher.y = point.position.y
+            if(tapCount == 2 && _private.launcher){
+                // Reposition centred on the tap point, and re-show if the launcher was hidden
+                // via its close button. The `shown` property is optional on the launcher type;
+                // launchers that don't expose it (e.g. DsTestLauncher) simply ignore the bump.
+                _private.launcher.x = Math.round(point.position.x - _private.launcher.width / 2)
+                _private.launcher.y = Math.round(point.position.y)
+                if ("shown" in _private.launcher) _private.launcher.shown = true
             }
             let inView = null;
             for(let i=0;i<topLayer.children.length;i++){

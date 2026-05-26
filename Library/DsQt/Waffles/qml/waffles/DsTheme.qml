@@ -25,6 +25,9 @@ QtObject {
     property color tonal30: _s.getColor("tonal30", "#5D6166")
     property color white:   _s.getColor("white",   "#FFFFFF")
     property color accent:  _s.getColor("accent",  "#00ADF7")
+    // Light brand tint — used for selected-row highlight on the content launcher (Figma's
+    // "Primary 50"). Becomes the `selectedSurface` role below.
+    property color primary50: _s.getColor("primary50", "#B1DAFC")
 
     // --- Tier 2: semantic roles (alias primitives) ---
     property color surface:        tonal0     // panels / window / control backgrounds
@@ -35,6 +38,8 @@ QtObject {
     property color surfaceText:    white      // text / icons on a surface
     property color accentText:     white      // text / icons on an accent fill
     property color track:          tonal30    // slider / scrubber tracks
+    property color selectedSurface:     primary50  // selected-row background (content launcher)
+    property color selectedSurfaceText: tonal0     // text / icons on a selected-row surface
     // Translucent surface (e.g. the glass tint as a single premultiplied colour, if needed).
     readonly property color scrim: Qt.rgba(tonal0.r, tonal0.g, tonal0.b, glassTintOpacity)
 
