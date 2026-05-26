@@ -25,6 +25,7 @@ qt_add_qml_module(Bridge
     VERSION 1.0
     QML_FILES
         qml/DsContentBrowser.qml
+        qml/DsContentLauncherModel.qml
 
     SOURCES
         bridge/dsQmlBridge.h bridge/dsQmlBridge.cpp
