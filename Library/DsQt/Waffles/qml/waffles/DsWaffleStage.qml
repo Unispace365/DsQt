@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Effects
+import QtQuick.VectorImage
 import Dsqt.Core
 import Dsqt.Waffles
 
@@ -12,6 +13,9 @@ Item {
     // instance as `model` when the stage creates it. Bridge-agnostic — apps wire their own
     // adapter; the launcher just consumes the shape it defines.
     property var launcherModel: null
+    // Named layer the launcher is parented into. Apps can set this to "modal3" to keep the
+    // launcher above the fullscreen scrim, or to a custom layer added via addLayer() (deferred).
+    property string launcherLayer: "modal1"
     property Component viewer: Component { TitledMediaViewer {} }
     // Per-type fullscreen controllers (shown while a viewer of that type is fullscreen).
     property Component fullscreenController: Component { FullscreenController {} }
@@ -19,6 +23,9 @@ Item {
     // The live controller instance (created lazily, reused across fullscreen sessions).
     property var _fsController: null
     property bool menuShown: false
+    // Show a small floating button on the stage to summon the launcher when it has been
+    // hidden via its close button. Apps that don't want it can set this to false.
+    property bool launcherButtonVisible: true
 
     // --- Glass / blurred-backdrop config (defaults from DsTheme tokens; per-viewer overridable) ---
     property bool  glassEnabled: true
@@ -46,9 +53,10 @@ Item {
     palette.highlightedText: DsTheme.accentText
 
     // Content captured as the bottom of the glass stack (e.g. an animated background).
-    property alias backgroundContent: backdrop.data
+    property alias backgroundContent: background.data
     // The backdrop leaf, exposed so control glass can sample it without recursing through slots.
-    readonly property Item glassBackdrop: backdrop
+    // (Name retained for backwards compatibility; now points at the renamed `background` layer.)
+    readonly property Item glassBackdrop: background
 
     // Viewer size limits (from [waffles.viewer] in waffles_settings.toml, merged into the
     // app_settings collection; per-viewer overridable on creation).
@@ -81,26 +89,44 @@ Item {
     property int   fullscreenDuration:            viewerAnimationDuration
 
     // The single fullscreen viewer (only one at a time), the resolved scrim mode, whether the
-    // scrim is shown, and the geometry to restore on exit. Scrim sits at _scrimZ; the fullscreen
-    // viewer one above it.
+    // scrim is shown, and the geometry to restore on exit. Scrim sits at _scrimZ inside modal2;
+    // the fullscreen viewer one above it (reparented into modal2 while fullscreen).
     property var    _fullscreenViewer: null
     property string _scrimMode: "tint"     // blur | tint | none
     property bool   _scrimShown: false
     property rect   _fsRestore: Qt.rect(0, 0, 0, 0)
+    // Original parent layer of the fullscreen viewer, restored when leaving fullscreen.
+    property var    _fsOriginalParent: null
     readonly property int _scrimZ: 9000
 
-    // Live composite "slots" (stage-sized textures), one per viewer that has something above it.
+    // Live composite "slots" (stage-sized textures), one per participant that has something
+    // beneath it in the global cross-layer chain. Rebuilt on layer-children / glass-enabled
+    // changes; live ShaderEffectSources keep them updating for movement / animated content.
     property var _glassSlots: []
-    // Incrementing z handed to the most recently selected viewer so it sits in front.
+    // Incrementing z handed to the most recently selected viewer so it sits in front (within
+    // the viewer layer). Layer ordering enforces "viewers always below modals" regardless.
     property int _topZ: 1
     // Currently selected viewer, to skip redundant reselects (avoids glass chain churn).
     property var _selectedViewer: null
     // Counter used to cascade successive centred opens so they don't perfectly overlap.
     property int _openCount: 0
 
+    // --- Layer registry. Six predefined named layers, z-ordered back→front. Apps look layers
+    // up by name via getLayer() and may opt their viewers into any of them via the `layer`
+    // field on openViewer() (default: "viewer"). The launcher's layer is `launcherLayer`. ---
+    property var _layers: ({})
+
     onGlassEnabledChanged: rebuildGlass()
 
     Component.onCompleted: {
+        _layers = {
+            "background":   background,
+            "presentation": presentation,
+            "viewer":       viewerLayer,
+            "modal1":       modal1,
+            "modal2":       modal2,
+            "modal3":       modal3
+        };
         createMenu()
     }
 
@@ -109,32 +135,59 @@ Item {
     }
 
     // Holder for the cumulative composite chain. Each slot is a stage-sized texture of
-    // everything beneath one viewer. It must actually be in the render tree for its nested live
-    // ShaderEffectSources to keep updating, so it stays visible but sits at the very back, fully
-    // covered by the opaque backdrop above it — the user never sees it directly.
+    // everything beneath one participant. It must actually be in the render tree for its
+    // nested live ShaderEffectSources to keep updating, so it stays visible but sits at the
+    // very back, fully covered by the opaque background layer above it.
     Item {
         id: glassSlotHolder
         anchors.fill: wafflesRoot
     }
 
-    // C[0] of the glass chain: everything below the viewer layer (animated background + gallery).
-    // Its opaque base also occludes glassSlotHolder beneath it.
+    // --- Layer 0: background. Animated bg + consumer backdrop content via `backgroundContent`.
+    // Replaces the previously-named `backdrop` Item; same role, captured as the bottom of every
+    // slot. Opaque base also occludes glassSlotHolder beneath it.
     Item {
-        id: backdrop
+        id: background
         anchors.fill: wafflesRoot
+        z: 0
     }
 
+    // --- Layer 1: presentation. Reserved for presentation-style content (empty for now). Treated
+    // as a glass-stack leaf, so anything dropped here participates in viewers' backdrops.
     Item {
-        id: topLayer
+        id: presentation
         anchors.fill: wafflesRoot
-        // Keep viewers/launcher above any consumer content placed in the stage.
         z: 1
+    }
+
+    // --- Layer 2: viewer. Normal viewer instances live here (renamed from `topLayer`). ---
+    Item {
+        id: viewerLayer
+        anchors.fill: wafflesRoot
+        z: 2
+        onChildrenChanged: wafflesRoot.rebuildGlass()
+    }
+
+    // --- Layer 3: modal1. Default home of the content launcher (below the fullscreen scrim).
+    // Apps that want the launcher above fullscreen instead set wafflesRoot.launcherLayer = "modal3".
+    Item {
+        id: modal1
+        anchors.fill: wafflesRoot
+        z: 3
+        onChildrenChanged: wafflesRoot.rebuildGlass()
+    }
+
+    // --- Layer 4: modal2. Houses the fullscreen scrim and (transiently, while fullscreen is
+    // active) the fullscreen viewer + its FS controller. Reparenting happens in setFullscreen.
+    Item {
+        id: modal2
+        anchors.fill: wafflesRoot
+        z: 4
         onChildrenChanged: wafflesRoot.rebuildGlass()
 
-        // Fullscreen scrim: blocks the rest of the UI behind the fullscreen viewer. Sits just
-        // below it (z 9000 < 9001). Blur mode samples the fullscreen viewer's backdrop slot
-        // (everything behind it) and blurs it; tint mode is a flat colour+alpha. Always input-
-        // blocking while shown; tapping a margin exits fullscreen.
+        // Fullscreen scrim. Blocks the rest of the UI behind the fullscreen viewer (which is
+        // reparented into this same layer while fullscreen). Sits at z=_scrimZ within modal2;
+        // the fullscreen viewer gets _scrimZ+1, the FS controller _scrimZ+2.
         Item {
             id: scrimLayer
             anchors.fill: parent
@@ -176,6 +229,72 @@ Item {
         }
     }
 
+    // --- Layer 5: modal3. Always-on-top placement (above fullscreen scrim). Empty by default.
+    Item {
+        id: modal3
+        anchors.fill: wafflesRoot
+        z: 5
+        onChildrenChanged: wafflesRoot.rebuildGlass()
+    }
+
+    // Floating "open launcher" button. Visible when the launcher exists, exposes a `shown`
+    // property, has been closed, and no fullscreen viewer is active (so the scrim doesn't
+    // clash). Sits at the stage's bottom-left. Tap → re-show the launcher.
+    Rectangle {
+        id: launcherFab
+        anchors.left: parent.left
+        anchors.bottom: parent.bottom
+        anchors.leftMargin: 48
+        anchors.bottomMargin: 48
+        width: 80
+        height: 80
+        radius: 14
+        z: 10  // above every predefined layer (max z=5)
+        color: DsTheme.surfaceVariant
+        border.color: DsTheme.stroke
+        border.width: 1
+
+        readonly property bool _eligible:
+            wafflesRoot.launcherButtonVisible
+            && _private.launcher
+            && ("shown" in _private.launcher)
+            && _private.launcher.shown === false
+            && wafflesRoot._fullscreenViewer === null
+
+        visible: opacity > 0
+        opacity: _eligible ? 1 : 0
+        Behavior on opacity { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
+
+        layer.enabled: true
+        layer.effect: MultiEffect {
+            shadowEnabled: true
+            shadowColor: Qt.rgba(0, 0, 0, 0.3)
+            shadowVerticalOffset: 6
+            shadowBlur: 0.7
+            shadowOpacity: 1.0
+        }
+
+        VectorImage {
+            anchors.centerIn: parent
+            width: 36
+            height: 36
+            source: Ds.env.expandUrl("%APP%/data/images/waffles/content_launcher/content.svg")
+            preferredRendererType: VectorImage.CurveRenderer
+            layer.enabled: true
+            layer.effect: MultiEffect {
+                colorization: 1.0
+                colorizationColor: DsTheme.surfaceText
+            }
+        }
+
+        TapHandler {
+            onTapped: {
+                if (_private.launcher && ("shown" in _private.launcher))
+                    _private.launcher.shown = true
+            }
+        }
+    }
+
     // Drives the fullscreen enter/exit geometry transition for whichever viewer is targeted.
     ParallelAnimation {
         id: _fsAnim
@@ -187,22 +306,29 @@ Item {
         onFinished: { let cb = _fsAnim._done; _fsAnim._done = null; if (cb) cb(); }
     }
 
-    // One slot = the backdrop plus every viewer below its owner, composited FLAT: each source is
-    // a leaf item (the backdrop, or a viewer's glass-free captureItem), never another slot. With
-    // no slot-to-slot nesting the chain has no depth, so the front (deepest) viewer can't blank
-    // out and there's no propagation lag. Each captured viewer is positioned at its stage rect
-    // (tracks dragging) using its captureItem's childrenRect to include overflowing control sets.
+    // One slot = the cumulative composite of everything beneath its owner in the global glass
+    // chain, composited FLAT (no nesting). Two kinds of leaves:
+    //   - baseLeaves   : whole Items captured at the slot's full size (the background +
+    //                    presentation layers).
+    //   - lowerViewers : viewer-like items captured via their `captureItem` (their glass-free
+    //                    contentLayer) at their on-stage rect — so an upper viewer's glass shows
+    //                    lower viewers WITH their chrome ("compound" look) without recursion.
     Component {
         id: glassSlotComponent
         Item {
             id: slot
+            property var baseLeaves: []
             property var lowerViewers: []
             anchors.fill: parent
-            ShaderEffectSource {
-                anchors.fill: parent
-                sourceItem: backdrop
-                live: true
-                hideSource: false
+            Repeater {
+                model: slot.baseLeaves
+                ShaderEffectSource {
+                    required property var modelData
+                    anchors.fill: parent
+                    sourceItem: modelData
+                    live: true
+                    hideSource: false
+                }
             }
             Repeater {
                 model: slot.lowerViewers
@@ -230,6 +356,11 @@ Item {
         property var launcher: null
     }
 
+    // Look up a named layer Item. Returns null for unknown names.
+    function getLayer(name) {
+        return _layers[name] || null;
+    }
+
     function createMenu() {
         if (launcher.status == Component.Ready)
             completeMenu()
@@ -239,7 +370,10 @@ Item {
 
     function completeMenu() {
         if(launcher.status == Component.Ready) {
-            _private.launcher = launcher.createObject(topLayer, {
+            // Parented into the launcher's configured layer (default "modal1"). Glass is wired
+            // through the cross-layer chain built by rebuildGlass.
+            let parentLayer = getLayer(launcherLayer) || modal1;
+            _private.launcher = launcher.createObject(parentLayer, {
                 "opacity": 1,
                 "stage": wafflesRoot,
                 "model": wafflesRoot.launcherModel
@@ -262,7 +396,15 @@ Item {
 
     function completeViewer(viewerProps: var) {
         if(viewer.status == Component.Ready) {
-            let viewerInstance = viewer.createObject(topLayer,viewerProps);
+            // Resolve layer (default "viewer"). The `layer` field is consumed by the stage and
+            // stripped before forwarding to createObject so it doesn't try to set a non-existent
+            // property on the viewer instance.
+            let layerName = viewerProps.layer || "viewer";
+            let parentLayer = getLayer(layerName) || viewerLayer;
+            let propsForViewer = Object.assign({}, viewerProps);
+            delete propsForViewer.layer;
+
+            let viewerInstance = viewer.createObject(parentLayer, propsForViewer);
             if(viewerInstance == null)
             {
                 console.log("Error creating viewer");
@@ -284,7 +426,7 @@ Item {
     }
 
     // Closes a viewer: clears selection if it was selected, plays its exit animation, then
-    // destroys it. Destruction triggers topLayer.onChildrenChanged → rebuildGlass.
+    // destroys it. Destruction triggers its layer's onChildrenChanged → rebuildGlass.
     function closeViewer(v) {
         if (!v) return;
         // If the viewer being closed is fullscreen, tear down the scrim + controller first.
@@ -292,6 +434,7 @@ Item {
             _hideController();
             _scrimShown = false;
             _fullscreenViewer = null;
+            _fsOriginalParent = null;
         }
         if (_selectedViewer === v) _selectedViewer = null;
         if (v.playExit)
@@ -310,8 +453,9 @@ Item {
     }
 
     // Enters/leaves fullscreen for v. Only one viewer is fullscreen at a time; entering while
-    // another is fullscreen snaps the previous one back first. Entering animates v to a margin-fit
-    // of the stage over the scrim; leaving animates it back to its pre-fullscreen geometry.
+    // another is fullscreen snaps the previous one back first. Entering reparents v into modal2
+    // and animates it to a margin-fit of the stage over the scrim; leaving animates it back to
+    // its pre-fullscreen geometry and reparents back to its original layer.
     function setFullscreen(v, on) {
         if (!v) return;
         if (on) {
@@ -321,10 +465,15 @@ Item {
                 let pr = wafflesRoot._fsRestore;
                 prev.fullscreen = false;
                 prev.x = pr.x; prev.y = pr.y; prev.viewerWidth = pr.width; prev.viewerHeight = pr.height;
+                if (wafflesRoot._fsOriginalParent)
+                    prev.parent = wafflesRoot._fsOriginalParent;
                 prev.z = ++wafflesRoot._topZ;
                 wafflesRoot._fullscreenViewer = null;
+                wafflesRoot._fsOriginalParent = null;
             }
             wafflesRoot._fsRestore = Qt.rect(v.x, v.y, v.viewerWidth, v.viewerHeight);
+            wafflesRoot._fsOriginalParent = v.parent;
+            v.parent = modal2;
             wafflesRoot._scrimMode = wafflesRoot._scrimModeFor(v);
             v.fullscreen = true;
             v.z = wafflesRoot._scrimZ + 1;
@@ -337,10 +486,13 @@ Item {
         } else {
             if (wafflesRoot._fullscreenViewer !== v) return;
             let rr = wafflesRoot._fsRestore;
+            let originalParent = wafflesRoot._fsOriginalParent || viewerLayer;
             v.fullscreen = false;
             wafflesRoot._scrimShown = false;
             wafflesRoot._hideController();
             wafflesRoot._animateViewer(v, rr.x, rr.y, rr.width, rr.height, function() {
+                v.parent = originalParent;
+                wafflesRoot._fsOriginalParent = null;
                 v.z = ++wafflesRoot._topZ;
                 if (wafflesRoot._fullscreenViewer === v) wafflesRoot._fullscreenViewer = null;
                 wafflesRoot.rebuildGlass();
@@ -378,13 +530,13 @@ Item {
         _fsAnim.start();
     }
 
-    // Shows the per-type fullscreen controller, bound to v, above the fullscreen viewer. The
-    // viewer hides its own edge controls while fullscreen, so the controller carries them.
+    // Shows the per-type fullscreen controller, bound to v, above the fullscreen viewer.
+    // Lives in modal2 alongside the scrim and the fullscreen viewer.
     function _showController(v) {
         let comp = wafflesRoot.fullscreenController;   // (could vary by v.viewerType later)
         if (!comp || comp.status !== Component.Ready) return;
         if (!wafflesRoot._fsController) {
-            wafflesRoot._fsController = comp.createObject(topLayer, { "z": wafflesRoot._scrimZ + 2 });
+            wafflesRoot._fsController = comp.createObject(modal2, { "z": wafflesRoot._scrimZ + 2 });
         }
         if (wafflesRoot._fsController) {
             wafflesRoot._fsController.viewer = v;
@@ -416,14 +568,14 @@ Item {
         createViewer(viewerProps);
     }
 
-    // Brings a viewer to the front and marks it selected (deselecting the rest). Selected
-    // viewers show their controls/title; the z bump reorders the glass chain so the front
-    // viewer samples everything beneath it. Pass null to deselect all (e.g. tap on empty space).
+    // Brings a viewer to the front and marks it selected (deselecting the rest within the
+    // viewer layer). Selected viewers show their controls/title; the z bump reorders the glass
+    // chain so the front viewer samples everything beneath it. Pass null to deselect all.
     function selectViewer(v) {
         if (v === _selectedViewer)
             return;
         _selectedViewer = v;
-        let kids = topLayer.children;
+        let kids = viewerLayer.children;
         for (let i = 0; i < kids.length; i++) {
             let p = kids[i];
             if (p && ("selected" in p))
@@ -434,11 +586,13 @@ Item {
         rebuildGlass();
     }
 
-    // Rebuilds the cumulative glass chain. Each topLayer child is assigned a backdropSource
-    // (a slot holding everything painted below it); the next link composites that slot with
-    // the child itself. Children paint in array order, which is our z-order. Movement and
-    // animated content update for free via the live ShaderEffectSources; only add/remove/
-    // reorder needs a rebuild.
+    // Rebuilds the cross-layer glass chain. Every item with a `backdropSource` across every
+    // participant layer (viewer / modal1 / modal2 / modal3) is sorted globally by (layer.z,
+    // item.z, doc-index), and each gets a flat-composite slot containing every leaf below it:
+    //   - background + presentation as full-Item base leaves
+    //   - the captureItem of every earlier participant
+    // Movement and animated content update for free via live ShaderEffectSources; only
+    // add/remove/reorder and glassEnabled toggling triggers a rebuild.
     function rebuildGlass() {
         for (let i = 0; i < _glassSlots.length; i++) {
             if (_glassSlots[i])
@@ -446,40 +600,49 @@ Item {
         }
         _glassSlots = [];
 
-        // Participants in paint order: sort topLayer children by z, then document order.
-        let kids = [];
-        for (let k = 0; k < topLayer.children.length; k++)
-            kids.push({ item: topLayer.children[k], idx: k });
-        kids.sort((a, b) => {
-            let d = (a.item.z || 0) - (b.item.z || 0);
-            return d !== 0 ? d : (a.idx - b.idx);
-        });
-        let parts = kids.map(k => k.item);
+        let participantLayers = [viewerLayer, modal1, modal2, modal3];
 
-        // Glass disabled: drop every viewer's source so the live chain stops entirely.
+        // Glass disabled: drop every participant's source so the live chain stops entirely.
         if (!glassEnabled) {
-            for (let j = 0; j < parts.length; j++) {
-                let q = parts[j];
-                if (q && ("backdropSource" in q))
-                    q.backdropSource = null;
+            for (let li = 0; li < participantLayers.length; li++) {
+                let layer = participantLayers[li];
+                for (let k = 0; k < layer.children.length; k++) {
+                    let q = layer.children[k];
+                    if (q && ("backdropSource" in q))
+                        q.backdropSource = null;
+                }
             }
             return;
         }
 
-        for (let i = 0; i < parts.length; i++) {
-            let p = parts[i];
-            if (!(p && ("backdropSource" in p)))
-                continue;
-            if (i === 0) {
-                // Bottom-most viewer samples the backdrop leaf directly.
-                p.backdropSource = backdrop;
-            } else {
-                let slot = glassSlotComponent.createObject(glassSlotHolder, {
-                    "lowerViewers": parts.slice(0, i)
-                });
-                _glassSlots.push(slot);
-                p.backdropSource = slot;
+        // Collect participants in global z order (layer.z, then item.z, then document order).
+        let participants = [];
+        for (let li = 0; li < participantLayers.length; li++) {
+            let layer = participantLayers[li];
+            let kids = [];
+            for (let k = 0; k < layer.children.length; k++) {
+                let kid = layer.children[k];
+                if (!kid || !("backdropSource" in kid)) continue;
+                kids.push({ item: kid, idx: k });
             }
+            kids.sort((a, b) => {
+                let d = (a.item.z || 0) - (b.item.z || 0);
+                return d !== 0 ? d : (a.idx - b.idx);
+            });
+            for (let kd of kids) participants.push(kd.item);
+        }
+
+        // One slot per participant. Base leaves are shared (the two leaf layers); lowerViewers
+        // grows as we walk up the chain.
+        let baseLeaves = [background, presentation];
+        for (let i = 0; i < participants.length; i++) {
+            let p = participants[i];
+            let slot = glassSlotComponent.createObject(glassSlotHolder, {
+                "baseLeaves": baseLeaves,
+                "lowerViewers": participants.slice(0, i)
+            });
+            _glassSlots.push(slot);
+            p.backdropSource = slot;
         }
     }
 
@@ -497,9 +660,8 @@ Item {
                 if ("shown" in _private.launcher) _private.launcher.shown = true
             }
             let inView = null;
-            for(let i=0;i<topLayer.children.length;i++){
-              let child = topLayer.children[i];
-              if (child === scrimLayer) continue;
+            for(let i=0;i<viewerLayer.children.length;i++){
+              let child = viewerLayer.children[i];
               if(child.contains(child.mapFromGlobal(point.globalPosition))){
                   inView = child;
               }

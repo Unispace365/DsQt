@@ -55,14 +55,20 @@ Check the box when done; move long-finished items to the bottom or delete.
 
 ## Tech debt / cleanup
 
+- [x] **`modalLayer` for scrim + fullscreen** (stage/architecture) — done. Superseded by the
+      named-layer refactor: `DsWaffleStage` now has six layers (background / presentation /
+      viewer / modal1 / modal2 / modal3). Launcher lives in `modal1` (configurable via
+      `launcherLayer`); scrim + fullscreen viewer + `FullscreenController` live in `modal2`,
+      with `setFullscreen` reparenting the viewer into `modal2` on enter and back to its
+      original layer on exit. Glass chain is now cross-layer.
 - [ ] **Stale TEMP comment** (cleanup) — `DsTitledMediaViewer.qml`:
       `visible: true // TEMP: media hidden to inspect the glass background`. The media is shown
       now; the comment is misleading. Remove it.
-- [ ] **Rename ECPresenter installer scripts** (ECPresenter/cleanup) — `c:\dev\ECPresenter\install\`
-      still has `ClonerSource.iss` / `ClonerSource_dev.iss` left over from the project template.
-      `CMakeLists.txt` configures `<DS_APP_NAME>.iss` (= `ECPresenter.iss`), so the old files are
-      dead. Delete them (and any "ClonerSource" strings in `install/apphost.json` /
-      `install/make_installer.bat`).
+- [x] **Rename ECPresenter installer scripts** (ECPresenter/cleanup) — done. Deleted stale
+      `ClonerSource.iss` / `ClonerSource_dev.iss` from both `ECPresenter/install/` and
+      `Examples/AssetViewer/install/` (both had been copied from the ClonerSource template).
+      `apphost.json` and `make_installer.bat` regenerate from `cmake/*.in` per project at
+      configure time and were already project-named correctly; no template changes needed.
 
 ## Performance
 
