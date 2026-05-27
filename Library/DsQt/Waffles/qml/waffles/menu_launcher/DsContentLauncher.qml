@@ -57,11 +57,48 @@ DsViewer {
     height: viewerHeight
 
     // Initial position — centred horizontally near the top of the stage.
+    // Also re-establish the opacity binding: the stage's createObject(...) passes
+    // {"opacity": 1, ...} when instantiating the launcher, which replaces the declarative
+    // `opacity: shown ? 1 : 0` binding above with a constant. Without this re-bind the close
+    // button's `shown = false` does nothing visible.
     Component.onCompleted: {
         if (parent) {
             x = Math.round(parent.width / 2 - width / 2);
             y = 100;
         }
+        opacity = Qt.binding(() => root.shown ? 1 : 0);
+    }
+
+    // Glass config — defaults from the stage (which falls back to DsTheme). The launcher panel
+    // uses a stronger tint than the media chrome (0.9 vs 0.8 per Figma).
+    property bool  glassEnabled:     stage ? stage.glassEnabled : true
+    property color glassTint:        stage ? stage.glassTint : DsTheme.surface
+    property real  glassTintOpacity: 0.9
+    property real  glassBlur:        stage ? stage.glassBlur : DsTheme.glassBlur
+    property int   glassBlurMax:     stage ? stage.glassBlurMax : DsTheme.glassBlurMax
+    property real  glassRadius:      20
+    property color glassBorderColor: stage ? stage.glassBorderColor : DsTheme.stroke
+    property real  glassBorderWidth: stage ? stage.glassBorderWidth : DsTheme.glassBorderWidth
+
+    // Glass context — bundles `source: backdropSource` (the stage's slot, assigned by
+    // DsWaffleStage.rebuildGlass) + the viewer's own coords so DsGlassBackground can self-sample
+    // its slice via mapToItem. `refresh` re-triggers the slice computation when the launcher is
+    // dragged.
+    QtObject {
+        id: glassContext
+        property Item  source: root.backdropSource
+        property Item  viewerItem: root
+        property real  viewerX: root.x
+        property real  viewerY: root.y
+        property bool  enabled: root.glassEnabled
+        property color tint: root.glassTint
+        property real  tintOpacity: root.glassTintOpacity
+        property real  blur: root.glassBlur
+        property int   blurMax: root.glassBlurMax
+        property color borderColor: root.glassBorderColor
+        property real  borderWidth: root.glassBorderWidth
+        property real  radius: root.glassRadius
+        property real  refresh: root.x + root.y + root.width + root.height
     }
 
     // Resolve an icon URL by short name (no extension).
@@ -266,14 +303,12 @@ DsViewer {
 
     DsGlassBackground {
         anchors.fill: parent
-        tintOpacity: 0.9
+        context: glassContext
         topLeftRadius: 20
         topRightRadius: 20
         bottomLeftRadius: 20
         bottomRightRadius: 20
         fallbackColor: Qt.rgba(DsTheme.surface.r, DsTheme.surface.g, DsTheme.surface.b, 0.9)
-        borderColor: DsTheme.stroke
-        borderWidth: 1
     }
 
     // --- Header: title + tab pills + drag handle. -----------------------------------------------
@@ -292,8 +327,9 @@ DsViewer {
             text: "Content Launcher"
             color: DsTheme.surfaceText
             font.family: "Roboto"
-            font.pixelSize: 36
-            font.weight: Font.Thin
+            font.pixelSize: 32
+            font.weight: 100   // Roboto Variable's lightest weight (= Font.Thin)
+            font.letterSpacing: 0.5
         }
 
         Row {
@@ -314,10 +350,15 @@ DsViewer {
                 onClicked: root.viewMode = "search"
             }
         }
-
-        // Drag-by-header — the rest of the panel (list, close button) is free to handle taps.
-        DragHandler { target: root }
     }
+
+    // Drag from anywhere on the panel — PointerHandlers cooperate with the more-specific
+    // TapHandlers (rows, tabs, close button) and the ListView's internal Flickable, so:
+    //   - tap on a row / tab / close → that handler activates;
+    //   - touch-drag inside the list → list scrolls;
+    //   - touch-drag on any other empty space (header, section labels, breadcrumb, padding,
+    //     gutters, around the close button) → the launcher itself drags.
+    DragHandler { target: root }
 
     // --- Body: Loader between Content and Search panes. ----------------------------------------
     Item {
