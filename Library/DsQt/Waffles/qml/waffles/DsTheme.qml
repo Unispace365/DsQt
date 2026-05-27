@@ -19,6 +19,14 @@ QtObject {
     // Reads [waffles.theme] from the merged app_settings collection.
     property DsSettingsProxy _s: DsSettingsProxy { target: "app_settings"; prefix: "waffles.theme" }
 
+    // Waffles bundles Roboto (SIL OFL 1.1) so any consumer app gets `font.family: "Roboto"` for
+    // free — no per-app font setup required. Loaded once via a FontLoader on the singleton, the
+    // file lives in this module's QRC (see Waffles CMakeLists RESOURCES). Apps that bundle their
+    // own Roboto can do so; QFontDatabase will keep the first registration as "Roboto".
+    property FontLoader _robotoLoader: FontLoader {
+        source: "qrc:/qt/qml/Dsqt/Waffles/data/fonts/Roboto/Roboto-VariableFont_wdth,wght.ttf"
+    }
+
     // --- Tier 1: primitives (tonal ramp + brand hue) ---
     property color tonal0:  _s.getColor("tonal0",  "#191F25")
     property color tonal10: _s.getColor("tonal10", "#2E3439")

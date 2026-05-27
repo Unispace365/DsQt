@@ -51,6 +51,13 @@ qt_add_qml_module(Waffles
         qml/ui/DsVideoViewer.qml
         qml/ui/DsWebViewer.qml
         qml/ui/DsPdfViewer.qml
+
+    RESOURCES
+        # Bundled Roboto variable font (SIL OFL 1.1 — see data/fonts/Roboto/OFL.txt). Loaded by
+        # DsTheme via a FontLoader so any app using Dsqt.Waffles automatically gets "Roboto"
+        # available in QFontDatabase, regardless of whether the app bundles its own fonts.
+        data/fonts/Roboto/Roboto-VariableFont_wdth,wght.ttf
+        data/fonts/Roboto/OFL.txt
 )
 
 set(WafflesTargets ${WafflesTargets} PARENT_SCOPE)
