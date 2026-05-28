@@ -53,6 +53,7 @@ Item {
         property real  tintOpacity: DsTheme.glassTintOpacity
         property real  blur:        DsTheme.glassBlur
         property int   blurMax:     DsTheme.glassBlurMax
+        property real  blurMultiplier: DsTheme.glassBlurMultiplier
         property color borderColor: DsTheme.stroke
         property real  borderWidth: DsTheme.glassBorderWidth
         property real  radius:      DsTheme.glassRadius

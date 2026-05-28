@@ -33,6 +33,7 @@ Item {
     property real  glassTintOpacity: DsTheme.glassTintOpacity // 80%
     property real  glassBlur:        DsTheme.glassBlur
     property int   glassBlurMax:     DsTheme.glassBlurMax
+    property real  glassBlurMultiplier: DsTheme.glassBlurMultiplier
     property real  glassRadius:      DsTheme.glassRadius
     property color glassBorderColor: DsTheme.stroke           // Tonal 10
     property real  glassBorderWidth: DsTheme.glassBorderWidth

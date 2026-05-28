@@ -58,6 +58,19 @@ qt_add_qml_module(Waffles
         # available in QFontDatabase, regardless of whether the app bundles its own fonts.
         data/fonts/Roboto/Roboto-VariableFont_wdth,wght.ttf
         data/fonts/Roboto/OFL.txt
+
+        # Bundled media-control icon set. Same rationale as Roboto: every consumer of
+        # Dsqt.Waffles gets the standard play/pause/loop/volume/scrub/keyboard/back/forward
+        # /reload glyphs without having to ship them per-app. Referenced from DsMediaControls
+        # via the qrc:/qt/qml/Dsqt/Waffles/data/... path.
+        data/images/waffles/media/arrow_left.svg
+        data/images/waffles/media/arrow_right.svg
+        data/images/waffles/media/keyboard.svg
+        data/images/waffles/media/loop.svg
+        data/images/waffles/media/pause.svg
+        data/images/waffles/media/play.svg
+        data/images/waffles/media/reload.svg
+        data/images/waffles/media/volume.svg
 )
 
 set(WafflesTargets ${WafflesTargets} PARENT_SCOPE)

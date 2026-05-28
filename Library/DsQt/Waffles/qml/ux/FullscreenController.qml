@@ -20,9 +20,14 @@ import Dsqt.Waffles
 DsController {
     id: controller
 
-    property int tabSize: 56
-    property int barWidth: 1400
-    property int barHeight: 160
+    // Sized to the Figma spec (frame 459 × 99). The bar is inset 15 px from the frame's left so
+    // the collapse tab overlaps its left edge — frame width = barWidth + tabSize/2 (459 = 444 + 15).
+    property int tabSize: 30
+    property int barWidth: 444
+    property int barHeight: 99
+    // Per Figma: launcher/controller corners are 20 (bar) / 8 (tab) — NOT DsTheme.glassRadius.
+    property int barRadius: 20
+    property int tabRadius: 8
 
     // Content extents from the origin (= tab centre / bar's left edge), for placement & clamping.
     readonly property real _left:  tabSize / 2
@@ -42,17 +47,17 @@ DsController {
 
     function windowIcon(n) { return Ds.env.expandUrl("file:///%APP%/data/images/waffles/window/" + n) }
 
-    // Centred, colourised vector icon with a click area.
+    // Centred, colourised vector icon with a click area. Sized for the compact 99-px-tall bar.
     component IconBtn: Item {
         id: ib
         property url icon
         signal clicked()
-        implicitWidth: 48
-        implicitHeight: 48
+        implicitWidth: 24
+        implicitHeight: 24
         VectorImage {
             anchors.centerIn: parent
-            width: 30
-            height: 30
+            width: 16
+            height: 16
             source: ib.icon
             preferredRendererType: VectorImage.CurveRenderer
             layer.enabled: true
@@ -74,10 +79,10 @@ DsController {
             anchors.fill: parent
             context: controller.glassContext
             fallbackColor: DsTheme.scrim
-            topLeftRadius: DsTheme.glassRadius
-            topRightRadius: DsTheme.glassRadius
-            bottomLeftRadius: DsTheme.glassRadius
-            bottomRightRadius: DsTheme.glassRadius
+            topLeftRadius: controller.tabRadius
+            topRightRadius: controller.tabRadius
+            bottomLeftRadius: controller.tabRadius
+            bottomRightRadius: controller.tabRadius
         }
         IconBtn {
             anchors.fill: parent
@@ -107,10 +112,10 @@ DsController {
             anchors.fill: parent
             context: controller.glassContext
             fallbackColor: DsTheme.scrim
-            topLeftRadius: DsTheme.glassRadius
-            topRightRadius: DsTheme.glassRadius
-            bottomLeftRadius: DsTheme.glassRadius
-            bottomRightRadius: DsTheme.glassRadius
+            topLeftRadius: controller.barRadius
+            topRightRadius: controller.barRadius
+            bottomLeftRadius: controller.barRadius
+            bottomRightRadius: controller.barRadius
         }
 
         // Drag the controller by any non-interactive part of the bar — the title, the gaps, or the
@@ -126,14 +131,14 @@ DsController {
 
         ColumnLayout {
             anchors.fill: parent
-            anchors.margins: 20
-            anchors.leftMargin: 48   // clear the collapse tab overlapping the bar's left edge
-            spacing: 10
+            anchors.margins: 10
+            anchors.leftMargin: 28   // clear the collapse tab (right edge at +tabSize/2 = +15) with a small buffer
+            spacing: 6
 
             // Title row.
             Item {
                 Layout.fillWidth: true
-                Layout.preferredHeight: 44
+                Layout.preferredHeight: 24
                 Text {
                     anchors.left: parent.left
                     anchors.right: parent.right
@@ -141,7 +146,8 @@ DsController {
                     text: controller.model && controller.model.title ? controller.model.title : "Media"
                     color: DsTheme.surfaceText
                     font.family: "Roboto"
-                    font.pixelSize: 30
+                    font.weight: 100
+                    font.pixelSize: 16
                     elide: Text.ElideRight
                 }
             }
@@ -150,7 +156,7 @@ DsController {
             RowLayout {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                spacing: 14
+                spacing: 8
 
                 DsMediaControls {
                     id: fsMedia
@@ -166,15 +172,15 @@ DsController {
                 Item { Layout.fillWidth: true; visible: !fsMedia.visible }
 
                 IconBtn {
-                    Layout.preferredWidth: 48
-                    Layout.preferredHeight: 48
+                    Layout.preferredWidth: 24
+                    Layout.preferredHeight: 24
                     Layout.alignment: Qt.AlignVCenter
                     icon: controller.windowIcon("fullscreen.svg")
                     onClicked: if (controller.viewer) controller.viewer.toggleFullscreen()
                 }
                 IconBtn {
-                    Layout.preferredWidth: 48
-                    Layout.preferredHeight: 48
+                    Layout.preferredWidth: 24
+                    Layout.preferredHeight: 24
                     Layout.alignment: Qt.AlignVCenter
                     icon: controller.windowIcon("close.svg")
                     onClicked: if (controller.viewer) controller.viewer.closeRequested()

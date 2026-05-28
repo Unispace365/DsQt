@@ -55,6 +55,9 @@ QtObject {
     property real glassTintOpacity: _s.getFloat("glassTintOpacity", 0.8)   // surface @ 80%
     property real glassBlur:        _s.getFloat("glassBlur", 0.5)
     property int  glassBlurMax:     _s.getInt("glassBlurMax", 32)
+    // MultiEffect blur multiplier — extends the blur radius beyond glassBlurMax cheaply
+    // (no extra texture lookups, at some quality loss). 0.0 disables. See the tour doc.
+    property real glassBlurMultiplier: _s.getFloat("glassBlurMultiplier", 0.0)
     property real glassRadius:      _s.getFloat("glassRadius", 12)
     property real glassBorderWidth: _s.getFloat("glassBorderWidth", 1)
 }

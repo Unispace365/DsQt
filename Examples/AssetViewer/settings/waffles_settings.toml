@@ -24,6 +24,9 @@ primary50 = "#B1DAFC"
 glassTintOpacity = 0.8
 glassBlur        = 0.5
 glassBlurMax     = 48
+# Extend blur radius beyond glassBlurMax without extra texture lookups (cheaper than raising
+# blurMax, at some quality loss). 0.0 disables — leave at 0 unless a design needs a wider blur.
+glassBlurMultiplier = 0.0
 glassRadius      = 12
 glassBorderWidth = 1
 

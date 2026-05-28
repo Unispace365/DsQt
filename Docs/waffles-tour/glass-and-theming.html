@@ -146,8 +146,8 @@ glassBlur 0.5 · glassBlurMax 64   →  ~32 px   same radius, finer quality, ~2�
       <p><code>glassBlur</code> is clamped to <code>0.0–1.0</code>, so a value above <code>1.0</code> just reads as full
       blur. If you need a wider radius than <code>glassBlurMax 64</code> gives, <code>MultiEffect</code> also has
       <code>blurMultiplier</code> — it extends the radius <em>without</em> extra texture lookups (cheaper than a
-      bigger <code>blurMax</code>) at some loss of quality. Waffles doesn't expose it as a token yet; add one
-      the same way the others are wired if a design needs it.</p>
+      bigger <code>blurMax</code>) at some loss of quality. Exposed as the <code>glassBlurMultiplier</code> token
+      (default <code>0.0</code> — disabled); set it in <code>[waffles.theme]</code> to enable.</p>
     </div>
 
     <h2>The fullscreen scrim</h2>

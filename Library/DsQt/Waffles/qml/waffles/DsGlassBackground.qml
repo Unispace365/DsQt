@@ -33,6 +33,9 @@ Item {
     property real  tintOpacity: context ? context.tintOpacity : 0.8
     property real  blur:        context ? context.blur : 0.5
     property int   blurMax:     context ? context.blurMax : 32
+    // MultiEffect's blur multiplier — extends the blur radius beyond blurMax without extra
+    // texture lookups (cheaper than raising blurMax, at some quality loss). Default 0 disables.
+    property real  blurMultiplier: context && ("blurMultiplier" in context) ? context.blurMultiplier : 0
 
     property color fallbackColor: tint
     property Component fallbackComponent: null
@@ -89,6 +92,7 @@ Item {
         blurEnabled: true
         blur: glass.blur
         blurMax: glass.blurMax
+        blurMultiplier: glass.blurMultiplier
         maskEnabled: true
         maskSource: mask
     }

@@ -35,6 +35,7 @@ DsViewer {
     property real  glassTintOpacity: stage ? stage.glassTintOpacity : DsTheme.glassTintOpacity
     property real  glassBlur:        stage ? stage.glassBlur : DsTheme.glassBlur
     property int   glassBlurMax:     stage ? stage.glassBlurMax : DsTheme.glassBlurMax
+    property real  glassBlurMultiplier: stage ? stage.glassBlurMultiplier : DsTheme.glassBlurMultiplier
     property real  glassRadius:      stage ? stage.glassRadius : DsTheme.glassRadius
     property color glassBorderColor: stage ? stage.glassBorderColor : DsTheme.stroke
     property real  glassBorderWidth: stage ? stage.glassBorderWidth : DsTheme.glassBorderWidth
@@ -170,6 +171,7 @@ DsViewer {
         property real  tintOpacity: root.glassTintOpacity
         property real  blur: root.glassBlur
         property int   blurMax: root.glassBlurMax
+        property real  blurMultiplier: root.glassBlurMultiplier
         property color borderColor: root.glassBorderColor
         property real  borderWidth: root.glassBorderWidth
         property real  radius: root.glassRadius
@@ -435,7 +437,11 @@ DsViewer {
                 media: root.config.media
                 fillMode: root.mediaFillMode
                 autoPlay: true
-                visible: true // TEMP: media hidden to inspect the glass background
+                // Honour `media.loop` from the bridge media descriptor: when truthy, loop
+                // forever; otherwise leave at 0 (DsMediaViewer's default — play once, with the
+                // viewer's KeepLastFrame policy holding the final frame on stop).
+                loops: (root.config.media && root.config.media.loop) ? MediaPlayer.Infinite : 0
+                visible: true
             }
         }
 

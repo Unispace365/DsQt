@@ -23,14 +23,24 @@ DsControlSet {
     readonly property var    item:   mv ? mv.mediaItem : null
     readonly property bool   hasControls: mtype === "video" || mtype === "pdf" || mtype === "web"
 
-    implicitHeight: 64
-    height: 64
+    // Sized to Figma's pill spec (37 px tall). Parent Layouts (the FS controller's RowLayout)
+    // can override with Layout.fillHeight; nothing else hardcodes the height.
+    implicitHeight: 37
     // Visible only when the media type has controls and not faded out (so it doesn't take input
     // while hidden). In the fullscreen bar its opacity is forced to 1 and the whole bar fades.
     visible: hasControls && opacity > 0
 
-    function media(n) { return "file:///%APP%/data/images/waffles/media/" + n }
+    // Media icons are bundled in the Waffles QRC (CMakeLists RESOURCES) so any consumer gets
+    // them for free. Window icons still come from the app's data/ for now (see backlog).
+    function media(n) { return "qrc:/qt/qml/Dsqt/Waffles/data/images/waffles/media/" + n }
     function win(n)   { return "file:///%APP%/data/images/waffles/window/" + n }
+
+    // Figma pill widths per type. Used only in `chrome:true` (windowed) mode; when embedded in
+    // the fullscreen controller (`chrome:false`) the pill fills its parent layout width.
+    readonly property int _pillWidthForType: (mtype === "video") ? 356
+                                            : (mtype === "pdf")   ? 236
+                                            : (mtype === "web")   ? 172
+                                            : 0
     // Notify the host (viewer / fullscreen controller) that the user is interacting, so the
     // controls' idle auto-hide is reset.
     function poke()   { mc.interacted() }
@@ -38,29 +48,30 @@ DsControlSet {
     // Mouse over the controls keeps them awake.
     HoverHandler { onPointChanged: mc.poke() }
 
-    // Slider track/handle styling shared by the scrubber / page / volume sliders.
+    // Slider track/handle styling shared by the scrubber / page / volume sliders. Per Figma the
+    // active fill is white (surfaceText), NOT accent — only the loop icon uses accent (when on).
     component Track: Rectangle {
         property Slider slider
         x: slider.leftPadding
         y: slider.topPadding + slider.availableHeight / 2 - height / 2
         width: slider.availableWidth
-        height: 6
-        radius: 3
+        height: 4
+        radius: 2
         color: DsTheme.track
-        Rectangle { width: slider.visualPosition * parent.width; height: parent.height; radius: 3; color: DsTheme.accent }
+        Rectangle { width: slider.visualPosition * parent.width; height: parent.height; radius: 2; color: DsTheme.surfaceText }
     }
     component Handle: Rectangle {
         property Slider slider
         x: slider.leftPadding + slider.visualPosition * (slider.availableWidth - width)
         y: slider.topPadding + slider.availableHeight / 2 - height / 2
-        width: 18; height: 18; radius: 9; color: DsTheme.surfaceText
+        width: 12; height: 12; radius: 6; color: DsTheme.surfaceText
     }
 
-    // Centred pill (constrained width when standalone; fills when embedded).
+    // Pill — per-type Figma width when standalone, fills the parent when embedded in the FS bar.
     Item {
         id: pill
-        height: 64
-        width: mc.chrome ? Math.max(0, Math.min(mc.width - 80, 1400)) : mc.width
+        height: parent ? parent.height : 37
+        width: mc.chrome ? mc._pillWidthForType : mc.width
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.verticalCenter: parent.verticalCenter
 
@@ -70,16 +81,16 @@ DsControlSet {
             fallbackColor: DsTheme.scrim
             borderColor: DsTheme.stroke
             borderWidth: DsTheme.glassBorderWidth
-            topLeftRadius: DsTheme.glassRadius
-            topRightRadius: DsTheme.glassRadius
-            bottomLeftRadius: DsTheme.glassRadius
-            bottomRightRadius: DsTheme.glassRadius
+            topLeftRadius: 20
+            topRightRadius: 20
+            bottomLeftRadius: 20
+            bottomRightRadius: 20
         }
 
         Loader {
             anchors.fill: parent
-            anchors.leftMargin: mc.chrome ? 24 : 0
-            anchors.rightMargin: mc.chrome ? 16 : 0
+            anchors.leftMargin: mc.chrome ? 12 : 0
+            anchors.rightMargin: mc.chrome ? 12 : 0
             sourceComponent: mc.mtype === "video" ? videoComp
                            : mc.mtype === "pdf"   ? pdfComp
                            : mc.mtype === "web"   ? webComp : null
@@ -90,9 +101,10 @@ DsControlSet {
     Component {
         id: videoComp
         RowLayout {
-            spacing: 14
+            spacing: 8
             DsCtrlIcon {
-                Layout.preferredWidth: 48; Layout.preferredHeight: 48; Layout.alignment: Qt.AlignVCenter
+                Layout.preferredWidth: 24; Layout.preferredHeight: 24; Layout.alignment: Qt.AlignVCenter
+                iconSize: 16
                 iconName: (mc.item && mc.item.playbackState === MediaPlayer.PlayingState) ? mc.media("pause.svg") : mc.media("play.svg")
                 onClicked: {
                     mc.poke();
@@ -111,20 +123,22 @@ DsControlSet {
                 handle: Handle { slider: scrub }
             }
             DsCtrlIcon {
-                Layout.preferredWidth: 48; Layout.preferredHeight: 48; Layout.alignment: Qt.AlignVCenter
+                Layout.preferredWidth: 24; Layout.preferredHeight: 24; Layout.alignment: Qt.AlignVCenter
+                iconSize: 16
                 iconName: mc.media("loop.svg")
                 active: mc.item && mc.item.loops === MediaPlayer.Infinite
                 onClicked: { mc.poke(); if (mc.item) mc.item.loops = (mc.item.loops === MediaPlayer.Infinite ? 1 : MediaPlayer.Infinite) }
             }
             DsCtrlIcon {
-                Layout.preferredWidth: 48; Layout.preferredHeight: 48; Layout.alignment: Qt.AlignVCenter
+                Layout.preferredWidth: 24; Layout.preferredHeight: 24; Layout.alignment: Qt.AlignVCenter
+                iconSize: 16
                 iconName: mc.media("volume.svg")
                 active: mc.item && mc.item.muted
                 onClicked: { mc.poke(); if (mc.item) mc.item.muted = !mc.item.muted }
             }
             Slider {
                 id: vol
-                Layout.preferredWidth: 160; Layout.alignment: Qt.AlignVCenter
+                Layout.preferredWidth: 80; Layout.alignment: Qt.AlignVCenter
                 from: 0; to: 1; value: mc.item ? mc.item.volume : 1
                 onMoved: { mc.poke(); if (mc.item) mc.item.volume = value }
                 onPressedChanged: mc.poke()
@@ -138,15 +152,17 @@ DsControlSet {
     Component {
         id: pdfComp
         RowLayout {
-            spacing: 14
+            spacing: 8
             Text {
-                Layout.preferredWidth: 96; Layout.alignment: Qt.AlignVCenter
+                Layout.preferredWidth: 48; Layout.alignment: Qt.AlignVCenter
                 text: mc.item ? ((mc.item.currentPage + 1) + "/" + mc.item.pageCount) : "0/0"
                 color: DsTheme.surfaceText
-                font.family: "Roboto"; font.pixelSize: 24
+                font.family: "Roboto"; font.pixelSize: 12; font.letterSpacing: 0.6
+                horizontalAlignment: Text.AlignHCenter
             }
             DsCtrlIcon {
-                Layout.preferredWidth: 48; Layout.preferredHeight: 48; Layout.alignment: Qt.AlignVCenter
+                Layout.preferredWidth: 24; Layout.preferredHeight: 24; Layout.alignment: Qt.AlignVCenter
+                iconSize: 16
                 iconName: mc.media("arrow_left.svg")
                 enabled: mc.item && mc.item.currentPage > 0
                 onClicked: { mc.poke(); if (mc.item) mc.item.goToPage(mc.item.currentPage - 1) }
@@ -163,13 +179,15 @@ DsControlSet {
                 handle: Handle { slider: pageSlider }
             }
             DsCtrlIcon {
-                Layout.preferredWidth: 48; Layout.preferredHeight: 48; Layout.alignment: Qt.AlignVCenter
+                Layout.preferredWidth: 24; Layout.preferredHeight: 24; Layout.alignment: Qt.AlignVCenter
+                iconSize: 16
                 iconName: mc.media("arrow_right.svg")
                 enabled: mc.item && mc.item.currentPage < mc.item.pageCount - 1
                 onClicked: { mc.poke(); if (mc.item) mc.item.goToPage(mc.item.currentPage + 1) }
             }
             DsCtrlIcon {
-                Layout.preferredWidth: 48; Layout.preferredHeight: 48; Layout.alignment: Qt.AlignVCenter
+                Layout.preferredWidth: 24; Layout.preferredHeight: 24; Layout.alignment: Qt.AlignVCenter
+                iconSize: 16
                 iconName: (mc.viewer && mc.viewer.contentLocked) ? mc.win("locked.svg") : mc.win("lock.svg")
                 active: mc.viewer && mc.viewer.contentLocked
                 onClicked: { mc.poke(); if (mc.viewer) mc.viewer.contentLocked = !mc.viewer.contentLocked }
@@ -181,32 +199,37 @@ DsControlSet {
     Component {
         id: webComp
         RowLayout {
-            spacing: 14
+            spacing: 8
             DsCtrlIcon {
-                Layout.preferredWidth: 48; Layout.preferredHeight: 48; Layout.alignment: Qt.AlignVCenter
+                Layout.preferredWidth: 24; Layout.preferredHeight: 24; Layout.alignment: Qt.AlignVCenter
+                iconSize: 16
                 iconName: mc.media("keyboard.svg")
                 onClicked: { mc.poke(); /* TODO: bring up the on-screen keyboard (larger task) */ }
             }
             DsCtrlIcon {
-                Layout.preferredWidth: 48; Layout.preferredHeight: 48; Layout.alignment: Qt.AlignVCenter
+                Layout.preferredWidth: 24; Layout.preferredHeight: 24; Layout.alignment: Qt.AlignVCenter
+                iconSize: 16
                 iconName: mc.media("arrow_left.svg")
                 enabled: mc.item && mc.item.canGoBack
                 onClicked: { mc.poke(); if (mc.item) mc.item.goBack() }
             }
             DsCtrlIcon {
-                Layout.preferredWidth: 48; Layout.preferredHeight: 48; Layout.alignment: Qt.AlignVCenter
+                Layout.preferredWidth: 24; Layout.preferredHeight: 24; Layout.alignment: Qt.AlignVCenter
+                iconSize: 16
                 iconName: mc.media("arrow_right.svg")
                 enabled: mc.item && mc.item.canGoForward
                 onClicked: { mc.poke(); if (mc.item) mc.item.goForward() }
             }
             DsCtrlIcon {
-                Layout.preferredWidth: 48; Layout.preferredHeight: 48; Layout.alignment: Qt.AlignVCenter
+                Layout.preferredWidth: 24; Layout.preferredHeight: 24; Layout.alignment: Qt.AlignVCenter
+                iconSize: 16
                 iconName: mc.media("reload.svg")
                 onClicked: { mc.poke(); if (mc.item) mc.item.reload() }
             }
             Item { Layout.fillWidth: true }
             DsCtrlIcon {
-                Layout.preferredWidth: 48; Layout.preferredHeight: 48; Layout.alignment: Qt.AlignVCenter
+                Layout.preferredWidth: 24; Layout.preferredHeight: 24; Layout.alignment: Qt.AlignVCenter
+                iconSize: 16
                 iconName: (mc.viewer && mc.viewer.contentLocked) ? mc.win("locked.svg") : mc.win("lock.svg")
                 active: mc.viewer && mc.viewer.contentLocked
                 onClicked: { mc.poke(); if (mc.viewer) mc.viewer.contentLocked = !mc.viewer.contentLocked }

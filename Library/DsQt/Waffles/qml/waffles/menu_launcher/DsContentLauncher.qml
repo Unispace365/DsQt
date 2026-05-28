@@ -76,6 +76,7 @@ DsViewer {
     property real  glassTintOpacity: 0.9
     property real  glassBlur:        stage ? stage.glassBlur : DsTheme.glassBlur
     property int   glassBlurMax:     stage ? stage.glassBlurMax : DsTheme.glassBlurMax
+    property real  glassBlurMultiplier: stage ? stage.glassBlurMultiplier : DsTheme.glassBlurMultiplier
     property real  glassRadius:      20
     property color glassBorderColor: stage ? stage.glassBorderColor : DsTheme.stroke
     property real  glassBorderWidth: stage ? stage.glassBorderWidth : DsTheme.glassBorderWidth
@@ -95,6 +96,7 @@ DsViewer {
         property real  tintOpacity: root.glassTintOpacity
         property real  blur: root.glassBlur
         property int   blurMax: root.glassBlurMax
+        property real  blurMultiplier: root.glassBlurMultiplier
         property color borderColor: root.glassBorderColor
         property real  borderWidth: root.glassBorderWidth
         property real  radius: root.glassRadius
@@ -106,11 +108,12 @@ DsViewer {
         return Ds.env.expandUrl("%APP%/data/images/waffles/content_launcher/" + name + ".svg");
     }
 
-    // Map an item's kind to the leading icon name (for folders / playlists).
+    // Map an item's kind to the leading icon name. Used when a drillable item has no thumbnail.
+    // Falls back to "folder" so unmapped drillable kinds still render a sensible icon.
     function _leadingIconFor(kind) {
         if (kind === "folder")   return "folder";
         if (kind === "playlist") return "playlist";
-        return "";
+        return "folder";
     }
 
     // Map an item's kind to the trailing type icon (for media leaves).
@@ -206,28 +209,32 @@ DsViewer {
             anchors.rightMargin: 24
             spacing: 12
 
-            // Leading 34x34 — thumbnail for media leaves, kind-icon-on-Tonal-10 for folders / playlists.
+            // Leading 34x34. Three states:
+            //   - thumbnail present   → rounded thumbnail
+            //   - drillable, no thumb → Tonal-10 rounded square + kind icon (folder / playlist)
+            //   - leaf, no thumb      → empty (rare; could add per-kind leaf icons later)
             Item {
                 Layout.preferredWidth: 34
                 Layout.preferredHeight: 34
 
-                // Filled background for folders / playlists (no thumbnail).
+                // Kind-icon container for drillable items without a thumbnail.
                 Rectangle {
                     anchors.fill: parent
                     radius: 10
                     color: DsTheme.surfaceVariant
-                    visible: lrow.item && (lrow.item.kind === "folder" || lrow.item.kind === "playlist")
+                    visible: lrow.item && lrow.item.hasChildren && !lrow.item.thumbnail
                 }
-                // Kind icon for folders / playlists.
                 DsLauncherIcon {
                     anchors.centerIn: parent
-                    visible: lrow.item && (lrow.item.kind === "folder" || lrow.item.kind === "playlist")
+                    visible: lrow.item && lrow.item.hasChildren && !lrow.item.thumbnail
                     sourceSize: 20
                     source: lrow.item ? root._icon(root._leadingIconFor(lrow.item.kind)) : ""
                     color: lrow.selected ? DsTheme.selectedSurfaceText : DsTheme.surfaceText
                 }
 
-                // Thumbnail for media leaves — rounded via MultiEffect mask.
+                // Thumbnail — rounded via MultiEffect mask. Always shown when present, even on
+                // drillable items (a folder/Asset/playlist with a cover image looks nicer than
+                // the icon fallback). The trailing chevron still indicates drillability.
                 Image {
                     id: thumbImg
                     anchors.fill: parent
@@ -249,7 +256,6 @@ DsViewer {
                 MultiEffect {
                     anchors.fill: parent
                     visible: lrow.item && lrow.item.thumbnail
-                          && lrow.item.kind !== "folder" && lrow.item.kind !== "playlist"
                     source: thumbImg
                     maskEnabled: true
                     maskSource: thumbMask

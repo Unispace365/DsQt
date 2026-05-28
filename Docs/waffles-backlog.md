@@ -8,21 +8,27 @@ Check the box when done; move long-finished items to the bottom or delete.
 
 ## Features
 
-- [ ] **Loop via metadata** (media) — `media.loop` → set `loops: Infinite` at viewer open.
-      The remaining half of FS Phase 4; hold-last-frame is already done via
-      `endOfStreamPolicy: VideoOutput.KeepLastFrame`.
+- [x] **Loop via metadata** (media) — done. `DsTitledMediaViewer` now reads `media.loop` from the
+      bridge media descriptor and sets `DsMediaViewer.loops = MediaPlayer.Infinite` when truthy
+      (else 0 = play once + KeepLastFrame). Finishes FS Phase 4.
 - [ ] **On-screen keyboard** (controls/web) — the web controls' keyboard button is currently
       a stub; needs an on-screen keyboard surface.
 - [ ] **Per-type fullscreen controllers** (fullscreen) — `DsWaffleStage._showController` notes
       "could vary by `v.viewerType`"; only `fullscreenController` is wired. A
       `presentationController` component exists but isn't used yet.
-- [ ] **Glass on non-media viewers** (glass) — `DsViewer` carries the glass config but only
-      `DsTitledMediaViewer` renders the glass surface (menu / launcher / other viewers don't).
+- [x] **Glass on non-media viewers** (glass) — done. `DsContentLauncher` now renders glass via a
+      `glassContext` consumed by its panel's `DsGlassBackground`; the `FullscreenController` does
+      the same via `DsController.glassContext`. Both sample the cross-layer slot chain so their
+      blur shows everything below in the layer stack. Any future non-media viewer can adopt the
+      same pattern by exposing a glass-context QtObject.
 
 ## Polish / UX
 
-- [ ] **Resize the fullscreen controller to the Figma spec** (fullscreen/UX) — the controller is far
-      bigger than the design. Figma is 4K, 1:1 with the stage. File:
+- [x] **Resize the fullscreen controller to the Figma spec** (fullscreen/UX) — done. Frame is now
+      459 × 99 (bar 444 × 99 + tab 30 × 30 overlap), title 16 px Roboto Thin (weight 100), bar
+      corner radius 20, tab corner radius 8, icon buttons 24 × 24 with 16 px icons. The full
+      Figma spec captured below stays for reference + the per-type pill specs (those still
+      apply to `DsMediaControls` windowed and remain to-do).
       `Library/DsQt/Waffles/qml/ux/FullscreenController.qml`. Figma:
       [Image 83:3593](https://www.figma.com/design/fjxsTDEKzJ7Xs50BQyptGE/White-Label-Waffles-DD?node-id=83-3593&m=dev),
       [Video 83:3594](https://www.figma.com/design/fjxsTDEKzJ7Xs50BQyptGE/White-Label-Waffles-DD?node-id=83-3594&m=dev).
@@ -55,15 +61,30 @@ Check the box when done; move long-finished items to the bottom or delete.
 
 ## Tech debt / cleanup
 
+- [ ] **Bundle window icons in Waffles too** (waffles/assets) — `DsMediaControls.media()` now
+      pulls glyphs from `qrc:/qt/qml/Dsqt/Waffles/data/images/waffles/media/...` (shipped with
+      the module). Same treatment still owed to `DsMediaControls.win()` and
+      `FullscreenController.windowIcon()`, both of which expand `%APP%/data/images/waffles/
+      window/...` from app-side. ECPresenter and AssetViewer happen to ship that folder so
+      things work today; a brand-new Waffles consumer would have missing icons. Same recipe as
+      Roboto + the media set: copy `close / collapse / controller_collapse|expand / fullscreen
+      / lock / locked` (+ `_pressed` variants) into `Library/DsQt/Waffles/data/images/waffles/
+      window/`, list in `RESOURCES`, switch the helpers to `qrc:/...` paths.
+- [ ] **Per-type DsMediaControls pill widths follow Figma in chrome:false too?** (decide)
+      Today `pill.width = mc.width` when embedded in the FS controller (fills the row); the
+      Figma's video/pdf/web pills (356/236/172) are only enforced in standalone chrome:true mode.
+      The FS-controller inline row works fine filled, but it isn't a literal Figma match.
+
+
+
 - [x] **`modalLayer` for scrim + fullscreen** (stage/architecture) — done. Superseded by the
       named-layer refactor: `DsWaffleStage` now has six layers (background / presentation /
       viewer / modal1 / modal2 / modal3). Launcher lives in `modal1` (configurable via
       `launcherLayer`); scrim + fullscreen viewer + `FullscreenController` live in `modal2`,
       with `setFullscreen` reparenting the viewer into `modal2` on enter and back to its
       original layer on exit. Glass chain is now cross-layer.
-- [ ] **Stale TEMP comment** (cleanup) — `DsTitledMediaViewer.qml`:
-      `visible: true // TEMP: media hidden to inspect the glass background`. The media is shown
-      now; the comment is misleading. Remove it.
+- [x] **Stale TEMP comment** (cleanup) — done. Removed the misleading
+      `// TEMP: media hidden to inspect the glass background` annotation.
 - [x] **Rename ECPresenter installer scripts** (ECPresenter/cleanup) — done. Deleted stale
       `ClonerSource.iss` / `ClonerSource_dev.iss` from both `ECPresenter/install/` and
       `Examples/AssetViewer/install/` (both had been copied from the ClonerSource template).
@@ -78,9 +99,20 @@ Check the box when done; move long-finished items to the bottom or delete.
 
 ## Docs
 
-- [ ] **`blurMultiplier` glass token** (theme) — expose one if a design ever needs a blur radius
-      beyond what `glassBlurMax 64` gives (it extends radius cheaply, at some quality loss).
-      Noted in the glass-and-theming tour page.
+- [ ] **Tour: explain drillable vs openable in the launcher** (docs) — the launcher item shape
+      now carries both `hasChildren` (UX hint: chevron + drill-on-tap, driven by
+      `drillableKinds`) and `recordHasChildren` (data fact: bridge record actually has children,
+      used by openable container viewers like presentations). Worth a short paragraph in the
+      glass-and-theming tour page (or a new launcher tour page) once the search/keyboard work
+      lands. Default `drillableKinds = ["folder", "playlist"]`; map "Presentation" / other
+      always-open container types to a kind outside that list (e.g. `"presentation"`).
+
+
+- [x] **`blurMultiplier` glass token** (theme) — done. `glassBlurMultiplier` (default 0.0) added
+      to `DsTheme` + `[waffles.theme]` settings, plumbed through `DsWaffleStage` →
+      `DsTitledMediaViewer` / `DsContentLauncher` / `DsController` glass contexts and into
+      `DsGlassBackground`'s `MultiEffect`. Bump above 0 to extend blur radius beyond
+      `glassBlurMax` without raising texture-lookup cost.
 
 ---
 

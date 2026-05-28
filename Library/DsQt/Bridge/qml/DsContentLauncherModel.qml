@@ -6,11 +6,22 @@ import Dsqt.Bridge
 // Content Launcher data adapter — reads the running bridge and produces the generic item shape
 // the Waffles `DsContentLauncher` panel consumes:
 //
-//     { uid, title, kind, thumbnail, media, hasChildren, record }
+//     { uid, title, kind, thumbnail, media, hasChildren, recordHasChildren, record }
 //
 // `media` carries the full bridge media descriptor (filepath, width, height, type, crop) when
 // the record has one, or null for folders/playlists/non-media. Consumers use it as-is for
 // `viewerProps.media` so the viewer can size to the real media aspect.
+//
+// **Drillable vs openable** — two independent concepts:
+//   - `recordHasChildren` is a *data fact* — does the bridge record actually carry child
+//     records? Useful for consumers like a presentation viewer that wants to walk the children
+//     once an item is opened.
+//   - `hasChildren` is a *UX hint* — should the launcher drill into this item on tap, or open
+//     it via `openRequested`? Derived purely from `kind` being in `drillableKinds`.
+// So a Presentation (record has children → openable in a presentation viewer) is `kind` =
+// `"presentation"` (not in drillableKinds) → tap opens, no drill. An empty folder is still
+// drillable. A Bridge "Assets" container that holds media → map to `"folder"` (default does
+// this for the demo schema) → drillable.
 //
 // Lives in `Dsqt.Bridge` so the Waffles UI module stays bridge-agnostic: Waffles depends on
 // nothing here; this depends on Bridge; apps that want a bridge-driven launcher import both.
@@ -62,7 +73,7 @@ QtObject {
     // type_uid → kind. Most specific source — checked first because uids are stable.
     property var typeKindByUid: ({
         "JfDgLbj9vxT8": "media",
-        "4fysJWac8KpK": "asset",
+        "4fysJWac8KpK": "folder",      // demo "Assets" is a container of media → drillable
         "YhPdk0XdFnRD": "folder",
         "Q1zLmsTO9Ux9": "folder",
         "bweKU2WOurPH": "playlist",
@@ -72,12 +83,18 @@ QtObject {
     // to be portable across schemas (e.g. "Media" / "Folder") but the uids aren't.
     property var typeKindByName: ({
         "Media": "media",
-        "Assets": "asset",
+        "Assets": "folder",            // see above — demo Assets is a container
         "Assets Folder": "folder",
         "Playlist Folder": "folder",
         "Interactive Playlist": "playlist",
         "Ambient Playlist": "playlist"
     })
+
+    // Which kinds the launcher should drill into on tap (chevron shown). Anything not listed
+    // here is openable (tap → openRequested), even if its record actually has children. This is
+    // how a Presentation (`kind: "presentation"`) stays openable despite having slide children:
+    // give it a custom kind and don't list that kind here.
+    property var drillableKinds: ["folder", "playlist"]
 
     // The "media descriptor" field appKey on Media records — a hash with `.type` (image/video/pdf/
     // weblink) and `.filepath`. It refines `kind` for the `media` bucket and provides the primary
@@ -155,15 +172,21 @@ QtObject {
         }
         if (!title) title = "(untitled)";
 
-        const hasChildren = (kind === "folder" || kind === "playlist");
+        // recordHasChildren = data fact (record actually carries children).
+        // hasChildren       = UX choice (launcher drills into this kind). Independent.
+        const recordHasChildren =
+            (rec.children && rec.children.length > 0) ||
+            (rec.child_uid && rec.child_uid.length > 0);
+        const hasChildren = (adapter.drillableKinds || []).indexOf(kind) !== -1;
         return {
-            "uid":         rec.uid || "",
-            "title":       title,
-            "kind":        kind,
-            "thumbnail":   thumb,
-            "media":       mediaOut,
-            "hasChildren": hasChildren,
-            "record":      rec
+            "uid":               rec.uid || "",
+            "title":             title,
+            "kind":              kind,
+            "thumbnail":         thumb,
+            "media":             mediaOut,
+            "hasChildren":       hasChildren,
+            "recordHasChildren": recordHasChildren,
+            "record":            rec
         };
     }
 
@@ -302,6 +325,11 @@ QtObject {
 
     // --- Rebuild ---
     function rebuild() {
+        // Remember where the user was so we can replay the breadcrumb against the freshly
+        // rebuilt tree. Records can get recreated by a bridge sync, so we replay by uid
+        // (stable identity) — that also picks up fresh `record` handles and child lists.
+        const savedPath = adapter._navStack.map(function (e) { return e.item.uid; });
+
         const platform = DsBridge.getPlatformRecord();
         const eventRec = adapter._currentInteractiveEventRecord();
 
@@ -322,16 +350,34 @@ QtObject {
 
         adapter.currentPlaylist = cp;
         adapter.library = lib;
-        // Reset navigation on rebuild — records may have been recreated by a bridge sync.
-        adapter._navStack = [];
-        adapter.displayedItems = lib;
+
+        // Replay the saved navigation path by uid. Stop at the first missing level — the
+        // user falls back to the deepest ancestor that still exists (potentially root).
+        const newStack = [];
+        let displayed = lib;
+        for (let i = 0; i < savedPath.length; ++i) {
+            const uid = savedPath[i];
+            let found = null;
+            for (let j = 0; j < displayed.length; ++j) {
+                if (displayed[j].uid === uid) { found = displayed[j]; break; }
+            }
+            if (!found) break;
+            const kids = adapter._resolveChildren(found.record);
+            newStack.push({ item: found, children: kids });
+            displayed = kids;
+        }
+        adapter._navStack = newStack;
+        adapter.displayedItems = displayed;
         adapter.ready = (platform !== null);
 
         if (adapter._verbose) adapter.dump();
     }
 
     // --- Console dump (verification helper) ---
-    property bool _verbose: true
+    // Off by default — flip to true (or call dump()/dumpAllChildren() from the console) when you
+    // need to inspect what the bridge is yielding. With it on, every content change spams a full
+    // dump since each change triggers a rebuild().
+    property bool _verbose: false
 
     function dump() {
         const platform = DsBridge.getPlatformRecord();
@@ -386,9 +432,11 @@ QtObject {
         }
         for (let i = 0; i < adapter.library.length; ++i) {
             const top = adapter.library[i];
-            console.log("[" + top.kind + "] " + top.title + " (" + top.uid + "):");
-            if (!top.hasChildren) {
-                console.log("  (leaf — no children expected)");
+            console.log("[" + top.kind + "] " + top.title + " (" + top.uid + ")" +
+                        (top.hasChildren ? " [drillable]" : "") +
+                        (top.recordHasChildren ? " [has children]" : "") + ":");
+            if (!top.recordHasChildren) {
+                console.log("  (no children)");
                 continue;
             }
             const kids = adapter._resolveChildren(top.record);
@@ -408,11 +456,16 @@ QtObject {
     }
 
     // --- Lifecycle ---
-    property var _bridge: DsBridge
-    property var _conn: Connections {
-        target: adapter._bridge
-        function onContentChanged() { adapter.rebuild(); }
-        function onBridgeUpdated()  { adapter.rebuild(); }
+    // Bridge signals are wired via a typed `property Connections` (not `property var`) so the
+    // QML engine keeps the Connections object alive for the adapter's lifetime. Explicit
+    // `signal.connect()` calls from Component.onCompleted weren't establishing a durable
+    // subscription against the DsBridge singleton — the typed property form is the canonical
+    // QML pattern and gets cleaned up automatically when the adapter goes away.
+    property Connections _bridgeConn: Connections {
+        target: DsBridge
+        function onContentChanged()  { adapter.rebuild(); }
+        function onBridgeUpdated()   { adapter.rebuild(); }
+        function onDatabaseChanged() { adapter.rebuild(); }
     }
 
     Component.onCompleted: {
