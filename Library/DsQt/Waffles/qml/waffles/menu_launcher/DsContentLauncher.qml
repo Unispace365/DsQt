@@ -51,8 +51,9 @@ DsViewer {
     // Top-of-panel toggle. "search" is a placeholder for 2c; for now it just renders an empty pane.
     property string viewMode: "content"
 
-    viewerWidth: 453
-    viewerHeight: 762
+    // Panel sized in chrome units (DsTheme.dp) so the whole launcher scales with uiScale.
+    viewerWidth: DsTheme.dp(453)
+    viewerHeight: DsTheme.dp(762)
     width: viewerWidth
     height: viewerHeight
 
@@ -77,7 +78,7 @@ DsViewer {
     property real  glassBlur:        stage ? stage.glassBlur : DsTheme.glassBlur
     property int   glassBlurMax:     stage ? stage.glassBlurMax : DsTheme.glassBlurMax
     property real  glassBlurMultiplier: stage ? stage.glassBlurMultiplier : DsTheme.glassBlurMultiplier
-    property real  glassRadius:      20
+    property real  glassRadius:      DsTheme.dp(20)
     property color glassBorderColor: stage ? stage.glassBorderColor : DsTheme.stroke
     property real  glassBorderWidth: stage ? stage.glassBorderWidth : DsTheme.glassBorderWidth
 
@@ -143,7 +144,7 @@ DsViewer {
         id: dlIcon
         property url source
         property color color: DsTheme.surfaceText
-        property int sourceSize: 20
+        property int sourceSize: DsTheme.dp(20)
         width: sourceSize
         height: sourceSize
         VectorImage {
@@ -165,21 +166,21 @@ DsViewer {
         property string iconName
         property bool active: false
         signal clicked()
-        implicitWidth: 130
-        implicitHeight: 46
-        radius: 23
+        implicitWidth: DsTheme.dp(130)
+        implicitHeight: DsTheme.dp(46)
+        radius: DsTheme.dp(23)
         color: pill.active ? DsTheme.selectedSurface : DsTheme.surfaceVariant
         border.color: DsTheme.stroke
         border.width: pill.active ? 0 : 1
         RowLayout {
             anchors.fill: parent
-            anchors.leftMargin: 14
-            anchors.rightMargin: 16
-            spacing: 8
+            anchors.leftMargin: DsTheme.dp(14)
+            anchors.rightMargin: DsTheme.dp(16)
+            spacing: DsTheme.dp(8)
             DsLauncherIcon {
-                Layout.preferredWidth: 22
-                Layout.preferredHeight: 22
-                sourceSize: 22
+                Layout.preferredWidth: DsTheme.dp(22)
+                Layout.preferredHeight: DsTheme.dp(22)
+                sourceSize: DsTheme.dp(22)
                 source: root._icon(pill.iconName)
                 color: pill.active ? DsTheme.selectedSurfaceText : DsTheme.surfaceText
             }
@@ -188,7 +189,7 @@ DsViewer {
                 text: pill.label
                 color: pill.active ? DsTheme.selectedSurfaceText : DsTheme.surfaceText
                 font.family: "Roboto"
-                font.pixelSize: 16
+                font.pixelSize: DsTheme.dp(16)
                 verticalAlignment: Text.AlignVCenter
             }
         }
@@ -203,9 +204,9 @@ DsViewer {
         property var kinds: []
         property var targetModel: null
         readonly property bool active: chip.targetModel ? root._kindsEqual(chip.targetModel.searchKinds, chip.kinds) : false
-        implicitHeight: 32
-        implicitWidth: chipText.implicitWidth + 28
-        radius: 16
+        implicitHeight: DsTheme.dp(32)
+        implicitWidth: chipText.implicitWidth + DsTheme.dp(28)
+        radius: DsTheme.dp(16)
         color: chip.active ? DsTheme.selectedSurface : DsTheme.surfaceVariant
         border.color: DsTheme.stroke
         border.width: chip.active ? 0 : 1
@@ -215,7 +216,7 @@ DsViewer {
             text: chip.label
             color: chip.active ? DsTheme.selectedSurfaceText : DsTheme.surfaceText
             font.family: "Roboto"
-            font.pixelSize: 13
+            font.pixelSize: DsTheme.dp(13)
         }
         TapHandler { onTapped: if (chip.targetModel) chip.targetModel.searchKinds = chip.kinds }
     }
@@ -229,7 +230,7 @@ DsViewer {
         property bool selected: false
         signal activated()
 
-        implicitHeight: 52
+        implicitHeight: DsTheme.dp(52)
 
         // Selected-row background (Primary-50 across the full row).
         Rectangle {
@@ -239,29 +240,29 @@ DsViewer {
 
         RowLayout {
             anchors.fill: parent
-            anchors.leftMargin: 24
-            anchors.rightMargin: 24
-            spacing: 12
+            anchors.leftMargin: DsTheme.dp(24)
+            anchors.rightMargin: DsTheme.dp(24)
+            spacing: DsTheme.dp(12)
 
             // Leading 34x34. Three states:
             //   - thumbnail present   → rounded thumbnail
             //   - drillable, no thumb → Tonal-10 rounded square + kind icon (folder / playlist)
             //   - leaf, no thumb      → empty (rare; could add per-kind leaf icons later)
             Item {
-                Layout.preferredWidth: 34
-                Layout.preferredHeight: 34
+                Layout.preferredWidth: DsTheme.dp(34)
+                Layout.preferredHeight: DsTheme.dp(34)
 
                 // Kind-icon container for drillable items without a thumbnail.
                 Rectangle {
                     anchors.fill: parent
-                    radius: 10
+                    radius: DsTheme.dp(10)
                     color: DsTheme.surfaceVariant
                     visible: lrow.item && lrow.item.hasChildren && !lrow.item.thumbnail
                 }
                 DsLauncherIcon {
                     anchors.centerIn: parent
                     visible: lrow.item && lrow.item.hasChildren && !lrow.item.thumbnail
-                    sourceSize: 20
+                    sourceSize: DsTheme.dp(20)
                     source: lrow.item ? root._icon(root._leadingIconFor(lrow.item.kind)) : ""
                     color: lrow.selected ? DsTheme.selectedSurfaceText : DsTheme.surfaceText
                 }
@@ -283,7 +284,7 @@ DsViewer {
                 Rectangle {
                     id: thumbMask
                     anchors.fill: parent
-                    radius: 10
+                    radius: DsTheme.dp(10)
                     visible: false
                     layer.enabled: true
                 }
@@ -302,16 +303,16 @@ DsViewer {
                 text: lrow.item ? lrow.item.title : ""
                 color: lrow.selected ? DsTheme.selectedSurfaceText : DsTheme.surfaceText
                 font.family: "Roboto"
-                font.pixelSize: 14
+                font.pixelSize: DsTheme.dp(14)
                 elide: Text.ElideRight
                 verticalAlignment: Text.AlignVCenter
             }
 
             // Trailing — type icon (16x16) for media, chevron for hasChildren, empty otherwise.
             DsLauncherIcon {
-                Layout.preferredWidth: 16
-                Layout.preferredHeight: 16
-                sourceSize: 16
+                Layout.preferredWidth: DsTheme.dp(16)
+                Layout.preferredHeight: DsTheme.dp(16)
+                sourceSize: DsTheme.dp(16)
                 visible: lrow.item && (lrow.item.hasChildren || root._typeIconFor(lrow.item.kind) !== "")
                 source: {
                     if (!lrow.item) return "";
@@ -344,10 +345,10 @@ DsViewer {
     DsGlassBackground {
         anchors.fill: parent
         context: glassContext
-        topLeftRadius: 20
-        topRightRadius: 20
-        bottomLeftRadius: 20
-        bottomRightRadius: 20
+        topLeftRadius: DsTheme.dp(20)
+        topRightRadius: DsTheme.dp(20)
+        bottomLeftRadius: DsTheme.dp(20)
+        bottomRightRadius: DsTheme.dp(20)
         fallbackColor: Qt.rgba(DsTheme.surface.r, DsTheme.surface.g, DsTheme.surface.b, 0.9)
     }
 
@@ -357,17 +358,17 @@ DsViewer {
         anchors.top: parent.top
         anchors.left: parent.left
         anchors.right: parent.right
-        anchors.leftMargin: 24
-        anchors.rightMargin: 24
-        anchors.topMargin: 28
-        height: titleText.height + 14 + tabRow.height
+        anchors.leftMargin: DsTheme.dp(24)
+        anchors.rightMargin: DsTheme.dp(24)
+        anchors.topMargin: DsTheme.dp(28)
+        height: titleText.height + DsTheme.dp(14) + tabRow.height
 
         Text {
             id: titleText
             text: "Content Launcher"
             color: DsTheme.surfaceText
             font.family: "Roboto"
-            font.pixelSize: 32
+            font.pixelSize: DsTheme.dp(32)
             font.weight: 100   // Roboto Variable's lightest weight (= Font.Thin)
             font.letterSpacing: 0.5
         }
@@ -375,8 +376,8 @@ DsViewer {
         Row {
             id: tabRow
             anchors.top: titleText.bottom
-            anchors.topMargin: 14
-            spacing: 14
+            anchors.topMargin: DsTheme.dp(14)
+            spacing: DsTheme.dp(14)
             TabPill {
                 label: "Content"
                 iconName: (root.viewMode === "content") ? "content_selected" : "content"
@@ -413,8 +414,8 @@ DsViewer {
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.bottom: keyboardArea.top
-        anchors.topMargin: 16
-        anchors.bottomMargin: 12
+        anchors.topMargin: DsTheme.dp(16)
+        anchors.bottomMargin: DsTheme.dp(12)
 
         Loader {
             anchors.fill: parent
@@ -431,9 +432,9 @@ DsViewer {
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.bottom: closeBtn.top
-        anchors.leftMargin: 8
-        anchors.rightMargin: 8
-        anchors.bottomMargin: 6
+        anchors.leftMargin: DsTheme.dp(8)
+        anchors.rightMargin: DsTheme.dp(8)
+        anchors.bottomMargin: DsTheme.dp(6)
         clip: true
         height: (root.viewMode === "search" && keyboardLoader.item && keyboardLoader.item.panelActive)
                 ? keyboardLoader.item.panelHeight : 0
@@ -468,22 +469,22 @@ DsViewer {
             Item {
                 visible: root.model && !root.model.atRoot
                 Layout.fillWidth: true
-                Layout.preferredHeight: 44
-                Layout.leftMargin: 24
-                Layout.rightMargin: 24
+                Layout.preferredHeight: DsTheme.dp(44)
+                Layout.leftMargin: DsTheme.dp(24)
+                Layout.rightMargin: DsTheme.dp(24)
 
                 RowLayout {
                     anchors.fill: parent
-                    spacing: 12
+                    spacing: DsTheme.dp(12)
 
                     Rectangle {
-                        Layout.preferredWidth: 32
-                        Layout.preferredHeight: 32
-                        radius: 8
+                        Layout.preferredWidth: DsTheme.dp(32)
+                        Layout.preferredHeight: DsTheme.dp(32)
+                        radius: DsTheme.dp(8)
                         color: DsTheme.surfaceVariant
                         DsLauncherIcon {
                             anchors.centerIn: parent
-                            sourceSize: 18
+                            sourceSize: DsTheme.dp(18)
                             source: root._icon("back")
                             color: DsTheme.surfaceText
                         }
@@ -497,7 +498,7 @@ DsViewer {
                         }
                         color: DsTheme.surfaceText
                         font.family: "Roboto"
-                        font.pixelSize: 14
+                        font.pixelSize: DsTheme.dp(14)
                         elide: Text.ElideLeft
                         verticalAlignment: Text.AlignVCenter
                     }
@@ -510,12 +511,12 @@ DsViewer {
                 text: "CURRENT PLAYLIST"
                 color: Qt.rgba(DsTheme.surfaceText.r, DsTheme.surfaceText.g, DsTheme.surfaceText.b, 0.55)
                 font.family: "Roboto"
-                font.pixelSize: 10
+                font.pixelSize: DsTheme.dp(10)
                 font.letterSpacing: 0.5
                 font.weight: Font.Light
-                Layout.leftMargin: 24
-                Layout.topMargin: 4
-                Layout.bottomMargin: 6
+                Layout.leftMargin: DsTheme.dp(24)
+                Layout.topMargin: DsTheme.dp(4)
+                Layout.bottomMargin: DsTheme.dp(6)
             }
 
             // The current-playlist row (root only).
@@ -533,12 +534,12 @@ DsViewer {
                 text: "CONTENT LIBRARY"
                 color: Qt.rgba(DsTheme.surfaceText.r, DsTheme.surfaceText.g, DsTheme.surfaceText.b, 0.55)
                 font.family: "Roboto"
-                font.pixelSize: 10
+                font.pixelSize: DsTheme.dp(10)
                 font.letterSpacing: 0.5
                 font.weight: Font.Light
-                Layout.leftMargin: 24
-                Layout.topMargin: 14
-                Layout.bottomMargin: 6
+                Layout.leftMargin: DsTheme.dp(24)
+                Layout.topMargin: DsTheme.dp(14)
+                Layout.bottomMargin: DsTheme.dp(6)
             }
 
             // The list.
@@ -588,10 +589,10 @@ DsViewer {
             // Type filter chips (single-select; "All" clears the filter).
             Flow {
                 Layout.fillWidth: true
-                Layout.leftMargin: 24
-                Layout.rightMargin: 24
-                Layout.bottomMargin: 12
-                spacing: 8
+                Layout.leftMargin: DsTheme.dp(24)
+                Layout.rightMargin: DsTheme.dp(24)
+                Layout.bottomMargin: DsTheme.dp(12)
+                spacing: DsTheme.dp(8)
 
                 FilterChip { label: "All";     kinds: [];                     targetModel: root.model }
                 FilterChip { label: "Images";  kinds: ["image"];              targetModel: root.model }
@@ -621,7 +622,7 @@ DsViewer {
                     }
                     color: Qt.rgba(DsTheme.surfaceText.r, DsTheme.surfaceText.g, DsTheme.surfaceText.b, 0.55)
                     font.family: "Roboto"
-                    font.pixelSize: 14
+                    font.pixelSize: DsTheme.dp(14)
                 }
 
                 ListView {
@@ -666,29 +667,29 @@ DsViewer {
             // focus on open so the docked virtual keyboard shows automatically.
             Item {
                 Layout.fillWidth: true
-                Layout.preferredHeight: 46
-                Layout.leftMargin: 24
-                Layout.rightMargin: 24
-                Layout.topMargin: 12
-                Layout.bottomMargin: 12
+                Layout.preferredHeight: DsTheme.dp(46)
+                Layout.leftMargin: DsTheme.dp(24)
+                Layout.rightMargin: DsTheme.dp(24)
+                Layout.topMargin: DsTheme.dp(12)
+                Layout.bottomMargin: DsTheme.dp(12)
 
                 Rectangle {
                     anchors.fill: parent
-                    radius: 23
+                    radius: DsTheme.dp(23)
                     color: DsTheme.surfaceVariant
                     border.color: DsTheme.stroke
                     border.width: 1
 
                     RowLayout {
                         anchors.fill: parent
-                        anchors.leftMargin: 16
-                        anchors.rightMargin: 12
-                        spacing: 10
+                        anchors.leftMargin: DsTheme.dp(16)
+                        anchors.rightMargin: DsTheme.dp(12)
+                        spacing: DsTheme.dp(10)
 
                         DsLauncherIcon {
-                            Layout.preferredWidth: 18
-                            Layout.preferredHeight: 18
-                            sourceSize: 18
+                            Layout.preferredWidth: DsTheme.dp(18)
+                            Layout.preferredHeight: DsTheme.dp(18)
+                            sourceSize: DsTheme.dp(18)
                             source: root._icon("search")
                             color: Qt.rgba(DsTheme.surfaceText.r, DsTheme.surfaceText.g, DsTheme.surfaceText.b, 0.6)
                         }
@@ -702,7 +703,7 @@ DsViewer {
                             color: DsTheme.surfaceText
                             placeholderTextColor: Qt.rgba(DsTheme.surfaceText.r, DsTheme.surfaceText.g, DsTheme.surfaceText.b, 0.5)
                             font.family: "Roboto"
-                            font.pixelSize: 15
+                            font.pixelSize: DsTheme.dp(15)
                             background: null
                             leftPadding: 0
                             rightPadding: 0
@@ -728,9 +729,9 @@ DsViewer {
                         }
 
                         DsLauncherIcon {
-                            Layout.preferredWidth: 16
-                            Layout.preferredHeight: 16
-                            sourceSize: 16
+                            Layout.preferredWidth: DsTheme.dp(16)
+                            Layout.preferredHeight: DsTheme.dp(16)
+                            sourceSize: DsTheme.dp(16)
                             visible: searchField.text.length > 0
                             source: root._icon("close")
                             color: DsTheme.surfaceText
@@ -757,9 +758,9 @@ DsViewer {
         id: closeBtn
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.verticalCenter: parent.bottom
-        width: 44
-        height: 44
-        radius: 8
+        width: DsTheme.dp(44)
+        height: DsTheme.dp(44)
+        radius: DsTheme.dp(8)
         color: DsTheme.surfaceVariant
         border.color: DsTheme.stroke
         border.width: 1
@@ -775,7 +776,7 @@ DsViewer {
 
         DsLauncherIcon {
             anchors.centerIn: parent
-            sourceSize: 24
+            sourceSize: DsTheme.dp(24)
             source: root._icon("close")
             color: DsTheme.surfaceText
         }

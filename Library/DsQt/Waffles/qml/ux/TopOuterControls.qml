@@ -16,8 +16,8 @@ DsControlSet {
         anchors.fill: parent
         z: -1
         context: topButtons.glass
-        topLeftRadius: topButtons.glass ? topButtons.glass.radius : 12
-        topRightRadius: topButtons.glass ? topButtons.glass.radius : 12
+        topLeftRadius: topButtons.glass ? topButtons.glass.radius : DsTheme.dp(12)
+        topRightRadius: topButtons.glass ? topButtons.glass.radius : DsTheme.dp(12)
     }
 
     RowLayout {
@@ -28,18 +28,18 @@ DsControlSet {
 
         Item {
             id: titleContainer
-            height: 43
+            height: DsTheme.dp(43)
             width:topButtons.width
             // Background is provided by the viewer's glass panel behind this control set.
 
             Text {
                 id:titleText
                 font.family: "Roboto"
-                font.pixelSize: 16
-                height:26
+                font.pixelSize: DsTheme.dp(16)
+                height: DsTheme.dp(26)
                 verticalAlignment: Text.AlignVCenter
-                x:20
-                y: 8.5
+                x: DsTheme.dp(20)
+                y: DsTheme.dp(8.5)
                 color: DsTheme.surfaceText
                 text: topButtons.model.title ?? "Media"
             }

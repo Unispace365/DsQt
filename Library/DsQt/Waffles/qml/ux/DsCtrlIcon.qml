@@ -12,11 +12,11 @@ Item {
     // Raw icon path, e.g. "file:///%APP%/data/images/waffles/media/play.svg" (expanded here).
     property string iconName: ""
     property bool active: false
-    property real iconSize: 30
+    property real iconSize: DsTheme.dp(30)
     signal clicked()
 
-    implicitWidth: 48
-    implicitHeight: 48
+    implicitWidth: DsTheme.dp(48)
+    implicitHeight: DsTheme.dp(48)
     opacity: enabled ? 1.0 : 0.35
 
     VectorImage {

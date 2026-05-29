@@ -22,12 +22,13 @@ DsController {
 
     // Sized to the Figma spec (frame 459 × 99). The bar is inset 15 px from the frame's left so
     // the collapse tab overlaps its left edge — frame width = barWidth + tabSize/2 (459 = 444 + 15).
-    property int tabSize: 30
-    property int barWidth: 444
-    property int barHeight: 99
+    // Sizes in chrome units (DsTheme.dp) so the controller scales with uiScale.
+    property int tabSize: DsTheme.dp(30)
+    property int barWidth: DsTheme.dp(444)
+    property int barHeight: DsTheme.dp(99)
     // Per Figma: launcher/controller corners are 20 (bar) / 8 (tab) — NOT DsTheme.glassRadius.
-    property int barRadius: 20
-    property int tabRadius: 8
+    property int barRadius: DsTheme.dp(20)
+    property int tabRadius: DsTheme.dp(8)
 
     // Content extents from the origin (= tab centre / bar's left edge), for placement & clamping.
     readonly property real _left:  tabSize / 2
@@ -40,7 +41,7 @@ DsController {
     onShownChanged: {
         if (shown && !_placed && parent) {
             x = Math.round(parent.width / 2 - barWidth / 2);
-            y = Math.round(parent.height - barHeight / 2 - 120);
+            y = Math.round(parent.height - barHeight / 2 - DsTheme.dp(120));
             _placed = true;
         }
     }
@@ -52,12 +53,12 @@ DsController {
         id: ib
         property url icon
         signal clicked()
-        implicitWidth: 24
-        implicitHeight: 24
+        implicitWidth: DsTheme.dp(24)
+        implicitHeight: DsTheme.dp(24)
         VectorImage {
             anchors.centerIn: parent
-            width: 16
-            height: 16
+            width: DsTheme.dp(16)
+            height: DsTheme.dp(16)
             source: ib.icon
             preferredRendererType: VectorImage.CurveRenderer
             layer.enabled: true
@@ -131,14 +132,14 @@ DsController {
 
         ColumnLayout {
             anchors.fill: parent
-            anchors.margins: 10
-            anchors.leftMargin: 28   // clear the collapse tab (right edge at +tabSize/2 = +15) with a small buffer
-            spacing: 6
+            anchors.margins: DsTheme.dp(10)
+            anchors.leftMargin: DsTheme.dp(28)   // clear the collapse tab (right edge at +tabSize/2) with a small buffer
+            spacing: DsTheme.dp(6)
 
             // Title row.
             Item {
                 Layout.fillWidth: true
-                Layout.preferredHeight: 24
+                Layout.preferredHeight: DsTheme.dp(24)
                 Text {
                     anchors.left: parent.left
                     anchors.right: parent.right
@@ -147,7 +148,7 @@ DsController {
                     color: DsTheme.surfaceText
                     font.family: "Roboto"
                     font.weight: 100
-                    font.pixelSize: 16
+                    font.pixelSize: DsTheme.dp(16)
                     elide: Text.ElideRight
                 }
             }
@@ -156,7 +157,7 @@ DsController {
             RowLayout {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                spacing: 8
+                spacing: DsTheme.dp(8)
 
                 DsMediaControls {
                     id: fsMedia
@@ -172,15 +173,15 @@ DsController {
                 Item { Layout.fillWidth: true; visible: !fsMedia.visible }
 
                 IconBtn {
-                    Layout.preferredWidth: 24
-                    Layout.preferredHeight: 24
+                    Layout.preferredWidth: DsTheme.dp(24)
+                    Layout.preferredHeight: DsTheme.dp(24)
                     Layout.alignment: Qt.AlignVCenter
                     icon: controller.windowIcon("fullscreen.svg")
                     onClicked: if (controller.viewer) controller.viewer.toggleFullscreen()
                 }
                 IconBtn {
-                    Layout.preferredWidth: 24
-                    Layout.preferredHeight: 24
+                    Layout.preferredWidth: DsTheme.dp(24)
+                    Layout.preferredHeight: DsTheme.dp(24)
                     Layout.alignment: Qt.AlignVCenter
                     icon: controller.windowIcon("close.svg")
                     onClicked: if (controller.viewer) controller.viewer.closeRequested()

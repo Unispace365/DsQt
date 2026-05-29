@@ -56,7 +56,7 @@ int main(int argc, char *argv[])
     });
 
 
-    // Note: Resources from Dsqt::Core (data.qrc, keyboard.qrc) are auto-initialized
+    // Note: Resources from Dsqt::Core (data.qrc) are auto-initialized
     // when the QML module is loaded. Explicit Q_INIT_RESOURCE is not needed.
     QLoggingCategory::setFilterRules("*.verbose=false\n"
                                      "reloadUrl.*=false\n"
@@ -90,12 +90,8 @@ int main(int argc, char *argv[])
     //create our custom engine.
     dsqt::DsQmlApplicationEngine engine;
 
-    //(@NOTE:KEYBOARD)
-    //add the import path for the keyboard(s).
-    // this is the prefix of the keyboard.qrc file.
-    // the rest of the path for a style needs to
-    // be QtQuick/VirtualKeyboard/Styles/<style name>/
-    engine.addImportPath("qrc:/keyboard");
+    // (Virtual-keyboard style import path is registered centrally by DsQmlApplicationEngine —
+    //  qrc:/qt/qml/Dsqt/Core/res, where the bundled "waffles" style lives. No app-side setup.)
 
     //for debugging imports
     //auto list = engine.importPathList();

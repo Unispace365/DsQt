@@ -11,6 +11,9 @@ controlsIdleSeconds = 4
 
 # On-screen (Qt Virtual Keyboard) settings. Read by DsVirtualKeyboard.
 [waffles.keyboard]
+# Keyboard style name. "waffles" is the bundled dark theme; swap to another style on the QML
+# import path (no recompile). Overrides the QT_VIRTUALKEYBOARD_STYLE env bootstrap in main.cpp.
+style = "waffles"
 # Active keyboard locales (multilingual). Default Latin set. Add CJK/Arabic etc. (e.g. "zh_CN",
 # "ja_JP", "ko_KR", "ar_AR") to broaden, or list every installed layout for the full set. The
 # globe key on the keyboard cycles through these. (Style + IM module are wired in main.cpp.)
@@ -36,6 +39,11 @@ glassBlurMax     = 48
 glassBlurMultiplier = 0.0
 glassRadius      = 12
 glassBorderWidth = 1
+# UI scale (physical-size / density): multiplies CHROME sizes (launcher, controls, keyboard, etc.)
+# so the same design reads at a usable physical size on different screens. 1.0 = authored size.
+# Bump > 1 on small/dense displays (laptop) for usable touch targets; tune per screen. Layers on
+# top of DsFitView's canvas fit; media content is NOT scaled.
+uiScale = 1.0
 
 # Media-viewer sizing. Bounds are logical px (the stage is a 4K canvas); per-viewer
 # overridable on creation.

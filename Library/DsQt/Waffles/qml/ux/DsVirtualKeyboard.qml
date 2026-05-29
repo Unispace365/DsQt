@@ -7,10 +7,13 @@ import Dsqt.Core
 
 // Thin wrapper around the Qt Virtual Keyboard InputPanel.
 //
-// Styling: the dark "waffles" style is selected app-side via the QT_VIRTUALKEYBOARD_STYLE=waffles
-// environment variable (set in each app's main.cpp). The style itself ships in Dsqt.Core's
-// keyboard.qrc, whose `qrc:/keyboard` root is added to the QML import path by
-// DsQmlApplicationEngine so `QtQuick/VirtualKeyboard/Styles/waffles/style.qml` resolves.
+// Styling: the dark "waffles" style is bootstrapped app-side via the QT_VIRTUALKEYBOARD_STYLE
+// env var (set in each app's main.cpp) and can be overridden at runtime from
+// [waffles.keyboard] style (applied below via VirtualKeyboardSettings.styleName). The style ships
+// in Dsqt.Core's module resources at qrc:/qt/qml/Dsqt/Core/res/QtQuick/VirtualKeyboard/Styles/
+// waffles/; DsQmlApplicationEngine adds qrc:/qt/qml/Dsqt/Core/res to the QML import path so VK
+// resolves it. (Bundled as individual files, not a .qrc — a .qrc's init is dead-stripped from the
+// static Core lib.)
 //
 // Routing: requires QT_IM_MODULE=qtvirtualkeyboard (also set in main.cpp) so focused text inputs
 // route through the virtual keyboard.
@@ -48,6 +51,13 @@ Item {
         // en_GB fallback.
         if (locales.length > 0)
             VirtualKeyboardSettings.locale = locales[0];
+        // Keyboard style — overrides the QT_VIRTUALKEYBOARD_STYLE env-var bootstrap (set in
+        // main.cpp) at runtime, so swapping styles is a one-line [waffles.keyboard] style edit with
+        // no recompile. The named style must resolve on a QML import path (Core adds
+        // qrc:/qt/qml/Dsqt/Core/res, where the bundled "waffles" style lives).
+        const style = "" + kbd._kbdSettings.getString("style", "waffles");
+        if (style.length > 0)
+            VirtualKeyboardSettings.styleName = style;
     }
 
     InputPanel {

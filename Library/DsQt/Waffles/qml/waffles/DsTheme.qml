@@ -60,4 +60,21 @@ QtObject {
     property real glassBlurMultiplier: _s.getFloat("glassBlurMultiplier", 0.0)
     property real glassRadius:      _s.getFloat("glassRadius", 12)
     property real glassBorderWidth: _s.getFloat("glassBorderWidth", 1)
+
+    // --- UI scale (physical-size / density) ---
+    // Multiplies CHROME sizes (fonts, control dimensions, paddings, panel sizes) so the same
+    // authored design reads at a usable physical size on very different screens — e.g. a laptop
+    // vs a large touch wall. 1.0 = authored size. Set once per deployment in
+    // [waffles.theme] uiScale (one value, no recompile). Route chrome sizes through dp(), e.g.
+    //   font.pixelSize: DsTheme.dp(16)
+    // Composition: this layers on top of DsFitView's uniform canvas fit — fit handles RESOLUTION
+    // (canvas → window), uiScale handles DENSITY (how big chrome is within the canvas). Don't also
+    // feed uiScale into the fit canvas (preferredWidth/Height) or you double-scale.
+    // NOT scaled: media content (sizes to its own aspect / [waffles.viewer]) and glass blur (a
+    // perceptual effect, not a metric).
+    // Auto-seeding from screen PPI can be layered later via the stage (an Item, so it can read
+    // Screen.pixelDensity); PPI from external displays/walls is unreliable, so an explicit
+    // per-screen value is preferred regardless.
+    property real uiScale: _s.getFloat("uiScale", 1.0)
+    function dp(px) { return Math.round(px * theme.uiScale); }
 }

@@ -1,3 +1,6 @@
+# Cloud-sync temp folder (Google Drive / similar) that appears at the repo root
+.tmp.driveupload/
+
 # C++ objects and libs
 *.slo
 *.lo

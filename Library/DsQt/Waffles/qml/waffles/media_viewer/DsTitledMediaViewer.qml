@@ -513,7 +513,7 @@ DsViewer {
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.top: parent.top
-                height: 56
+                height: DsTheme.dp(56)
                 TapHandler {
                     enabled: root.selected
                     onTapped: { if (root.stage) root.stage.selectViewer(root); root.wake(); }
@@ -521,10 +521,10 @@ DsViewer {
                 Rectangle {
                     anchors.horizontalCenter: parent.horizontalCenter
                     anchors.top: parent.top
-                    anchors.topMargin: 8
-                    width: 40
-                    height: 4
-                    radius: 2
+                    anchors.topMargin: DsTheme.dp(8)
+                    width: DsTheme.dp(40)
+                    height: DsTheme.dp(4)
+                    radius: DsTheme.dp(2)
                     color: DsTheme.surfaceText
                     // Hint only while selected (interactive content) and controls are hidden.
                     opacity: (root.contentInteractive && root.selected && !root.controlsAwake) ? 0.4 : 0
@@ -557,8 +557,8 @@ DsViewer {
         // loading (web pages, network images/videos). Cleared when the media reports it loaded.
         Item {
             id: loadingSpinner
-            width: 48
-            height: 48
+            width: DsTheme.dp(48)
+            height: DsTheme.dp(48)
             z: 1
             anchors.centerIn: mediaView
             visible: root.mediaViewer ? root.mediaViewer.loading : false

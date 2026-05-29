@@ -7,7 +7,7 @@ import QtQuick.VectorImage
 DsControlSet {
     id: rightButtons
     edge: DsControlSet.Edge.RightOuter
-    width: 37
+    width: DsTheme.dp(37)
 
     ColumnLayout {
         anchors.fill: rightButtons
@@ -17,8 +17,8 @@ DsControlSet {
         }
 
         FullscreenButton {
-            Layout.preferredWidth: 37
-            Layout.preferredHeight: 37
+            Layout.preferredWidth: DsTheme.dp(37)
+            Layout.preferredHeight: DsTheme.dp(37)
             Layout.alignment: Qt.AlignRight | Qt.AlignBottom
             signalObject: rightButtons.signalObject
             edge: rightButtons.edge
@@ -26,8 +26,8 @@ DsControlSet {
         }
 
         CloseButton {
-            Layout.preferredWidth: 37
-            Layout.preferredHeight: 37
+            Layout.preferredWidth: DsTheme.dp(37)
+            Layout.preferredHeight: DsTheme.dp(37)
             Layout.alignment: Qt.AlignRight | Qt.AlignBottom
             signalObject: rightButtons.signalObject
             edge: rightButtons.edge

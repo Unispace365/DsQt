@@ -23,7 +23,7 @@ DsTitledMediaViewer {
                 DsMediaControls {
                     id: mediaControls
                     edge: DsControlSet.Edge.BottomInner
-                    offset: 40
+                    offset: DsTheme.dp(40)
                     signalObject: viewer.signalObject
                 }
             ]

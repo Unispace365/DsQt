@@ -8,17 +8,19 @@ import Dsqt.Waffles
 // a close button. Toggled via DsWaffleStage.floatingKeyboardShown and hosted on the stage's
 // modal3 (top) layer so it floats above everything and isn't clipped.
 //
-// Width is comfortable for a 4K stage (the launcher's docked keyboard is narrow by necessity);
-// the InputPanel derives its height from that width. The frame is shown as soon as it's toggled
-// on so the user can then tap a field; keys route once a control (e.g. a web input) takes focus.
+// Width matches the launcher's docked search keyboard (launcher panel dp(453) minus its dp(8)
+// side gutters → dp(437)) so the two keyboards are the same size; the InputPanel derives its
+// height from that width. Sizes are in chrome units (DsTheme.dp) so the whole thing scales with
+// uiScale. The frame is shown as soon as it's toggled on so the user can then tap a field; keys
+// route once a control (e.g. a web input) takes focus.
 //
 // NOTE: shares the single global InputContext with the launcher's docked keyboard, so only one
 // should be active at a time — the launcher gates its docked panel off while this is shown.
 Item {
     id: fkb
 
-    // Comfortable keyboard width for a 4K stage.
-    property int kbWidth: 1400
+    // Match the launcher's docked keyboard width (panel 453 − 2×8 gutters), uiScale-aware.
+    property int kbWidth: DsTheme.dp(437)
     signal closeRequested()
 
     width: kbWidth
@@ -35,7 +37,7 @@ Item {
     // flat tinted frame reads fine here. Upgradeable later — see backlog.)
     Rectangle {
         anchors.fill: parent
-        radius: 20
+        radius: DsTheme.dp(20)
         color: Qt.rgba(DsTheme.surface.r, DsTheme.surface.g, DsTheme.surface.b, 0.92)
         border.color: DsTheme.stroke
         border.width: DsTheme.glassBorderWidth
@@ -48,34 +50,34 @@ Item {
         // Drag bar + close button.
         Item {
             width: parent.width
-            height: 44
+            height: DsTheme.dp(44)
 
             DragHandler { target: fkb }
 
             Text {
                 anchors.left: parent.left
-                anchors.leftMargin: 20
+                anchors.leftMargin: DsTheme.dp(20)
                 anchors.verticalCenter: parent.verticalCenter
                 text: "Keyboard"
                 color: DsTheme.surfaceText
                 font.family: "Roboto"
                 font.weight: 100
-                font.pixelSize: 16
+                font.pixelSize: DsTheme.dp(16)
             }
 
             Rectangle {
                 anchors.right: parent.right
-                anchors.rightMargin: 12
+                anchors.rightMargin: DsTheme.dp(12)
                 anchors.verticalCenter: parent.verticalCenter
-                width: 28
-                height: 28
-                radius: 8
+                width: DsTheme.dp(28)
+                height: DsTheme.dp(28)
+                radius: DsTheme.dp(8)
                 color: DsTheme.surfaceVariant
                 Text {
                     anchors.centerIn: parent
                     text: "✕"
                     color: DsTheme.surfaceText
-                    font.pixelSize: 14
+                    font.pixelSize: DsTheme.dp(14)
                 }
                 TapHandler { onTapped: fkb.closeRequested() }
             }

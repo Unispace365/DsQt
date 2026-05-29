@@ -114,8 +114,6 @@ qt_add_qml_module(Core
         res/QtQuick/VirtualKeyboard/Styles/waffles/images/search-fff.svg
         res/QtQuick/VirtualKeyboard/Styles/waffles/images/selectionhandle-bottom.svg
         res/QtQuick/VirtualKeyboard/Styles/waffles/images/settings-fff.svg
-        res/QtQuick/VirtualKeyboard/Styles/waffles/images/shift-80c342.svg
-        res/QtQuick/VirtualKeyboard/Styles/waffles/images/shift-c5d6b6.svg
         res/QtQuick/VirtualKeyboard/Styles/waffles/images/shift-fff.svg
         res/QtQuick/VirtualKeyboard/Styles/waffles/images/textmode-fff.svg
         res/data.qrc
