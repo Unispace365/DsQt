@@ -21,9 +21,35 @@ Check the box when done; move long-finished items to the bottom or delete.
       `[waffles.keyboard] locales` (default Latin set; globe key cycles them). Only one InputPanel
       is active at a time (the docked panel gates off while the floating one is shown). Verify on
       device: web-input focus routing + whether the 1400 px floating keyboard feels right on 4K.
-- [ ] **Per-type fullscreen controllers** (fullscreen) — `DsWaffleStage._showController` notes
-      "could vary by `v.viewerType`"; only `fullscreenController` is wired. A
-      `presentationController` component exists but isn't used yet.
+- [ ] **Presentation playlists + presentation controller** (feature — greenfield) — NOT a
+      "per-type fullscreen controller" (the old framing here was wrong; the
+      `// (could vary by v.viewerType later)` comment in `_showController` conflated two
+      different things). The **fullscreen controller** and the **presentation controller** have
+      distinct UX and lifecycles:
+    - **Fullscreen controller** — appears when a *media* viewer enters **fullscreen**; bound to
+      fullscreen state (show on enter, hide on exit). This is what exists today.
+    - **Presentation controller** — can be shown any time a **presentation** is *active*. A
+      presentation is **not media**: it has **no fullscreen state** — it's either playing or not.
+      So its trigger is "presentation active/playing", independent of `setFullscreen`.
+
+      **Terminology / data model** — a "presentation" is an **interactive playlist**. There are
+      two playlist kinds, differing in how slides advance:
+    - **Interactive playlist (= presentation)** — stays on each slide until explicitly advanced:
+      by a link/hotspot in the slide, or a prev/next command (keyboard, the presentation
+      controller, etc.).
+    - **Ambient playlist** — auto-advances on a timer. Timer resolution order: the **slide's**
+      duration → if 0/undefined, the **platform's** → if 0/undefined, a **setting** → else a
+      default of X seconds.
+
+      **Current state (greenfield):** `PresentationController.qml` does NOT exist (the stage's
+      `Qt.createComponent("PresentationController.qml")` is a dangling stub); there is a reserved
+      but empty `presentation` layer (z=1); no presentation viewer exists; and `kind:
+      "presentation"` isn't openable yet (the apps' `_toViewerProps` only maps image/video/pdf/
+      weblink). Building it means: a presentation viewer (walks slide children; play/active
+      state; interactive vs ambient advance, with the ambient timer-resolution chain above), a
+      presentation controller shown while active (play/pause, prev/next, slide index — NOT the
+      media transport), and the app mapping to open `kind: "presentation"`. `_showController`
+      stays fullscreen-only; the presentation controller needs its own active-state trigger.
 - [x] **Glass on non-media viewers** (glass) — done. `DsContentLauncher` now renders glass via a
       `glassContext` consumed by its panel's `DsGlassBackground`; the `FullscreenController` does
       the same via `DsController.glassContext`. Both sample the cross-layer slot chain so their
