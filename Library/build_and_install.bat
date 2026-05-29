@@ -421,6 +421,7 @@ if !SKIP_INSTALL!==0 if not "!INSTALL_DEBUG_END!"=="0" (
 echo  Overall time        : %OVERALL_FMT%
 echo.
 powershell -NoProfile -Command "Write-Host 'Done.' -ForegroundColor Green"
+powershell -NoProfile -Command "Write-Host ('Finished at ' + (Get-Date).ToString('yyyy-MM-dd HH:mm:ss')) -ForegroundColor DarkGray"
 goto :eof
 
 :: Print a colored section header
