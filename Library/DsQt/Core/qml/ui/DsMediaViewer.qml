@@ -181,12 +181,16 @@ Item {
         return item.height
     }
 
-    // Loader to dynamically load the appropriate component
+    // Loader to dynamically load the appropriate component.
+    // NB: sourceComponent is set imperatively (initial set here + onSourceChanged/onContentTypeChanged
+    // above), NOT via a declarative binding. A binding would loop: getComponentForContent() →
+    // _lazyLoad() WRITES root._videoComponent / _webComponent / _pdfComponent, which the binding
+    // also READS, so each evaluation invalidates itself ("Binding loop detected for sourceComponent").
     Loader {
         id: contentLoader
         anchors.fill: parent
-        sourceComponent: root.getComponentForContent()
         asynchronous: true
+        Component.onCompleted: sourceComponent = root.getComponentForContent()
         onLoaded: {
             if (item) {
                 if ('source' in item) item.source = Qt.binding(() => root.resolvedSource)

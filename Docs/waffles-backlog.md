@@ -11,8 +11,16 @@ Check the box when done; move long-finished items to the bottom or delete.
 - [x] **Loop via metadata** (media) — done. `DsTitledMediaViewer` now reads `media.loop` from the
       bridge media descriptor and sets `DsMediaViewer.loops = MediaPlayer.Infinite` when truthy
       (else 0 = play once + KeepLastFrame). Finishes FS Phase 4.
-- [ ] **On-screen keyboard** (controls/web) — the web controls' keyboard button is currently
-      a stub; needs an on-screen keyboard surface.
+- [x] **On-screen keyboard** (controls/web) — done (Phase 2c). `DsVirtualKeyboard` wraps Qt
+      Virtual Keyboard's `InputPanel` and applies the bundled dark **`waffles`** style (in
+      `Dsqt.Core`'s `keyboard.qrc`; selected via `QT_VIRTUALKEYBOARD_STYLE=waffles` per app +
+      `qrc:/keyboard` added to the QML import path by `DsQmlApplicationEngine`). The launcher
+      docks one above its close button in search mode; the web controls' keyboard button toggles a
+      `DsFloatingKeyboard` (draggable, on the stage's `modal3`) via
+      `DsWaffleStage.floatingKeyboardShown`. Multilingual locales come from
+      `[waffles.keyboard] locales` (default Latin set; globe key cycles them). Only one InputPanel
+      is active at a time (the docked panel gates off while the floating one is shown). Verify on
+      device: web-input focus routing + whether the 1400 px floating keyboard feels right on 4K.
 - [ ] **Per-type fullscreen controllers** (fullscreen) — `DsWaffleStage._showController` notes
       "could vary by `v.viewerType`"; only `fullscreenController` is wired. A
       `presentationController` component exists but isn't used yet.

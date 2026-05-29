@@ -9,6 +9,13 @@
 # touch/interaction. 0 disables auto-hide.
 controlsIdleSeconds = 4
 
+# On-screen (Qt Virtual Keyboard) settings. Read by DsVirtualKeyboard.
+[waffles.keyboard]
+# Active keyboard locales (multilingual). Default Latin set. Add CJK/Arabic etc. (e.g. "zh_CN",
+# "ja_JP", "ko_KR", "ar_AR") to broaden, or list every installed layout for the full set. The
+# globe key on the keyboard cycles through these. (Style + IM module are wired in main.cpp.)
+locales = ["en_US", "es_ES", "fr_FR", "de_DE", "it_IT"]
+
 # Design tokens read by the DsTheme singleton (values here are the defaults). These are the Tier-1
 # primitives + glass tokens; the semantic roles (surface, stroke, surfaceText, track, …) are
 # derived from them inside DsTheme. Re-point these to white-label the UI.
@@ -39,6 +46,10 @@ minHeight = 300
 maxHeight = 2000
 # Default width an image viewer uses when it fits itself to the media aspect ratio.
 imageWidth = 1400
+# Default size a web viewer opens at (web pages have no natural aspect to fit). Clamped to the
+# min/max bounds above. Override per-viewer on creation if needed.
+webWidth  = 1280
+webHeight = 800
 # Default open/close animations (per-viewer overridable on creation).
 # One of: fade | grow | growBounce | fadeRise | none
 enterAnimation = "fadeRise"

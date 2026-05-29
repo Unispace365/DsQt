@@ -128,6 +128,20 @@ QtObject {
     // True when the bridge has yielded a platform record.
     property bool ready: false
 
+    // --- Search (Phase 2c) ---
+    // Inputs (the launcher's search pane writes these):
+    //   - searchQuery : free-text; case-insensitive substring match against item titles.
+    //   - searchKinds : kind filter; empty = all kinds. e.g. ["image"], or ["folder","playlist"].
+    // Output:
+    //   - searchResults : flat list of matching items (same item shape as displayedItems),
+    //     gathered by recursively walking the LOADED menu content (currentPlaylist + library and
+    //     their descendants). Bridge-only content not placed in a menu is not searched.
+    // Empty query AND empty kind filter => empty results (nothing to show yet); a kind filter with
+    // no text lists everything of that kind.
+    property string searchQuery: ""
+    property var    searchKinds: []
+    property var    searchResults: []
+
     // -----------------------------------------------------------------------------------------
     // Internals.
     // -----------------------------------------------------------------------------------------
@@ -148,10 +162,18 @@ QtObject {
         if (mediaDescriptor && typeof mediaDescriptor === "object") {
             mediaOut = mediaDescriptor;
             if (mediaDescriptor.filepath) thumb = mediaDescriptor.filepath;
-            if (kind === "media") {
+            // Refine the kind from the media descriptor's subtype. Applies to "media" and also
+            // "unknown" (a web/media record whose content type isn't mapped still classifies by
+            // its descriptor), but never to container kinds (folder/playlist may carry a cover
+            // image without becoming an image leaf).
+            if (kind === "media" || kind === "unknown") {
                 const sub = ("" + (mediaDescriptor.type || "")).toLowerCase();
                 if (sub === "image" || sub === "video" || sub === "pdf") kind = sub;
-                else if (sub === "weblink" || sub === "url" || sub === "link") kind = "weblink";
+                // The bridge serialises a WEB media descriptor's type as "web" (DsResource
+                // getTypeName → WEB_NAME_SZ); youtube is also web-rendered. Accept url/link/
+                // weblink aliases too for other schemas.
+                else if (sub === "web" || sub === "weblink" || sub === "url"
+                         || sub === "link" || sub === "youtube") kind = "weblink";
             }
         }
         // Fall back to a header/preview-style thumbnail field if no media descriptor.
@@ -293,6 +315,44 @@ QtObject {
                                                    : ns[ns.length - 1].children;
     }
 
+    // --- Search ---
+    // Recursively collect items under `item` (inclusive) whose title matches `q` (already
+    // lower-cased; "" = match all) and whose kind passes `kinds` (empty = all). `visited` guards
+    // against link cycles. Descends into any record that actually carries children.
+    function _collectMatches(item, q, kinds, visited, out) {
+        if (!item) return;
+        if (item.uid) {
+            if (visited[item.uid]) return;
+            visited[item.uid] = true;
+        }
+        const titleOk = !q || (("" + item.title).toLowerCase().indexOf(q) !== -1);
+        const kindOk  = (kinds.length === 0) || (kinds.indexOf(item.kind) !== -1);
+        if (titleOk && kindOk) out.push(item);
+        if (item.recordHasChildren) {
+            const kids = adapter._resolveChildren(item.record);
+            for (let i = 0; i < kids.length; ++i)
+                adapter._collectMatches(kids[i], q, kinds, visited, out);
+        }
+    }
+
+    // Recompute searchResults from the current query/kinds against the loaded menu tree.
+    function _runSearch() {
+        const q = ("" + adapter.searchQuery).trim().toLowerCase();
+        const kinds = adapter.searchKinds || [];
+        if (!q && kinds.length === 0) { adapter.searchResults = []; return; }
+        const out = [];
+        const visited = ({});
+        const roots = [];
+        if (adapter.currentPlaylist) roots.push(adapter.currentPlaylist);
+        for (let i = 0; i < adapter.library.length; ++i) roots.push(adapter.library[i]);
+        for (let i = 0; i < roots.length; ++i)
+            adapter._collectMatches(roots[i], q, kinds, visited, out);
+        adapter.searchResults = out;
+    }
+
+    onSearchQueryChanged: adapter._runSearch()
+    onSearchKindsChanged:  adapter._runSearch()
+
     // --- Schedules: one per configured interactive event type. Built once, kept in sync. ---
     property var _scheduleByTypeName: ({})
     property var _schedules: []
@@ -369,6 +429,9 @@ QtObject {
         adapter._navStack = newStack;
         adapter.displayedItems = displayed;
         adapter.ready = (platform !== null);
+
+        // Re-run any active search against the freshly rebuilt tree.
+        adapter._runSearch();
 
         if (adapter._verbose) adapter.dump();
     }

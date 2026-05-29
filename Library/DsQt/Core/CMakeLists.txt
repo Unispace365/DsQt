@@ -97,7 +97,27 @@ qt_add_qml_module(Core
     #     Dsqtplugin
     
     RESOURCES
-        res/keyboard.qrc
+        # Bundled Qt Virtual Keyboard "waffles" style — listed as INDIVIDUAL files, NOT via a .qrc.
+        # A .qrc compiles to a separate resource object whose initializer the linker dead-strips
+        # from this STATIC lib (so the style was missing at runtime → VK fell back to "default").
+        # Individual files merge into the module's QML resource, which is always linked via the
+        # module registration. These land at qrc:/qt/qml/Dsqt/Core/res/QtQuick/VirtualKeyboard/
+        # Styles/waffles/...; DsQmlApplicationEngine adds qrc:/qt/qml/Dsqt/Core/res to the import
+        # path and QT_VIRTUALKEYBOARD_STYLE=waffles selects it.
+        res/QtQuick/VirtualKeyboard/Styles/waffles/style.qml
+        res/QtQuick/VirtualKeyboard/Styles/waffles/images/backspace-fff.svg
+        res/QtQuick/VirtualKeyboard/Styles/waffles/images/check-fff.svg
+        res/QtQuick/VirtualKeyboard/Styles/waffles/images/enter-fff.svg
+        res/QtQuick/VirtualKeyboard/Styles/waffles/images/globe-fff.svg
+        res/QtQuick/VirtualKeyboard/Styles/waffles/images/handwriting-fff.svg
+        res/QtQuick/VirtualKeyboard/Styles/waffles/images/hidekeyboard-fff.svg
+        res/QtQuick/VirtualKeyboard/Styles/waffles/images/search-fff.svg
+        res/QtQuick/VirtualKeyboard/Styles/waffles/images/selectionhandle-bottom.svg
+        res/QtQuick/VirtualKeyboard/Styles/waffles/images/settings-fff.svg
+        res/QtQuick/VirtualKeyboard/Styles/waffles/images/shift-80c342.svg
+        res/QtQuick/VirtualKeyboard/Styles/waffles/images/shift-c5d6b6.svg
+        res/QtQuick/VirtualKeyboard/Styles/waffles/images/shift-fff.svg
+        res/QtQuick/VirtualKeyboard/Styles/waffles/images/textmode-fff.svg
         res/data.qrc
 
         QML_FILES

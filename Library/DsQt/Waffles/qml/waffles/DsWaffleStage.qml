@@ -27,6 +27,12 @@ Item {
     // hidden via its close button. Apps that don't want it can set this to false.
     property bool launcherButtonVisible: true
 
+    // Floating virtual keyboard (for text entry over non-launcher viewers, e.g. web). Toggled by
+    // the web controls' keyboard button (DsMediaControls). Hosted on modal3 so it floats above
+    // everything; the launcher gates its own docked keyboard off while this is shown so only one
+    // InputPanel is active at a time.
+    property bool floatingKeyboardShown: false
+
     // --- Glass / blurred-backdrop config (defaults from DsTheme tokens; per-viewer overridable) ---
     property bool  glassEnabled: true
     property color glassTint:        DsTheme.surface          // Tonal 0
@@ -68,6 +74,10 @@ Item {
     property real viewerMaxHeight: appSettings.getFloat("viewer.maxHeight", 1200)
     // Default width an image viewer uses when it fits itself to the media aspect ratio.
     property real viewerImageWidth: appSettings.getFloat("viewer.imageWidth", 800)
+    // Default size a web viewer opens at — web pages have no natural aspect to fit to, so they
+    // open at this fixed size (clamped to the min/max bounds) unless the caller overrides sizing.
+    property real viewerWebWidth:  appSettings.getFloat("viewer.webWidth", 1280)
+    property real viewerWebHeight: appSettings.getFloat("viewer.webHeight", 800)
     // Controls auto-hide after this idle time (ms). 0 disables auto-hide. Per-viewer overridable.
     property int controlsIdleMs: appSettings.getInt("controlsIdleSeconds", 4) * 1000
     // Enter/exit animation defaults (per-viewer overridable on creation). Stored as strings in
@@ -236,6 +246,22 @@ Item {
         anchors.fill: wafflesRoot
         z: 5
         onChildrenChanged: wafflesRoot.rebuildGlass()
+
+        // Floating virtual keyboard (web text entry). Loaded only while shown; closing it hides.
+        // No explicit Loader size, so it sizes to the keyboard's implicit size; anchors place it
+        // bottom-centre of the stage (the keyboard can then be dragged from there).
+        Loader {
+            id: floatingKbLoader
+            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.bottom: parent.bottom
+            anchors.bottomMargin: 80
+            active: wafflesRoot.floatingKeyboardShown
+            sourceComponent: Component {
+                DsFloatingKeyboard {
+                    onCloseRequested: wafflesRoot.floatingKeyboardShown = false
+                }
+            }
+        }
     }
 
     // Floating "open launcher" button. Visible when the launcher exists, exposes a `shown`
@@ -652,6 +678,15 @@ Item {
         onTapped: (point,button)=>{
             // While fullscreen the scrim handles taps (margin tap exits); ignore stage taps.
             if (wafflesRoot._fullscreenViewer) return;
+            // A tap that lands on the launcher is the launcher's to handle (e.g. opening an item).
+            // This stage TapHandler also fires for that same tap (drag-threshold TapHandlers don't
+            // grab exclusively), so without this guard the select-by-location below would run with
+            // the tap point on the launcher — not over the freshly-centred viewer — and call
+            // selectViewer(null), deselecting the viewer the launcher just opened (its controls
+            // then never show). Skip selection changes for taps over the visible launcher.
+            if (_private.launcher && _private.launcher.visible
+                && _private.launcher.contains(_private.launcher.mapFromGlobal(point.globalPosition)))
+                return;
             if(tapCount == 2 && _private.launcher){
                 // Reposition centred on the tap point, and re-show if the launcher was hidden
                 // via its close button. The `shown` property is optional on the launcher type;

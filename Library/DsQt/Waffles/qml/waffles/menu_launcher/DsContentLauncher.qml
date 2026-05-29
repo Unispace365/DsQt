@@ -125,6 +125,15 @@ DsViewer {
         return "";
     }
 
+    // Order-insensitive equality for the search-filter kind arrays (drives chip active-state).
+    function _kindsEqual(a, b) {
+        const aa = (a || []).slice().sort();
+        const bb = (b || []).slice().sort();
+        if (aa.length !== bb.length) return false;
+        for (let i = 0; i < aa.length; ++i) if (aa[i] !== bb[i]) return false;
+        return true;
+    }
+
     // -----------------------------------------------------------------------------------------
     // Reusable inline components.
     // -----------------------------------------------------------------------------------------
@@ -184,6 +193,31 @@ DsViewer {
             }
         }
         TapHandler { onTapped: pill.clicked() }
+    }
+
+    // A search type-filter chip. Single-select: tapping sets the model's searchKinds to this
+    // chip's `kinds` ([] for "All"); active when the model's current filter matches.
+    component FilterChip: Rectangle {
+        id: chip
+        property string label
+        property var kinds: []
+        property var targetModel: null
+        readonly property bool active: chip.targetModel ? root._kindsEqual(chip.targetModel.searchKinds, chip.kinds) : false
+        implicitHeight: 32
+        implicitWidth: chipText.implicitWidth + 28
+        radius: 16
+        color: chip.active ? DsTheme.selectedSurface : DsTheme.surfaceVariant
+        border.color: DsTheme.stroke
+        border.width: chip.active ? 0 : 1
+        Text {
+            id: chipText
+            anchors.centerIn: parent
+            text: chip.label
+            color: chip.active ? DsTheme.selectedSurfaceText : DsTheme.surfaceText
+            font.family: "Roboto"
+            font.pixelSize: 13
+        }
+        TapHandler { onTapped: if (chip.targetModel) chip.targetModel.searchKinds = chip.kinds }
     }
 
     // A single launcher row — 34px leading slot (thumbnail or kind-icon), title, trailing icon.
@@ -364,7 +398,13 @@ DsViewer {
     //   - touch-drag inside the list → list scrolls;
     //   - touch-drag on any other empty space (header, section labels, breadcrumb, padding,
     //     gutters, around the close button) → the launcher itself drags.
-    DragHandler { target: root }
+    // Disabled while the docked keyboard is up: this root handler would otherwise steal the
+    // press-hold-drag the virtual keyboard uses to pick alternate (long-press) keys, moving the
+    // launcher instead of selecting the character.
+    DragHandler {
+        target: root
+        enabled: !(keyboardLoader.item && keyboardLoader.item.panelActive)
+    }
 
     // --- Body: Loader between Content and Search panes. ----------------------------------------
     Item {
@@ -372,7 +412,7 @@ DsViewer {
         anchors.top: header.bottom
         anchors.left: parent.left
         anchors.right: parent.right
-        anchors.bottom: closeBtn.top
+        anchors.bottom: keyboardArea.top
         anchors.topMargin: 16
         anchors.bottomMargin: 12
 
@@ -380,6 +420,42 @@ DsViewer {
             anchors.fill: parent
             sourceComponent: (root.viewMode === "content") ? contentPane : searchPane
         }
+    }
+
+    // --- Docked virtual keyboard (search mode). -------------------------------------------------
+    // Sits just above the close button; bodyArea's bottom anchors to its top so the results list
+    // gives up space while the keyboard is up. Only loaded in search mode — all InputPanels in a
+    // window share one InputContext, so we keep at most one active (see DsVirtualKeyboard note).
+    Item {
+        id: keyboardArea
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.bottom: closeBtn.top
+        anchors.leftMargin: 8
+        anchors.rightMargin: 8
+        anchors.bottomMargin: 6
+        clip: true
+        height: (root.viewMode === "search" && keyboardLoader.item && keyboardLoader.item.panelActive)
+                ? keyboardLoader.item.panelHeight : 0
+        Behavior on height { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
+
+        Loader {
+            id: keyboardLoader
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.bottom: parent.bottom
+            // Gated off while the stage's floating keyboard is shown — one InputPanel at a time.
+            // Also gated on the launcher being on-screen, so closing the launcher while search is
+            // open tears the InputPanel down (the keyboard capture ends with it).
+            active: root.visible && root.viewMode === "search"
+                    && !(root.stage && root.stage.floatingKeyboardShown)
+            sourceComponent: keyboardComponent
+        }
+    }
+
+    Component {
+        id: keyboardComponent
+        DsVirtualKeyboard {}
     }
 
     // Content pane: breadcrumb (drilled-in) OR CURRENT PLAYLIST + CONTENT LIBRARY (at root) + list.
@@ -502,31 +578,191 @@ DsViewer {
         }
     }
 
-    // Search pane — placeholder for 2c.
+    // Search pane (Phase 2c): search field + type filter chips + results list. The field grabs
+    // focus on open so the docked virtual keyboard (see keyboardLoader) shows automatically.
     Component {
         id: searchPane
-        Item {
-            Text {
-                anchors.centerIn: parent
-                text: "Search — coming in 2c"
-                color: DsTheme.surfaceText
-                font.family: "Roboto"
-                font.pixelSize: 14
-                opacity: 0.55
+        ColumnLayout {
+            spacing: 0
+
+            // Type filter chips (single-select; "All" clears the filter).
+            Flow {
+                Layout.fillWidth: true
+                Layout.leftMargin: 24
+                Layout.rightMargin: 24
+                Layout.bottomMargin: 12
+                spacing: 8
+
+                FilterChip { label: "All";     kinds: [];                     targetModel: root.model }
+                FilterChip { label: "Images";  kinds: ["image"];              targetModel: root.model }
+                FilterChip { label: "Video";   kinds: ["video"];              targetModel: root.model }
+                FilterChip { label: "PDF";     kinds: ["pdf"];                targetModel: root.model }
+                FilterChip { label: "Web";     kinds: ["weblink"];            targetModel: root.model }
+                FilterChip { label: "Folders"; kinds: ["folder", "playlist"]; targetModel: root.model }
+            }
+
+            // Results, with prompt / no-results empty states.
+            Item {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+
+                Text {
+                    anchors.centerIn: parent
+                    width: parent.width - 48
+                    horizontalAlignment: Text.AlignHCenter
+                    wrapMode: Text.WordWrap
+                    visible: resultsList.count === 0
+                    text: {
+                        if (!root.model) return "";
+                        const hasQuery  = ("" + root.model.searchQuery).trim().length > 0;
+                        const hasFilter = (root.model.searchKinds || []).length > 0;
+                        return (!hasQuery && !hasFilter) ? "Type to search the content library"
+                                                         : "No matching content";
+                    }
+                    color: Qt.rgba(DsTheme.surfaceText.r, DsTheme.surfaceText.g, DsTheme.surfaceText.b, 0.55)
+                    font.family: "Roboto"
+                    font.pixelSize: 14
+                }
+
+                ListView {
+                    id: resultsList
+                    anchors.fill: parent
+                    clip: true
+                    spacing: 0
+                    model: root.model ? root.model.searchResults : []
+                    boundsBehavior: Flickable.StopAtBounds
+
+                    delegate: LauncherRow {
+                        id: resRow
+                        required property var modelData
+                        width: resultsList.width
+                        item: modelData
+                        selected: false
+                        onActivated: {
+                            if (!root.model || !resRow.modelData) return;
+                            if (resRow.modelData.hasChildren) {
+                                root.viewMode = "content";
+                                root.model.enter(resRow.modelData);
+                            } else {
+                                root.openRequested(resRow.modelData);
+                            }
+                        }
+                    }
+
+                    ScrollBar.vertical: ScrollBar {
+                        width: 4
+                        policy: ScrollBar.AsNeeded
+                        contentItem: Rectangle {
+                            implicitWidth: 4
+                            radius: 2
+                            color: DsTheme.track
+                        }
+                        background: null
+                    }
+                }
+            }
+
+            // Search field — docked at the bottom, just above the keyboard (per Figma). Grabs
+            // focus on open so the docked virtual keyboard shows automatically.
+            Item {
+                Layout.fillWidth: true
+                Layout.preferredHeight: 46
+                Layout.leftMargin: 24
+                Layout.rightMargin: 24
+                Layout.topMargin: 12
+                Layout.bottomMargin: 12
+
+                Rectangle {
+                    anchors.fill: parent
+                    radius: 23
+                    color: DsTheme.surfaceVariant
+                    border.color: DsTheme.stroke
+                    border.width: 1
+
+                    RowLayout {
+                        anchors.fill: parent
+                        anchors.leftMargin: 16
+                        anchors.rightMargin: 12
+                        spacing: 10
+
+                        DsLauncherIcon {
+                            Layout.preferredWidth: 18
+                            Layout.preferredHeight: 18
+                            sourceSize: 18
+                            source: root._icon("search")
+                            color: Qt.rgba(DsTheme.surfaceText.r, DsTheme.surfaceText.g, DsTheme.surfaceText.b, 0.6)
+                        }
+
+                        TextField {
+                            id: searchField
+                            objectName: "launcherSearchField"
+                            Layout.fillWidth: true
+                            Layout.alignment: Qt.AlignVCenter
+                            placeholderText: "Search content"
+                            color: DsTheme.surfaceText
+                            placeholderTextColor: Qt.rgba(DsTheme.surfaceText.r, DsTheme.surfaceText.g, DsTheme.surfaceText.b, 0.5)
+                            font.family: "Roboto"
+                            font.pixelSize: 15
+                            background: null
+                            leftPadding: 0
+                            rightPadding: 0
+                            verticalAlignment: TextInput.AlignVCenter
+                            inputMethodHints: Qt.ImhNoPredictiveText
+                            text: root.model ? root.model.searchQuery : ""
+                            onTextEdited: if (root.model) root.model.searchQuery = text
+                            Component.onCompleted: if (root.visible) searchField.forceActiveFocus()
+                            // Tie input focus to the launcher being on-screen: when the launcher
+                            // hides (e.g. closed while search is open) drop focus + dismiss the IM
+                            // so the keyboard/capture ends; regrab focus when it's shown again.
+                            Connections {
+                                target: root
+                                function onVisibleChanged() {
+                                    if (root.visible) {
+                                        searchField.forceActiveFocus();
+                                    } else {
+                                        searchField.focus = false;
+                                        Qt.inputMethod.hide();
+                                    }
+                                }
+                            }
+                        }
+
+                        DsLauncherIcon {
+                            Layout.preferredWidth: 16
+                            Layout.preferredHeight: 16
+                            sourceSize: 16
+                            visible: searchField.text.length > 0
+                            source: root._icon("close")
+                            color: DsTheme.surfaceText
+                            // Reset the model too: searchField.clear() is a programmatic change so
+                            // it doesn't fire onTextEdited, which is what syncs model.searchQuery.
+                            TapHandler {
+                                onTapped: {
+                                    if (root.model) root.model.searchQuery = "";
+                                    searchField.clear();
+                                    searchField.forceActiveFocus();
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
     }
 
-    // --- Bottom-centre close button. -----------------------------------------------------------
+    // --- Close button. -------------------------------------------------------------------------
+    // Straddles the launcher's bottom border: its centre sits on the bottom edge (half inside, half
+    // out), splitting the border the way the fullscreen controller's collapse tab straddles the bar.
     Rectangle {
         id: closeBtn
         anchors.horizontalCenter: parent.horizontalCenter
-        anchors.bottom: parent.bottom
-        anchors.bottomMargin: 12
-        width: 50
-        height: 50
+        anchors.verticalCenter: parent.bottom
+        width: 44
+        height: 44
         radius: 8
         color: DsTheme.surfaceVariant
+        border.color: DsTheme.stroke
+        border.width: 1
 
         layer.enabled: true
         layer.effect: MultiEffect {

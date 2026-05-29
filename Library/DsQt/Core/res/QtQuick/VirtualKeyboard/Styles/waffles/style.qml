@@ -11,38 +11,45 @@ import QtQuick.VirtualKeyboard.Styles
 KeyboardStyle {
     id: currentStyle
     readonly property bool compactSelectionList: [InputEngine.InputMode.Pinyin, InputEngine.InputMode.Cangjie, InputEngine.InputMode.Zhuyin].indexOf(InputContext.inputEngine.inputMode) !== -1
-    readonly property string fontFamily: "Helvetica Neue"
+    readonly property string fontFamily: "Roboto"  // app font (bundled by Dsqt.Waffles' DsTheme)
     readonly property real keyBackgroundMargin: Math.round(8 * scaleHint)
     readonly property real keyContentMargin: Math.round(40 * scaleHint)
-    readonly property real keyIconScale: scaleHint * 0.8
+    readonly property real keyIconScale: scaleHint * 0.75
+    // Uniform rendered height for the main key glyphs (shift/backspace/globe/enter/hide/etc.).
+    // The glyph SVGs share a 24x24 viewBox, so one size keeps them visually consistent; it scales
+    // with keyIconScale so the whole set dials together (bump the 0.75 above to resize).
+    readonly property real keyIconSize: Math.round(88 * keyIconScale)
     readonly property string resourcePrefix: ""
 
     readonly property string inputLocale: InputContext.locale
-    property color primaryColor: "#191F25"
-    property color primaryLightColor: "#4f5b62"
-    property color primaryDarkColor: "#2E3439"
-    property color textOnPrimaryColor: "#ffffff"
-    property color secondaryColor: "#01579b"
-    property color secondaryLightColor: "#4f83cc"
-    property color secondaryDarkColor: "#002f6c"
+    // Waffles palette — mirrors the DsTheme tonal ramp + accent so the keyboard matches the rest
+    // of the UI. (This style lives in Core and is loaded by Qt VK in its own context, so it can't
+    // import the DsTheme singleton; the tokens are duplicated here. Keep in sync with DsTheme.)
+    property color primaryColor: "#191F25"        // tonal0  — keyboard background
+    property color primaryLightColor: "#5D6166"   // tonal30 — highlighted key / separators
+    property color primaryDarkColor: "#2E3439"    // tonal10 — normal key / borders
+    property color textOnPrimaryColor: "#ffffff"  // white   — key text / icons
+    property color accentColor: "#00ADF7"         // accent  — active states / highlights
+    // Shift-pending uses a translucent accent so it reads distinct from caps-lock (solid accent).
+    property color shiftActiveColor: Qt.rgba(accentColor.r, accentColor.g, accentColor.b, 0.45)
     property color textOnSecondaryColor: "#ffffff"
 
     property color keyboardBackgroundColor: primaryColor
     property color keyboardBackgroundBorderColor: primaryDarkColor
     property color normalKeyBackgroundColor: primaryDarkColor
     property color highlightedKeyBackgroundColor: primaryLightColor
-    property color capsLockKeyAccentColor: secondaryColor
-    property color modeKeyAccentColor: textOnPrimaryColor
+    property color capsLockKeyAccentColor: accentColor
+    property color modeKeyAccentColor: accentColor
     property color keyTextColor: textOnPrimaryColor
     property color keySmallTextColor: textOnPrimaryColor
-    property color popupBackgroundColor: secondaryColor
-    property color popupBorderColor: secondaryLightColor
-    property color popupTextColor: textOnSecondaryColor
-    property color popupHighlightColor: secondaryLightColor
+    property color popupBackgroundColor: primaryDarkColor
+    property color popupBorderColor: primaryLightColor
+    property color popupTextColor: textOnPrimaryColor
+    property color popupHighlightColor: accentColor
     property color selectionListTextColor: textOnPrimaryColor
     property color selectionListSeparatorColor: primaryLightColor
     property color selectionListBackgroundColor: primaryColor
-    property color navigationHighlightColor: "yellow"
+    property color navigationHighlightColor: accentColor
 
     property real inputLocaleIndicatorOpacity: 1.0
     property Timer inputLocaleIndicatorHighlightTimer: Timer {
@@ -114,12 +121,10 @@ KeyboardStyle {
                 text: control.displayText
                 color: keyTextColor
                 horizontalAlignment: Text.AlignHCenter
-                verticalAlignment: control.displayText.length > 1 ? Text.AlignVCenter : Text.AlignBottom
+                // Centre the glyph on the key (single letters were bottom-aligned before).
+                verticalAlignment: Text.AlignVCenter
                 anchors.fill: parent
-                anchors.leftMargin: keyContentMargin
-                anchors.topMargin: keyContentMargin
-                anchors.rightMargin: keyContentMargin
-                anchors.bottomMargin: keyContentMargin
+                anchors.margins: keyContentMargin
                 font {
                     family: fontFamily
                     weight: Font.Normal
@@ -180,7 +185,7 @@ KeyboardStyle {
             Image {
                 id: backspaceKeyIcon
                 anchors.centerIn: parent
-                sourceSize.height: 88 * keyIconScale
+                sourceSize.height: keyIconSize
                 smooth: false
                 source: resourcePrefix + "images/backspace-fff.svg"
             }
@@ -224,7 +229,7 @@ KeyboardStyle {
             Image {
                 id: languageKeyIcon
                 anchors.centerIn: parent
-                sourceSize.height: 127 * keyIconScale
+                sourceSize.height: keyIconSize
                 smooth: false
                 source: resourcePrefix + "images/globe-fff.svg"
             }
@@ -282,7 +287,7 @@ KeyboardStyle {
                         return Qt.size(211, 80)
                     }
                 }
-                sourceSize.height: enterKeyIconSize.height * keyIconScale
+                sourceSize.height: keyIconSize
                 smooth: false
                 source: {
                     switch (control.actionId) {
@@ -364,7 +369,7 @@ KeyboardStyle {
             Image {
                 id: hideKeyIcon
                 anchors.centerIn: parent
-                sourceSize.height: 127 * keyIconScale
+                sourceSize.height: keyIconSize
                 smooth: false
                 source: resourcePrefix + "images/hidekeyboard-fff.svg"
             }
@@ -408,11 +413,13 @@ KeyboardStyle {
             Image {
                 id: shiftKeyIcon
                 anchors.centerIn: parent
-                sourceSize.height: 134 * keyIconScale
+                sourceSize.height: keyIconSize
                 smooth: false
                 source: resourcePrefix + "images/shift-fff.svg"
             }
             states: [
+                // Caps-lock: solid accent background; shift-pending: translucent accent. The icon
+                // stays white (shift-fff.svg) in all states — no more green/light-green swaps.
                 State {
                     name: "capsLockActive"
                     when: InputContext.capsLockActive
@@ -420,17 +427,13 @@ KeyboardStyle {
                         target: shiftKeyBackground
                         color: capsLockKeyAccentColor
                     }
-                    PropertyChanges {
-                        target: shiftKeyIcon
-                        source: resourcePrefix + "images/shift-c5d6b6.svg"
-                    }
                 },
                 State {
                     name: "shiftActive"
                     when: InputContext.shiftActive
                     PropertyChanges {
-                        target: shiftKeyIcon
-                        source: resourcePrefix + "images/shift-80c342.svg"
+                        target: shiftKeyBackground
+                        color: shiftActiveColor
                     }
                 }
             ]
@@ -473,15 +476,16 @@ KeyboardStyle {
             anchors.margins: keyBackgroundMargin
             Text {
                 id: spaceKeyText
-                text: Qt.locale(InputContext.locale).nativeLanguageName
+                // Per Figma: a muted "space" label, not the input-locale name (the language is
+                // switched via the globe key / its long-press popup instead).
+                text: "space"
                 color: keyTextColor
-                opacity: inputLocaleIndicatorOpacity
-                Behavior on opacity { PropertyAnimation { duration: 250 } }
+                opacity: 0.5
                 anchors.centerIn: parent
                 font {
                     family: fontFamily
                     weight: Font.Normal
-                    pixelSize: 60 * scaleHint
+                    pixelSize: 44 * scaleHint
                 }
             }
         }
@@ -633,7 +637,7 @@ KeyboardStyle {
             Image {
                 id: hwrKeyIcon
                 anchors.centerIn: parent
-                sourceSize.height: 127 * keyIconScale
+                sourceSize.height: keyIconSize
                 smooth: false
                 source: resourcePrefix + (keyboard.handwritingMode ? "images/textmode-fff.svg" : "images/handwriting-fff.svg")
             }

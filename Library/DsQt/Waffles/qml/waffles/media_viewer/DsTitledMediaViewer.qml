@@ -54,6 +54,11 @@ DsViewer {
     property bool sizeToMedia: false
     property bool matchAspectRatio: false
     property real imageWidth: stage ? stage.viewerImageWidth : 800
+    // Default size for web content (no natural aspect to fit). Used when the media is web and the
+    // caller didn't request sizeToMedia / matchAspectRatio. Defaults from [waffles.viewer] webWidth
+    // / webHeight via the stage.
+    property real webWidth:  stage ? stage.viewerWebWidth : 1280
+    property real webHeight: stage ? stage.viewerWebHeight : 800
     property real minWidth:  stage ? stage.viewerMinWidth : 200
     property real maxWidth:  stage ? stage.viewerMaxWidth : 1600
     property real minHeight: stage ? stage.viewerMinHeight : 150
@@ -61,6 +66,8 @@ DsViewer {
     onSizeToMediaChanged: applySizing()
     onMatchAspectRatioChanged: applySizing()
     onImageWidthChanged: applySizing()
+    onWebWidthChanged: applySizing()
+    onWebHeightChanged: applySizing()
 
     // --- Pinch-zoom config ---
     // Opt-in (default off). When true, viewers can be resized by:
@@ -93,6 +100,14 @@ DsViewer {
     property bool controlsAwake: true
     Timer { id: idleTimer; interval: root.controlsIdleMs; onTriggered: root.controlsAwake = false }
 
+    // Interactive content (web / pdf) captures pointer input, so the viewer's normal hover/drag
+    // path never fires to "wake" faded controls — they'd be unreachable. We don't force the
+    // controls on; instead the reveal layer (see contentLayer below) brings them back on mouse
+    // hover or a top-strip tap. This flag gates that reveal layer to only intercept over such
+    // content (image/video wake fine the normal way).
+    readonly property bool contentInteractive: root.mediaViewer
+        ? (root.mediaViewer.mediaType === "web" || root.mediaViewer.mediaType === "pdf") : false
+
     // Outer controls (title, corner buttons) show whenever the viewer is selected and not
     // fullscreen (fullscreen hands controls to the stage's fullscreen controller). INNER controls
     // (over the content, e.g. the media transport bar) additionally auto-hide when idle and return
@@ -100,12 +115,27 @@ DsViewer {
     onSelectedChanged: { if (selected) { wake(); refreshGlass(); } else _applyControls() }
     onFullscreenChanged: { if (!fullscreen && selected) { wake(); refreshGlass(); } else _applyControls() }
     onControlsAwakeChanged: _applyControls()
+    // TEMP diagnostic — flip on to log control state on each _applyControls.
+    property bool _debugControls: false
     function _applyControls() {
         let base = selected && !fullscreen;
         let innerOn = base && (controlsAwake || controlsIdleMs <= 0);
+        if (root._debugControls) {
+            let mt = root.mediaViewer ? root.mediaViewer.mediaType : "(none)";
+            console.log("[DsTitledMediaViewer] mediaType=" + mt + " selected=" + selected
+                        + " fullscreen=" + fullscreen + " controls=" + root.controls.length
+                        + " base=" + base + " innerOn=" + innerOn
+                        + " viewer=" + Math.round(viewerWidth) + "x" + Math.round(viewerHeight)
+                        + " pos=" + Math.round(root.x) + "," + Math.round(root.y) + " z=" + root.z);
+        }
         for (var i = 0; i < root.controls.length; i++) {
             let c = root.controls[i];
-            c.opacity = ((_edgeIsInner(c.edge) ? innerOn : base) ? 1 : 0);
+            let want = ((_edgeIsInner(c.edge) ? innerOn : base) ? 1 : 0);
+            c.opacity = want;
+            if (root._debugControls)
+                console.log("    ctrl[" + i + "] edge=" + c.edge + " wantOpacity=" + want
+                            + " size=" + Math.round(c.width) + "x" + Math.round(c.height)
+                            + " parent=" + (c.parent ? c.parent : "(none)"));
         }
     }
     function _edgeIsInner(e) {
@@ -199,8 +229,11 @@ DsViewer {
         let media = (config && config.media) ? config.media : null;
         let mw = (media && media.width)  ? media.width  : viewerWidth;
         let mh = (media && media.height) ? media.height : viewerHeight;
-        let w = sizeToMedia ? mw : (matchAspectRatio ? imageWidth : viewerWidth);
-        let h = sizeToMedia ? mh : viewerHeight;
+        // Web content has no natural aspect to fit — default it to the configured web size
+        // (unless the caller asked to size to the media or match its aspect).
+        let isWeb = media && ("" + (media.type || "")).toLowerCase() === "web";
+        let w = sizeToMedia ? mw : (matchAspectRatio ? imageWidth : (isWeb ? webWidth : viewerWidth));
+        let h = sizeToMedia ? mh : (isWeb ? webHeight : viewerHeight);
         if (matchAspectRatio && mw > 0 && mh > 0) {
             let aspect = mw / mh;
             w = Math.max(minWidth, Math.min(maxWidth, w));
@@ -442,6 +475,61 @@ DsViewer {
                 // viewer's KeepLastFrame policy holding the final frame on stop).
                 loops: (root.config.media && root.config.media.loop) ? MediaPlayer.Infinite : 0
                 visible: true
+            }
+        }
+
+        // Reveal affordance for interactive content (web / pdf). That content captures pointer
+        // input, so once the inner controls auto-hide the normal hover/drag wake path can't fire.
+        // This layer sits ABOVE the content but BELOW the control holders (declared later), so it
+        // brings controls back without covering them when they're visible. Enabled only over
+        // interactive content while selected (image/video wake fine the normal way).
+        //   - passive HoverHandler over the whole content → mouse movement reveals; it never grabs
+        //     the pointer, so the page stays fully interactive;
+        //   - a thin top strip with a TapHandler → touch reveals (a small dead-zone at the very
+        //     top), with a subtle grab-handle hint shown only while controls are hidden.
+        Item {
+            id: revealLayer
+            anchors.fill: mediaView
+            // Live over interactive content whenever not fullscreen — INCLUDING when deselected,
+            // so the viewer can be re-selected (the web/pdf view captures taps, so neither the
+            // stage tap-to-select nor the body-drag beneath the content can reach it).
+            enabled: root.contentInteractive && !root.fullscreen
+
+            // Mouse: hovering a SELECTED viewer reveals its auto-hidden controls. Passive — never
+            // grabs the pointer, so the page stays fully interactive.
+            HoverHandler { onPointChanged: if (root.selected) root.wake() }
+
+            // DESELECTED: a full-cover tap selects the viewer (you can't tap through the page to
+            // select it otherwise). Disabled once selected, so the page then receives taps.
+            TapHandler {
+                enabled: !root.selected
+                onTapped: { if (root.stage) root.stage.selectViewer(root); root.wake(); }
+            }
+
+            // SELECTED: a thin top strip wakes the auto-hidden controls on tap (the rest of the
+            // page stays tappable), with a grab-handle hint shown while controls are hidden.
+            Item {
+                id: revealStrip
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
+                height: 56
+                TapHandler {
+                    enabled: root.selected
+                    onTapped: { if (root.stage) root.stage.selectViewer(root); root.wake(); }
+                }
+                Rectangle {
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    anchors.top: parent.top
+                    anchors.topMargin: 8
+                    width: 40
+                    height: 4
+                    radius: 2
+                    color: DsTheme.surfaceText
+                    // Hint only while selected (interactive content) and controls are hidden.
+                    opacity: (root.contentInteractive && root.selected && !root.controlsAwake) ? 0.4 : 0
+                    Behavior on opacity { NumberAnimation { duration: 150 } }
+                }
             }
         }
 

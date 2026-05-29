@@ -204,7 +204,10 @@ DsControlSet {
                 Layout.preferredWidth: 24; Layout.preferredHeight: 24; Layout.alignment: Qt.AlignVCenter
                 iconSize: 16
                 iconName: mc.media("keyboard.svg")
-                onClicked: { mc.poke(); /* TODO: bring up the on-screen keyboard (larger task) */ }
+                // Toggle the stage's floating virtual keyboard (for typing into web inputs).
+                readonly property var _stage: mc.viewer ? mc.viewer.stage : null
+                active: _stage ? _stage.floatingKeyboardShown : false
+                onClicked: { mc.poke(); if (_stage) _stage.floatingKeyboardShown = !_stage.floatingKeyboardShown; }
             }
             DsCtrlIcon {
                 Layout.preferredWidth: 24; Layout.preferredHeight: 24; Layout.alignment: Qt.AlignVCenter

@@ -11,6 +11,7 @@ find_package(Qt6 6.9
     OPTIONAL_COMPONENTS
         WebEngineQuick
         Pdf
+        VirtualKeyboard
 )
 qt_standard_project_setup(REQUIRES 6.9)
 
@@ -29,7 +30,9 @@ qt_add_qml_module(Waffles
         qml/ux/BottomOuterControls.qml
         qml/ux/CloseButton.qml
         qml/ux/DsCtrlIcon.qml
+        qml/ux/DsFloatingKeyboard.qml
         qml/ux/DsMediaControls.qml
+        qml/ux/DsVirtualKeyboard.qml
         qml/ux/FullscreenButton.qml
         qml/ux/FullscreenController.qml
         qml/ux/IconButton.qml
@@ -83,6 +86,7 @@ target_link_libraries(Waffles PUBLIC
     Qt6::Multimedia
     $<TARGET_NAME_IF_EXISTS:Qt6::WebEngineQuick>
     $<TARGET_NAME_IF_EXISTS:Qt6::Pdf>
+    $<TARGET_NAME_IF_EXISTS:Qt6::VirtualKeyboard>
     Wafflesplugin
 )
 

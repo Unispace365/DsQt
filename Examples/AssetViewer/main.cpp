@@ -67,6 +67,7 @@ int main(int argc, char *argv[])
                                      "qt.multimedia.ffmpeg.*=false\n"
                                      );
     qputenv("QT_IM_MODULE", QByteArray("qtvirtualkeyboard"));
+    qputenv("QT_VIRTUALKEYBOARD_STYLE", QByteArray("waffles"));
     qputenv("QT_ENABLE_HIGHDPI_SCALING", QByteArray("0"));
 
     QtWebEngineQuick::initialize();

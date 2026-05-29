@@ -34,6 +34,14 @@ DsQmlApplicationEngine::DsQmlApplicationEngine(QObject* parent)
         setDefaultEngine(this);
     }
 
+    // Make the bundled Qt Virtual Keyboard "waffles" style discoverable. The style ships in
+    // Dsqt::Core's module resources (CMakeLists RESOURCES, as individual files so they link into
+    // this static lib) at qrc:/qt/qml/Dsqt/Core/res/QtQuick/VirtualKeyboard/Styles/waffles/. Qt VK
+    // resolves custom styles by searching the QML import paths for that URL-shaped subdir, so we
+    // add the resource root here. Selection of the style is via QT_VIRTUALKEYBOARD_STYLE=waffles
+    // (set in each app's main.cpp before the platform input context loads).
+    addImportPath(QStringLiteral("qrc:/qt/qml/Dsqt/Core/res"));
+
     // default idle
     mIdle = new DsQmlIdle(this);
     mIdle->setAreaItemTarget(qGuiApp);
