@@ -14,18 +14,29 @@ get_filename_component(PACKAGE_PREFIX_DIR "${CMAKE_CURRENT_LIST_DIR}/../../.." A
 if(NOT TARGET tomlplusplus::tomlplusplus)
     add_library(tomlplusplus::tomlplusplus UNKNOWN IMPORTED)
 
+    set(_PREFIX ${CMAKE_STATIC_LIBRARY_PREFIX})
+    set(_SUFFIX ${CMAKE_STATIC_LIBRARY_SUFFIX})
+
+    if(WIN32)
+        # TOML_SHARED_LIB=1 ensures __declspec(dllimport) is applied on the
+        # consumer side, matching the DLL build that DsQt::Core was compiled against.
+        # TOML_HEADER_ONLY=0 opts into the compiled (non-inline) translation unit.
+        set(_DEFS "TOML_HEADER_ONLY=0;TOML_SHARED_LIB=1")
+        set(_LIB_NAME "tomlplusplus")
+    else()
+        set(_DEFS "TOML_HEADER_ONLY=0")
+        set(_LIB_NAME "tomlplusplus")
+    endif()
+
     set_target_properties(tomlplusplus::tomlplusplus PROPERTIES
         # Consumers must see the same toml++ include path DsQt was compiled against.
         INTERFACE_INCLUDE_DIRECTORIES "${PACKAGE_PREFIX_DIR}/include"
 
-        # TOML_SHARED_LIB=1 ensures __declspec(dllimport) is applied on the
-        # consumer side, matching the DLL build that DsQt::Core was compiled against.
-        # TOML_HEADER_ONLY=0 opts into the compiled (non-inline) translation unit.
-        INTERFACE_COMPILE_DEFINITIONS "TOML_HEADER_ONLY=0;TOML_SHARED_LIB=1"
+        INTERFACE_COMPILE_DEFINITIONS "${_DEFS}"
 
         IMPORTED_CONFIGURATIONS       "DEBUG;RELEASE"
-        IMPORTED_LOCATION_DEBUG          "${PACKAGE_PREFIX_DIR}/lib/Debug/tomlplusplus.lib"
-        IMPORTED_LOCATION_RELEASE        "${PACKAGE_PREFIX_DIR}/lib/Release/tomlplusplus.lib"
+        IMPORTED_LOCATION_DEBUG          "${PACKAGE_PREFIX_DIR}/lib/Debug/${_PREFIX}${_LIB_NAME}${_SUFFIX}"
+        IMPORTED_LOCATION_RELEASE        "${PACKAGE_PREFIX_DIR}/lib/Release/${_PREFIX}${_LIB_NAME}${_SUFFIX}"
         MAP_IMPORTED_CONFIG_RELWITHDEBINFO Release
         MAP_IMPORTED_CONFIG_MINSIZEREL     Release
     )
