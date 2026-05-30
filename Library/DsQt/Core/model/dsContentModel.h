@@ -170,6 +170,7 @@ class ContentModel : public QQmlPropertyMap {
         auto&      lookup = ContentLookup::get();
         const auto itr    = lookup.constFind(uid);
         if (itr != lookup.constEnd()) {
+            itr.value()->setParent(nullptr);
             itr.value()->deleteLater();
             lookup.erase(itr);
         }
@@ -180,6 +181,7 @@ class ContentModel : public QQmlPropertyMap {
         for (const auto& uid : uids) {
             const auto itr = lookup.constFind(uid);
             if (itr != lookup.constEnd()) {
+                itr.value()->setParent(nullptr);
                 itr.value()->deleteLater();
                 lookup.erase(itr);
             }
