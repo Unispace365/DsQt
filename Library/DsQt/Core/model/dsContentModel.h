@@ -170,6 +170,7 @@ class ContentModel : public QQmlPropertyMap {
         auto&      lookup = ContentLookup::get();
         const auto itr    = lookup.constFind(uid);
         if (itr != lookup.constEnd()) {
+            itr.value()->setParent(nullptr);
             itr.value()->deleteLater();
             lookup.erase(itr);
         }
@@ -180,6 +181,7 @@ class ContentModel : public QQmlPropertyMap {
         for (const auto& uid : uids) {
             const auto itr = lookup.constFind(uid);
             if (itr != lookup.constEnd()) {
+                itr.value()->setParent(nullptr);
                 itr.value()->deleteLater();
                 lookup.erase(itr);
             }
@@ -391,15 +393,28 @@ class ContentModel : public QQmlPropertyMap {
 
         const auto uid         = getProperty<QString>("uid");
         const auto parent_uids = getProperty<QStringList>("parent_uid");
+
+        // If a record has multiple parents, we don't want it to exist in the object tree.
+        // We MUST sever the link to the old parent if it was a prior parent/child relationship,
+        // i.e. the CMS changed from:
+        //   parent_uid = [A]
+        // to this:
+        //   parent_uid = [B, C]
+        if (parent_uids.size() != 1) {
+            setParent(nullptr);
+            return;
+        }
+
+        // Otherwise, we know that it has exactly one parent
+        // Link records with a single parent to the parent node.
         for (const auto& parent_uid : parent_uids) {
             auto parent = find(parent_uid);
             if (parent) {
-                // Link records with a single parent to the parent node.
-                if (parent_uids.size() == 1) setParent(parent);
-                // // Always add child uid to parent's list of childs.
-                // auto childs = parent->value("child_uid").toStringList();
-                // if (!childs.contains(uid)) childs.append(uid);
-                // parent->insert("child_uid", childs);
+                setParent(parent);
+            } else {
+                // Safety fallback: If for some reason we can't find the parent yet/anymore,
+                // ensure this child doesn't stay attached to a stale old parent
+                setParent(nullptr);
             }
         }
     }
