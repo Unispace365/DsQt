@@ -395,11 +395,11 @@ class ContentModel : public QQmlPropertyMap {
         const auto parent_uids = getProperty<QStringList>("parent_uid");
 
         // If a record has multiple parents, we don't want it to exist in the object tree.
-        // We MUST sever the link to the old parent if was a prior parent/childr relationship,
-        // i.e. The CMS changed from:
-        //   parent_id = [A]
+        // We MUST sever the link to the old parent if it was a prior parent/child relationship,
+        // i.e. the CMS changed from:
+        //   parent_uid = [A]
         // to this:
-        //   parent_id = [B, C]
+        //   parent_uid = [B, C]
         if (parent_uids.size() != 1) {
             setParent(nullptr);
             return;
