@@ -95,3 +95,9 @@ Examples/ClonerSource/.qtcreator
 /**/.claude
 /**/.qtcreator
 Tools/__pycache__
+
+# Transient build logs from build_and_install.bat / local build helpers
+build_log.txt
+build_err.txt
+_build.log
+_build.log.err

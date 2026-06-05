@@ -50,6 +50,21 @@ Check the box when done; move long-finished items to the bottom or delete.
       presentation controller shown while active (play/pause, prev/next, slide index — NOT the
       media transport), and the app mapping to open `kind: "presentation"`. `_showController`
       stays fullscreen-only; the presentation controller needs its own active-state trigger.
+
+      **Boot behavior (to build):** on app launch the stage should auto-start the platform's
+      **default ambient playlist** as the attract loop (the platform carries
+      `default_interactive_playlist` — seen resolving to "Test Presentation" — and a default
+      ambient; per-platform "Default ambient / default interactive / default menu"). Ambient plays
+      automatically; the default interactive presentation is the initial interactive content,
+      surfaced when the user engages. Idle return-to-ambient (after `engine.idle_timeout`) is a
+      related follow-on. Make auto-start configurable (a setting to disable for dev).
+
+      Progress: Phase 0 built `DsPlaylistViewer` (advance engine: ambient timer + interactive
+      next/prev + loop), `DsMediaTemplate`, `DsWaffleStage.openPlaylist()`, and the
+      `PresentationController` (play/pause, prev/next, slide index, close). Launcher opens playlists
+      (open-and-play). Remaining: the boot auto-start above, idle return-to-ambient, more slide
+      templates (Gallery/Carousel/Cards/Agenda/Collections/Custom Layout — new EC-Presenter schema
+      types), slide transitions, and interactive hotspots/links.
 - [x] **Glass on non-media viewers** (glass) — done. `DsContentLauncher` now renders glass via a
       `glassContext` consumed by its panel's `DsGlassBackground`; the `FullscreenController` does
       the same via `DsController.glassContext`. Both sample the cross-layer slot chain so their

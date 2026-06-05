@@ -19,9 +19,21 @@ Item {
     property Component viewer: Component { TitledMediaViewer {} }
     // Per-type fullscreen controllers (shown while a viewer of that type is fullscreen).
     property Component fullscreenController: Component { FullscreenController {} }
-    property Component presentationController: Qt.createComponent("PresentationController.qml")
+    property Component presentationController: Component { PresentationController {} }
     // The live controller instance (created lazily, reused across fullscreen sessions).
     property var _fsController: null
+
+    // --- Playlist (presentation / ambient) ---
+    // Full-stage playlist viewer, instantiated into the `presentation` layer by openPlaylist().
+    property Component playlistViewer: Component { DsPlaylistViewer {} }
+    // typeUid → Component map for slide templates, supplied by the app (uids are schema-specific;
+    // unmapped slides fall back to DsMediaTemplate inside the viewer).
+    property var playlistTemplateByTypeUid: ({})
+    // The live playlist instance (one at a time), or null.
+    property var _activePlaylist: null
+    // The presentation controller bound to the active playlist, or null.
+    property var _activePresentationController: null
+
     property bool menuShown: false
     // Show a small floating button on the stage to summon the launcher when it has been
     // hidden via its close button. Apps that don't want it can set this to false.
@@ -85,6 +97,15 @@ Item {
     property int viewerEnterAnimation:    _animFromString(appSettings.getString("viewer.enterAnimation", "growBounce"))
     property int viewerExitAnimation:     _animFromString(appSettings.getString("viewer.exitAnimation", "grow"))
     property int viewerAnimationDuration: appSettings.getInt("viewer.animationDuration", 300)
+
+    // Playlist slide-transition defaults (per-slide overridable via slide.transition /
+    // slide.disableTransition; per-playlist overridable via openPlaylist props). Name is a built-in
+    // (none | fade | slideLeft | slideRight) or a custom name registered on the viewer; duration ms.
+    property string playlistDefaultTransition:  appSettings.getString("playlist.defaultTransition", "fade")
+    property int    playlistTransitionDuration: appSettings.getInt("playlist.transitionDuration", 500)
+    // Crossfade (ms) when SWITCHING playlists (ambient ↔ interactive) or closing one. The new viewer
+    // fades in over the still-opaque outgoing one; distinct from the per-slide transitionDuration.
+    property int    playlistFadeMs:             appSettings.getInt("playlist.crossfadeMs", 400)
 
     // --- Fullscreen config. A fullscreen viewer fits the stage (minus margin), over a scrim that
     //     blocks the rest of the UI. The scrim style follows the viewer's resolved glass state
@@ -593,6 +614,97 @@ Item {
 
     function openViewer(viewerProps: var){
         createViewer(viewerProps);
+    }
+
+    // Open (and play) a playlist full-stage in the `presentation` layer. `props`:
+    //   - slides  : ordered slide descriptors (DsContentLauncherModel.slidesFor(record))
+    //   - ambient : true for auto-advance, false for interactive (advance engine wired next step)
+    // Replaces any currently-playing playlist. The stage's playlistTemplateByTypeUid is passed in
+    // so app-registered slide templates are used (with DsMediaTemplate as the fallback).
+    function openPlaylist(props) {
+        let layer = wafflesRoot.getLayer("presentation");
+        if (!layer) { console.warn("openPlaylist: no presentation layer"); return null; }
+
+        // CROSSFADE rather than hard-cut: capture the outgoing playlist + controller, create the new
+        // viewer ON TOP (it fades itself in), then retire the old one. The old viewer is kept fully
+        // opaque underneath the fading-in new one (then destroyed), so switching ambient ↔ interactive
+        // dissolves cleanly with no background flash.
+        let oldViewer     = wafflesRoot._activePlaylist;
+        let oldController = wafflesRoot._activePresentationController;
+        wafflesRoot._activePlaylist = null;
+        wafflesRoot._activePresentationController = null;
+
+        let p = {
+            "slides":  (props && props.slides) ? props.slides : [],
+            "ambient": !!(props && props.ambient),
+            "templateByTypeUid": wafflesRoot.playlistTemplateByTypeUid,
+            "fadeMs":  wafflesRoot.playlistFadeMs,
+            // Transition defaults from [waffles.playlist]; a caller can override per-playlist.
+            "defaultTransition":  (props && props.defaultTransition) ? props.defaultTransition
+                                                                     : wafflesRoot.playlistDefaultTransition,
+            "transitionDuration": (props && props.transitionDuration !== undefined) ? props.transitionDuration
+                                                                                    : wafflesRoot.playlistTransitionDuration
+        };
+        let inst = wafflesRoot.playlistViewer.createObject(layer, p);
+        if (!inst) {
+            console.warn("openPlaylist: failed to create playlist viewer");
+            wafflesRoot._activePlaylist = oldViewer;                 // creation failed — keep the old
+            wafflesRoot._activePresentationController = oldController;
+            return null;
+        }
+        if (inst.closeRequested) inst.closeRequested.connect(()=>{ wafflesRoot.closePlaylist(); });
+        wafflesRoot._activePlaylist = inst;
+
+        // Show the presentation controller ONLY for interactive playlists (a presentation). Ambient
+        // playlists are a hands-off attract loop — no controller. Hosted on modal1 (above the viewer
+        // layer) so it stays visible/usable; closing it closes the playlist.
+        if (!p.ambient) {
+            let pcLayer = wafflesRoot.getLayer("modal1") || layer;
+            let pc = wafflesRoot.presentationController.createObject(pcLayer, { "playlist": inst });
+            if (pc) {
+                if (pc.closeRequested) pc.closeRequested.connect(()=>{ wafflesRoot.closePlaylist(); });
+                pc.shown = true;                                     // fades in via its opacity Behavior
+                wafflesRoot._activePresentationController = pc;
+            }
+        }
+
+        // Retire the previous playlist: fade its controller out, keep the viewer opaque under the
+        // fading-in new one, then destroy both once the crossfade has covered them.
+        if (oldController) { oldController.shown = false; oldController.destroy(wafflesRoot.playlistFadeMs + 50); }
+        if (oldViewer)     { oldViewer.destroy(wafflesRoot.playlistFadeMs + 50); }
+        return inst;
+    }
+
+    function closePlaylist() {
+        // Fade out (no replacement) — dissolve back to whatever is behind the presentation layer.
+        if (wafflesRoot._activePresentationController) {
+            wafflesRoot._activePresentationController.shown = false;
+            wafflesRoot._activePresentationController.destroy(wafflesRoot.playlistFadeMs + 50);
+            wafflesRoot._activePresentationController = null;
+        }
+        if (wafflesRoot._activePlaylist) {
+            if (wafflesRoot._activePlaylist.dismiss) wafflesRoot._activePlaylist.dismiss();
+            else wafflesRoot._activePlaylist.destroy();
+            wafflesRoot._activePlaylist = null;
+        }
+    }
+
+    // Close all transient FOREGROUND content for an idle "attract reset": exits fullscreen, closes
+    // every media viewer, dismisses the floating keyboard, and hides the launcher. Leaves the
+    // `presentation` layer alone — the ambient playlist lives there; the caller plays/keeps it.
+    function clearForeground() {
+        if (wafflesRoot._fullscreenViewer)
+            wafflesRoot.setFullscreen(wafflesRoot._fullscreenViewer, false);
+        // Snapshot first — closeViewer() mutates viewerLayer.children as it destroys.
+        let kids = [];
+        for (let i = 0; i < viewerLayer.children.length; i++) kids.push(viewerLayer.children[i]);
+        for (let i = 0; i < kids.length; i++) {
+            if (kids[i] && ("closeRequested" in kids[i])) wafflesRoot.closeViewer(kids[i]);
+        }
+        wafflesRoot.selectViewer(null);
+        wafflesRoot.floatingKeyboardShown = false;
+        if (_private.launcher && ("shown" in _private.launcher))
+            _private.launcher.shown = false;
     }
 
     // Brings a viewer to the front and marks it selected (deselecting the rest within the

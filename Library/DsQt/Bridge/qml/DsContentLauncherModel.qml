@@ -46,10 +46,14 @@ QtObject {
     // Field appKeys on the platform record.
     property string platformContentField:  "default_content"
     property string platformPlaylistField: "default_interactive_playlist"
+    // The platform's default AMBIENT (attract-loop) playlist link field.
+    property string platformAmbientPlaylistField: "default_ambient_playlist"
 
     // Field appKeys on the interactive event record.
     property string eventContentField:  "content"
     property string eventPlaylistField: "interactive_playlist"
+    // The event's AMBIENT playlist link field.
+    property string eventAmbientPlaylistField: "ambient_playlist"
 
     // Optional per-type appKey overrides — used only when multiple event types (or platform
     // types) in the same schema carry the menu-content trait under DIFFERENT appKeys. Keyed by
@@ -106,12 +110,32 @@ QtObject {
     // Title field appKeys, checked in order. The first non-empty wins; falls back to "(untitled)".
     property var titleFields: ["record_name", "headline", "title"]
 
+    // --- Playlist / slide config (Phase 0: presentations + ambient playlists) ---
+    // A playlist record's slides are its child template records (resolved via _resolveChildren).
+    // Ambient auto-advance reads a per-slide hold time (seconds): the slide's own
+    // `ambientHoldTimeField` → else the platform's → else `defaultHoldTimeSeconds`. The schema
+    // carries `ambient_hold_time` via a reusable "Hold Time / Transition" trait, so the same appKey
+    // works on a slide and (if the trait is applied) the platform.
+    property string ambientHoldTimeField:  "ambient_hold_time"
+    // Per-slide "skip the transition" flag appKey (CHECKBOX). Read by the playlist viewer.
+    property string disableTransitionField: "disable_transition"
+    // Per-slide transition NAME appKey (e.g. "fade" / "slideLeft" / a custom name). Empty/absent →
+    // the playlist's default transition. (No transition-type field exists in the demo schema yet —
+    // this resolves to "" until one is added; disable_transition still gives a per-slide "none".)
+    property string transitionField: "transition"
+    // Fallback hold time (seconds) when neither slide nor platform specify one. Apps can drive this
+    // from a setting (e.g. [waffles.playlist] defaultHoldTime) by assigning it.
+    property real   defaultHoldTimeSeconds: 8
+
     // -----------------------------------------------------------------------------------------
     // Outputs (UI binds to these).
     // -----------------------------------------------------------------------------------------
 
-    // The CURRENT PLAYLIST row, or null.
+    // The CURRENT (interactive) PLAYLIST row, or null.
     property var currentPlaylist: null
+    // The CURRENT AMBIENT (attract-loop) playlist row, or null. Used by the app to auto-start the
+    // attract loop on boot and return to it on idle.
+    property var currentAmbientPlaylist: null
     // The CONTENT LIBRARY items at the ROOT level — platformContentField + eventContentField.
     property var library: []
     // Items currently displayed by the launcher — equals `library` at the root, or the children
@@ -229,9 +253,8 @@ QtObject {
             }
             if (out.length) return out;
         }
-        const uids = record.child_uid;
-        if (uids && uids.length) {
-            const arr = Array.isArray(uids) ? uids : Array.from(uids);
+        const arr = adapter._uidsFromField(record.child_uid);
+        if (arr.length) {
             const out = [];
             for (let i = 0; i < arr.length; ++i) {
                 const r = DsBridge.getRecordById(arr[i]);
@@ -243,14 +266,86 @@ QtObject {
         return [];
     }
 
+    // --- Playlist slides (Phase 0) ---
+    // Resolve a playlist record into an ordered list of slide descriptors the playlist viewer
+    // consumes. Each slide reuses the launcher item shape (so templates can read `media`/`thumbnail`
+    // and the raw `record` for template-specific fields) plus:
+    //   - typeUid  : the slide's template type_uid → maps to a QML template component (registry)
+    //   - holdTime : resolved ambient auto-advance time in seconds (slide → platform → default)
+    //   - disableTransition : per-slide flag to skip the transition
+    // Order follows _resolveChildren (the bridge's child order). NOTE: the playlist slots declare
+    // `reverseOrdering: true` — if slides come out reversed on device, reverse here.
+    function slidesFor(playlistRecord) {
+        if (!playlistRecord) return [];
+        const kids = adapter._resolveChildren(playlistRecord);
+        const out = [];
+        for (let i = 0; i < kids.length; ++i) {
+            const it  = kids[i];
+            const rec = it.record;
+            out.push({
+                "uid":               it.uid,
+                "title":             it.title,
+                "kind":              it.kind,
+                "typeUid":           (rec && rec.type_uid) ? rec.type_uid : "",
+                "media":             it.media,
+                "thumbnail":         it.thumbnail,
+                "holdTime":          adapter._holdTimeFor(rec),
+                "disableTransition": !!(rec && rec[adapter.disableTransitionField]),
+                "transition":        (rec && rec[adapter.transitionField]) ? ("" + rec[adapter.transitionField]) : "",
+                "record":            rec
+            });
+        }
+        return out;
+    }
+
+    // Resolve a slide's ambient auto-advance hold time (seconds): the slide's own field, else the
+    // platform's, else the configured default. 0 / undefined fall through.
+    function _holdTimeFor(slideRecord) {
+        const f = adapter.ambientHoldTimeField;
+        const st = slideRecord ? Number(slideRecord[f]) : 0;
+        if (st && st > 0) return st;
+        const platform = DsBridge.getPlatformRecord();
+        const pt = platform ? Number(platform[f]) : 0;
+        if (pt && pt > 0) return pt;
+        return adapter.defaultHoldTimeSeconds;
+    }
+
     // Resolve a LINK field (QStringList of uids) into a list of items.
+    // Normalise a LINK field value into an array of uids. The bridge serialises a MULTI-value link
+    // field as a single COMMA-SEPARATED STRING ("uid1,uid2,uid3"); a single link as a plain uid
+    // string; and some fields as a list. Handle all three. (Splitting a single uid with no comma
+    // yields [uid], so single-value fields are unaffected.) This is why an "additional content"
+    // field with multiple items resolved to nothing before — "uid1,uid2" was used as one uid.
+    function _uidsFromField(raw) {
+        if (!raw) return [];
+        // Normalise to a list of entries first (string / array / array-like).
+        let entries;
+        if (typeof raw === "string")        entries = [raw];
+        else if (Array.isArray(raw))        entries = raw;
+        else if (raw.length !== undefined)  entries = Array.from(raw);
+        else                                return [];
+        // Then comma-split EACH entry and flatten. The bridge returns a multi-value link as an
+        // ARRAY whose (single) element is a comma-joined string of uids — e.g. ["uid1,uid2"] — so
+        // splitting only a top-level string isn't enough; every entry must be split.
+        const out = [];
+        for (let i = 0; i < entries.length; ++i) {
+            const e = entries[i];
+            if (typeof e === "string") {
+                const parts = e.split(",");
+                for (let j = 0; j < parts.length; ++j) {
+                    const u = parts[j].trim();
+                    if (u.length > 0) out.push(u);
+                }
+            } else if (e) {
+                out.push(e);
+            }
+        }
+        return out;
+    }
+
     function _resolveLinks(record, appKey) {
         if (!record || !appKey) return [];
-        const raw = record[appKey];
-        if (!raw) return [];
-        // Single-link fields can arrive as a string, multi as an array.
-        const uids = (typeof raw === "string") ? [raw]
-                   : (Array.isArray(raw) ? raw : (raw.length !== undefined ? Array.from(raw) : []));
+        const uids = adapter._uidsFromField(record[appKey]);
         const out = [];
         for (let i = 0; i < uids.length; ++i) {
             const r = DsBridge.getRecordById(uids[i]);
@@ -271,13 +366,13 @@ QtObject {
         return (o && o[role]) || defaultField;
     }
 
-    // Resolve a single-link field (a uid or [uid]) into one item, or null.
+    // Resolve a single-link field into one item (the first uid), or null. Uses _uidsFromField so a
+    // comma-separated multi value takes its first entry rather than the whole string.
     function _resolveSingleLink(record, appKey) {
         if (!record || !appKey) return null;
-        const raw = record[appKey];
-        const uid = Array.isArray(raw) ? raw[0] : raw;
-        if (!uid) return null;
-        const r = DsBridge.getRecordById(uid);
+        const uids = adapter._uidsFromField(record[appKey]);
+        if (uids.length === 0) return null;
+        const r = DsBridge.getRecordById(uids[0]);
         return r ? adapter._itemFor(r) : null;
     }
 
@@ -399,9 +494,13 @@ QtObject {
         const evtContent   = adapter._fieldFor(eventRec, "contentField",  adapter.eventContentField,     adapter.eventFieldOverrides);
         const evtPlaylist  = adapter._fieldFor(eventRec, "playlistField", adapter.eventPlaylistField,    adapter.eventFieldOverrides);
 
-        // Current playlist: event wins if present, else platform default.
+        // Current (interactive) playlist: event wins if present, else platform default.
         let cp = adapter._resolveSingleLink(eventRec, evtPlaylist);
         if (!cp) cp = adapter._resolveSingleLink(platform, platPlaylist);
+
+        // Current AMBIENT playlist (attract loop): event wins if present, else platform default.
+        let ap = adapter._resolveSingleLink(eventRec, adapter.eventAmbientPlaylistField);
+        if (!ap) ap = adapter._resolveSingleLink(platform, adapter.platformAmbientPlaylistField);
 
         // Library: platform content first, then event content.
         const lib = []
@@ -409,6 +508,7 @@ QtObject {
             .concat(adapter._resolveLinks(eventRec, evtContent));
 
         adapter.currentPlaylist = cp;
+        adapter.currentAmbientPlaylist = ap;
         adapter.library = lib;
 
         // Replay the saved navigation path by uid. Stop at the first missing level — the
