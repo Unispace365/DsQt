@@ -30,12 +30,20 @@ jobs:
     - name: Update portfile REF
       shell: bash
       run: |
-        sed -i "s/REF .*/REF ${{ steps.dsqt.outputs.sha }}/" ports/dsqt/portfile.cmake
+        # Anchor match to lines starting with optional whitespace + REF (avoids matching HEAD_REF)
+        sed -i "s/^\( *\)REF .*/\1REF ${{ steps.dsqt.outputs.sha }}/" ports/dsqt/portfile.cmake
 
     - name: Bump version in vcpkg.json
       shell: bash
       run: |
-        VERSION=$(curl -s https://raw.githubusercontent.com/Unispace365/DsQt/main/Library/VERSION.txt | tr -d '[:space:]')
+        BASE_VERSION=$(curl -s https://raw.githubusercontent.com/Unispace365/DsQt/main/Library/VERSION.txt | tr -d '[:space:]')
+        if [ "${{ github.event_name }}" = "workflow_run" ]; then
+          VERSION="${BASE_VERSION}.${{ github.event.workflow_run.run_number }}"
+        else
+          # workflow_dispatch: derive from the latest library release tag
+          VERSION=$(curl -s "https://api.github.com/repos/Unispace365/DsQt/releases" \
+            | jq -r '[.[] | select(.tag_name | startswith("library/v"))] | first | .tag_name | ltrimstr("library/v")')
+        fi
         jq --arg v "$VERSION" '.version = $v | del(."port-version")' \
           ports/dsqt/vcpkg.json > tmp.json && mv tmp.json ports/dsqt/vcpkg.json
 
@@ -51,10 +59,10 @@ jobs:
         git config user.name "github-actions[bot]"
         git config user.email "github-actions[bot]@users.noreply.github.com"
         git add ports/dsqt/
-        git commit -m "Update dsqt port to ${{ steps.dsqt.outputs.sha }}"
+        git diff --cached --quiet && echo "No port changes to commit" || git commit -m "Update dsqt port to ${{ steps.dsqt.outputs.sha }}"
 
     - name: Run x-add-version
-      shell: cmd
+      shell: bash
       run: >
         vcpkg --x-builtin-ports-root=./ports
         --x-builtin-registry-versions-dir=./versions
@@ -64,5 +72,5 @@ jobs:
       shell: bash
       run: |
         git add versions/
-        git commit -m "Update version data for dsqt"
+        git diff --cached --quiet && echo "No version data changes to commit" || git commit -m "Update version data for dsqt"
         git push
