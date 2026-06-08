@@ -1,0 +1,68 @@
+name: Update vcpkg Registry
+
+on:
+  workflow_run:
+    workflows: ["Build Library"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  update-registry:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout vcpkg-registry
+      uses: actions/checkout@v4
+      with:
+        repository: Unispace365/vcpkg-registry
+        token: ${{ secrets.REGISTRY_PAT }}
+
+    - name: Get new DsQt commit SHA
+      id: dsqt
+      shell: bash
+      run: |
+        SHA=$(curl -s https://api.github.com/repos/Unispace365/DsQt/commits/main \
+          | jq -r '.sha')
+        echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+
+    - name: Update portfile REF
+      shell: bash
+      run: |
+        sed -i "s/REF .*/REF ${{ steps.dsqt.outputs.sha }}/" ports/dsqt/portfile.cmake
+
+    - name: Bump version in vcpkg.json
+      shell: bash
+      run: |
+        VERSION=$(curl -s https://raw.githubusercontent.com/Unispace365/DsQt/main/Library/VERSION.txt | tr -d '[:space:]')
+        jq --arg v "$VERSION" '.version = $v | del(."port-version")' \
+          ports/dsqt/vcpkg.json > tmp.json && mv tmp.json ports/dsqt/vcpkg.json
+
+    - name: Setup vcpkg
+      uses: lukka/run-vcpkg@v11
+      with:
+        vcpkgDirectory: '${{ github.workspace }}/vcpkg'
+        vcpkgGitCommitId: '4b77da7fed37817f124936239197833469f1b9a8'
+
+    - name: Commit port changes
+      shell: bash
+      run: |
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+        git add ports/dsqt/
+        git commit -m "Update dsqt port to ${{ steps.dsqt.outputs.sha }}"
+
+    - name: Run x-add-version
+      shell: cmd
+      run: >
+        vcpkg --x-builtin-ports-root=./ports
+        --x-builtin-registry-versions-dir=./versions
+        x-add-version --all --overwrite-version
+
+    - name: Commit and push version data
+      shell: bash
+      run: |
+        git add versions/
+        git commit -m "Update version data for dsqt"
+        git push
