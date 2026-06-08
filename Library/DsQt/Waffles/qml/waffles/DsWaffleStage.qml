@@ -106,6 +106,11 @@ Item {
     // Crossfade (ms) when SWITCHING playlists (ambient ↔ interactive) or closing one. The new viewer
     // fades in over the still-opaque outgoing one; distinct from the per-slide transitionDuration.
     property int    playlistFadeMs:             appSettings.getInt("playlist.crossfadeMs", 400)
+    // App-supplied custom slide transitions: name → function(front, back, durationMs, done). Threaded
+    // into every playlist openPlaylist() creates, so a custom name in a slide's/playlist's transition
+    // resolves here (built-ins none/fade/slideLeft/slideRight are handled internally). Set once on the
+    // stage; see DsPlaylistViewer.customTransitions and Docs/waffles-tour/playlists.html.
+    property var    playlistCustomTransitions:  ({})
 
     // --- Fullscreen config. A fullscreen viewer fits the stage (minus margin), over a scrim that
     //     blocks the rest of the UI. The scrim style follows the viewer's resolved glass state
@@ -639,6 +644,9 @@ Item {
             "ambient": !!(props && props.ambient),
             "templateByTypeUid": wafflesRoot.playlistTemplateByTypeUid,
             "fadeMs":  wafflesRoot.playlistFadeMs,
+            // App-registered custom transitions (per-call override, else the stage-wide map).
+            "customTransitions": (props && props.customTransitions) ? props.customTransitions
+                                                                     : wafflesRoot.playlistCustomTransitions,
             // Transition defaults from [waffles.playlist]; a caller can override per-playlist.
             "defaultTransition":  (props && props.defaultTransition) ? props.defaultTransition
                                                                      : wafflesRoot.playlistDefaultTransition,
