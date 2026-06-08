@@ -10,7 +10,7 @@ on:
 jobs:
   update-registry:
     if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
 
     steps:
     - name: Checkout vcpkg-registry
@@ -19,21 +19,8 @@ jobs:
         repository: Unispace365/vcpkg-registry
         token: ${{ secrets.REGISTRY_PAT }}
 
-    - name: Get new DsQt commit SHA
+    - name: Resolve version and zip URL
       id: dsqt
-      shell: bash
-      run: |
-        SHA=$(curl -s https://api.github.com/repos/Unispace365/DsQt/commits/main \
-          | jq -r '.sha')
-        echo "sha=$SHA" >> "$GITHUB_OUTPUT"
-
-    - name: Update portfile REF
-      shell: bash
-      run: |
-        # Anchor match to lines starting with optional whitespace + REF (avoids matching HEAD_REF)
-        sed -i "s/^\( *\)REF .*/\1REF ${{ steps.dsqt.outputs.sha }}/" ports/dsqt/portfile.cmake
-
-    - name: Bump version in vcpkg.json
       shell: bash
       run: |
         BASE_VERSION=$(curl -s https://raw.githubusercontent.com/Unispace365/DsQt/main/Library/VERSION.txt | tr -d '[:space:]')
@@ -44,7 +31,30 @@ jobs:
           VERSION=$(curl -s "https://api.github.com/repos/Unispace365/DsQt/releases" \
             | jq -r '[.[] | select(.tag_name | startswith("library/v"))] | first | .tag_name | ltrimstr("library/v")')
         fi
-        jq --arg v "$VERSION" '.version = $v | del(."port-version")' \
+        URL="https://github.com/Unispace365/DsQt/releases/download/library%2Fv${VERSION}/dsqt-${VERSION}.zip"
+        echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+        echo "url=$URL"         >> "$GITHUB_OUTPUT"
+        echo "filename=dsqt-${VERSION}.zip" >> "$GITHUB_OUTPUT"
+
+    - name: Compute SHA512
+      id: sha
+      shell: bash
+      run: |
+        curl -fsSL "${{ steps.dsqt.outputs.url }}" -o dsqt-download.zip
+        SHA512=$(sha512sum dsqt-download.zip | awk '{print $1}')
+        echo "sha512=$SHA512" >> "$GITHUB_OUTPUT"
+
+    - name: Update portfile
+      shell: bash
+      run: |
+        sed -i "s|URLS \"https://github.com/Unispace365/DsQt/releases/download/.*\"|URLS \"${{ steps.dsqt.outputs.url }}\"|" ports/dsqt/portfile.cmake
+        sed -i "s|FILENAME \"dsqt-.*\.zip\"|FILENAME \"${{ steps.dsqt.outputs.filename }}\"|" ports/dsqt/portfile.cmake
+        sed -i "s|SHA512 [0-9a-f]*|SHA512 ${{ steps.sha.outputs.sha512 }}|" ports/dsqt/portfile.cmake
+
+    - name: Bump version in vcpkg.json
+      shell: bash
+      run: |
+        jq --arg v "${{ steps.dsqt.outputs.version }}" '.version = $v | del(."port-version")' \
           ports/dsqt/vcpkg.json > tmp.json && mv tmp.json ports/dsqt/vcpkg.json
 
     - name: Setup vcpkg
