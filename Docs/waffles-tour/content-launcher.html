@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Content launcher — Waffles Tour</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="layout">
+  <nav class="sidebar">
+    <div class="brand"><span class="logo">Waffles</span><span class="sub">source tour</span></div>
+    <div class="nav-group"><h4>Start here</h4><a href="index.html">Overview &amp; architecture</a></div>
+    <div class="nav-group"><h4>The pieces</h4>
+      <a href="stage.html">1 · The Stage</a>
+      <a href="viewers.html">2 · Viewers</a>
+      <a href="media.html">3 · Media</a>
+      <a href="controls.html">4 · Controls</a>
+      <a href="glass-and-theming.html">5 · Glass &amp; theming</a>
+    </div>
+    <div class="nav-group"><h4>Practical</h4><a href="demo-and-recipes.html">6 · Demo &amp; recipes</a></div>
+    <div class="nav-group"><h4>Presentations</h4><a href="playlists.html">7 · Playlists &amp; transitions</a></div>
+    <div class="nav-group"><h4>Data &amp; input</h4><a href="content-launcher.html" class="active">8 · Content launcher</a></div>
+  </nav>
+
+  <main class="content"><div class="col">
+    <h1>8 · Content launcher</h1>
+    <p class="lede">The launcher is the on-screen menu: a panel that browses content (folders, media,
+      playlists), drills into folders, searches, and opens whatever the user taps. The <strong>UI is
+      bridge-agnostic</strong>; a separate <strong>adapter</strong> turns your CMS/bridge schema into a
+      generic item list. Swap the adapter and the same launcher drives any data source.</p>
+
+    <div class="files">
+      <h4>Key files</h4>
+      <ul>
+        <li><span class="path">Bridge/qml/DsContentLauncherModel.qml</span> — the bridge adapter (schema → items)</li>
+        <li><span class="path">waffles/menu_launcher/DsContentLauncher.qml</span> — the launcher panel UI (a <code>DsViewer</code>)</li>
+        <li><span class="path">ux/DsVirtualKeyboard.qml</span> — docked Qt Virtual Keyboard (search)</li>
+        <li><span class="path">ux/DsFloatingKeyboard.qml</span> — floating keyboard (web viewer)</li>
+      </ul>
+    </div>
+
+    <div class="callout concept">
+      <span class="tag">UI vs adapter</span>
+      <p><code>DsContentLauncher</code> knows nothing about the bridge — it consumes a <code>model</code> that
+      exposes <code>displayedItems</code>, <code>currentPlaylist</code>, <code>path</code>/<code>atRoot</code>,
+      <code>enter()</code>/<code>back()</code>, and the search properties. <code>DsContentLauncherModel</code> is
+      the supplied adapter for the Downstream bridge; write a different model with the same surface to
+      drive the launcher from anything.</p>
+    </div>
+
+    <h2>The adapter — <code>DsContentLauncherModel</code></h2>
+    <p>The adapter reads the running bridge (the platform record plus the active interactive event),
+      classifies each linked record into a <em>kind</em>, and emits a flat item list. Everything is
+      configured by <strong>appKey</strong> (the schema field names), so it matches a schema without code
+      changes.</p>
+
+    <h3>Schema mapping (appKey config)</h3>
+    <table>
+      <tr><th>property</th><th>default</th><th>what it points at</th></tr>
+      <tr><td><code>platformContentField</code></td><td><code>"default_content"</code></td><td>platform's menu-content link field</td></tr>
+      <tr><td><code>platformPlaylistField</code></td><td><code>"default_interactive_playlist"</code></td><td>platform's default interactive playlist</td></tr>
+      <tr><td><code>platformAmbientPlaylistField</code></td><td><code>"default_ambient_playlist"</code></td><td>platform's attract-loop playlist</td></tr>
+      <tr><td><code>eventContentField</code></td><td><code>"content"</code></td><td>active event's menu-content link field</td></tr>
+      <tr><td><code>eventPlaylistField</code></td><td><code>"interactive_playlist"</code></td><td>event's interactive playlist</td></tr>
+      <tr><td><code>eventAmbientPlaylistField</code></td><td><code>"ambient_playlist"</code></td><td>event's ambient playlist</td></tr>
+      <tr><td><code>mediaField</code></td><td><code>"media"</code></td><td>the media descriptor hash (<code>.type</code>, <code>.filepath</code>)</td></tr>
+      <tr><td><code>thumbnailFields</code></td><td><code>["thumbnail","image","icon","preview","header_image","main_media"]</code></td><td>cover-image fallbacks (in order)</td></tr>
+      <tr><td><code>titleFields</code></td><td><code>["record_name","headline","title"]</code></td><td>title fallbacks (first non-empty)</td></tr>
+      <tr><td><code>ambientHoldTimeField</code></td><td><code>"ambient_hold_time"</code></td><td>per-slide auto-advance seconds (playlists)</td></tr>
+      <tr><td><code>disableTransitionField</code></td><td><code>"disable_transition"</code></td><td>per-slide "skip transition" flag</td></tr>
+      <tr><td><code>transitionField</code></td><td><code>"transition"</code></td><td>per-slide transition name</td></tr>
+    </table>
+    <p>Per-type overrides let one model serve several event/platform types:
+      <code>eventFieldOverrides</code> / <code>platformFieldOverrides</code> are
+      <code>{ "Type Name": { contentField, playlistField } }</code> maps that win over the globals.
+      <code>interactiveEventTypes</code> (default <code>["Connect Wall Event","Explore Room Event"]</code>) lists,
+      in priority order, the event type names that carry menu content — the first whose schedule has a
+      current record wins.</p>
+
+    <h3>Kinds — classify, then refine</h3>
+    <p>Each record is reduced to a <em>kind</em> the UI understands. Type is matched first by the stable
+      <code>type_uid</code> (<code>typeKindByUid</code>), then by <code>type_name</code> (<code>typeKindByName</code>);
+      a record carrying a <code>media</code> descriptor is then refined to <code>image</code>/<code>video</code>/
+      <code>pdf</code>/<code>weblink</code> from its <code>.type</code>. Resulting kinds:
+      <code>media · image · video · pdf · weblink · folder · playlist · unknown</code>.</p>
+
+    <h3>Drill vs open</h3>
+    <p>Two distinct facts per item:</p>
+    <table>
+      <tr><th>property</th><th>meaning</th></tr>
+      <tr><td><code>recordHasChildren</code></td><td><strong>data fact</strong> — the record actually carries children</td></tr>
+      <tr><td><code>hasChildren</code></td><td><strong>UX choice</strong> — is this item's <code>kind</code> in <code>drillableKinds</code>?</td></tr>
+    </table>
+    <p><code>drillableKinds</code> (default <code>["folder","playlist"]</code>) decides what a tap does:</p>
+    <ul>
+      <li><strong>Drillable</strong> kind → tap calls <code>model.enter(item)</code>, navigating into its children
+        (the breadcrumb grows).</li>
+      <li><strong>Otherwise</strong> → tap fires <code>openRequested(item)</code> for the app to open — even if the
+        record has children. (E.g. drop <code>"playlist"</code> from <code>drillableKinds</code> so a playlist
+        <em>opens &amp; plays</em> instead of drilling into its slides.)</li>
+    </ul>
+
+    <h3>Item descriptor</h3>
+<pre><code>{
+  uid,                <span class="c">// record id</span>
+  title,              <span class="c">// from titleFields, else "(untitled)"</span>
+  kind,               <span class="c">// media|image|video|pdf|weblink|folder|playlist|unknown</span>
+  thumbnail,          <span class="c">// url — media.filepath, else a thumbnailFields image</span>
+  media,              <span class="c">// the media descriptor { type, filepath, … } or null</span>
+  hasChildren,        <span class="c">// UX: kind ∈ drillableKinds → drill on tap</span>
+  recordHasChildren,  <span class="c">// data: record really has children</span>
+  record              <span class="c">// the raw bridge record (template-specific fields)</span>
+}</code></pre>
+
+    <h3>Outputs the UI binds to</h3>
+    <table>
+      <tr><th>property</th><th>what it is</th></tr>
+      <tr><td><code>library</code></td><td>root items — union of the platform + event content fields</td></tr>
+      <tr><td><code>displayedItems</code></td><td><code>library</code> at root, or the deepest drilled item's children</td></tr>
+      <tr><td><code>path</code> · <code>atRoot</code></td><td>breadcrumb chain (read-only) · is the nav stack empty</td></tr>
+      <tr><td><code>currentPlaylist</code></td><td>the interactive playlist (event, else platform default), or null</td></tr>
+      <tr><td><code>currentAmbientPlaylist</code></td><td>the ambient attract-loop playlist, or null</td></tr>
+      <tr><td><code>ready</code></td><td>true once the bridge has yielded a platform record</td></tr>
+    </table>
+
+    <h3>Link fields &amp; the comma-split quirk</h3>
+    <div class="callout gotcha">
+      <span class="tag">A multi-value LINK arrives as <code>["uid1,uid2"]</code></span>
+      <p>The bridge serialises a multi-value LINK field as a one-element array holding a
+      <em>comma-joined string</em> — not an array of uids. <code>_uidsFromField(raw)</code> normalises every
+      form (single uid, comma string, or array) by splitting each entry on commas and flattening, so
+      <code>["uid1,uid2"]</code> → <code>["uid1","uid2"]</code>. (Splitting a single uid with no comma yields
+      <code>[uid]</code>, so single links are unaffected.) Skipping this is why an "additional content" field
+      with several items used to resolve to nothing.</p>
+    </div>
+
+    <h3>Lifecycle &amp; debugging</h3>
+    <p>The adapter rebuilds itself from bridge signals — it listens (via a typed <code>Connections</code>) to
+      <code>DsBridge.contentChanged()</code>, <code>bridgeUpdated()</code>, and <code>databaseChanged()</code>, each
+      calling <code>rebuild()</code> (which recomputes <code>library</code>/playlists and replays the breadcrumb by
+      uid so a drilled view survives content updates). Methods: <code>enter()</code> / <code>back()</code> /
+      <code>rebuild()</code> / <code>slidesFor(record)</code> (see the <a href="playlists.html">playlists</a> page) /
+      <code>dump()</code> &amp; <code>dumpAllChildren()</code> (console snapshots of the resolved tree).</p>
+
+    <h2>The launcher UI — <code>DsContentLauncher</code></h2>
+    <p>A <code>DsViewer</code> (<code>viewerType: Launcher</code>) panel, sized in chrome units
+      (<code>viewerWidth: dp(453)</code>, <code>viewerHeight: dp(762)</code>) so it scales with
+      <code>uiScale</code>. It takes the <code>model</code> (the adapter) and the hosting <code>stage</code>, draws
+      its own glass (a touch stronger than media chrome — <code>glassTintOpacity: 0.9</code>), and emits one
+      signal:</p>
+<pre><code><span class="k">DsContentLauncher</span> {
+    <span class="p">model</span>: launcherModel       <span class="c">// the adapter</span>
+    <span class="p">stage</span>: stage              <span class="c">// the DsWaffleStage host</span>
+    <span class="p">shown</span>: <span class="k">false</span>             <span class="c">// start hidden; the stage FAB / double-tap re-shows it</span>
+    <span class="p">onOpenRequested</span>: (item) =&gt; { <span class="c">/* map item → a viewer / playlist, below */</span> }
+}</code></pre>
+    <p>It has two panes, toggled by tab pills (<code>viewMode</code> = <code>"content"</code> | <code>"search"</code>):</p>
+    <ul>
+      <li><strong>Content</strong> — a breadcrumb (shown when <code>!model.atRoot</code>, with a back button), the
+        current playlist row (at root, if any), then the library list. Leaf rows emit
+        <code>openRequested</code>; drillable rows call <code>model.enter</code>.</li>
+      <li><strong>Search</strong> — type-filter chips, a results list, and a docked keyboard (below).</li>
+    </ul>
+
+    <h3>Search</h3>
+    <p>Search lives on the adapter and the pane just binds to it:</p>
+    <table>
+      <tr><th>property</th><th>what it does</th></tr>
+      <tr><td><code>searchQuery</code></td><td>free text; case-insensitive substring match on item titles</td></tr>
+      <tr><td><code>searchKinds</code></td><td>kind filter (empty = all); set by the chips (All / Images / Video / PDF / Web / Folders)</td></tr>
+      <tr><td><code>searchResults</code></td><td>flat matches (same item shape) by walking the loaded tree; updates reactively</td></tr>
+    </table>
+    <p>The search field sits at the bottom of the pane (above the keyboard) and grabs focus when the pane
+      opens (raising the keyboard). The <strong>clear (✕)</strong> button shows when there's text and resets
+      both the field and <code>model.searchQuery</code>. With an empty query <em>and</em> no kind filter,
+      results are empty.</p>
+
+    <h2>On-screen keyboard</h2>
+    <p>Two keyboards, both wrapping Qt's Virtual Keyboard; only <strong>one InputPanel may be active per
+      window</strong> (they share one input context), so the launcher's docked panel and the floating one
+      gate each other off.</p>
+
+    <h3>Docked — <code>DsVirtualKeyboard</code> (search)</h3>
+    <p>Lives inside the launcher's search pane (in a <code>Loader</code> gated to search mode). It exposes
+      <code>panelActive</code> and <code>panelHeight</code> (aliases of the <code>InputPanel</code>); the launcher
+      animates the keyboard area open to <code>panelHeight</code> and disables panel-drag while it's up.</p>
+
+    <h3>Floating — <code>DsFloatingKeyboard</code> (web viewer)</h3>
+    <p>A draggable framed keyboard (drag bar + title + close + the same <code>DsVirtualKeyboard</code>),
+      hosted on the stage's top layer (<code>modal3</code>) so it floats over everything. Toggle it with
+      <code>DsWaffleStage.floatingKeyboardShown</code>; the web controls' keyboard button flips it, and it's
+      gated off while the launcher's docked keyboard is active. Width is <code>dp(437)</code>
+      (uiScale-aware); it emits <code>closeRequested()</code>.</p>
+
+    <h3>Style &amp; locales (settings)</h3>
+<pre><code><span class="p">[waffles.keyboard]</span>
+style   = <span class="s">"waffles"</span>                              <span class="c"># VirtualKeyboardSettings.styleName</span>
+locales = [[<span class="s">"en_US"</span>, <span class="s">"es_ES"</span>, <span class="s">"fr_FR"</span>, <span class="s">"de_DE"</span>, <span class="s">"it_IT"</span>]]  <span class="c"># active layouts; globe key cycles</span></code></pre>
+    <p>Both are applied at runtime in <code>Component.onCompleted</code> via
+      <code>VirtualKeyboardSettings.styleName</code> / <code>.activeLocales</code>, overriding the
+      <code>QT_VIRTUALKEYBOARD_STYLE</code> bootstrap env var (set in <code>main.cpp</code> alongside
+      <code>QT_IM_MODULE=qtvirtualkeyboard</code>) — so swapping the style/locales needs no recompile. CJK
+      / Arabic locales work too (<code>"zh_CN"</code>, <code>"ja_JP"</code>, <code>"ko_KR"</code>, <code>"ar_AR"</code>).</p>
+    <div class="callout gotcha">
+      <span class="tag">Bundling the <code>waffles</code> style in a static lib</span>
+      <p>The style ships in the <code>Dsqt.Core</code> module under
+      <span class="path">qrc:/qt/qml/Dsqt/Core/res/QtQuick/VirtualKeyboard/Styles/waffles/</span>, and
+      <code>DsQmlApplicationEngine</code> adds <span class="path">qrc:/qt/qml/Dsqt/Core/res</span> to the QML
+      import path so the keyboard resolves it. The files are listed <strong>individually</strong> in
+      <code>RESOURCES</code> (not via a <code>.qrc</code>): Core is a <em>static</em> library, and a <code>.qrc</code>'s
+      initialiser gets dead-stripped from a static lib, so the style would silently fail to load.</p>
+    </div>
+
+    <h2>Wiring it up</h2>
+    <p>Give the launcher an adapter and translate <code>openRequested</code> into the right action — open a
+      media viewer, or open &amp; play a playlist:</p>
+<pre><code><span class="k">DsContentLauncherModel</span> { <span class="p">id</span>: launcherModel; <span class="p">drillableKinds</span>: [<span class="s">"folder"</span>] }  <span class="c">// playlists open, not drill</span>
+
+<span class="k">DsContentLauncher</span> {
+    <span class="p">model</span>: launcherModel
+    <span class="p">stage</span>: stage
+    <span class="p">onOpenRequested</span>: (item) =&gt; {
+        <span class="k">if</span> (item.kind === <span class="s">"playlist"</span>)
+            stage.<span class="p">openPlaylist</span>({ <span class="s">"slides"</span>: launcherModel.<span class="p">slidesFor</span>(item.record),
+                                <span class="s">"ambient"</span>: <span class="k">false</span> });
+        <span class="k">else</span>
+            stage.<span class="p">openViewer</span>({ <span class="s">"model"</span>: { <span class="s">"title"</span>: item.title, <span class="s">"media"</span>: item.media },
+                              <span class="s">"stage"</span>: stage });
+    }
+}</code></pre>
+    <p>The mapping stays in the <em>app</em> (not Waffles), so the launcher and viewers stay
+      bridge-agnostic. See the <a href="demo-and-recipes.html">recipes</a> for the full viewer-props
+      mapping, and <a href="playlists.html">playlists</a> for what happens after <code>openPlaylist</code>.</p>
+
+    <div class="pager">
+      <a href="playlists.html"><span class="dir">← Prev</span>7 · Playlists &amp; transitions</a>
+    </div>
+  </div></main>
+</div>
+</body>
+</html>

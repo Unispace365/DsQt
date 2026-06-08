@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Playlists &amp; transitions — Waffles Tour</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="layout">
+  <nav class="sidebar">
+    <div class="brand"><span class="logo">Waffles</span><span class="sub">source tour</span></div>
+    <div class="nav-group"><h4>Start here</h4><a href="index.html">Overview &amp; architecture</a></div>
+    <div class="nav-group"><h4>The pieces</h4>
+      <a href="stage.html">1 · The Stage</a>
+      <a href="viewers.html">2 · Viewers</a>
+      <a href="media.html">3 · Media</a>
+      <a href="controls.html">4 · Controls</a>
+      <a href="glass-and-theming.html">5 · Glass &amp; theming</a>
+    </div>
+    <div class="nav-group"><h4>Practical</h4><a href="demo-and-recipes.html">6 · Demo &amp; recipes</a></div>
+    <div class="nav-group"><h4>Presentations</h4><a href="playlists.html" class="active">7 · Playlists &amp; transitions</a></div>
+    <div class="nav-group"><h4>Data &amp; input</h4><a href="content-launcher.html">8 · Content launcher</a></div>
+  </nav>
+
+  <main class="content"><div class="col">
+    <h1>7 · Playlists &amp; transitions</h1>
+    <p class="lede">A playlist plays an ordered list of templated <em>slides</em> full-stage, in the stage's
+      <code>presentation</code> layer (below the viewer layer). Two modes: <strong>ambient</strong> auto-advances
+      on a timer (the attract loop); <strong>interactive</strong> waits for next/prev and shows a
+      presentation controller. Slides change with a <strong>transition</strong> — a built-in, a per-slide
+      choice, or a custom one you write in QML/JS or as an RHI shader.</p>
+
+    <div class="files">
+      <h4>Key files</h4>
+      <ul>
+        <li><span class="path">waffles/playlist/DsPlaylistViewer.qml</span> — the full-stage slide player (dual-slot, transitions, auto-advance)</li>
+        <li><span class="path">waffles/playlist/DsMediaTemplate.qml</span> — the default full-screen media slide template</li>
+        <li><span class="path">waffles/playlist/PresentationController.qml</span> — movable/collapsible prev·play·count·next·close bar (interactive only)</li>
+        <li><span class="path">waffles/DsWaffleStage.qml</span> — <code>openPlaylist()</code> / <code>closePlaylist()</code> + the playlist settings</li>
+        <li><span class="path">Bridge/qml/DsContentLauncherModel.qml</span> — <code>slidesFor(record)</code> turns a playlist record into slide descriptors</li>
+      </ul>
+    </div>
+
+    <div class="callout concept">
+      <span class="tag">Ambient vs interactive</span>
+      <p><strong>Ambient</strong> (<code>ambient: true</code>) auto-advances on a per-slide hold time and shows
+      <em>no</em> controller — it's hands-off attract content. <strong>Interactive</strong>
+      (<code>ambient: false</code>) holds each slide until next/prev (keyboard ← → / PageUp · PageDown, or the
+      controller) and shows the <code>PresentationController</code>. Both loop (wrap past the ends).</p>
+    </div>
+
+    <h2>Opening &amp; closing</h2>
+    <p>The stage owns playlist lifetime. <code>openPlaylist()</code> creates a viewer in the
+      <code>presentation</code> layer (and, for interactive, a controller in <code>modal1</code>); a second call
+      replaces the first with a crossfade. <code>closePlaylist()</code> fades the current one out.</p>
+<pre><code><span class="c">// props: slides (required), ambient, and optional per-playlist transition overrides.</span>
+<span class="k">let</span> pv = stage.<span class="p">openPlaylist</span>({
+    <span class="s">"slides"</span>:  launcherModel.<span class="p">slidesFor</span>(playlistRecord),  <span class="c">// ordered descriptors</span>
+    <span class="s">"ambient"</span>: <span class="k">true</span>,
+    <span class="s">"defaultTransition"</span>:  <span class="s">"fade"</span>,   <span class="c">// optional — else [waffles.playlist] setting</span>
+    <span class="s">"transitionDuration"</span>: <span class="n">500</span>     <span class="c">// optional — else the setting</span>
+});
+<span class="c">// …later</span>
+stage.<span class="p">closePlaylist</span>();</code></pre>
+    <p>A slide descriptor (from <code>DsContentLauncherModel.slidesFor</code>) is a plain object:</p>
+<pre><code>{ uid, title, kind, typeUid, media, thumbnail,
+  holdTime,           <span class="c">// seconds: slide → platform → defaultHoldTimeSeconds</span>
+  disableTransition,  <span class="c">// bool — skip this slide's transition (cut)</span>
+  transition,         <span class="c">// string — per-slide transition name (see below)</span>
+  record }            <span class="c">// the raw bridge record, for template-specific fields</span></code></pre>
+
+    <h2>Templates — which QML renders a slide</h2>
+    <p>Each slide is rendered by a template chosen from the slide's <code>typeUid</code>. Register your
+      template components on the stage; anything unmapped falls back to <code>DsMediaTemplate</code>
+      (full-screen image/video, fill or fit, autoplay/loop):</p>
+<pre><code><span class="k">DsWaffleStage</span> {
+    <span class="p">id</span>: stage
+    <span class="p">playlistTemplateByTypeUid</span>: ({
+        <span class="s">"ykAdRYGJeuXI"</span>: myMediaTemplateComp,   <span class="c">// typeUid → Component</span>
+        <span class="s">"ScCWZMV8UNbx"</span>: particleTextComp
+    })
+}</code></pre>
+    <p>A template receives the slide as a <code>slide</code> property and an <code>active</code> bool (true while it is
+      the visible/incoming slot — gate video playback on it):</p>
+<pre><code><span class="k">Item</span> {                       <span class="c">// a slide template</span>
+    <span class="p">property var</span>  slide          <span class="c">// the descriptor above</span>
+    <span class="p">property bool</span> active         <span class="c">// is this slot live? play video only when true</span>
+    <span class="c">// read slide.media / slide.record.&lt;field&gt; to render</span>
+}</code></pre>
+
+    <h2>The presentation controller</h2>
+    <p>Interactive playlists get a <code>PresentationController</code> — a movable, collapsible bar
+      (prev · play/pause · <code>i / N</code> · next · close), mirroring the fullscreen controller's
+      tab+bar UX. Ambient playlists get none. Play/pause toggles the viewer's <code>paused</code> flag;
+      close fires <code>closeRequested</code> → <code>closePlaylist()</code>.</p>
+    <div class="diagram">┌──┐  ┌───────────────────────────────────┐
+│◧ │  │  ◀    ⏸    3 / 8    ▶    ✕         │   drag the tab or bar; tab collapses it
+└──┘  └───────────────────────────────────┘</div>
+
+    <h2>Transitions</h2>
+    <p>The viewer renders with <strong>two stacked slots</strong>: <code>_front</code> shows the current slide; on
+      advance the incoming slide loads into <code>_back</code>, the chosen transition animates, then
+      <code>_back</code> is promoted to front. Built-ins:</p>
+    <table>
+      <tr><th>name</th><th>effect</th></tr>
+      <tr><td><code>none</code></td><td>instant cut (no animation)</td></tr>
+      <tr><td><code>fade</code></td><td>incoming sits <em>under</em> at full opacity, outgoing fades out on top — a dissolve with <strong>no background flash</strong>, even when a slide is letterboxed</td></tr>
+      <tr><td><code>slideLeft</code> / <code>slideRight</code></td><td>incoming slides in from the right / left; the two slots stay edge-to-edge so the frame is always covered</td></tr>
+    </table>
+    <div class="callout gotcha">
+      <span class="tag">Why <code>fade</code> doesn't flash the background</span>
+      <p>A naïve crossfade (old <code>1→0</code> while new <code>0→1</code>) leaves both slots semi-transparent
+      mid-way, so the opaque stage background shows through — worst over a <em>fit</em> slide's letterbox
+      bars. Instead the incoming slide is drawn fully opaque <em>underneath</em> and the outgoing fades out
+      on top: the visible surface is always backed by a 100%-opaque slide.</p>
+    </div>
+
+    <h3>Choosing a transition</h3>
+    <p>Per advance, the name is resolved in this order (first match wins):</p>
+    <table>
+      <tr><th>#</th><th>source</th></tr>
+      <tr><td>1</td><td><code>slide.disableTransition</code> is true → <code>none</code></td></tr>
+      <tr><td>2</td><td><code>slide.transition</code> (per-slide name)</td></tr>
+      <tr><td>3</td><td>the playlist's <code>defaultTransition</code> (<code>openPlaylist</code> prop)</td></tr>
+      <tr><td>4</td><td><code>[waffles.playlist] defaultTransition</code> setting</td></tr>
+      <tr><td>5</td><td>hard fallback <code>"fade"</code></td></tr>
+    </table>
+    <div class="callout tip">
+      <span class="tag">Per-slide names need a schema field</span>
+      <p>The demo schema only carries <code>disable_transition</code> (a checkbox), so today per-slide
+      <strong>"none"</strong> is authorable but per-slide <em>names</em> resolve to empty (→ the playlist
+      default) until a <code>transition</code> field is added to the slide type. The viewer reads it via
+      <code>DsContentLauncherModel.transitionField</code> (default appKey <code>"transition"</code>).</p>
+    </div>
+
+    <h3>Settings</h3>
+<pre><code><span class="p">[waffles.playlist]</span>
+defaultTransition  = <span class="s">"fade"</span>   <span class="c"># none | fade | slideLeft | slideRight | &lt;custom name&gt;</span>
+transitionDuration = <span class="n">500</span>      <span class="c"># per-slide transition, ms</span>
+crossfadeMs        = <span class="n">400</span>      <span class="c"># whole-playlist crossfade (ambient ↔ interactive), ms</span></code></pre>
+
+    <h2>Custom transitions</h2>
+    <p>Anything that isn't a built-in name is looked up in the viewer's <code>customTransitions</code> map
+      (<code>name → function</code>). A custom transition is a plain JS function that animates the two slot
+      <code>Item</code>s and signals completion:</p>
+<pre><code><span class="c">// (front, back, durationMs, done)</span>
+<span class="c">//   front    – the OUTGOING slot Item (x / y / opacity / z / scale / rotation …)</span>
+<span class="c">//   back     – the INCOMING slot Item; the new slide is already loaded into it</span>
+<span class="c">//   durationMs – the resolved transitionDuration</span>
+<span class="c">//   done()   – CALL EXACTLY ONCE when finished → promotes back→front, schedules the next advance</span>
+<span class="c">// Before calling you the viewer sets back.z = 1, front.z = 0 (incoming on top).</span></code></pre>
+    <p>A simple "wipe up" using a one-off <code>NumberAnimation</code>:</p>
+<pre><code>stage.playlistCustomTransitions[<span class="s">"wipeUp"</span>] = <span class="k">function</span>(front, back, durationMs, done) {
+    back.y = back.height;                 <span class="c">// start the incoming below the frame</span>
+    back.opacity = <span class="n">1</span>;
+    <span class="k">const</span> anim = wipeComp.<span class="p">createObject</span>(back, {
+        <span class="s">"target"</span>: back, <span class="s">"property"</span>: <span class="s">"y"</span>, <span class="s">"to"</span>: <span class="n">0</span>, <span class="s">"duration"</span>: durationMs
+    });
+    anim.<span class="p">finished</span>.connect(<span class="k">function</span>() { anim.<span class="p">destroy</span>(); done(); });
+    anim.<span class="p">start</span>();
+};
+<span class="c">// where, defined once in your app:</span>
+<span class="c">//   Component { id: wipeComp; NumberAnimation { easing.type: Easing.InOutCubic } }</span></code></pre>
+    <p>Select it like any other name — set the playlist's <code>defaultTransition</code> (or a slide's
+      <code>transition</code>) to <code>"wipeUp"</code>.</p>
+
+    <div class="callout tip">
+      <span class="tag">Registering custom transitions</span>
+      <p>Register once on the stage — <code>stage.playlistCustomTransitions</code> (a name → function map)
+      is threaded into every playlist <code>openPlaylist()</code> creates, so a custom name in any slide's
+      or playlist's <code>transition</code> resolves to it. You can set the whole map at startup, or add
+      entries before opening. A single <code>openPlaylist({ "customTransitions": … })</code> call overrides
+      it per-playlist, and the same map also lives on the viewer as
+      <code>DsPlaylistViewer.customTransitions</code> if you hold an instance directly.</p>
+    </div>
+<pre><code><span class="k">DsWaffleStage</span> {
+    <span class="p">id</span>: stage
+    <span class="p">playlistCustomTransitions</span>: ({
+        <span class="s">"wipeUp"</span>:   wipeUpFn,     <span class="c">// name → function(front, back, durationMs, done)</span>
+        <span class="s">"dissolve"</span>: dissolveFn
+    })
+}</code></pre>
+
+    <h3>The GPU / RHI path</h3>
+    <p>The hook hands you live QML <code>Item</code>s, so anything QML can animate works — including
+      <strong>GPU shader transitions</strong>. Qt's <code>ShaderEffect</code> compiles to the active RHI
+      backend (D3D11/Vulkan/Metal/GL) from a precompiled <code>.qsb</code>, so a shader dissolve/wipe runs on
+      the GPU with no C++. Wrap each slot as a live texture and blend with an animated uniform:</p>
+<pre><code><span class="c">// fxComp — define once in your app (front/back are the slots; emits finished())</span>
+<span class="k">Item</span> {
+    <span class="p">id</span>: fx; <span class="p">anchors.fill</span>: parent; <span class="p">z</span>: <span class="n">10</span>
+    <span class="p">property</span> <span class="k">Item</span> from; <span class="p">property</span> <span class="k">Item</span> to; <span class="p">property real</span> progress: <span class="n">0</span>
+    <span class="p">signal</span> finished()
+    <span class="k">ShaderEffectSource</span> { <span class="p">id</span>: fromTex; <span class="p">sourceItem</span>: fx.from; <span class="p">live</span>: <span class="k">true</span>; <span class="p">hideSource</span>: <span class="k">true</span> }
+    <span class="k">ShaderEffectSource</span> { <span class="p">id</span>: toTex;   <span class="p">sourceItem</span>: fx.to;   <span class="p">live</span>: <span class="k">true</span>; <span class="p">hideSource</span>: <span class="k">true</span> }
+    <span class="k">ShaderEffect</span> {
+        <span class="p">anchors.fill</span>: parent
+        <span class="p">property variant</span> source:  fromTex
+        <span class="p">property variant</span> dest:    toTex
+        <span class="p">property real</span>    progress: fx.progress
+        <span class="p">fragmentShader</span>: <span class="s">"qrc:/shaders/dissolve.frag.qsb"</span>
+    }
+    <span class="k">NumberAnimation</span> <span class="k">on</span> progress { <span class="p">from</span>: <span class="n">0</span>; <span class="p">to</span>: <span class="n">1</span>; <span class="p">running</span>: <span class="k">true</span>; <span class="p">onFinished</span>: fx.finished() }
+}</code></pre>
+<pre><code>stage.playlistCustomTransitions[<span class="s">"dissolve"</span>] = <span class="k">function</span>(front, back, durationMs, done) {
+    <span class="k">const</span> fx = fxComp.<span class="p">createObject</span>(back.parent, { <span class="s">"from"</span>: front, <span class="s">"to"</span>: back });
+    fx.<span class="p">finished</span>.connect(<span class="k">function</span>() { fx.<span class="p">destroy</span>(); done(); });
+};</code></pre>
+    <div class="callout concept">
+      <span class="tag">Compile the shader to .qsb</span>
+      <p><code>ShaderEffect.fragmentShader</code> wants a <code>.qsb</code> (the RHI-portable form), produced from a
+      <code>.frag</code> by the Qt Shader Tools — <code>qt6_add_shaders(target "x" FILES dissolve.frag)</code>
+      in CMake, or <code>qsb</code> on the command line. The shader gets <code>source</code>/<code>dest</code> as
+      <code>sampler2D</code>s, <code>progress</code> in the uniform block, plus the standard
+      <code>qt_TexCoord0</code> / <code>qt_Matrix</code> / <code>qt_Opacity</code>.</p>
+    </div>
+    <p>For full control there is also the C++ scene-graph route — a <code>QQuickItem</code> with a custom
+      <code>QSGNode</code>/<code>QSGMaterial</code>, or a <code>QSGRenderNode</code> — driven by the same hook. There's
+      no scaffolding for it in Waffles today; reach for it only if a <code>ShaderEffect</code> can't express
+      the effect, since the shader path covers virtually all dissolve/wipe/distortion transitions.</p>
+
+    <h2>The whole-playlist crossfade</h2>
+    <p>Distinct from per-slide transitions: when you <em>switch</em> playlists (ambient ↔ interactive) or
+      close one, the entire viewer fades. <code>openPlaylist</code> keeps the outgoing viewer fully opaque
+      underneath while the new one fades in on top (<code>opacity 0→1</code>), then destroys the old —
+      again, no background flash. The outgoing controller fades out with it. Duration is
+      <code>[waffles.playlist] crossfadeMs</code>.</p>
+
+    <div class="pager">
+      <a href="demo-and-recipes.html"><span class="dir">← Prev</span>6 · Demo &amp; recipes</a>
+    </div>
+  </div></main>
+</div>
+</body>
+</html>

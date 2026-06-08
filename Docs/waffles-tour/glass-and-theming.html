@@ -19,6 +19,8 @@
       <a href="glass-and-theming.html" class="active">5 · Glass &amp; theming</a>
     </div>
     <div class="nav-group"><h4>Practical</h4><a href="demo-and-recipes.html">6 · Demo &amp; recipes</a></div>
+    <div class="nav-group"><h4>Presentations</h4><a href="playlists.html">7 · Playlists &amp; transitions</a></div>
+    <div class="nav-group"><h4>Data &amp; input</h4><a href="content-launcher.html">8 · Content launcher</a></div>
   </nav>
 
   <main class="content"><div class="col">
@@ -192,6 +194,29 @@ glassBlur 0.5 · glassBlurMax 64   →  ~32 px   same radius, finer quality, ~2�
       are <code>surfaceText</code> / <code>accentText</code>, not the Material-style <code>onSurface</code> / <code>onAccent</code>.</p>
     </div>
     <p>See <span class="path">Docs/articles/color_system.md</span> for the full rationale (primitives vs roles, mapping to Qt's palette, what palette deliberately doesn't carry).</p>
+
+    <h2>Physical scaling — <code>uiScale</code> &amp; <code>dp()</code></h2>
+    <p>The same app runs on a laptop and on a 15-foot touchscreen, so chrome (controls, launcher,
+      controllers, text) needs to scale with <strong>physical density</strong> — independent of the
+      content resolution. <code>DsTheme</code> carries one knob and a helper:</p>
+<pre><code><span class="c">// [waffles.theme] uiScale — one value, no recompile</span>
+<span class="p">property real</span> uiScale: _s.<span class="p">getFloat</span>(<span class="s">"uiScale"</span>, <span class="n">1.0</span>)
+<span class="k">function</span> <span class="p">dp</span>(px) { <span class="k">return</span> Math.round(px * theme.uiScale); }</code></pre>
+    <p>Route every chrome size through <code>dp()</code> instead of hard-coding pixels — sizes, paddings,
+      radii, icon dimensions, and <code>font.pixelSize</code>:</p>
+<pre><code><span class="p">font.pixelSize</span>: DsTheme.<span class="p">dp</span>(<span class="n">16</span>)
+<span class="p">implicitHeight</span>: DsTheme.<span class="p">dp</span>(<span class="n">56</span>)
+<span class="p">anchors.margins</span>: DsTheme.<span class="p">dp</span>(<span class="n">24</span>)</code></pre>
+    <p>The launcher, the media/fullscreen controllers, and the presentation controller are all sized in
+      <code>dp()</code>, so bumping <code>uiScale</code> to e.g. <code>1.5</code> or <code>2.0</code> grows all chrome together.</p>
+    <div class="callout gotcha">
+      <span class="tag">uiScale is density, the fit-view is resolution — don't double-scale</span>
+      <p><code>uiScale</code> composes <em>on top of</em> <code>DsFitView</code>'s uniform canvas fit: the fit handles
+      <strong>resolution</strong> (logical canvas → physical window), <code>uiScale</code> handles
+      <strong>density</strong> (how large chrome is within that canvas). Do <strong>not</strong> also feed
+      <code>uiScale</code> into the fit's <code>preferredWidth</code>/<code>preferredHeight</code>, or chrome scales twice.
+      Media itself is sized by the viewer/fit, <em>not</em> <code>dp()</code> — only chrome uses <code>dp()</code>.</p>
+    </div>
 
     <h2>Settings</h2>
     <p>Waffles values live in <span class="path">Examples/AssetViewer/settings/waffles_settings.toml</span>, all
