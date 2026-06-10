@@ -23,13 +23,18 @@ jobs:
       id: dsqt
       shell: bash
       run: |
-        BASE_VERSION=$(curl -s https://raw.githubusercontent.com/Unispace365/DsQt/main/Library/VERSION.txt | tr -d '[:space:]')
+        set -euo pipefail
         if [ "${{ github.event_name }}" = "workflow_run" ]; then
+          BASE_VERSION=$(curl -fsSL "https://raw.githubusercontent.com/Unispace365/DsQt/${{ github.event.workflow_run.head_sha }}/Library/VERSION.txt" | tr -d '[:space:]')
           VERSION="${BASE_VERSION}.${{ github.event.workflow_run.run_number }}"
         else
           # workflow_dispatch: derive from the latest library release tag
-          VERSION=$(curl -s "https://api.github.com/repos/Unispace365/DsQt/releases" \
-            | jq -r '[.[] | select(.tag_name | startswith("library/v"))] | first | .tag_name | ltrimstr("library/v")')
+          VERSION=$(curl -fsSL -H "Authorization: Bearer ${{ github.token }}" -H "X-GitHub-Api-Version: 2022-11-28" "https://api.github.com/repos/Unispace365/DsQt/releases?per_page=100" \
+            | jq -r '[.[] | select(.draft == false and .prerelease == false) | select(.tag_name | startswith("library/v"))] | first | .tag_name | ltrimstr("library/v")')
+        fi
+        if [ -z "${VERSION:-}" ] || [ "$VERSION" = "null" ]; then
+          echo "Failed to resolve DsQt version" >&2
+          exit 1
         fi
         URL="https://github.com/Unispace365/DsQt/releases/download/library%2Fv${VERSION}/dsqt-${VERSION}.zip"
         echo "version=$VERSION" >> "$GITHUB_OUTPUT"
