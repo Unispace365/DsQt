@@ -162,6 +162,31 @@ class DatabaseContent {
     /// Returns all platform records.
     DatabaseRecordList platforms() const { return find(m_platforms); }
 
+    /// Returns the ancestor uid chain for the given uid, walking up the tree by prepending each parent uid.
+    /// Traversal stops if any record in the chain has 0 or more than 1 parent uid.
+    /// Returns an empty list if the starting record itself does not have exactly 1 parent uid.
+    QStringList pathUids(const QString& uid) const {
+        QStringList path;
+        QString current = uid;
+        while (true) {
+            const auto parents = m_records.value(current).parentUids();
+            if (parents.size() != 1) break;
+            path.prepend(parents.first());
+            current = parents.first();
+        }
+        return path;
+    }
+
+    /// For each uid in the list, returns the value of the specified key in the corresponding record.
+    /// If a record does not exist or does not contain the key, an empty QVariant is added.
+    QVariantList values(const QStringList& uids, const QString& key) const {
+        QVariantList result;
+        result.reserve(uids.size());
+        for (const auto& uid : uids)
+            result.append(m_records.value(uid).value(key));
+        return result;
+    }
+
     /// Returns the platform record based on the [platform.id] in app_settings.
     DatabaseRecord getPlatform() const;
     /// Returns the first platform record found with the specified type name.
