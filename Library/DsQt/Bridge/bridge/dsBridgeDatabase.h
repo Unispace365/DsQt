@@ -168,11 +168,23 @@ class DatabaseContent {
     QStringList pathUids(const QString& uid) const {
         QStringList path;
         QString current = uid;
+
+        std::set<QString> visited;
+        visited.insert(current);
+
         while (true) {
-            const auto parents = m_records.value(current).parentUids();
+            auto itr = m_records.constFind(current);
+            if (itr == m_records.constEnd()) break;
+
+            const auto parents = itr.value().parentUids();
             if (parents.size() != 1) break;
-            path.prepend(parents.first());
-            current = parents.first();
+
+            const auto parent = parents.first();
+            if (parent.isEmpty() || !m_records.contains(parent) || visited.find(parent) != visited.end()) break;
+
+            path.prepend(parent);
+            visited.insert(parent);
+            current = parent;
         }
         return path;
     }
