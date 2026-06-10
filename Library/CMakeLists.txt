@@ -77,6 +77,8 @@ find_package(Qt6 6.9
         Quick
 )
 
+option(DSQT_BUNDLE_DEPENDENCIES "Bundle vcpkg dependencies (e.g. tomlplusplus) into the DsQt install" ON)
+
 option(DSQT_BUILD_TESTS "Build and run DsQt unit tests" OFF)
 if(DSQT_BUILD_TESTS)
     enable_testing()
@@ -325,7 +327,7 @@ if(PROJECT_IS_TOP_LEVEL)
     # prefix and installs a self-contained cmake config.  This makes DsQt fully
     # self-contained: consuming projects no longer need vcpkg or any extra
     # CMAKE_PREFIX_PATH entry to satisfy find_package(Dsqt).
-    if(DEFINED VCPKG_INSTALLED_DIR AND DEFINED VCPKG_TARGET_TRIPLET)
+    if(DSQT_BUNDLE_DEPENDENCIES AND DEFINED VCPKG_INSTALLED_DIR AND DEFINED VCPKG_TARGET_TRIPLET)
         set(_dsqt_toml_vcpkg "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}")
 
         # Headers (toml++ puts everything under include/toml++/)

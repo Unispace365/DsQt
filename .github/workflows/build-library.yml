@@ -68,6 +68,7 @@ jobs:
         -DCMAKE_TOOLCHAIN_FILE="${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake"
         -DCMAKE_INSTALL_PREFIX="${{ github.workspace }}/install"
         -DDSQT_BUILD_TESTS=ON
+        -DDSQT_BUNDLE_DEPENDENCIES=OFF
 
     - name: Build Release
       shell: cmd
