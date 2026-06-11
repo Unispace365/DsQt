@@ -98,7 +98,7 @@ ApplicationWindow {
 
         // Find the origin.
         var screens = Qt.application.screens
-        for(let i=0; i<screens.length; ++i) {
+        for(var i=0; i<screens.length; ++i) {
             x = Math.min(x, screens[i].virtualX)
             y = Math.min(y, screens[i].virtualY)
         }
@@ -275,23 +275,8 @@ ApplicationWindow {
             contentBrowser.visible = isChecked
         }
 
-        property DsSettingsViewer settingsEngineWindow: null
-        onSettingsEngineTriggered: {
-            if (settingsEngineWindow === null) {
-                settingsEngineWindow = settingsEngineComponent.createObject(window)
-            }
-            settingsEngineWindow.visible = true
-            settingsEngineWindow.raise()
-        }
-
-        property DsSettingsViewer settingsAppWindow: null
-        onSettingsApplicationTriggered: {
-            if (settingsAppWindow === null) {
-                settingsAppWindow = settingsAppComponent.createObject(window)
-            }
-            settingsAppWindow.visible = true
-            settingsAppWindow.raise()
-        }
+        onSettingsEngineTriggered: settingsViewer.show()
+        onSettingsApplicationTriggered: settingsViewer.show()
 
     }
 
@@ -333,21 +318,8 @@ ApplicationWindow {
         }
     }
 
-    Component {
-        id: settingsEngineComponent
-        DsSettingsViewer {
-            settingsName: "engine"
-            title: "Settings Viewer — Engine"
-        }
-    }
-
-    Component {
-        id: settingsAppComponent
-        DsSettingsViewer {
-            settingsName: "app_settings"
-            title: "Settings Viewer — Application"
-        }
-    }
+    /// Settings viewer — shows all registered SettingsFile instances as tabs.
+    DsSettingsViewerHelper { id: settingsViewer }
 
     /// Content browser component (loaded dynamically from Bridge module)
     property Component contentViewerComponent: null
