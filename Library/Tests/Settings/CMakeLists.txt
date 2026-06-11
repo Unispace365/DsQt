@@ -53,18 +53,9 @@ if(DSQT_SETTINGS_TEST_STANDALONE)
     )
     FetchContent_MakeAvailable(tomlplusplus)
 
-    FetchContent_Declare(glm
-        GIT_REPOSITORY https://github.com/g-truc/glm.git
-        GIT_TAG        1.0.1
-        CONFIGURE_COMMAND ""
-        BUILD_COMMAND ""
-    )
-    FetchContent_MakeAvailable(glm)
-
     target_include_directories(${DS_EXE_NAME} PRIVATE
         ${DS_QT_PLATFORM_100_LIBRARY}
         ${tomlplusplus_SOURCE_DIR}/include
-        ${glm_SOURCE_DIR}
     )
 
     target_link_libraries(${DS_EXE_NAME} PRIVATE

@@ -9,10 +9,6 @@
       "version>=": "3.4.0"
     },
     {
-      "name": "glm",
-      "version>=": "1.0.1"
-    },
-    {
       "name": "vulkan"
     },
     {

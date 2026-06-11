@@ -60,9 +60,6 @@ class DsSettingsTest : public QObject
     void get_QDateTime_from_tomlDateTime_shouldReturnAValidQDateTimeOptional();
 
     //GEOM
-#ifdef DSQT_USE_GLM
-    void get_glmVectors_from_arrays_shouldReturnAValidGlmVectorOptional();
-#endif
     void get_QVectors_from_arrays_shouldReturnAValidGlmVectorOptional();
     void get_QPoint_from_arraysandtables_shouldReturnAValidGlmVectorOptional_data();
     void get_QPoint_from_arraysandtables_shouldReturnAValidGlmVectorOptional();
@@ -512,21 +509,6 @@ void DsSettingsTest::get_QDateTime_from_tomlDateTime_shouldReturnAValidQDateTime
 //*****************
 //Geometry
 //*****************
-#ifdef DSQT_USE_GLM
-void DsSettingsTest::get_glmVectors_from_arrays_shouldReturnAValidGlmVectorOptional(){
-    auto vec2 = test_settings->get<glm::vec2>("test.geom.vectors.vec2");
-    auto vec3 = test_settings->get<glm::vec3>("test.geom.vectors.vec3");
-    auto vec4 = test_settings->get<glm::vec4>("test.geom.vectors.vec4");
-
-    QCOMPARE(vec2.has_value(),true);
-    QCOMPARE(vec3.has_value(),true);
-    QCOMPARE(vec4.has_value(),true);
-    QVERIFY(vec2 = glm::vec2(20,30));
-    QCOMPARE(vec3.value() , glm::vec3(20,30,40));
-    QCOMPARE(vec4.value() , glm::vec4(20,30,40,50));
-}
-#endif
-
 void DsSettingsTest::get_QVectors_from_arrays_shouldReturnAValidGlmVectorOptional(){
     auto vec2 = test_settings->get<QVector2D>("test.geom.vectors.vec2");
     auto vec3 = test_settings->get<QVector3D>("test.geom.vectors.vec3");
