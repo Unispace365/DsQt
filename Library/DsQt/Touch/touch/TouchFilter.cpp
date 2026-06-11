@@ -11,7 +11,7 @@
 
 TouchFilter::TouchFilter(QObject *parent) : QObject(parent)
 {
-    if (auto s = dsqt::DsSettings::getSettings("engine")) {
+    if (auto s = dsqt::Settings::instance().settingsFile("engine")) {
         setTransientThresholdMs (static_cast<int>(s->getOr<int64_t>("engine.touch_filter.transientThresholdMs",  m_transientThresholdMs)));
         setSmoothingFactor      (s->getOr<double>("engine.touch_filter.smoothingFactor",       m_smoothingFactor));
         setLiftResumeThresholdMs(static_cast<int>(s->getOr<int64_t>("engine.touch_filter.liftResumeThresholdMs", m_liftResumeThresholdMs)));
@@ -326,7 +326,7 @@ bool TouchFilter::filterPoint(QTouchEvent *event, const QEventPoint &pt, const Q
                 delete data->pendingTimer;
                 data->pendingTimer = nullptr;
             }
-            for (const StoredEvent &ev : data->buffered) {
+            for (const StoredEvent& ev : std::as_const(data->buffered)) {
                 const QPointF bsp = ev.point.globalPosition() - m_window->position();
                 emit touchFiltered(id, bsp.x(), bsp.y(),
                                    stateInt(ev.point.state()),

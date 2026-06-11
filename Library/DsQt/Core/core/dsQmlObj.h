@@ -6,7 +6,7 @@
 #include "core/dsQmlPathHelper.h"
 // #include "model/dsQmlContentModel.h"
 // #include "model/dsReferenceMap.h"
-#include "settings/dsQmlSettingsProxy.h"
+//#include "settings/dsQmlSettingsProxy.h"
 #include "model/dsContentModel.h"
 
 #include <QDebug>
@@ -34,8 +34,8 @@ class DsQmlObj : public QObject {
     QML_NAMED_ELEMENT(Ds)
 
     Q_PROPERTY(dsqt::DsQmlEnvironment* env READ env CONSTANT)
-    Q_PROPERTY(dsqt::DsQmlSettingsProxy* engineSettings READ engineSettings CONSTANT)
-    Q_PROPERTY(dsqt::DsQmlSettingsProxy* appSettings READ appSettings CONSTANT)
+    Q_PROPERTY(dsqt::SettingsFile* engineSettings READ engineSettings CONSTANT)
+    Q_PROPERTY(dsqt::SettingsFile* appSettings READ appSettings CONSTANT)
     Q_PROPERTY(dsqt::DsQmlApplicationEngine* engine READ engine CONSTANT)
     Q_PROPERTY(dsqt::DsQmlPathHelper* path READ path CONSTANT)
 
@@ -58,15 +58,15 @@ class DsQmlObj : public QObject {
 
     /**
      * \brief Getter for the engine settings proxy.
-     * \return Pointer to DsQmlSettingsProxy, or nullptr if the engine is not available.
+     * \return Pointer to SettingsFile, or nullptr if the engine is not available.
      */
-    DsQmlSettingsProxy* engineSettings() const;
+    dsqt::SettingsFile* engineSettings() const;
 
     /**
      * \brief Getter for the application settings proxy.
-     * \return Pointer to DsQmlSettingsProxy, or nullptr if the engine is not available.
+     * \return Pointer to SettingsFile, or nullptr if the engine is not available.
      */
-    DsQmlSettingsProxy* appSettings() const;
+    dsqt::SettingsFile* appSettings() const;
 
     /**
      * \brief Getter for the QML environment.

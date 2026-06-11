@@ -21,14 +21,12 @@ DsQmlObj* DsQmlObj::create(QQmlEngine* qmlEngine, QJSEngine* jsEngine) {
     return new DsQmlObj(qmlEngine, jsEngine);
 }
 
-DsQmlSettingsProxy* DsQmlObj::engineSettings() const {
-    if (!mEngine) return nullptr;
-    return mEngine->getEngineSettingsProxy();
+dsqt::SettingsFile* DsQmlObj::engineSettings() const {
+    return dsqt::Settings::instance().settingsFile("engine");
 }
 
-DsQmlSettingsProxy* DsQmlObj::appSettings() const {
-    if (!mEngine) return nullptr;
-    return mEngine->getAppSettingsProxy();
+dsqt::SettingsFile* DsQmlObj::appSettings() const {
+    return dsqt::Settings::instance().settingsFile("app_settings");
 }
 
 DsQmlEnvironment* DsQmlObj::env() const {
