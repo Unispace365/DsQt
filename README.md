@@ -56,6 +56,10 @@ Documentation is compiled by Doxygen and can be found here:
     * Qt Creator (check all boxes)
 5. Depending on what you selected this can take a while to download (hours sometimes).
 
+#### Install cmake
+
+On Windows, download the latest cmake x64 installer (.msi) from https://cmake.org/download/
+
 #### Install vcpkg
 
 1. Clone vcpkg: `git clone https://github.com/microsoft/vcpkg.git C:\vcpkg`
