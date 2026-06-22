@@ -13,9 +13,11 @@
 #include <QHeaderView>
 #include <QLineEdit>
 #include <QListWidget>
+#include <QHideEvent>
 #include <QMessageBox>
 #include <QMouseEvent>
 #include <QPushButton>
+#include <QShowEvent>
 #include <QStyledItemDelegate>
 #include <QTabWidget>
 #include <QTreeView>
@@ -245,7 +247,8 @@ private:
 // ─────────────────────────────────────────────────────────────────────────────
 
 SettingsViewerWidget::SettingsViewerWidget(Settings *settings, QWidget *parent)
-    : QWidget(parent, Qt::Window)
+    : QWidget(parent, Qt::Window | Qt::WindowTitleHint | Qt::WindowSystemMenuHint
+                          | Qt::WindowCloseButtonHint | Qt::WindowMaximizeButtonHint)
     , m_settings(settings)
     , m_tabs(new QTabWidget(this))
 {
@@ -271,6 +274,18 @@ SettingsViewerWidget::SettingsViewerWidget(Settings *settings, QWidget *parent)
     connect(saveBtn,    &QPushButton::clicked, this, &SettingsViewerWidget::onSave);
     connect(restoreBtn, &QPushButton::clicked, this, &SettingsViewerWidget::onRestore);
     rebuild();
+}
+
+void SettingsViewerWidget::showEvent(QShowEvent *event)
+{
+    QWidget::showEvent(event);
+    emit visibilityChanged(true);
+}
+
+void SettingsViewerWidget::hideEvent(QHideEvent *event)
+{
+    QWidget::hideEvent(event);
+    emit visibilityChanged(false);
 }
 
 void SettingsViewerWidget::rebuild()
@@ -326,9 +341,19 @@ void SettingsViewerWidget::rebuild()
         // Type column fills the remainder automatically via Stretch on the last section.
         header->setStretchLastSection(true);
 
+        // Render snake_case settings file names as "Title Case" tab labels,
+        // e.g. "app_settings" -> "App Settings".
         QString label = name;
-        if (!label.isEmpty())
-            label[0] = label[0].toUpper();
+        label.replace(QLatin1Char('_'), QLatin1Char(' '));
+        bool atWordStart = true;
+        for (QChar &ch : label) {
+            if (ch.isSpace()) {
+                atWordStart = true;
+            } else if (atWordStart) {
+                ch = ch.toUpper();
+                atWordStart = false;
+            }
+        }
         m_tabs->addTab(view, label);
     }
 

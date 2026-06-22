@@ -1,5 +1,5 @@
 #include "network/dsNodeWatcher.h"
-#include "core/dsEnvironment.h"
+#include "settings/dsSettings.h"
 
 #include <QHostAddress>
 #include <QTcpSocket>
@@ -95,8 +95,8 @@ void Message::swap(Message& o) {
 }
 
 static long get_refresh_rate(DsQmlApplicationEngine* engine) {
-    float rate     = Settings::find<float>("engine", "node.refresh_rate", .1f);
-    long  ans      = static_cast<long>(rate * 1000.0f);
+    float rate = Settings::find<float>("engine", "node.refresh_rate", .1f);
+    long  ans  = static_cast<long>(rate * 1000.0f);
     if (ans < 10) {
         return 10;
     } else if (ans > 1000 * 10) {

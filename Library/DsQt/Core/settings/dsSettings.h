@@ -36,12 +36,17 @@ class Settings : public QQmlPropertyMap {
 
     // Sets the shared search paths and triggers a reload of all registered SettingsFile
     // instances that have no per-instance paths of their own.
-    void setSearchPaths(const QStringList& paths);
+    void setSearchPaths(QStringList paths);
+
+    //
+    bool hasSearchPath(const QString &path) const;
 
     // Returns the names of all registered SettingsFile instances, in insertion order.
     Q_INVOKABLE QStringList settingsNames() const;
     // Returns the SettingsFile registered under `name`, or nullptr if not found.
     Q_INVOKABLE SettingsFile* settingsFile(const QString& name) const;
+    //
+    Q_INVOKABLE bool hasSettingsFile(const QString& name) const { return nullptr != settingsFile(name); }
 
     static QStringList resolveFilePaths(const QString& fileName) { return instance().resolveFilePathsImpl(fileName); }
 

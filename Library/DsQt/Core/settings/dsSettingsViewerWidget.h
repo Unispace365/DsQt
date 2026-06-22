@@ -19,6 +19,16 @@ class SettingsViewerWidget : public QWidget
 public:
     explicit SettingsViewerWidget(Settings *settings, QWidget *parent = nullptr);
 
+signals:
+    // Fired whenever the widget is actually shown or hidden (including via
+    // the window's own close button), so listeners can keep a menu
+    // checkbox in sync with the real on-screen state.
+    void visibilityChanged(bool visible);
+
+protected:
+    void showEvent(QShowEvent *event) override;
+    void hideEvent(QHideEvent *event) override;
+
 private:
     void rebuild();
     SettingsFile *currentSettingsFile() const;

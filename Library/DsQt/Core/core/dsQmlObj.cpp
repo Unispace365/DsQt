@@ -1,4 +1,5 @@
 #include "core/dsQmlObj.h"
+#include "settings/dsSettings.h"
 
 Q_LOGGING_CATEGORY(lgQmlObj, "core.qmlobj");
 Q_LOGGING_CATEGORY(lgQmlObjVerbose, "core.qmlobj.verbose");
@@ -45,7 +46,7 @@ DsQmlPathHelper* DsQmlObj::path() const {
 
 model::ContentModel* DsQmlObj::getRecordById(const QString& id) const {
     auto& lookup = model::ContentLookup::get();
-    auto itr = lookup.find(id);
+    auto  itr    = lookup.find(id);
     if (itr != lookup.end()) {
         return itr.value();
     } else {

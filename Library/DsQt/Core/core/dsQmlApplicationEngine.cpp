@@ -3,11 +3,10 @@
 #include "core/dsQmlEnvironment.h"
 // #include "model/dsContentModel.h"
 // #include "model/dsQmlContentHelper.h"
-#include "model/dsResource.h"
-#include "network/dsNodeWatcher.h"
-#include "settings/dsQmlSettingsProxy.h"
 #include "core/dsFontManager.h"
 #include "core/dsQmlAppHost.h"
+#include "network/dsNodeWatcher.h"
+#include "settings/dsSettings.h"
 
 #include <QDir>
 #include <QDirIterator>
@@ -56,7 +55,7 @@ DsQmlApplicationEngine::DsQmlApplicationEngine(QObject* parent)
         [this]() {
             qCInfo(lgAppEngineVerbose) << "Triggered";
 
-            //readSettings(true);
+            // readSettings(true);
             emit fileChanged("triggered");
         },
         Qt::QueuedConnection);
@@ -87,8 +86,12 @@ void DsQmlApplicationEngine::doReset() {
     postReset();
 }
 
-DsSettingsRef DsQmlApplicationEngine::getAppSettings() const {
-    return mSettings;
+SettingsFile* DsQmlApplicationEngine::getAppSettings() const {
+    return dsqt::DsEnvironment::appSettings();
+}
+
+SettingsFile* DsQmlApplicationEngine::getEngineSettings() {
+    return dsqt::DsEnvironment::engineSettings();
 }
 
 network::DsNodeWatcher* DsQmlApplicationEngine::getNodeWatcher() const {
@@ -96,77 +99,26 @@ network::DsNodeWatcher* DsQmlApplicationEngine::getNodeWatcher() const {
 }
 
 void DsQmlApplicationEngine::preInit() {
-    dsqt::DsEnvironment::loadEngineSettings();
+    // dsqt::DsEnvironment::loadEngineSettings();
 }
 
 void dsqt::DsQmlApplicationEngine::readSettings(bool reset) {
-    qCInfo(lgAppEngine) << "\nLoad Settings >>>>>>>>>>>>>>>>>>>>>>>>";
+    // This is now handled in DsEnvironment.
+    DsEnvironment::loadEngineSettings();
 
-    qCInfo(lgAppEngine) << "loading main engine.toml";
+    //
     if (reset) {
-        DsSettings::forgetSettings("engine");
+        qCInfo(lgAppEngine) << "Resetting app_settings";
+        auto settings = Settings::instance().settingsFile("app_settings");
+        if (settings) settings->resetOverrides();
     }
-    dsqt::DsEnvironment::loadEngineSettings();
-    auto extra_engine_settings = DsEnvironment::engineSettings()->getRawNode("engine.extra.engine", true);
-    if (extra_engine_settings) {
-        auto& extra_paths = *extra_engine_settings->as_array();
-        for (auto&& path_node : extra_paths) {
-            auto path = path_node.as_string()->value_or<std::string>("");
-            qCInfo(lgAppEngine) << "Loading extra engine file " << path;
-            dsqt::DsEnvironment::loadSettings("engine", QString::fromStdString(path),true,true);
-        }
-    }
-
-    auto                            engSettings = dsqt::DsEnvironment::engineSettings();
-    std::function<QString(QString)> normPath    = [this](QString path) {
-        auto ret = path;
-        path.replace('\\', '/');
-
-        ret = QDir::fromNativeSeparators(ret);
-
-        return ret;
-    };
-    QString resourceLocation = engSettings->getOr<QString>("engine.resource.location", "");
-    if (resourceLocation.isEmpty()) {
-    } else {
-        if (resourceLocation.contains("%USERPROFILE%")) {
-#ifndef _WIN32
-            resourceLocation.replace("%USERPROFILE%", QDir::homePath());
-            qCInfo(lgAppEngine)
-                << "Non-windows workaround: Converting \"%USERPROFILE%\" to \"~\" in resources_location...";
-#endif
-        }
-        resourceLocation = DsEnvironment::expandq(resourceLocation); // allow use of %APP%, etc
-        resourceLocation = QUrl::fromLocalFile(resourceLocation).toString();
-
-        DsResource::Id::setupPaths(resourceLocation,
-                                   normPath(engSettings->getOr<QString>("engine.resource.resource_db", "")),
-                                   normPath(engSettings->getOr<QString>("engine.project_path", "")));
-    }
-
-
-    qCInfo(lgAppEngine) << "loading main app_settings.toml";
-    if (reset) {
-        DsSettings::forgetSettings("app_settings");
-    }
-    mSettings               = dsqt::DsEnvironment::loadSettings("app_settings", "app_settings.toml");
-    auto extra_app_settings = DsEnvironment::engineSettings()->getRawNode("engine.extra.app_settings", true);
-    if (extra_app_settings) {
-        auto& extra_paths = *extra_app_settings->as_array();
-        for (auto&& path_node : extra_paths) {
-            auto path = path_node.as_string()->value_or<std::string>("");
-            qCInfo(lgAppEngine) << "Loading extra app_settings file " << path;
-            dsqt::DsEnvironment::loadSettings("app_settings", QString::fromStdString(path),true,true);
-        }
-    }
-    qCInfo(lgAppEngine) << ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n";
 }
 
 void DsQmlApplicationEngine::init() {
     // setup nodeWatcher
     readSettings();
-    if (!mEngineProxy) mEngineProxy = new DsQmlSettingsProxy(this);
-    if (!mAppProxy) mAppProxy = new DsQmlSettingsProxy(this);
+    // if (!mEngineProxy) mEngineProxy = new DsQmlSettingsProxy(this);
+    // if (!mAppProxy) mAppProxy = new DsQmlSettingsProxy(this);
     if (!mQmlEnv) mQmlEnv = new DsQmlEnvironment(this);
 
     // auto starts, but could also be this:
@@ -174,39 +126,36 @@ void DsQmlApplicationEngine::init() {
     // mNodeWatcher->start();
 
     // get watcher elements
-    auto node = dsqt::DsEnvironment::engineSettings()->getRawNode("engine.reload.paths");
-    if (node) {
-        const auto& paths = *node->as_array();
-
-        for (auto&& path_node : paths) {
-            auto path    = path_node.as_table();
-            auto oval    = QString::fromStdString((*path)["path"].as_string()->value_or<std::string>(""));
-            auto val     = DsEnvironment::expandq(oval);
-            auto recurse = (*path)["recurse"].as_boolean()->value_or(false);
-            if (QFileInfo::exists(val)) {
-                mWatcher->addPath(val);
-                qInfo() << "Added " << val << " to watcher";
-                auto fi = QFileInfo(val);
-                if (fi.isDir()) {
-                    addRecursive(val, recurse);
-                }
+    const auto paths = Settings::find<QVariantList>("engine", "engine.reload.paths");
+    for (auto& path_node : paths) {
+        const auto path = path_node.toMap();
+        const auto oval = path.value("path").toString();
+        const auto fi   = QFileInfo(DsEnvironment::expandq(oval));
+        if (fi.exists()) {
+            mWatcher->addPath(fi.filePath());
+            qInfo() << "Added " << fi.filePath() << " to watcher";
+            if (fi.isDir()) {
+                const auto recurse = path.value("recurse", false).toBool();
+                addRecursive(fi.filePath(), recurse);
             }
         }
     }
+
     // get idle timeout
-    auto timeoutInSeconds = DsEnvironment::engineSettings()->getOr<int>("engine.idle_timeout", 300);
+    auto timeoutInSeconds = Settings::find<int>("engine", "engine.idle_timeout", 300);
     mIdle->setIdleTimeout(timeoutInSeconds * 1000);
     mIdle->startIdling(true);
 
-    mEngineProxy->setTarget("engine");
-    mAppProxy->setTarget("app_settings");
+    // mEngineProxy->setTarget("engine");
+    // mAppProxy->setTarget("app_settings");
 
-    //lets load som fernts
-    DsFontManager fontManager(DsEnvironment::engineSettings());
-    fontManager.loadFonts(&DsEnvironment::expandq);
+    // lets load some fonts
+    DsFontManager fontManager(Settings::instance().settingsFile("engine"));
+    fontManager.loadFonts();
+
     QFont defaultFont = fontManager.createDefaultFont();
     DsFontManager::setApplicationDefaultFont(defaultFont);
-    //qGuiApp->setFont(defaultFont);
+    // qGuiApp->setFont(defaultFont);
 
     connect(this, &DsQmlApplicationEngine::fileChanged, this, &DsQmlApplicationEngine::doReset);
     // rootContext()->setContextProperty("app_settings",mAppProxy);
@@ -219,7 +168,7 @@ void DsQmlApplicationEngine::postInit() {
 
 void DsQmlApplicationEngine::resetIdle() {
     mIdle->clearAllIdlePreventers();
-    auto timeoutInSeconds = DsEnvironment::engineSettings()->getOr<int>("engine.idle_timeout", 300);
+    auto timeoutInSeconds = Settings::find<int>("engine", "engine.idle_timeout", 300);
     mIdle->setIdleTimeout(timeoutInSeconds * 1000);
     mIdle->startIdling(true);
 }
@@ -260,31 +209,28 @@ DsQmlEnvironment* DsQmlApplicationEngine::getEnvQml() const {
     return mQmlEnv;
 }
 
-DsQmlSettingsProxy* DsQmlApplicationEngine::getEngineSettingsProxy() const {
-    return mEngineProxy;
-}
+// DsQmlSettingsProxy* DsQmlApplicationEngine::getEngineSettingsProxy() const {
+//     return mEngineProxy;
+// }
 
-DsQmlSettingsProxy* DsQmlApplicationEngine::getAppSettingsProxy() const {
-    return mAppProxy;
-}
+// DsQmlSettingsProxy* DsQmlApplicationEngine::getAppSettingsProxy() const {
+//     return mAppProxy;
+// }
 
 DsQmlIdle* DsQmlApplicationEngine::idle() const {
     return mIdle;
 }
 
-void DsQmlApplicationEngine::quit(bool force)
-{
-    //if engine.askAppHostToQuit is set send message to DsAppHost
-    auto engSetting = dsqt::DsSettings::getSettings("engine");
-    auto exitOnQuit = engSetting->getOr("appHost.exitOnQuit",false);
+void DsQmlApplicationEngine::quit(bool force) {
+    // if engine.askAppHostToQuit is set send message to DsAppHost
+    auto exitOnQuit = Settings::find<bool>("engine", "appHost.exitOnQuit", false);
 
-    DsQmlAppHost* appHost = new DsQmlAppHost(this);
-    if(exitOnQuit || force){
+    QScopedPointer<DsQmlAppHost> appHost(new DsQmlAppHost(this));
+    if (exitOnQuit || force) {
         appHost->exit(true);
     } else {
         qApp->quit();
     }
-
 }
 
 } // namespace dsqt

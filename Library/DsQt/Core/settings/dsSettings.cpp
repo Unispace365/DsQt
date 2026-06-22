@@ -1,6 +1,7 @@
 #include "settings/dsSettings.h"
 #include "settings/dsSettingsFile.h"
 #include "settings/dsSettingsUtils.h"
+#include "core/dsEnvironment.h"
 
 #include <QCoreApplication>
 #include <QThread>
@@ -41,9 +42,17 @@ QStringList Settings::searchPaths() const
     return m_searchPaths;
 }
 
-void Settings::setSearchPaths(const QStringList &paths)
-{
+void Settings::setSearchPaths(QStringList paths) {
     settings::checkThread(this, Q_FUNC_INFO);
+
+    // Expand and remove duplicates.
+    for (auto& path : paths)
+        path = DsEnvironment::expandq(path);
+    paths.removeDuplicates();
+
+    // Also remove paths that failed to expand.
+    paths.removeIf([](const QString &s) { return s.contains('%'); });
+
     if (m_searchPaths == paths)
         return;
     m_searchPaths = paths;
@@ -54,6 +63,10 @@ void Settings::setSearchPaths(const QStringList &paths)
 
     rebuildWatcher();
     emit searchPathsChanged();
+}
+
+bool Settings::hasSearchPath(const QString& path) const {
+    return m_searchPaths.contains(path);
 }
 
 void Settings::registerSettingsFile(SettingsFile *s)

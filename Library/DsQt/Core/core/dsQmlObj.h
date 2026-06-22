@@ -8,6 +8,7 @@
 // #include "model/dsReferenceMap.h"
 //#include "settings/dsQmlSettingsProxy.h"
 #include "model/dsContentModel.h"
+#include "settings/dsSettings.h"
 
 #include <QDebug>
 #include <QObject>
