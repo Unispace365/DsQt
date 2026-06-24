@@ -5,6 +5,8 @@
 #include <optional>
 #include <QDebug>
 #include <QDir>
+#include <QFile>
+#include <QTemporaryDir>
 
 // add necessary includes here
 
@@ -96,6 +98,8 @@ class DsSettingsTest : public QObject
     void settingsFile_shouldStripLegacyMetadata();
     void settingsFile_shouldUnwrapLegacyArrays();
     void settingsFile_shouldInterpretLegacyMetadataColors();
+    void settingsFile_shouldPruneOverridesThatMatchReloadedFiles();
+    void settingsFile_shouldKeepOverridesSavedOutsideSearchPaths();
 
   private:
     dsqt::DsSettingsRef test_settings;
@@ -901,6 +905,58 @@ void DsSettingsTest::settingsFile_shouldInterpretLegacyMetadataColors()
              QColor::fromCmyk(0, 66, 252, 25, 255));
     QCOMPARE(settings.find<QColor>("example.example_color_1"),
              QColor::fromRgbF(0.5, 0.5, 0.5, 1.0));
+}
+
+static void writeTextFile(const QString &path, const QByteArray &contents)
+{
+    QFile file(path);
+    QVERIFY(file.open(QIODevice::WriteOnly | QIODevice::Text));
+    QCOMPARE(file.write(contents), static_cast<qint64>(contents.size()));
+}
+
+void DsSettingsTest::settingsFile_shouldPruneOverridesThatMatchReloadedFiles()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+
+    const QString filePath = QDir(dir.path()).filePath("settings.toml");
+    writeTextFile(filePath, "width = 100\n");
+
+    dsqt::SettingsFile settings(nullptr, {dir.path()});
+    settings.setFileName("settings.toml");
+    settings.setOverride("width", 300);
+    settings.setOverride("height", 400);
+
+    QCOMPARE(settings.saveOverridesTo(filePath), QString{});
+    QCOMPARE(settings.overrides().size(), 2);
+
+    settings.reload();
+
+    QVERIFY(settings.overrides().isEmpty());
+    QCOMPARE(settings.find<int>("width"), 300);
+    QCOMPARE(settings.find<int>("height"), 400);
+}
+
+void DsSettingsTest::settingsFile_shouldKeepOverridesSavedOutsideSearchPaths()
+{
+    QTemporaryDir searchDir;
+    QTemporaryDir otherDir;
+    QVERIFY(searchDir.isValid());
+    QVERIFY(otherDir.isValid());
+
+    const QString watchedFilePath = QDir(searchDir.path()).filePath("settings.toml");
+    const QString otherFilePath = QDir(otherDir.path()).filePath("settings.toml");
+    writeTextFile(watchedFilePath, "width = 100\n");
+
+    dsqt::SettingsFile settings(nullptr, {searchDir.path()});
+    settings.setFileName("settings.toml");
+    settings.setOverride("width", 300);
+
+    QCOMPARE(settings.saveOverridesTo(otherFilePath), QString{});
+    settings.reload();
+
+    QCOMPARE(settings.overrides().value("width").toInt(), 300);
+    QCOMPARE(settings.find<int>("width"), 300);
 }
 
 QTEST_MAIN(DsSettingsTest)

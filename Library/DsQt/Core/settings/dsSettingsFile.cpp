@@ -513,6 +513,35 @@ static QVariant traverseMap(const QVariant &map, const QStringList &parts)
 
 // A reference is a string of the form "@a.b" — a bare TOML dotted key
 // (at least one dot, no spaces) preceded by '@'.
+static bool pruneOverrides(QVariantMap &overrides, const QVariantMap &baseline)
+{
+    bool changed = false;
+
+    for (auto it = overrides.begin(); it != overrides.end();) {
+        const QVariant baselineValue = baseline.value(it.key());
+
+        if (isMap(it.value()) && isMap(baselineValue)) {
+            QVariantMap child = it.value().toMap();
+            if (pruneOverrides(child, baselineValue.toMap())) {
+                changed = true;
+                if (child.isEmpty()) {
+                    it = overrides.erase(it);
+                    continue;
+                }
+                it.value() = child;
+            }
+        } else if (baselineValue.isValid() && it.value() == baselineValue) {
+            it = overrides.erase(it);
+            changed = true;
+            continue;
+        }
+
+        ++it;
+    }
+
+    return changed;
+}
+
 static bool isReference(const QVariant &v)
 {
     static const QRegularExpression pattern(
@@ -657,6 +686,10 @@ void SettingsFile::reload()
                      e.description().data());
         }
     }
+
+    QVariantMap baseline = m_defaults;
+    deepMerge(baseline, m_settings);
+    pruneOverrides(m_overrides, baseline);
 
     rebuild();
 }
