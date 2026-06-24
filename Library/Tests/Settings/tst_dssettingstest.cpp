@@ -1,8 +1,10 @@
 #include <QtTest>
 #include <settings/dsSettings.h>
+#include <settings/dsSettingsFile.h>
 #include <core/dsEnvironment.h>
 #include <optional>
 #include <QDebug>
+#include <QDir>
 
 // add necessary includes here
 
@@ -91,6 +93,9 @@ class DsSettingsTest : public QObject
     void get_shouldReturnAnEmptyOptionalWhenTheSettingDoesNotExist();
     void getWithMeta_shouldReturnAValidTupleWhenTheSettingExists();
     void read_notable();
+    void settingsFile_shouldStripLegacyMetadata();
+    void settingsFile_shouldUnwrapLegacyArrays();
+    void settingsFile_shouldInterpretLegacyMetadataColors();
 
   private:
     dsqt::DsSettingsRef test_settings;
@@ -858,6 +863,44 @@ void DsSettingsTest::read_notable()
     auto val = test_settings->get<std::string>("no_table");
     QVERIFY(val);
     QVERIFY(val.value() == "test value");
+}
+
+void DsSettingsTest::settingsFile_shouldStripLegacyMetadata()
+{
+    dsqt::SettingsFile settings(nullptr, {QDir::current().filePath("settings")});
+    settings.setFileName("test_settings.toml");
+
+    QCOMPARE(settings.find<QString>("no_table_arrayed"), QString("test value"));
+    QCOMPARE(settings.find<QString>("test.meta.meta_example"), QString("string-value"));
+}
+
+void DsSettingsTest::settingsFile_shouldUnwrapLegacyArrays()
+{
+    dsqt::SettingsFile settings(nullptr, {QDir::current().filePath("settings")});
+    settings.setFileName("test_settings.toml");
+
+    const QVariantList list = settings.find<QVariantList>("test.list.list_strings_only");
+    QCOMPARE(list.size(), 3);
+    QCOMPARE(list[0].toString(), QString("alpha"));
+    QCOMPARE(list[1].toString(), QString("beta"));
+    QCOMPARE(list[2].toString(), QString("gamma"));
+}
+
+void DsSettingsTest::settingsFile_shouldInterpretLegacyMetadataColors()
+{
+    dsqt::SettingsFile settings(nullptr, {QDir::current().filePath("settings")});
+    settings.setFileName("test_settings.toml");
+
+    QCOMPARE(settings.find<QColor>("test.color.arrays.float_rgb"),
+             QColor::fromRgbF(0.5, 0.0, 0.0, 1.0));
+    QCOMPARE(settings.find<QColor>("test.color.arrays.int_hsv"),
+             QColor::fromHsv(44, 252, 252, 255));
+    QCOMPARE(settings.find<QColor>("test.color.tables.float_rgb"),
+             QColor::fromRgbF(0.5, 0.0, 0.0, 1.0));
+    QCOMPARE(settings.find<QColor>("test.color.tables.int_cmyk"),
+             QColor::fromCmyk(0, 66, 252, 25, 255));
+    QCOMPARE(settings.find<QColor>("example.example_color_1"),
+             QColor::fromRgbF(0.5, 0.5, 0.5, 1.0));
 }
 
 QTEST_MAIN(DsSettingsTest)

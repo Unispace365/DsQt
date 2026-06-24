@@ -2,7 +2,9 @@
 #include "settings/dsSettings.h"
 #include "settings/dsSettingsUtils.h"
 
+#include <algorithm>
 #include <sstream>
+#include <string_view>
 
 #include <QColor>
 #include <QDateTime>
@@ -27,6 +29,16 @@ namespace dsqt {
 
 // Mutually recursive with tableToMap()/arrayToList() below.
 static QVariant nodeToVariant(const toml::node &node);
+static QVariantMap tableToMap(const toml::table &tbl);
+
+static QString metaString(const toml::table &meta, std::string_view key)
+{
+    if (const toml::node *node = meta.get(key)) {
+        if (const auto value = node->value<std::string>())
+            return QString::fromStdString(*value);
+    }
+    return {};
+}
 
 // Reads a numeric colour channel and normalises it to 0.0–1.0.
 // "X%" divides by 100; a plain number is clamped to [0, scale] and divided by scale.
@@ -41,20 +53,35 @@ static double readNormalized(const QVariant &v, double scale)
 // Detects well-known key-signature maps and converts them to typed Qt values.
 // QVariantMap keys are always sorted (QMap), so they compare directly against
 // sorted key lists.
+static bool isUnitRangeColorMap(const QVariantMap &map)
+{
+    for (const QVariant &channel : map) {
+        bool ok = false;
+        const double value = channel.toDouble(&ok);
+        if (!ok || value < 0.0 || value > 1.0)
+            return false;
+    }
+    return true;
+}
+
 static QVariant tryInterpretMap(const QVariantMap &map)
 {
     const QStringList keys = map.keys();
 
     // QColor RGB {r, g, b} / {r, g, b, a}  — r/g/b/a: 0–255, or "X%"
-    if (keys == QStringList{"b", "g", "r"})
-        return QColor::fromRgbF(readNormalized(map["r"], 255.0),
-                                readNormalized(map["g"], 255.0),
-                                readNormalized(map["b"], 255.0));
-    if (keys == QStringList{"a", "b", "g", "r"})
-        return QColor::fromRgbF(readNormalized(map["r"], 255.0),
-                                readNormalized(map["g"], 255.0),
-                                readNormalized(map["b"], 255.0),
-                                readNormalized(map["a"], 255.0));
+    if (keys == QStringList{"b", "g", "r"}) {
+        const double scale = isUnitRangeColorMap(map) ? 1.0 : 255.0;
+        return QColor::fromRgbF(readNormalized(map["r"], scale),
+                                readNormalized(map["g"], scale),
+                                readNormalized(map["b"], scale));
+    }
+    if (keys == QStringList{"a", "b", "g", "r"}) {
+        const double scale = isUnitRangeColorMap(map) ? 1.0 : 255.0;
+        return QColor::fromRgbF(readNormalized(map["r"], scale),
+                                readNormalized(map["g"], scale),
+                                readNormalized(map["b"], scale),
+                                readNormalized(map["a"], scale));
+    }
 
     // QColor HSV {h, s, v} / {h, s, v, a}  — h: 0–360, s/v: 0–100, a: 0–255, or "X%"
     if (keys == QStringList{"h", "s", "v"})
@@ -159,6 +186,159 @@ static QVariantList arrayToList(const toml::array &arr)
     return list;
 }
 
+static QVariant legacyColorFromList(const QVariantList &list,
+                                    const QString &elementType,
+                                    const QString &colorType)
+{
+    if (list.isEmpty())
+        return {};
+
+    const bool isFloat = elementType == QStringLiteral("float")
+                         || (elementType != QStringLiteral("int")
+                             && std::all_of(list.cbegin(), list.cend(), [](const QVariant &v) {
+                                bool ok = false;
+                                const double value = v.toDouble(&ok);
+                                return ok && value >= 0.0 && value <= 1.0;
+                            }));
+    const auto channel = [&](int index, double intScale, double fallback = 1.0) {
+        if (index >= list.size())
+            return fallback;
+        const double value = list[index].toDouble();
+        return isFloat ? std::clamp(value, 0.0, 1.0)
+                       : std::clamp(value, 0.0, intScale) / intScale;
+    };
+
+    const QString mode = colorType.isEmpty() ? QStringLiteral("rgb") : colorType;
+    if (mode == QStringLiteral("cmyk") && list.size() >= 4)
+        return QColor::fromCmykF(channel(0, isFloat ? 100.0 : 255.0),
+                                 channel(1, isFloat ? 100.0 : 255.0),
+                                 channel(2, isFloat ? 100.0 : 255.0),
+                                 channel(3, isFloat ? 100.0 : 255.0),
+                                 channel(4, 255.0));
+    if (mode == QStringLiteral("hsv") && list.size() >= 3)
+        return QColor::fromHsvF(channel(0, 360.0),
+                                channel(1, isFloat ? 100.0 : 255.0),
+                                channel(2, isFloat ? 100.0 : 255.0),
+                                channel(3, 255.0));
+    if (mode == QStringLiteral("hsl") && list.size() >= 3)
+        return QColor::fromHslF(channel(0, 360.0),
+                                channel(1, isFloat ? 100.0 : 255.0),
+                                channel(2, isFloat ? 100.0 : 255.0),
+                                channel(3, 255.0));
+
+    if (list.size() == 1)
+        return QColor::fromRgbF(channel(0, 255.0),
+                                channel(0, 255.0),
+                                channel(0, 255.0));
+    if (list.size() == 2)
+        return QColor::fromRgbF(channel(0, 255.0),
+                                channel(0, 255.0),
+                                channel(0, 255.0),
+                                channel(1, 255.0));
+    if (list.size() >= 3)
+        return QColor::fromRgbF(channel(0, 255.0),
+                                channel(1, 255.0),
+                                channel(2, 255.0),
+                                channel(3, 255.0));
+
+    return {};
+}
+
+static QVariant legacyColorFromMap(const QVariantMap &map, const QString &elementType)
+{
+    const QStringList keys = map.keys();
+    const bool isFloat = elementType == QStringLiteral("float")
+                         || (elementType != QStringLiteral("int") && isUnitRangeColorMap(map));
+    const auto channel = [&](const QString &key, double intScale, double fallback = 1.0) {
+        if (!map.contains(key))
+            return fallback;
+        const double value = map[key].toDouble();
+        return isFloat ? std::clamp(value, 0.0, 1.0)
+                       : std::clamp(value, 0.0, intScale) / intScale;
+    };
+
+    if (keys == QStringList{"b", "g", "r"})
+        return QColor::fromRgbF(channel("r", 255.0),
+                                channel("g", 255.0),
+                                channel("b", 255.0));
+    if (keys == QStringList{"a", "b", "g", "r"})
+        return QColor::fromRgbF(channel("r", 255.0),
+                                channel("g", 255.0),
+                                channel("b", 255.0),
+                                channel("a", 255.0));
+    if (keys == QStringList{"c", "k", "m", "y"})
+        return QColor::fromCmykF(channel("c", isFloat ? 100.0 : 255.0),
+                                 channel("m", isFloat ? 100.0 : 255.0),
+                                 channel("y", isFloat ? 100.0 : 255.0),
+                                 channel("k", isFloat ? 100.0 : 255.0));
+    if (keys == QStringList{"a", "c", "k", "m", "y"})
+        return QColor::fromCmykF(channel("c", isFloat ? 100.0 : 255.0),
+                                 channel("m", isFloat ? 100.0 : 255.0),
+                                 channel("y", isFloat ? 100.0 : 255.0),
+                                 channel("k", isFloat ? 100.0 : 255.0),
+                                 channel("a", 255.0));
+    if (keys == QStringList{"h", "s", "v"})
+        return QColor::fromHsvF(channel("h", 360.0),
+                                channel("s", isFloat ? 100.0 : 255.0),
+                                channel("v", isFloat ? 100.0 : 255.0));
+    if (keys == QStringList{"a", "h", "s", "v"})
+        return QColor::fromHsvF(channel("h", 360.0),
+                                channel("s", isFloat ? 100.0 : 255.0),
+                                channel("v", isFloat ? 100.0 : 255.0),
+                                channel("a", 255.0));
+    if (keys == QStringList{"h", "l", "s"})
+        return QColor::fromHslF(channel("h", 360.0),
+                                channel("s", isFloat ? 100.0 : 255.0),
+                                channel("l", isFloat ? 100.0 : 255.0));
+    if (keys == QStringList{"a", "h", "l", "s"})
+        return QColor::fromHslF(channel("h", 360.0),
+                                channel("s", isFloat ? 100.0 : 255.0),
+                                channel("l", isFloat ? 100.0 : 255.0),
+                                channel("a", 255.0));
+
+    return {};
+}
+
+static QVariant legacyMetadataValue(const toml::array &arr)
+{
+    const toml::table *meta = arr[1].as_table();
+    const toml::node &valueNode = arr[0];
+    const QString type = metaString(*meta, "type");
+
+    if (type == QStringLiteral("color")) {
+        const QString elementType = metaString(*meta, "element_type");
+        const QString colorType = metaString(*meta, "array_color_type");
+
+        if (const toml::array *valueArray = valueNode.as_array()) {
+            const QVariant color = legacyColorFromList(arrayToList(*valueArray),
+                                                       elementType,
+                                                       colorType);
+            if (color.isValid())
+                return color;
+        }
+
+        if (const toml::table *valueTable = valueNode.as_table()) {
+            const QVariantMap map = tableToMap(*valueTable);
+            const QVariant color = legacyColorFromMap(map, elementType);
+            if (color.isValid())
+                return color;
+        }
+    }
+
+    if (type == QStringLiteral("rect")) {
+        if (const toml::array *valueArray = valueNode.as_array()) {
+            const QVariantList list = arrayToList(*valueArray);
+            if (list.size() == 4)
+                return QRectF(list[0].toDouble(),
+                              list[1].toDouble(),
+                              list[2].toDouble(),
+                              list[3].toDouble());
+        }
+    }
+
+    return nodeToVariant(valueNode);
+}
+
 static QVariant nodeToVariant(const toml::node &node)
 {
     switch (node.type()) {
@@ -168,8 +348,14 @@ static QVariant nodeToVariant(const toml::node &node)
         return interpreted.isValid() ? interpreted : QVariant::fromValue(map);
     }
 
-    case toml::node_type::array:
-        return arrayToList(*node.as_array());
+    case toml::node_type::array: {
+        const toml::array &arr = *node.as_array();
+        if (arr.size() == 2 && arr[1].is_table())
+            return legacyMetadataValue(arr);
+        if (arr.size() == 1 && arr[0].is_array())
+            return nodeToVariant(arr[0]);
+        return arrayToList(arr);
+    }
 
     case toml::node_type::string: {
         const QString s = QString::fromStdString(*node.value<std::string>());
