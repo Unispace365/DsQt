@@ -1,6 +1,7 @@
 #pragma once
 
 #include <functional>
+#include <string>
 #include <type_traits>
 
 #include <QColor>
@@ -191,11 +192,35 @@ public:
         return find<T>(key);
     }
 
+    template<typename T>
+    T get(const std::string &key) const
+    {
+        return get<T>(QString::fromStdString(key));
+    }
+
+    template<typename T>
+    T get(const char *key) const
+    {
+        return get<T>(QString::fromUtf8(key));
+    }
+
     // Alias of find<T>(). Kept for DsSettings compatibility.
     template<typename T>
     T getOr(const QString &key, const T &defaultValue) const
     {
         return find<T>(key, defaultValue);
+    }
+
+    template<typename T>
+    T getOr(const std::string &key, const T &defaultValue) const
+    {
+        return getOr<T>(QString::fromStdString(key), defaultValue);
+    }
+
+    template<typename T>
+    T getOr(const char *key, const T &defaultValue) const
+    {
+        return getOr<T>(QString::fromUtf8(key), defaultValue);
     }
 
     // Returns the value at the dot-separated key converted to T, or defaultValue if absent.

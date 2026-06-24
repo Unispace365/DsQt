@@ -3,6 +3,7 @@
 
 
 #include "core/dsQmlIdle.h"
+#include "settings/dsSettingsFile.h"
 
 #include <QElapsedTimer>
 #include <QFileSystemWatcher>
@@ -23,8 +24,6 @@ namespace network {
 
 class DsQmlSettingsProxy;
 class DsQmlEnvironment;
-class Settings;
-class SettingsFile;
 
 /**
  * @class DsQmlApplicationEngine
