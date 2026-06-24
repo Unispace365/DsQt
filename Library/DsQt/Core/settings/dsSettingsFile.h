@@ -57,6 +57,7 @@ class SettingsFile : public QQmlPropertyMap
 
     Q_PROPERTY(Settings *manager READ manager WRITE setManager NOTIFY managerChanged)
     Q_PROPERTY(QString fileName READ fileName WRITE setFileName NOTIFY fileNameChanged)
+    Q_PROPERTY(QStringList extraFiles READ extraFiles WRITE setExtraFiles NOTIFY extraFilesChanged)
     Q_PROPERTY(
         QStringList searchPaths READ searchPaths WRITE setSearchPaths NOTIFY searchPathsChanged)
 
@@ -74,10 +75,18 @@ public:
     // Returns the TOML filename.
     QString fileName() const;
 
+    // Sets extra TOML filenames to load after fileName, resolved across the search paths.
+    void setExtraFiles(const QStringList &fileNames);
+    // Returns extra TOML filenames loaded after fileName.
+    QStringList extraFiles() const;
+
     // Sets per-instance search paths, overriding the manager's shared paths for this file.
     void setSearchPaths(const QStringList &paths);
     // Returns the per-instance search paths, or an empty list if using the manager's paths.
     QStringList searchPaths() const;
+
+    // Returns the resolved existing primary and extra files in merge order.
+    QStringList resolvedFilePaths() const;
 
     // Returns the value at `key` as a QString, or def if absent or unconvertible.
     Q_INVOKABLE QVariant getString(const QString &key, const QVariant &def = {}) const
@@ -292,6 +301,7 @@ public:
 signals:
     void managerChanged();
     void fileNameChanged();
+    void extraFilesChanged();
     void searchPathsChanged();
     // Emitted at the end of every rebuild() — fires for file reloads, setOverride,
     // resetOverride, and ensurePath. Use this instead of valueChanged when you need
@@ -322,6 +332,7 @@ private:
 
     Settings *m_manager = nullptr;
     QString m_fileName;
+    QStringList m_extraFiles;
     QStringList m_searchPaths;
     QVariantMap m_defaults;
     QVariantMap m_settings;

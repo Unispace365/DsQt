@@ -611,6 +611,7 @@ SettingsFile::SettingsFile(QObject *parent, const QStringList &searchPaths)
 {
     connect(this, &SettingsFile::managerChanged, this, &SettingsFile::reload);
     connect(this, &SettingsFile::fileNameChanged, this, &SettingsFile::reload);
+    connect(this, &SettingsFile::extraFilesChanged, this, &SettingsFile::reload);
     connect(this, &SettingsFile::searchPathsChanged, this, &SettingsFile::reload);
     setSearchPaths(searchPaths);
 }
@@ -649,6 +650,19 @@ void SettingsFile::setFileName(const QString &fileName)
     emit fileNameChanged();
 }
 
+QStringList SettingsFile::extraFiles() const
+{
+    return m_extraFiles;
+}
+
+void SettingsFile::setExtraFiles(const QStringList &fileNames)
+{
+    if (m_extraFiles == fileNames)
+        return;
+    m_extraFiles = fileNames;
+    emit extraFilesChanged();
+}
+
 QStringList SettingsFile::searchPaths() const
 {
     return m_searchPaths;
@@ -662,6 +676,21 @@ void SettingsFile::setSearchPaths(const QStringList &paths)
     emit searchPathsChanged();
 }
 
+QStringList SettingsFile::resolvedFilePaths() const
+{
+    QStringList result;
+    const auto resolve = [this](const QString &fileName) {
+        return m_manager ? m_manager->resolveFilePathsImpl(fileName)
+                         : settings::resolveFilePaths(fileName, m_searchPaths);
+    };
+
+    result.append(resolve(m_fileName));
+    for (const QString &fileName : m_extraFiles)
+        result.append(resolve(fileName));
+
+    return result;
+}
+
 void SettingsFile::reload()
 {
     settings::checkThread(this, Q_FUNC_INFO);
@@ -669,13 +698,7 @@ void SettingsFile::reload()
     m_files.clear();
     m_provenance.clear();
 
-    // The manager resolves paths against its shared search paths; standalone
-    // instances resolve locally.
-    const QStringList filePaths = m_manager
-                                      ? m_manager->resolveFilePathsImpl(m_fileName)
-                                      : settings::resolveFilePaths(m_fileName, m_searchPaths);
-
-    for (const QString &path : filePaths) {
+    for (const QString &path : resolvedFilePaths()) {
         try {
             const int fileIndex = m_files.size();
             m_files.append(path);

@@ -98,6 +98,7 @@ class DsSettingsTest : public QObject
     void settingsFile_shouldStripLegacyMetadata();
     void settingsFile_shouldUnwrapLegacyArrays();
     void settingsFile_shouldInterpretLegacyMetadataColors();
+    void settingsFile_shouldLoadExtraFilesBetweenBaseFilesAndOverrides();
     void settingsFile_shouldPruneOverridesThatMatchReloadedFiles();
     void settingsFile_shouldKeepOverridesSavedOutsideSearchPaths();
 
@@ -912,6 +913,39 @@ static void writeTextFile(const QString &path, const QByteArray &contents)
     QFile file(path);
     QVERIFY(file.open(QIODevice::WriteOnly | QIODevice::Text));
     QCOMPARE(file.write(contents), static_cast<qint64>(contents.size()));
+}
+
+void DsSettingsTest::settingsFile_shouldLoadExtraFilesBetweenBaseFilesAndOverrides()
+{
+    QTemporaryDir lowDir;
+    QTemporaryDir highDir;
+    QVERIFY(lowDir.isValid());
+    QVERIFY(highDir.isValid());
+
+    writeTextFile(QDir(lowDir.path()).filePath("settings.toml"),
+                  "value = 10\n"
+                  "base_only = 11\n");
+    writeTextFile(QDir(highDir.path()).filePath("settings.toml"),
+                  "value = 20\n");
+    writeTextFile(QDir(lowDir.path()).filePath("extra.toml"),
+                  "value = 30\n"
+                  "extra_only = 31\n");
+    writeTextFile(QDir(highDir.path()).filePath("extra.toml"),
+                  "value = 40\n");
+
+    dsqt::SettingsFile settings(nullptr, {lowDir.path(), highDir.path()});
+    settings.setDefault("value", 5);
+    settings.setFileName("settings.toml");
+    settings.setExtraFiles({"extra.toml"});
+
+    QCOMPARE(settings.find<int>("value"), 40);
+    QCOMPARE(settings.find<int>("base_only"), 11);
+    QCOMPARE(settings.find<int>("extra_only"), 31);
+    QVERIFY(settings.provenance("value").endsWith("extra.toml"));
+
+    settings.setOverride("value", 50);
+    QCOMPARE(settings.find<int>("value"), 50);
+    QCOMPARE(settings.provenance("value"), QStringLiteral("override"));
 }
 
 void DsSettingsTest::settingsFile_shouldPruneOverridesThatMatchReloadedFiles()

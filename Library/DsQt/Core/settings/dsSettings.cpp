@@ -79,6 +79,7 @@ void Settings::registerSettingsFile(SettingsFile *s)
 
     // When a SettingsFile instance changes its fileName, the set of watched files changes.
     connect(s, &SettingsFile::fileNameChanged, this, [this] { rebuildWatcher(); });
+    connect(s, &SettingsFile::extraFilesChanged, this, [this] { rebuildWatcher(); });
 
     m_instances.append(s);
     rebuildWatcher();
@@ -157,7 +158,7 @@ void Settings::onFileChanged(const QString &path)
 
     // Reload only the SettingsFile instances whose resolved file paths include this file.
     for (SettingsFile *s : std::as_const(m_instances)) {
-        if (resolveFilePathsImpl(s->fileName()).contains(path))
+        if (s->resolvedFilePaths().contains(path))
             s->reload();
     }
 }
@@ -181,7 +182,7 @@ void Settings::rebuildWatcher()
         m_watcher.removePaths(m_watcher.directories());
 
     for (SettingsFile *s : std::as_const(m_instances)) {
-        for (const QString &file : resolveFilePathsImpl(s->fileName())) {
+        for (const QString &file : s->resolvedFilePaths()) {
             if (!settings::isResourcePath(file))
                 m_watcher.addPath(file);
         }

@@ -148,15 +148,19 @@ bool DsEnvironment::loadEngineSettings() {
     qCInfo(lgEnv) << "loading main app_settings.toml";
     Settings::add("app_settings");
 
-    auto* appSettings = Settings::instance().settingsFile("app_settings");
-    if (appSettings) {
-        // if (reset) appSettings->resetOverrides();
+    auto *engineSettings = Settings::instance().settingsFile("engine");
+    if (engineSettings) {
+        const QVariantMap extras = engineSettings->getObj("engine.extra");
+        for (auto it = extras.cbegin(); it != extras.cend(); ++it) {
+            auto *settingsFile = Settings::instance().settingsFile(it.key());
+            if (!settingsFile) {
+                qCDebug(lgEnv) << "Ignoring engine.extra entry for unknown settings file" << it.key();
+                continue;
+            }
 
-        const auto extra_paths = appSettings->getList("engine.extra.app_settings");
-        for (auto& path_node : extra_paths) {
-            auto path = path_node.toString();
-            // qCInfo(lgEnv) << "Loading extra app_settings file " << path;
-            // dsqt::DsEnvironment::loadSettings("app_settings", QString::fromStdString(path), true, true);
+            const QStringList extraFiles = it.value().toStringList();
+            qCInfo(lgEnv) << "loading extra settings files for" << it.key() << extraFiles;
+            settingsFile->setExtraFiles(extraFiles);
         }
     }
 
