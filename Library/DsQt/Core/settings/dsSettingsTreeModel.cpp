@@ -3,6 +3,7 @@
 
 #include <QColor>
 #include <QDateTime>
+#include <QFont>
 #include <QPixmap>
 #include <QPointF>
 #include <QRectF>
@@ -293,6 +294,11 @@ QVariant SettingsTreeModel::data(const QModelIndex &index, int role) const
         // Show provenance for any item that has it (leaves AND list parent nodes).
         // List elements don't have per-element provenance, so they show nothing.
         return item->provenance.isEmpty() ? QVariant{} : item->provenance;
+    case Qt::FontRole: {
+        QFont font;
+        font.setBold(item->hasOverride());
+        return item->hasOverride() ? font : QVariant{};
+    }
     // Extra roles — kept for QML consumers.
     case ValueRole:      return item->isLeaf ? item->value    : QString{};
     case IsLeafRole:     return item->isLeaf;

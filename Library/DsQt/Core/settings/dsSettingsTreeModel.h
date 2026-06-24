@@ -17,6 +17,7 @@ struct SettingsTreeItem
     QString  provenance; // source file — non-empty for leaves only
     QVariant rawValue;   // original QVariant — used by setData() for type-aware parsing
     bool     isLeaf = false;
+    bool hasOverride() const { return provenance == QStringLiteral("override"); }
 
     SettingsTreeItem *parent = nullptr;
     QList<SettingsTreeItem *> children;
