@@ -2,6 +2,7 @@
 
 #include <QDate>
 #include <QDateTime>
+#include <QTimeZone>
 #include <QTime>
 
 #include <string>
@@ -118,7 +119,7 @@ template<> MaybeQDateTimeMeta DsSettings::getWithMeta(const std::string& key){
             retval.setDate(qDate);
             retval.setTime(qTime);
             if(!datetime.is_local()){
-                retval.setOffsetFromUtc(datetime.offset.value().minutes*60);
+                retval.setTimeZone(QTimeZone::fromSecondsAheadOfUtc(datetime.offset.value().minutes*60));
             }
         }
     } else if(node.is_string()) {

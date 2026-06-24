@@ -1,5 +1,10 @@
 cmake_minimum_required(VERSION  3.29)
 
+# TouchEngine is Windows-only
+if(NOT WIN32)
+    return()
+endif()
+
 SET(QT_NO_PRIVATE_MODULE_WARNING ON)
 
 # Find Qt6 components
@@ -55,7 +60,7 @@ set(SOURCES
     src/dsTouchEngineTextureNode.cpp
     src/dsQmlTouchEngineTextureOutputView.cpp
     src/OpenGLImage.cpp
-    src/OpenGlRenderer.cpp
+    src/OpenGLRenderer.cpp
     src/OpenGLTexture.cpp
     src/Renderer.cpp
     src/dsTouchEngineMaterial.cpp

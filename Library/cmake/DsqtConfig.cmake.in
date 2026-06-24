@@ -77,19 +77,25 @@ endif()
 # (We can't use CMake's export mechanism due to Qt's internal OBJECT libraries)
 # ----------------------------------------------------------------------
 
+# Define prefix (usually empty on Windows, 'lib' on Linux)
+# Define suffix (usually '.lib' on Windows, '.a' on Linux)
+set(_PREFIX ${CMAKE_STATIC_LIBRARY_PREFIX})
+set(_SUFFIX ${CMAKE_STATIC_LIBRARY_SUFFIX})
+
 # Helper macro to create an imported static library with per-config locations.
 # Libraries are installed under lib/Debug/, lib/Release/, etc.
 macro(_dsqt_create_imported_target _name)
     if(NOT TARGET Dsqt::${_name})
         add_library(Dsqt::${_name} STATIC IMPORTED)
         set_target_properties(Dsqt::${_name} PROPERTIES
-            IMPORTED_LOCATION_DEBUG          "${_DSQT_LIB_DIR}/Debug/${_name}.lib"
-            IMPORTED_LOCATION_RELEASE        "${_DSQT_LIB_DIR}/Release/${_name}.lib"
-            IMPORTED_LOCATION_RELWITHDEBINFO "${_DSQT_LIB_DIR}/RelWithDebInfo/${_name}.lib"
+            IMPORTED_LOCATION_DEBUG          "${_DSQT_LIB_DIR}/Debug/${_PREFIX}${_name}${_SUFFIX}"
+            IMPORTED_LOCATION_RELEASE        "${_DSQT_LIB_DIR}/Release/${_PREFIX}${_name}${_SUFFIX}"
+            IMPORTED_LOCATION_RELWITHDEBINFO "${_DSQT_LIB_DIR}/RelWithDebInfo/${_PREFIX}${_name}${_SUFFIX}"
             MAP_IMPORTED_CONFIG_MINSIZEREL   Release
         )
     endif()
 endmacro()
+
 
 # Helper macro to create an imported plugin target with per-config locations.
 # Creates both namespaced (Dsqt::Coreplugin) and non-namespaced (Coreplugin) targets.
@@ -100,20 +106,29 @@ macro(_dsqt_create_plugin_target _name)
     if(NOT TARGET Dsqt::${_name}plugin)
         add_library(Dsqt::${_name}plugin STATIC IMPORTED)
         set_target_properties(Dsqt::${_name}plugin PROPERTIES
-            IMPORTED_LOCATION_DEBUG          "${_DSQT_LIB_DIR}/Debug/${_name}plugin.lib"
-            IMPORTED_LOCATION_RELEASE        "${_DSQT_LIB_DIR}/Release/${_name}plugin.lib"
-            IMPORTED_LOCATION_RELWITHDEBINFO "${_DSQT_LIB_DIR}/RelWithDebInfo/${_name}plugin.lib"
+            IMPORTED_LOCATION_DEBUG          "${_DSQT_LIB_DIR}/Debug/${_PREFIX}${_name}plugin${_SUFFIX}"
+            IMPORTED_LOCATION_RELEASE        "${_DSQT_LIB_DIR}/Release/${_PREFIX}${_name}plugin${_SUFFIX}"
+            IMPORTED_LOCATION_RELWITHDEBINFO "${_DSQT_LIB_DIR}/RelWithDebInfo/${_PREFIX}${_name}plugin${_SUFFIX}"
             MAP_IMPORTED_CONFIG_MINSIZEREL   Release
+        )
+
+        # MANDATORY FOR LINUX: Link the plugin to the base library.
+        # With gcc, inter-dependencies between Dsqt::Coreplugin and Dsqt::Core, etc. means that the link order matters...
+        # This ensures that whenever Dsqt::Bridgeplugin is used, Dsqt::Bridge follows it.
+        set_target_properties(Dsqt::${_name}plugin PROPERTIES
+            INTERFACE_LINK_LIBRARIES "Dsqt::${_name}"
         )
     endif()
     # Create non-namespaced target (Coreplugin) for Qt's qmlimportscanner
     if(NOT TARGET ${_name}plugin)
         add_library(${_name}plugin STATIC IMPORTED)
         set_target_properties(${_name}plugin PROPERTIES
-            IMPORTED_LOCATION_DEBUG          "${_DSQT_LIB_DIR}/Debug/${_name}plugin.lib"
-            IMPORTED_LOCATION_RELEASE        "${_DSQT_LIB_DIR}/Release/${_name}plugin.lib"
-            IMPORTED_LOCATION_RELWITHDEBINFO "${_DSQT_LIB_DIR}/RelWithDebInfo/${_name}plugin.lib"
+            IMPORTED_LOCATION_DEBUG          "${_DSQT_LIB_DIR}/Debug/${_PREFIX}${_name}plugin${_SUFFIX}"
+            IMPORTED_LOCATION_RELEASE        "${_DSQT_LIB_DIR}/Release/${_PREFIX}${_name}plugin${_SUFFIX}"
+            IMPORTED_LOCATION_RELWITHDEBINFO "${_DSQT_LIB_DIR}/RelWithDebInfo/${_PREFIX}${_name}plugin${_SUFFIX}"
             MAP_IMPORTED_CONFIG_MINSIZEREL   Release
+            # Mirror the dependency here as well
+            INTERFACE_LINK_LIBRARIES "Dsqt::${_name}"
         )
     endif()
 endmacro()
