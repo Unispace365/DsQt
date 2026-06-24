@@ -6,14 +6,17 @@
 #include <QApplication>
 #include <QColor>
 #include <QColorDialog>
+#include <QDesktopServices>
 #include <QDialog>
 #include <QDialogButtonBox>
 #include <QFileDialog>
+#include <QFileInfo>
 #include <QHBoxLayout>
 #include <QHeaderView>
 #include <QLineEdit>
 #include <QListWidget>
 #include <QHideEvent>
+#include <QMenu>
 #include <QMessageBox>
 #include <QMouseEvent>
 #include <QPushButton>
@@ -21,6 +24,7 @@
 #include <QStyledItemDelegate>
 #include <QTabWidget>
 #include <QTreeView>
+#include <QUrl>
 #include <QVBoxLayout>
 
 namespace dsqt {
@@ -308,6 +312,7 @@ void SettingsViewerWidget::rebuild()
         view->setAlternatingRowColors(true);
         view->setUniformRowHeights(true);
         view->setRootIsDecorated(true);
+        view->setContextMenuPolicy(Qt::CustomContextMenu);
 
         // Expand after every model reset (file reload, etc.).
         connect(model, &SettingsTreeModel::modelReset, view, &QTreeView::expandAll);
@@ -334,6 +339,39 @@ void SettingsViewerWidget::rebuild()
                 });
 
         // Column widths — interactive so the user can drag them.
+        connect(view, &QTreeView::customContextMenuRequested, view,
+                [model, view](const QPoint &pos) {
+                    const QModelIndex idx = view->indexAt(pos);
+                    if (!idx.isValid() || !model->settingsFile())
+                        return;
+
+                    const QString path = idx.data(SettingsTreeModel::FullPathRole).toString();
+                    if (path.isEmpty())
+                        return;
+
+                    const QString provenance = idx.data(SettingsTreeModel::ProvenanceRole).toString();
+                    QMenu menu(view);
+
+                    if (provenance == QStringLiteral("override")) {
+                        menu.addAction(QObject::tr("Revert"), view, [model, path] {
+                            if (auto *settingsFile = model->settingsFile())
+                                settingsFile->resetOverride(path);
+                        });
+                    } else if (!provenance.isEmpty() && provenance != QStringLiteral("default")
+                               && QFileInfo::exists(provenance)) {
+                        menu.addAction(QObject::tr("Open File"), view, [view, provenance] {
+                            if (!QDesktopServices::openUrl(QUrl::fromLocalFile(provenance))) {
+                                QMessageBox::warning(view->window(),
+                                                     QObject::tr("Open File"),
+                                                     QObject::tr("Could not open %1.").arg(provenance));
+                            }
+                        });
+                    }
+
+                    if (!menu.isEmpty())
+                        menu.exec(view->viewport()->mapToGlobal(pos));
+                });
+
         QHeaderView *header = view->header();
         header->setSectionResizeMode(QHeaderView::Interactive);
         header->resizeSection(0, 260);
