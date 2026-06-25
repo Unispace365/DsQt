@@ -72,7 +72,7 @@ public:
                 QColor color = QColorDialog::getColor(
                     raw.value<QColor>(),
                     option.widget ? option.widget->window() : nullptr,
-                    "Pick colour",
+                    QObject::tr("Pick colour"),
                     QColorDialog::ShowAlphaChannel);
                 if (color.isValid())
                     model->setData(index, QVariant::fromValue(color), Qt::EditRole);
