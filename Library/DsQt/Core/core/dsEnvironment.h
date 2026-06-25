@@ -10,11 +10,10 @@ Q_DECLARE_LOGGING_CATEGORY(lgEnvVerbose)
 namespace dsqt {
 
 /**
- * @brief Forward declaration of DsSettings class.
+ * @brief Forward declaration of settings classes.
  */
-class DsSettings;
-
-using DsSettingsRef = std::shared_ptr<DsSettings>;
+class Settings;
+class SettingsFile;
 
 /**
  * @brief The DsEnvironment class provides access to environment data, such as file paths.
@@ -56,6 +55,8 @@ class DsEnvironment {
      * @return The expanded path as a QString.
      */
     static QString expandq(QString path);
+
+    static QStringList expandq(const QStringList &paths);
 
     /**
      * @brief Contracts the given path by inserting applicable environment variables where possible.
@@ -100,7 +101,7 @@ class DsEnvironment {
      * @param fileName The name of the settings file (optional).
      * @return The path to the local settings file or folder.
      */
-    static QString getLocalSettingsPath(const QString& fileName);
+    static QString getLocalSettingsPath(const QString& fileName = {});
 
     /**
      * @brief Loads settings from a file, first attempting the app path, then the local path.
@@ -110,9 +111,9 @@ class DsEnvironment {
      * @param settingsName The name of the settings to load.
      * @param fileName The file name to load from.
      * @param lookForOverrides If true, looks for override files.
-     * @return A shared pointer to the loaded DsSettings, or nullptr on failure.
+     * @return A pointer to the loaded SettingsFile, or nullptr on failure.
      */
-    static DsSettingsRef loadSettings(const QString& settingsName, const QString& fileName,
+    static SettingsFile* loadSettings(const QString& settingsName, const QString& fileName,
                                       bool lookForOverrides = true,bool forceOverrides = false);
 
     /**
@@ -132,15 +133,15 @@ class DsEnvironment {
      */
     static bool hasSettings(const QString& fileName);
 
-    /**
-     * @brief Saves settings to a local file path.
-     *
-     * @note This method is not implemented.
-     *
-     * @param fileName The file name to save to.
-     * @param setting The DsSettings object to save.
-     */
-    static void saveSettings(const QString& fileName, dsqt::DsSettings& setting);
+    // /**
+    //  * @brief Saves settings to a local file path.
+    //  *
+    //  * @note This method is not implemented.
+    //  *
+    //  * @param fileName The file name to save to.
+    //  * @param setting The DsSettings object to save.
+    //  */
+    // static void saveSettings(const QString& fileName, dsqt::DsSettings& setting);
 
     /**
      * @brief Overrides the expansion behavior for config directory files.
@@ -157,9 +158,16 @@ class DsEnvironment {
     /**
      * @brief Retrieves the engine settings.
      *
-     * @return A shared pointer to the engine DsSettings.
+     * @return A pointer to the engine SettingsFile.
      */
-    static DsSettingsRef engineSettings();
+    static SettingsFile* engineSettings();
+
+    /**
+     * @brief Retrieves the application settings.
+     *
+     * @return A pointer to the engine SettingsFile.
+     */
+    static SettingsFile* appSettings();
 
     /**
      * @brief Retrieves the downstream documents folder path.
@@ -169,6 +177,8 @@ class DsEnvironment {
     static QString getDownstreamDocumentsFolder();
 
   private:
+    static void update();
+
     static QString            sDocuments;
     static QString            sDocumentsDownstream;
     static QString            sAppRootFolder;

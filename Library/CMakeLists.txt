@@ -75,7 +75,10 @@ find_package(Qt6 6.9
         Gui
         Qml
         Quick
+        Widgets
 )
+
+find_package(tomlplusplus CONFIG REQUIRED)
 
 option(DSQT_BUILD_TESTS "Build and run DsQt unit tests" OFF)
 if(DSQT_BUILD_TESTS)
@@ -92,16 +95,8 @@ add_subdirectory("Dsqt/TouchEngine")
 add_subdirectory("Dsqt/Spout")
 add_subdirectory("Dsqt/Touch")
 
-if(Dsqt::Core::DSQT_USE_GLM)
-    message(STATUS "Dsqt: GLM support enabled")
-else()
-    message(STATUS "Dsqt: GLM support disabled")
-endif()
-
 add_library(Dsqt INTERFACE)
 add_library(Dsqt::Dsqt ALIAS Dsqt)
-
-# target_compile_definitions(Dsqt PRIVATE GLM_ENABLE_EXPERIMENTAL)
 
 #set_target_properties(Core PROPERTIES FOLDER Core)
 #set_target_properties(Bridge PROPERTIES FOLDER Bridge)
@@ -120,33 +115,6 @@ if(WIN32 AND TARGET Dsqt::Spout)
     target_link_libraries(Dsqt INTERFACE Dsqt::Spout)
 endif()
 
-# FetchContent_Declare(
-#     tomlplusplus
-#     GIT_REPOSITORY https://github.com/marzer/tomlplusplus.git
-#     GIT_TAG        v3.2.0
-#     #PREFIX ${CMAKE_DIR_LOCATION}/_deps
-# )
-# FetchContent_GetProperties(tomlplusplus)
-# FetchContent_MakeAvailable(tomlplusplus)
-
-##Fetch GLM from the g-truc glm repo.
-##https://glm.g-truc.net/0.9.9/index.html
-# FetchContent_Declare(
-#     glm
-#     GIT_REPOSITORY https://github.com/g-truc/glm.git
-#     GIT_TAG        1.0.3
-#     CONFIGURE_COMMAND ""
-#     BUILD_COMMAND ""
-#     #PREFIX ${CMAKE_DIR_LOCATION}/_deps
-# )
-# FetchContent_GetProperties(glm)
-# FetchContent_MakeAvailable(glm)
-
-# ##connect glm
-# target_include_directories(DsQt PUBLIC ${glm_SOURCE_DIR})
-
-# ##connect toml++
-# target_include_directories(DsQt PUBLIC ${tomlplusplus_SOURCE_DIR}/include)
 
 
 # set_target_properties(DsQt PROPERTIES
@@ -319,68 +287,6 @@ if(PROJECT_IS_TOP_LEVEL)
             FILES_MATCHING PATTERN "*.qml"
         )
     endif()
-
-    # ── Bundle tomlplusplus alongside DsQt ──────────────────────────────────────
-    # Copies vcpkg's tomlplusplus headers, import libs, and DLLs into the install
-    # prefix and installs a self-contained cmake config.  This makes DsQt fully
-    # self-contained: consuming projects no longer need vcpkg or any extra
-    # CMAKE_PREFIX_PATH entry to satisfy find_package(Dsqt).
-    if(DEFINED VCPKG_INSTALLED_DIR AND DEFINED VCPKG_TARGET_TRIPLET)
-        set(_dsqt_toml_vcpkg "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}")
-
-        # Headers (toml++ puts everything under include/toml++/)
-        if(IS_DIRECTORY "${_dsqt_toml_vcpkg}/include/toml++")
-            install(DIRECTORY "${_dsqt_toml_vcpkg}/include/toml++"
-                DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
-            )
-        endif()
-
-        # Release import library
-        if(EXISTS "${_dsqt_toml_vcpkg}/lib/tomlplusplus.lib")
-            install(FILES "${_dsqt_toml_vcpkg}/lib/tomlplusplus.lib"
-                DESTINATION "${CMAKE_INSTALL_LIBDIR}/Release"
-            )
-        endif()
-
-        # Debug import library
-        if(EXISTS "${_dsqt_toml_vcpkg}/debug/lib/tomlplusplus.lib")
-            install(FILES "${_dsqt_toml_vcpkg}/debug/lib/tomlplusplus.lib"
-                DESTINATION "${CMAKE_INSTALL_LIBDIR}/Debug"
-            )
-        endif()
-
-        # Release DLL(s) — glob so the versioned name (tomlplusplus-3.dll) can vary
-        file(GLOB _dsqt_toml_rel_dlls "${_dsqt_toml_vcpkg}/bin/tomlplusplus*.dll")
-        if(_dsqt_toml_rel_dlls)
-            install(FILES ${_dsqt_toml_rel_dlls}
-                DESTINATION "${CMAKE_INSTALL_BINDIR}/Release"
-            )
-        endif()
-
-        # Debug DLL(s) + PDB
-        file(GLOB _dsqt_toml_dbg_files
-            "${_dsqt_toml_vcpkg}/debug/bin/tomlplusplus*.dll"
-            "${_dsqt_toml_vcpkg}/debug/bin/tomlplusplus*.pdb"
-        )
-        if(_dsqt_toml_dbg_files)
-            install(FILES ${_dsqt_toml_dbg_files}
-                DESTINATION "${CMAKE_INSTALL_BINDIR}/Debug"
-                OPTIONAL
-            )
-        endif()
-
-        # Self-contained cmake config — lets DsqtConfig.cmake find tomlplusplus
-        # without requiring vcpkg in the consuming project.
-        install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/cmake/BundledTomlplusplus.cmake"
-            DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/tomlplusplus"
-            RENAME "tomlplusplusConfig.cmake"
-        )
-
-        unset(_dsqt_toml_vcpkg)
-        unset(_dsqt_toml_rel_dlls)
-        unset(_dsqt_toml_dbg_files)
-    endif()
-    # ── End tomlplusplus bundle ─────────────────────────────────────────────────
 
     # Create the main Config.cmake file from our template
     # Note: We don't use CMake's export() mechanism because Qt's qt_add_qml_module

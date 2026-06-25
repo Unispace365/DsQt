@@ -8,9 +8,7 @@
 namespace dsqt {
 DsQmlAppHost::DsQmlAppHost(QObject* parent)
     : QObject{parent} {
-    DsSettingsRef settingsEng = DsSettings::getSettings("engine");
-
-    baseUrl.setUrl(settingsEng->getOr("appHost.baseUrl",QString("http://localhost:7800")));
+    baseUrl.setUrl(Settings::find<QString>("engine", "appHost.baseUrl", "http://localhost:7800"));
     manager = new QNetworkAccessManager(this);
 }
 

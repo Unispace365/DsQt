@@ -4,7 +4,6 @@
 #include "model/dsContentModel.h"
 #include "model/dsResource.h"
 #include "network/dsNodeWatcher.h"
-#include "settings/dsQmlSettingsProxy.h"
 #include "settings/dsSettings.h"
 
 #include "qqmlcontext.h"
@@ -36,16 +35,12 @@ DsBridgeSqlQuery::DsBridgeSqlQuery(DsQmlApplicationEngine* parent)
         mDatabase = QSqlDatabase::addDatabase("QSQLITE");
 
         // Find DB file.
-        DsQmlSettingsProxy engSettings;
-        engSettings.setTarget("engine");
-        engSettings.setPrefix("engine.resource");
-
-        const auto dbFileName = engSettings.getString("resource_db", "").value<QString>();
+        const auto dbFileName = Settings::find<QString>("engine", "engine.resource.resource_db", "");
         if (!dbFileName.isEmpty()) {
             QFileInfo file(DsEnvironment::expandq(dbFileName));
             if (file.isRelative()) {
                 QString resourceLocation =
-                    DsEnvironment::expandq(engSettings.getString("location", "").value<QString>());
+                    DsEnvironment::expandq(Settings::find<QString>("engine", "engine.resource.location", ""));
                 file.setFile(QDir::cleanPath(resourceLocation), dbFileName);
             }
 
@@ -95,25 +90,21 @@ DsBridgeSqlQuery::~DsBridgeSqlQuery() {
 }
 
 DsBridgeSyncSettings DsBridgeSqlQuery::getBridgeSyncSettings() {
-    DsQmlSettingsProxy engSettings;
-    engSettings.setTarget("engine");
-    engSettings.setPrefix("engine.bridgesync");
-
     DsBridgeSyncSettings settings;
-    settings.server       = engSettings.getString("connection.server", "");
-    settings.authServer   = engSettings.getString("connection.auth_server", "");
-    settings.clientId     = engSettings.getString("connection.client_id", "");
-    settings.clientSecret = engSettings.getString("connection.client_secret", "");
-    settings.directory    = engSettings.getString("connection.directory", "");
-    settings.interval     = engSettings.getInt("connection.interval", 10);
-    settings.verbose      = engSettings.getBool("connection.verbose", false);
-    settings.asyncRecords = engSettings.getBool("connection.asyncRecords", true);
+    settings.server       = Settings::find<QString>("engine", "engine.bridgesync.connection.server", "");
+    settings.authServer   = Settings::find<QString>("engine", "engine.bridgesync.connection.auth_server", "");
+    settings.clientId     = Settings::find<QString>("engine", "engine.bridgesync.connection.client_id", "");
+    settings.clientSecret = Settings::find<QString>("engine", "engine.bridgesync.connection.client_secret", "");
+    settings.directory    = Settings::find<QString>("engine", "engine.bridgesync.connection.directory", "");
+    settings.interval     = Settings::find<int>("engine", "engine.bridgesync.connection.interval", 10);
+    settings.verbose      = Settings::find<bool>("engine", "engine.bridgesync.connection.verbose", false);
+    settings.asyncRecords = Settings::find<bool>("engine", "engine.bridgesync.connection.asyncRecords", true);
 
-    const auto appPath = engSettings.getString("app_path", "%SHARE%/bridgesync/bridge_sync_console.exe").toString();
-    settings.appPath   = DsEnvironment::expandq(appPath);
+    const auto appPath =
+        Settings::find<QString>("engine", "engine.bridgesync.app_path", "%SHARE%/bridgesync/bridge_sync_console.exe");
+    settings.appPath = DsEnvironment::expandq(appPath);
 
-    const auto launchBridgeSync = engSettings.getBool("launch_bridgesync", false);
-    settings.doLaunch           = launchBridgeSync.toBool();
+    settings.doLaunch = Settings::find<bool>("engine", "engine.bridgesync.launch_bridgesync", false);
     return settings;
 }
 
@@ -458,9 +449,6 @@ DatabaseContent DsBridgeSqlQuery::queryTables() {
 
     // Create content instance.
     DatabaseContent content;
-
-    // Get settings.
-    auto appsettings = DsSettings::getSettings("app_settings");
 
     // Make sure the database is opened.
     DatabaseGuard guard(mDatabase);
@@ -824,8 +812,8 @@ DatabaseContent DsBridgeSqlQuery::queryTables() {
                                      double(result.value("duration").toFloat()), float(result.value("width").toInt()),
                                      float(result.value("height").toInt()), linkUrl, linkUrl, -1, linkUrl);
 
-                // Assumes app settings are not changed concurrently on another thread.
-                auto webSize = appsettings->getOr<QPointF>("web:default_size", QPointF(1920.f, 1080.f));
+                // Assumes app settings are not changed concurrently on another thread. DANGEROUS! Better to pass default size by copy.
+                auto webSize = Settings::find<QPointF>("app_settings", "web:default_size", QPointF(1920.f, 1080.f));
                 res.setWidth(webSize.x());
                 res.setHeight(webSize.y());
                 res.setType(dsqt::DsResource::WEB_TYPE);

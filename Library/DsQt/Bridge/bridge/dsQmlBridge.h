@@ -57,7 +57,7 @@ class DsQmlBridge : public QObject {
      * @return QString uid of platform if found, empty QString otherwise.
      */
     Q_INVOKABLE QString getPlatformUid() const {
-        auto platformId = DsSettings::getSettings("app_settings")->getOr<QString>("platform.id", "");
+        auto platformId = Settings::find<QString>("app_settings", "platform.id", "");
         if (platformId.isEmpty()) {
             qDebug() << "Attempting to get platform uid but platform.id is not set in app_settings";
             return "";

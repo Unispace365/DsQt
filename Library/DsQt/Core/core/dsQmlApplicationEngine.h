@@ -3,8 +3,7 @@
 
 
 #include "core/dsQmlIdle.h"
-#include "model/dsContentModel.h"
-#include "settings/dsSettings.h"
+#include "settings/dsSettingsFile.h"
 
 #include <QElapsedTimer>
 #include <QFileSystemWatcher>
@@ -71,18 +70,15 @@ class DsQmlApplicationEngine : public QQmlApplicationEngine {
 
     /**
      * @brief Retrieves the application settings reference.
-     * @return DsSettingsRef containing the app settings.
+     * @return Pointer to SettingsFile containing the app settings.
      */
-    DsSettingsRef getAppSettings() const;
+    SettingsFile* getAppSettings() const;
 
     /**
      * @brief Retrieves the engine settings reference.
-     * calls DsEnvironment::engineSettings();
-     * @return DsSettingsRef containing the engine settings.
+     * @return Pointer to SettingsFile containing the engine settings.
      */
-    DsSettingsRef getEngineSettings(){
-        return dsqt::DsEnvironment::engineSettings();
-    }
+    SettingsFile* getEngineSettings();
 
     /**
      * @brief Sets this engine as the default engine.
@@ -109,17 +105,17 @@ class DsQmlApplicationEngine : public QQmlApplicationEngine {
      */
     DsQmlEnvironment* getEnvQml() const;
 
-    /**
-     * @brief Gets the engine settings proxy.
-     * @return Pointer to DsQmlSettingsProxy.
-     */
-    DsQmlSettingsProxy* getEngineSettingsProxy() const;
+    // /**
+    //  * @brief Gets the engine settings proxy.
+    //  * @return Pointer to DsQmlSettingsProxy.
+    //  */
+    // DsQmlSettingsProxy* getEngineSettingsProxy() const;
 
-    /**
-     * @brief Gets the application settings proxy.
-     * @return Pointer to DsQmlSettingsProxy.
-     */
-    DsQmlSettingsProxy* getAppSettingsProxy() const;
+    // /**
+    //  * @brief Gets the application settings proxy.
+    //  * @return Pointer to DsQmlSettingsProxy.
+    //  */
+    // DsQmlSettingsProxy* getAppSettingsProxy() const;
 
     /**
      * @brief Gets the node watcher.
@@ -200,8 +196,8 @@ class DsQmlApplicationEngine : public QQmlApplicationEngine {
      */
     void addRecursive(const QString& path, bool recurse = true);
 
-    /// Application settings reference.
-    DsSettingsRef mSettings;
+    // /// Application settings reference.
+    // DsSettingsRef mSettings;
 
   signals:
     /**
@@ -248,11 +244,11 @@ class DsQmlApplicationEngine : public QQmlApplicationEngine {
     /// Timer for triggering resets.
     QTimer mTrigger;
 
-    /// Pointer to the engine settings proxy.
-    DsQmlSettingsProxy* mEngineProxy = nullptr;
+    // /// Pointer to the engine settings proxy.
+    // DsQmlSettingsProxy* mEngineProxy = nullptr;
 
-    /// Pointer to the application settings proxy.
-    DsQmlSettingsProxy* mAppProxy = nullptr;
+    // /// Pointer to the application settings proxy.
+    // DsQmlSettingsProxy* mAppProxy = nullptr;
 
     /// Pointer to the QML environment.
     DsQmlEnvironment* mQmlEnv = nullptr;

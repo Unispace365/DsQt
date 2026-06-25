@@ -4,13 +4,11 @@ import QtQuick.Controls
 MenuBar {
     id: menuBar
 
-
     signal fileInfoTriggered()
     signal logsApplicationTriggered(bool checked)
     signal logsBridgeSyncTriggered(bool checked)
     signal logsAppHostTriggered(bool checked)
-    signal settingsEngineTriggered()
-    signal settingsApplicationTriggered()
+    signal settingsTriggered(bool checked)
     signal contentBrowseToggled(bool checked)  // Use a parameter for checkable actions
     signal helpShortcutsTriggered()
     signal touchFilterDebugTriggered(bool checked)
@@ -20,6 +18,7 @@ MenuBar {
     property alias logsAppHostChecked: logsAppHostAction.checked
     property alias contentBrowseChecked: contentBrowseAction.checked
     property alias touchFilterDebugChecked: touchFilterDebugAction.checked
+    property alias settingsChecked: settingsAction.checked
 
 
     contentItem: Item {
@@ -118,9 +117,10 @@ MenuBar {
         title: "Tools"
         width: 200
         Action {
+            id: settingsAction
             checkable: true
             text: "Settings"
-            onTriggered: menuBar.settingsEngineTriggered()
+            onTriggered: menuBar.settingsTriggered(checked)
         }
 
         Action {

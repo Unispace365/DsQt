@@ -1,8 +1,12 @@
 #include <QtTest>
 #include <settings/dsSettings.h>
+#include <settings/dsSettingsFile.h>
 #include <core/dsEnvironment.h>
 #include <optional>
 #include <QDebug>
+#include <QDir>
+#include <QFile>
+#include <QTemporaryDir>
 
 // add necessary includes here
 
@@ -60,9 +64,6 @@ class DsSettingsTest : public QObject
     void get_QDateTime_from_tomlDateTime_shouldReturnAValidQDateTimeOptional();
 
     //GEOM
-#ifdef DSQT_USE_GLM
-    void get_glmVectors_from_arrays_shouldReturnAValidGlmVectorOptional();
-#endif
     void get_QVectors_from_arrays_shouldReturnAValidGlmVectorOptional();
     void get_QPoint_from_arraysandtables_shouldReturnAValidGlmVectorOptional_data();
     void get_QPoint_from_arraysandtables_shouldReturnAValidGlmVectorOptional();
@@ -94,6 +95,12 @@ class DsSettingsTest : public QObject
     void get_shouldReturnAnEmptyOptionalWhenTheSettingDoesNotExist();
     void getWithMeta_shouldReturnAValidTupleWhenTheSettingExists();
     void read_notable();
+    void settingsFile_shouldStripLegacyMetadata();
+    void settingsFile_shouldUnwrapLegacyArrays();
+    void settingsFile_shouldInterpretLegacyMetadataColors();
+    void settingsFile_shouldLoadExtraFilesBetweenBaseFilesAndOverrides();
+    void settingsFile_shouldPruneOverridesThatMatchReloadedFiles();
+    void settingsFile_shouldKeepOverridesSavedOutsideSearchPaths();
 
   private:
     dsqt::DsSettingsRef test_settings;
@@ -512,21 +519,6 @@ void DsSettingsTest::get_QDateTime_from_tomlDateTime_shouldReturnAValidQDateTime
 //*****************
 //Geometry
 //*****************
-#ifdef DSQT_USE_GLM
-void DsSettingsTest::get_glmVectors_from_arrays_shouldReturnAValidGlmVectorOptional(){
-    auto vec2 = test_settings->get<glm::vec2>("test.geom.vectors.vec2");
-    auto vec3 = test_settings->get<glm::vec3>("test.geom.vectors.vec3");
-    auto vec4 = test_settings->get<glm::vec4>("test.geom.vectors.vec4");
-
-    QCOMPARE(vec2.has_value(),true);
-    QCOMPARE(vec3.has_value(),true);
-    QCOMPARE(vec4.has_value(),true);
-    QVERIFY(vec2 = glm::vec2(20,30));
-    QCOMPARE(vec3.value() , glm::vec3(20,30,40));
-    QCOMPARE(vec4.value() , glm::vec4(20,30,40,50));
-}
-#endif
-
 void DsSettingsTest::get_QVectors_from_arrays_shouldReturnAValidGlmVectorOptional(){
     auto vec2 = test_settings->get<QVector2D>("test.geom.vectors.vec2");
     auto vec3 = test_settings->get<QVector3D>("test.geom.vectors.vec3");
@@ -876,6 +868,129 @@ void DsSettingsTest::read_notable()
     auto val = test_settings->get<std::string>("no_table");
     QVERIFY(val);
     QVERIFY(val.value() == "test value");
+}
+
+void DsSettingsTest::settingsFile_shouldStripLegacyMetadata()
+{
+    dsqt::SettingsFile settings(nullptr, {QDir::current().filePath("settings")});
+    settings.setFileName("test_settings.toml");
+
+    QCOMPARE(settings.find<QString>("no_table_arrayed"), QString("test value"));
+    QCOMPARE(settings.find<QString>("test.meta.meta_example"), QString("string-value"));
+}
+
+void DsSettingsTest::settingsFile_shouldUnwrapLegacyArrays()
+{
+    dsqt::SettingsFile settings(nullptr, {QDir::current().filePath("settings")});
+    settings.setFileName("test_settings.toml");
+
+    const QVariantList list = settings.find<QVariantList>("test.list.list_strings_only");
+    QCOMPARE(list.size(), 3);
+    QCOMPARE(list[0].toString(), QString("alpha"));
+    QCOMPARE(list[1].toString(), QString("beta"));
+    QCOMPARE(list[2].toString(), QString("gamma"));
+}
+
+void DsSettingsTest::settingsFile_shouldInterpretLegacyMetadataColors()
+{
+    dsqt::SettingsFile settings(nullptr, {QDir::current().filePath("settings")});
+    settings.setFileName("test_settings.toml");
+
+    QCOMPARE(settings.find<QColor>("test.color.arrays.float_rgb"),
+             QColor::fromRgbF(0.5, 0.0, 0.0, 1.0));
+    QCOMPARE(settings.find<QColor>("test.color.arrays.int_hsv"),
+             QColor::fromHsv(44, 252, 252, 255));
+    QCOMPARE(settings.find<QColor>("test.color.tables.float_rgb"),
+             QColor::fromRgbF(0.5, 0.0, 0.0, 1.0));
+    QCOMPARE(settings.find<QColor>("test.color.tables.int_cmyk"),
+             QColor::fromCmyk(0, 66, 252, 25, 255));
+    QCOMPARE(settings.find<QColor>("example.example_color_1"),
+             QColor::fromRgbF(0.5, 0.5, 0.5, 1.0));
+}
+
+static void writeTextFile(const QString &path, const QByteArray &contents)
+{
+    QFile file(path);
+    QVERIFY(file.open(QIODevice::WriteOnly | QIODevice::Text));
+    QCOMPARE(file.write(contents), static_cast<qint64>(contents.size()));
+}
+
+void DsSettingsTest::settingsFile_shouldLoadExtraFilesBetweenBaseFilesAndOverrides()
+{
+    QTemporaryDir lowDir;
+    QTemporaryDir highDir;
+    QVERIFY(lowDir.isValid());
+    QVERIFY(highDir.isValid());
+
+    writeTextFile(QDir(lowDir.path()).filePath("settings.toml"),
+                  "value = 10\n"
+                  "base_only = 11\n");
+    writeTextFile(QDir(highDir.path()).filePath("settings.toml"),
+                  "value = 20\n");
+    writeTextFile(QDir(lowDir.path()).filePath("extra.toml"),
+                  "value = 30\n"
+                  "extra_only = 31\n");
+    writeTextFile(QDir(highDir.path()).filePath("extra.toml"),
+                  "value = 40\n");
+
+    dsqt::SettingsFile settings(nullptr, {lowDir.path(), highDir.path()});
+    settings.setDefault("value", 5);
+    settings.setFileName("settings.toml");
+    settings.setExtraFiles({"extra.toml"});
+
+    QCOMPARE(settings.find<int>("value"), 40);
+    QCOMPARE(settings.find<int>("base_only"), 11);
+    QCOMPARE(settings.find<int>("extra_only"), 31);
+    QVERIFY(settings.provenance("value").endsWith("extra.toml"));
+
+    settings.setOverride("value", 50);
+    QCOMPARE(settings.find<int>("value"), 50);
+    QCOMPARE(settings.provenance("value"), QStringLiteral("override"));
+}
+
+void DsSettingsTest::settingsFile_shouldPruneOverridesThatMatchReloadedFiles()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+
+    const QString filePath = QDir(dir.path()).filePath("settings.toml");
+    writeTextFile(filePath, "width = 100\n");
+
+    dsqt::SettingsFile settings(nullptr, {dir.path()});
+    settings.setFileName("settings.toml");
+    settings.setOverride("width", 300);
+    settings.setOverride("height", 400);
+
+    QCOMPARE(settings.saveOverridesTo(filePath), QString{});
+    QCOMPARE(settings.overrides().size(), 2);
+
+    settings.reload();
+
+    QVERIFY(settings.overrides().isEmpty());
+    QCOMPARE(settings.find<int>("width"), 300);
+    QCOMPARE(settings.find<int>("height"), 400);
+}
+
+void DsSettingsTest::settingsFile_shouldKeepOverridesSavedOutsideSearchPaths()
+{
+    QTemporaryDir searchDir;
+    QTemporaryDir otherDir;
+    QVERIFY(searchDir.isValid());
+    QVERIFY(otherDir.isValid());
+
+    const QString watchedFilePath = QDir(searchDir.path()).filePath("settings.toml");
+    const QString otherFilePath = QDir(otherDir.path()).filePath("settings.toml");
+    writeTextFile(watchedFilePath, "width = 100\n");
+
+    dsqt::SettingsFile settings(nullptr, {searchDir.path()});
+    settings.setFileName("settings.toml");
+    settings.setOverride("width", 300);
+
+    QCOMPARE(settings.saveOverridesTo(otherFilePath), QString{});
+    settings.reload();
+
+    QCOMPARE(settings.overrides().value("width").toInt(), 300);
+    QCOMPARE(settings.find<int>("width"), 300);
 }
 
 QTEST_MAIN(DsSettingsTest)

@@ -61,19 +61,6 @@ FetchContent_Declare(
 FetchContent_GetProperties(tomlplusplus)
 FetchContent_MakeAvailable(tomlplusplus)
 
-##Fetch GLM from the g-truc glm repo.
-##https://glm.g-truc.net/0.9.9/index.html
-FetchContent_Declare(
-    glm
-    GIT_REPOSITORY https://github.com/g-truc/glm.git
-    GIT_TAG        1.0.1
-    CONFIGURE_COMMAND ""
-    BUILD_COMMAND ""
-    #PREFIX ${CMAKE_DIR_LOCATION}/_deps
-)
-FetchContent_GetProperties(glm)
-FetchContent_MakeAvailable(glm)
-
 FetchContent_Declare(
     qtimgui
     GIT_REPOSITORY https://github.com/alpqr/qrhiimgui2.git
@@ -91,16 +78,13 @@ set(imgui_target ${DS_EXE_NAME})
 include(${imgui_base}/imgui.cmakeinc)
 include(${imgui_base}/imguiquick.cmakeinc)
 
-##connect glm
-target_include_directories(${DS_EXE_NAME} PUBLIC ${glm_SOURCE_DIR})
-
 ##connect toml++
 target_include_directories(${DS_EXE_NAME} PUBLIC ${tomlplusplus_SOURCE_DIR}/include)
 
 target_include_directories(${DS_EXE_NAME} PUBLIC ${tomlplusplus_SOURCE_DIR}/include)
 
 target_link_libraries(${DS_EXE_NAME}
-    PRIVATE Qt6::Quick Dsqt Dsqtplugin Dsqtplugin_init Dsqt_resources_1 Dsqt_resources_2 Dsqt_resources_3 glm Qt6::Sql Qt6::GuiPrivate Qt6::Gui Qt6::ShaderTools Qt6::ShaderToolsPrivate Qt6::Test
+    PRIVATE Qt6::Quick Dsqt Dsqtplugin Dsqtplugin_init Dsqt_resources_1 Dsqt_resources_2 Dsqt_resources_3 Qt6::Sql Qt6::GuiPrivate Qt6::Gui Qt6::ShaderTools Qt6::ShaderToolsPrivate Qt6::Test
 )
 
 target_include_directories(${DS_EXE_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} "../." ${imgui_base})
