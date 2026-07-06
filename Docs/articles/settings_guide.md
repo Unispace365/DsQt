@@ -763,8 +763,9 @@ DsSettingsViewerHelper {
 onSettingsTriggered: (isChecked) => { settingsViewer.setVisible(isChecked) }
 ```
 
-It opens a window (a plain Qt Widgets `QWidget`, not QML) with one tab per registered `SettingsFile` — tabs rebuild automatically as collections are added — each showing a three-column tree (Key / Value / Type):
+It opens a window (a plain Qt Widgets `QWidget`, not QML) with one tab per registered `SettingsFile` — tabs rebuild automatically as collections are added — each with a search box above a three-column tree (Key / Value / Type):
 
+- The search box filters the tree as you type: a case-insensitive substring match against the key, display value, or full dotted path. Only matching rows (and the ancestors needed to reach them) stay visible — everything else is hidden rather than shown in a separate results list.
 - Overridden values are shown in **bold**; hovering any leaf shows a tooltip with its provenance (a file path, `"default"`, or `"override"`).
 - Color values show a swatch, and double-clicking one opens a `QColorDialog`. Double-clicking any other leaf turns it into an inline text editor; the parsed value is applied as a runtime override (`setOverride`) as soon as you commit it.
 - Double-clicking a list (array) node opens a dedicated editor dialog for adding, removing, and drag-reordering its elements; accepting it writes the whole list back as an override.

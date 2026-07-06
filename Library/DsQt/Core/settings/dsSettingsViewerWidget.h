@@ -10,7 +10,8 @@ class Settings;
 class SettingsFile;
 
 // A Qt Widgets window that shows every registered SettingsFile as a tab,
-// each containing a QTreeView backed by a SettingsTreeModel.
+// each containing a search box and a QTreeView backed by a SettingsTreeModel
+// (filtered through a SettingsFilterProxyModel as the user types).
 // The tabs rebuild automatically when Settings::instancesChanged fires.
 class SettingsViewerWidget : public QWidget
 {

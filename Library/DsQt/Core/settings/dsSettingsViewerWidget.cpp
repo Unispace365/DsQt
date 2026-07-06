@@ -21,6 +21,7 @@
 #include <QMouseEvent>
 #include <QPushButton>
 #include <QShowEvent>
+#include <QSortFilterProxyModel>
 #include <QStyledItemDelegate>
 #include <QTabWidget>
 #include <QTreeView>
@@ -248,6 +249,60 @@ private:
     QListWidget  *m_list;
 };
 
+// ── SettingsFilterProxyModel ──────────────────────────────────────────────────
+// Filters the tree by a plain case-insensitive substring match against a row's
+// key (column 0), display value (column 1), or full dotted path (FullPathRole)
+// — the same fields the legacy viewer's search matched against. A row stays
+// visible if it matches directly or if any descendant matches, so the path
+// down to a match is never hidden.
+
+class SettingsFilterProxyModel : public QSortFilterProxyModel
+{
+public:
+    using QSortFilterProxyModel::QSortFilterProxyModel;
+
+    void setFilterKeyword(const QString &text)
+    {
+        if (m_keyword == text)
+            return;
+        m_keyword = text;
+        invalidateFilter(); // re-run filterAcceptsRow() for every row
+    }
+
+protected:
+    bool filterAcceptsRow(int sourceRow, const QModelIndex &sourceParent) const override
+    {
+        if (m_keyword.isEmpty())
+            return true;
+
+        QAbstractItemModel *model = sourceModel();
+        const QModelIndex index = model->index(sourceRow, 0, sourceParent);
+        if (rowMatches(index))
+            return true;
+
+        // Keep this row if any descendant matches.
+        for (int i = 0; i < model->rowCount(index); ++i) {
+            if (filterAcceptsRow(i, index))
+                return true;
+        }
+        return false;
+    }
+
+private:
+    bool rowMatches(const QModelIndex &index) const
+    {
+        const QString key      = index.data(Qt::DisplayRole).toString();
+        const QString value    = index.siblingAtColumn(1).data(Qt::DisplayRole).toString();
+        const QString fullPath = index.data(SettingsTreeModel::FullPathRole).toString();
+
+        return key.contains(m_keyword, Qt::CaseInsensitive)
+            || value.contains(m_keyword, Qt::CaseInsensitive)
+            || fullPath.contains(m_keyword, Qt::CaseInsensitive);
+    }
+
+    QString m_keyword;
+};
+
 // ─────────────────────────────────────────────────────────────────────────────
 
 SettingsViewerWidget::SettingsViewerWidget(Settings *settings, QWidget *parent)
@@ -305,9 +360,11 @@ void SettingsViewerWidget::rebuild()
     for (const QString &name : m_settings->settingsNames()) {
         auto *view  = new QTreeView;
         auto *model = new SettingsTreeModel(view);
+        auto *proxy = new SettingsFilterProxyModel(view);
 
         model->setSettingsFile(m_settings->settingsFile(name));
-        view->setModel(model);
+        proxy->setSourceModel(model);
+        view->setModel(proxy);
         view->setItemDelegateForColumn(1, new SettingsValueDelegate(view));
         view->setAlternatingRowColors(true);
         view->setUniformRowHeights(true);
@@ -317,6 +374,14 @@ void SettingsViewerWidget::rebuild()
         // Expand after every model reset (file reload, etc.).
         connect(model, &SettingsTreeModel::modelReset, view, &QTreeView::expandAll);
         view->expandAll();
+
+        auto *searchBox = new QLineEdit;
+        searchBox->setPlaceholderText(tr("Filter by key, path, or value…"));
+        searchBox->setClearButtonEnabled(true);
+        connect(searchBox, &QLineEdit::textChanged, view, [proxy, view](const QString &text) {
+            proxy->setFilterKeyword(text);
+            view->expandAll(); // reveal matches even under previously-collapsed branches
+        });
 
         // Open the array editor when the user double-clicks a list node.
         connect(view, &QTreeView::doubleClicked, view,
@@ -392,7 +457,14 @@ void SettingsViewerWidget::rebuild()
                 atWordStart = false;
             }
         }
-        m_tabs->addTab(view, label);
+        auto *page = new QWidget;
+        auto *pageLayout = new QVBoxLayout(page);
+        pageLayout->setContentsMargins(4, 4, 4, 4);
+        pageLayout->setSpacing(4);
+        pageLayout->addWidget(searchBox);
+        pageLayout->addWidget(view);
+
+        m_tabs->addTab(page, label);
     }
 
     // Restore the previously active tab.
@@ -409,10 +481,16 @@ SettingsFile *SettingsViewerWidget::currentSettingsFile() const
     const int idx = m_tabs->currentIndex();
     if (idx < 0)
         return nullptr;
-    auto *view  = qobject_cast<QTreeView *>(m_tabs->widget(idx));
+    QWidget *page = m_tabs->widget(idx);
+    if (!page)
+        return nullptr;
+    auto *view = page->findChild<QTreeView *>();
     if (!view)
         return nullptr;
-    auto *model = qobject_cast<SettingsTreeModel *>(view->model());
+    // view->model() is now the SettingsFilterProxyModel; unwrap it to get
+    // at the underlying SettingsTreeModel.
+    auto *proxy = qobject_cast<QSortFilterProxyModel *>(view->model());
+    auto *model = qobject_cast<SettingsTreeModel *>(proxy ? proxy->sourceModel() : view->model());
     if (!model)
         return nullptr;
     return model->settingsFile();
