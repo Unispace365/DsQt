@@ -722,6 +722,11 @@ engine->bind<int>("engine.window.width", this, [this](int width) {
     setWindowWidth(width);
 });
 
+// Equivalent one-liner if you only have the collection name, not the SettingsFile pointer:
+dsqt::Settings::bind<int>("engine", "engine.window.width", this, [this](int width) {
+    setWindowWidth(width);
+});
+
 // Or listen for "something changed" without caring what:
 connect(engine, &dsqt::SettingsFile::settingsRebuilt, this, &MyClass::onSettingsChanged);
 ```
