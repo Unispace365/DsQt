@@ -65,7 +65,7 @@ class Settings : public QQmlPropertyMap {
     template <typename T, typename Context, typename Func>
     static void bind(const QString& name, const QString& key, Context* context, Func&& callback,
                      const T& defaultValue = {}) {
-        instance().bindImpl(name, context, callback, defaultValue);
+        instance().bindImpl(name, key, context, std::forward<Func>(callback), defaultValue);
     }
 
   signals:
