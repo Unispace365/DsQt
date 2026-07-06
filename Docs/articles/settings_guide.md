@@ -767,12 +767,31 @@ It opens a window (a plain Qt Widgets `QWidget`, not QML) with one tab per regis
 
 - The search box filters the tree as you type: a case-insensitive substring match against the key, display value, or full dotted path. Only matching rows (and the ancestors needed to reach them) stay visible — everything else is hidden rather than shown in a separate results list.
 - Overridden values are shown in **bold**; hovering any leaf shows a tooltip with its provenance (a file path, `"default"`, or `"override"`).
-- Color values show a swatch, and double-clicking one opens a `QColorDialog`. Double-clicking any other leaf turns it into an inline text editor; the parsed value is applied as a runtime override (`setOverride`) as soon as you commit it.
+- Color values show a swatch, and double-clicking one opens a `QColorDialog`. A leaf with schema constraints (see below) shows its dropdown or spin box editor immediately, live in the cell — no double-click needed, since the schema already tells the viewer it should always be edited that way. Everything else still turns into an inline text editor on double-click. Either way, the value is applied as a runtime override (`setOverride`) as soon as you commit it — picking a dropdown option or pressing Enter/clicking away in a spin box, or for the plain text field.
 - Double-clicking a list (array) node opens a dedicated editor dialog for adding, removing, and drag-reordering its elements; accepting it writes the whole list back as an override.
 - Right-clicking a leaf offers **Revert** (if it's currently overridden) or **Open File** (if its provenance is a real file path, via the OS default application).
 - **Save…** and **Restore…** buttons at the bottom write the current tab's overrides out to a chosen `.toml` file (`saveOverridesTo()`) or clear them (`resetOverrides()`), respectively.
 
 This is a developer/debugging tool, not something to embed in an end-user QML UI.
+
+### Schema Files (Editor Constraints)
+
+Each tab optionally loads a sibling `<name>.schema.toml` (e.g. `engine.schema.toml` for the `engine` collection) purely to drive the editor widget above — nothing outside the viewer reads it, and there's no effect on how the real settings file loads, merges, or is accessed from QML/C++. A schema file mirrors the real settings' dotted key paths as section headers, with each leaf holding any subset of `min`, `max`, `step`, and `options`:
+
+```toml
+[engine.window.width]
+min = 128
+max = 8192
+
+[engine.window.mode]
+options = ["window", "display", "desktop"]
+```
+
+- `min` and/or `max` on a numeric leaf swap the plain text editor for a bounded `QSpinBox`/`QDoubleSpinBox` (picked by the leaf's actual type) — out-of-range input simply isn't possible to enter. Adding `step` sets the spin box's increment.
+- `options` (a list) swaps the editor for a dropdown restricted to those choices, regardless of the leaf's type — the selected entry is parsed back the same way typed text would be, so this works for string, numeric, or boolean leaves alike. If both `options` and `min`/`max` are present, `options` wins.
+- A key with no schema entry (or no schema file at all) edits exactly as it always has — this is purely additive.
+
+Because a schema is just another `SettingsFile` under the hood, it gets the same live file-watching as everything else: editing `engine.schema.toml` while the viewer is open immediately reshapes the affected editor(s).
 
 ---
 

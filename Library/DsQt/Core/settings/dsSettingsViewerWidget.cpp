@@ -3,16 +3,20 @@
 #include "settings/dsSettingsFile.h"
 #include "settings/dsSettingsTreeModel.h"
 
+#include <QAbstractSpinBox>
 #include <QApplication>
 #include <QColor>
 #include <QColorDialog>
+#include <QComboBox>
 #include <QDesktopServices>
 #include <QDialog>
 #include <QDialogButtonBox>
+#include <QDoubleSpinBox>
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QHBoxLayout>
 #include <QHeaderView>
+#include <QItemSelectionModel>
 #include <QLineEdit>
 #include <QListWidget>
 #include <QHideEvent>
@@ -22,16 +26,28 @@
 #include <QPushButton>
 #include <QShowEvent>
 #include <QSortFilterProxyModel>
+#include <QSpinBox>
 #include <QStyledItemDelegate>
 #include <QTabWidget>
 #include <QTreeView>
 #include <QUrl>
 #include <QVBoxLayout>
 
+#include <limits>
+
 namespace dsqt {
 
 // ── SettingsValueDelegate ─────────────────────────────────────────────────────
-// Column 1 editor: QColorDialog for colours, QLineEdit for everything else.
+// Column 1 editor. Picks the editor widget from the leaf's schema constraints
+// (SettingsTreeModel::ConstraintsRole — a {min, max, step, options} map, any
+// subset, sourced from an optional "<name>.schema.toml"):
+//   - "options" present            → QComboBox restricted to those choices.
+//   - "min" and/or "max" present   → QSpinBox / QDoubleSpinBox (picked by the
+//                                    leaf's actual type), bounded accordingly
+//                                    and stepped by "step" if given.
+//   - no constraints                → QColorDialog for colours (via
+//                                    editorEvent), plain QLineEdit otherwise.
+// A leaf with no schema entry behaves exactly as before this feature existed.
 
 class SettingsValueDelegate : public QStyledItemDelegate
 {
@@ -45,11 +61,86 @@ public:
         const QVariant raw = index.data(Qt::EditRole);
         if (raw.metaType() == QMetaType::fromType<QColor>())
             return nullptr; // handled via editorEvent
+
+        const QVariantMap constraints = index.data(SettingsTreeModel::ConstraintsRole).toMap();
+
+        if (constraints.contains(QStringLiteral("options"))) {
+            auto *combo = new QComboBox(parent);
+            combo->setEditable(false);
+            combo->setAutoFillBackground(true); // opaque — no cell content bleeding through
+            for (const QVariant &option : constraints.value(QStringLiteral("options")).toList())
+                combo->addItem(SettingsTreeModel::displayString(option));
+            // QComboBox doesn't reliably trigger the base delegate's normal
+            // focus-out auto-commit at the right moment (or with the freshly
+            // picked value) once its popup closes — commit explicitly instead.
+            connect(combo, &QComboBox::activated, this, [this, combo] {
+                auto *self = const_cast<SettingsValueDelegate *>(this);
+                emit self->commitData(combo);
+                emit self->closeEditor(combo);
+            });
+            return combo;
+        }
+
+        if (constraints.contains(QStringLiteral("min")) || constraints.contains(QStringLiteral("max"))) {
+            if (raw.metaType() == QMetaType::fromType<double>()
+                || raw.metaType() == QMetaType::fromType<float>()) {
+                auto *spin = new QDoubleSpinBox(parent);
+                spin->setAutoFillBackground(true);
+                spin->setDecimals(6);
+                spin->setRange(constraints.value(QStringLiteral("min"), -1.0e18).toDouble(),
+                               constraints.value(QStringLiteral("max"), 1.0e18).toDouble());
+                if (constraints.contains(QStringLiteral("step")))
+                    spin->setSingleStep(constraints.value(QStringLiteral("step")).toDouble());
+                connect(spin, &QAbstractSpinBox::editingFinished, this, [this, spin] {
+                    emit const_cast<SettingsValueDelegate *>(this)->commitData(spin);
+                });
+                return spin;
+            }
+            if (raw.metaType() == QMetaType::fromType<int>()
+                || raw.metaType() == QMetaType::fromType<qlonglong>()) {
+                auto *spin = new QSpinBox(parent);
+                spin->setAutoFillBackground(true);
+                spin->setRange(constraints.value(QStringLiteral("min"), std::numeric_limits<int>::min()).toInt(),
+                               constraints.value(QStringLiteral("max"), std::numeric_limits<int>::max()).toInt());
+                if (constraints.contains(QStringLiteral("step")))
+                    spin->setSingleStep(constraints.value(QStringLiteral("step")).toInt());
+                connect(spin, &QAbstractSpinBox::editingFinished, this, [this, spin] {
+                    emit const_cast<SettingsValueDelegate *>(this)->commitData(spin);
+                });
+                return spin;
+            }
+            // min/max on a non-numeric value doesn't make sense — fall through
+            // to the plain line editor below.
+        }
+
         return new QLineEdit(parent);
+    }
+
+    // The base implementation sizes some editor widgets (QComboBox in
+    // particular) from their own size hint / a style-specific sub-rect
+    // rather than the full cell, which can leave a sliver of the original
+    // cell content visible around or behind the editor. Force full coverage.
+    void updateEditorGeometry(QWidget *editor,
+                              const QStyleOptionViewItem &option,
+                              const QModelIndex &) const override
+    {
+        editor->setGeometry(option.rect);
     }
 
     void setEditorData(QWidget *editor, const QModelIndex &index) const override
     {
+        if (auto *combo = qobject_cast<QComboBox *>(editor)) {
+            combo->setCurrentIndex(combo->findText(index.data(Qt::DisplayRole).toString()));
+            return;
+        }
+        if (auto *spin = qobject_cast<QDoubleSpinBox *>(editor)) {
+            spin->setValue(index.data(Qt::EditRole).toDouble());
+            return;
+        }
+        if (auto *spin = qobject_cast<QSpinBox *>(editor)) {
+            spin->setValue(static_cast<int>(index.data(Qt::EditRole).toLongLong()));
+            return;
+        }
         if (auto *le = qobject_cast<QLineEdit *>(editor))
             le->setText(index.data(Qt::DisplayRole).toString());
     }
@@ -58,6 +149,24 @@ public:
                       QAbstractItemModel *model,
                       const QModelIndex &index) const override
     {
+        if (auto *combo = qobject_cast<QComboBox *>(editor)) {
+            model->setData(index, combo->currentText(), Qt::EditRole);
+            return;
+        }
+        if (auto *spin = qobject_cast<QDoubleSpinBox *>(editor)) {
+            model->setData(index, spin->value(), Qt::EditRole);
+            return;
+        }
+        if (auto *spin = qobject_cast<QSpinBox *>(editor)) {
+            // Reproduce the leaf's original int/qlonglong metatype so
+            // SettingsTreeModel::setData()'s exact-type fast path is used.
+            const QVariant raw = index.data(Qt::EditRole);
+            if (raw.metaType() == QMetaType::fromType<qlonglong>())
+                model->setData(index, static_cast<qlonglong>(spin->value()), Qt::EditRole);
+            else
+                model->setData(index, spin->value(), Qt::EditRole);
+            return;
+        }
         if (auto *le = qobject_cast<QLineEdit *>(editor))
             model->setData(index, le->text(), Qt::EditRole);
     }
@@ -303,6 +412,32 @@ private:
     QString m_keyword;
 };
 
+// Recursively opens a persistent editor (column 1) for every visible leaf
+// that carries schema constraints (options/min/max), so a combo box or spin
+// box is shown immediately instead of only appearing after a double-click.
+// Safe to call repeatedly — indexWidget() is checked first so an already-open
+// editor is never duplicated.
+static void openConstraintEditors(QTreeView *view, const QModelIndex &parent = {})
+{
+    QAbstractItemModel *model = view->model();
+    const int rows = model->rowCount(parent);
+    for (int row = 0; row < rows; ++row) {
+        const QModelIndex idx0 = model->index(row, 0, parent);
+        if (idx0.data(SettingsTreeModel::IsLeafRole).toBool()) {
+            const QVariantMap constraints = idx0.data(SettingsTreeModel::ConstraintsRole).toMap();
+            if (constraints.contains(QStringLiteral("options"))
+                || constraints.contains(QStringLiteral("min"))
+                || constraints.contains(QStringLiteral("max"))) {
+                const QModelIndex idx1 = model->index(row, 1, parent);
+                if (!view->indexWidget(idx1))
+                    view->openPersistentEditor(idx1);
+            }
+        } else {
+            openConstraintEditors(view, idx0);
+        }
+    }
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 
 SettingsViewerWidget::SettingsViewerWidget(Settings *settings, QWidget *parent)
@@ -363,6 +498,18 @@ void SettingsViewerWidget::rebuild()
         auto *proxy = new SettingsFilterProxyModel(view);
 
         model->setSettingsFile(m_settings->settingsFile(name));
+
+        // Optional "<name>.schema.toml" providing min/max/step/options metadata
+        // for the value editor below. Given a manager but never a registered
+        // name, so it gets live-reload/search-path resolution for free without
+        // becoming its own tab or being reachable via Settings.find()/QML.
+        // If the file doesn't exist, every constraint lookup is simply empty —
+        // editing behaves exactly as it would with no schema at all.
+        auto *schema = new SettingsFile(view);
+        schema->setManager(m_settings);
+        schema->setFileName(name + QStringLiteral(".schema.toml"));
+        model->setSchema(schema);
+
         proxy->setSourceModel(model);
         view->setModel(proxy);
         view->setItemDelegateForColumn(1, new SettingsValueDelegate(view));
@@ -371,9 +518,26 @@ void SettingsViewerWidget::rebuild()
         view->setRootIsDecorated(true);
         view->setContextMenuPolicy(Qt::CustomContextMenu);
 
-        // Expand after every model reset (file reload, etc.).
-        connect(model, &SettingsTreeModel::modelReset, view, &QTreeView::expandAll);
+        // Persistent editors (combo/spin boxes) are real focus-accepting
+        // widgets, so clicking on a different row doesn't automatically hand
+        // keyboard focus back — nothing else in the row has a widget to take
+        // it. Reclaim focus for the view itself whenever the current index
+        // moves somewhere that isn't its own persistent editor.
+        connect(view->selectionModel(), &QItemSelectionModel::currentChanged, view,
+                [view](const QModelIndex &current, const QModelIndex &) {
+                    if (current.isValid() && !view->indexWidget(current))
+                        view->setFocus();
+                });
+
+        // Expand after every model reset (file reload, etc.), and re-open
+        // persistent editors for schema-constrained leaves — the reset tears
+        // down any that were open, since it invalidates every old index.
+        connect(model, &SettingsTreeModel::modelReset, view, [view] {
+            view->expandAll();
+            openConstraintEditors(view);
+        });
         view->expandAll();
+        openConstraintEditors(view);
 
         auto *searchBox = new QLineEdit;
         searchBox->setPlaceholderText(tr("Filter by key, path, or value…"));
@@ -381,6 +545,7 @@ void SettingsViewerWidget::rebuild()
         connect(searchBox, &QLineEdit::textChanged, view, [proxy, view](const QString &text) {
             proxy->setFilterKeyword(text);
             view->expandAll(); // reveal matches even under previously-collapsed branches
+            openConstraintEditors(view); // re-open any that filtering just brought back into view
         });
 
         // Open the array editor when the user double-clicks a list node.

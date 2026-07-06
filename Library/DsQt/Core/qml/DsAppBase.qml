@@ -61,6 +61,13 @@ ApplicationWindow {
         property int preferredWidth: windowProxy.width ?? 0        //
         property int preferredHeight: windowProxy.height ?? 0      //
 
+        onModeChanged: window.applyWindowMode()
+        onMarginChanged: window.applyWindowMode()
+        onDisplayNameChanged: window.applyWindowMode()
+        onDisplayIndexChanged: window.applyWindowMode()
+        onPreferredWidthChanged: window.applyWindowMode()
+        onPreferredHeightChanged: window.applyWindowMode()
+
         function getDisplayIndex() : int {
             var screens = Application.screens
 
@@ -162,6 +169,15 @@ ApplicationWindow {
         visible = true
     }
 
+    /// Applies the current window mode ("desktop", "display", or plain
+    /// windowed) by moving/resizing/re-flagging the window as needed.
+    /// Called once at startup, and again whenever _.mode changes at runtime.
+    function applyWindowMode() {
+        if(_.mode === "desktop") { spanDesktop() }
+        else if(_.mode === "display") { spanDisplay() }
+        else { centerOnScreen() }
+    }
+
     /// Set this to your TouchFilter instance before the TouchFilter Debug window
     /// is first opened from the Tools menu.  Uses var to avoid importing Dsqt.Touch
     /// in this file; the controls window performs its own type check at runtime.
@@ -184,9 +200,7 @@ ApplicationWindow {
         }
 
         // Adjust position and size based on specified mode.
-        if(_.mode === "desktop") { spanDesktop() }
-        else if(_.mode === "display") { spanDisplay() }
-        else { centerOnScreen() }
+        applyWindowMode()
     }
 
     /// Allow full-screen toggle for windows.

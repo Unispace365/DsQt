@@ -2,6 +2,7 @@
 
 #include <QAbstractItemModel>
 #include <QQmlEngine>
+#include <QVariantMap>
 
 namespace dsqt {
 
@@ -16,6 +17,7 @@ struct SettingsTreeItem
     QString  typeName;   // friendly type name — non-empty for leaves only
     QString  provenance; // source file — non-empty for leaves only
     QVariant rawValue;   // original QVariant — used by setData() for type-aware parsing
+    QVariantMap constraints; // optional schema metadata (min/max/step/options) — leaves only
     bool     isLeaf = false;
     bool hasOverride() const { return provenance == QStringLiteral("override"); }
 
@@ -31,10 +33,12 @@ struct SettingsTreeItem
     ~SettingsTreeItem() { qDeleteAll(children); }
 };
 
-// A QAbstractItemModel that exposes a SettingsFile as a two-column tree.
+// A QAbstractItemModel that exposes a SettingsFile as a three-column tree.
 // Column 0: key name (carries tree indentation).
 // Column 1: value as a display string (leaves only).
-// Additional roles: IsLeafRole and FullPathRole for use in QML delegates.
+// Column 2: friendly type name (leaves only).
+// Additional roles: IsLeafRole, FullPathRole, ProvenanceRole, TypeRole,
+// IsListRole, and ConstraintsRole, for use in QML delegates or item delegates.
 class SettingsTreeModel : public QAbstractItemModel
 {
     Q_OBJECT
@@ -45,12 +49,13 @@ class SettingsTreeModel : public QAbstractItemModel
 
 public:
     enum Roles {
-        ValueRole      = Qt::UserRole + 1,
-        IsLeafRole     = Qt::UserRole + 2,
-        FullPathRole   = Qt::UserRole + 3,
-        ProvenanceRole = Qt::UserRole + 4,
-        TypeRole       = Qt::UserRole + 5,
-        IsListRole     = Qt::UserRole + 6,
+        ValueRole       = Qt::UserRole + 1,
+        IsLeafRole      = Qt::UserRole + 2,
+        FullPathRole    = Qt::UserRole + 3,
+        ProvenanceRole  = Qt::UserRole + 4,
+        TypeRole        = Qt::UserRole + 5,
+        IsListRole      = Qt::UserRole + 6,
+        ConstraintsRole = Qt::UserRole + 7,
     };
     Q_ENUM(Roles)
 
@@ -62,6 +67,12 @@ public:
 
     SettingsFile *settingsFile() const;
     void setSettingsFile(SettingsFile *sf);
+
+    // Optional schema SettingsFile whose keys mirror settingsFile()'s dotted
+    // paths, with each leaf holding a {min, max, step, options} metadata map
+    // (any subset). Purely a viewer-side concern — never required, and safe
+    // to leave unset (every lookup then yields an empty constraints map).
+    void setSchema(SettingsFile *schema);
 
     // QAbstractItemModel interface
     QModelIndex index(int row, int column,
@@ -90,6 +101,7 @@ private:
                            const QString &prefix);
 
     SettingsFile *m_settingsFile = nullptr;
+    SettingsFile *m_schema = nullptr;
     SettingsTreeItem *m_root = nullptr;
 };
 

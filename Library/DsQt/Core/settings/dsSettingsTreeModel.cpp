@@ -161,6 +161,22 @@ void SettingsTreeModel::setSettingsFile(SettingsFile *sf)
     emit settingsFileChanged();
 }
 
+void SettingsTreeModel::setSchema(SettingsFile *schema)
+{
+    if (m_schema == schema)
+        return;
+
+    if (m_schema)
+        disconnect(m_schema, nullptr, this, nullptr);
+
+    m_schema = schema;
+
+    if (m_schema)
+        connect(m_schema, &SettingsFile::settingsRebuilt, this, &SettingsTreeModel::rebuild);
+
+    rebuild();
+}
+
 void SettingsTreeModel::rebuild()
 {
     beginResetModel();
@@ -193,6 +209,15 @@ void SettingsTreeModel::buildChildren(SettingsTreeItem *parent,
             item->value     = displayString(it.value());
             item->typeName  = typeName(it.value());
             item->provenance = m_settingsFile ? m_settingsFile->provenance(fullPath) : QString{};
+
+            // Optional schema metadata (min/max/step/options), keyed by the
+            // same dotted path in the schema file. Anything else (a schema
+            // file with no entry, or no schema at all) just leaves this empty.
+            if (m_schema) {
+                const QVariant meta = m_schema->value(fullPath);
+                if (isMap(meta))
+                    item->constraints = meta.toMap();
+            }
         }
 
         parent->children.append(item);
@@ -311,6 +336,8 @@ QVariant SettingsTreeModel::data(const QModelIndex &index, int role) const
         if (item->isLeaf || item->children.isEmpty())
             return false;
         return isNumericString(item->children.first()->key);
+    case ConstraintsRole:
+        return item->isLeaf ? QVariant::fromValue(item->constraints) : QVariant{};
     default:
         return {};
     }
@@ -417,6 +444,7 @@ QHash<int, QByteArray> SettingsTreeModel::roleNames() const
     roles[ProvenanceRole] = "provenance";
     roles[TypeRole]       = "typeName";
     roles[IsListRole]     = "isList";
+    roles[ConstraintsRole] = "constraints";
     return roles;
 }
 
