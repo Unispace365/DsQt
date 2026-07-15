@@ -77,6 +77,10 @@ public:
     // group nodes / invalid indexes.
     DatabaseRecord recordAt(const QModelIndex &index) const;
 
+    // Returns the (column 0) index of the first record node with the given UID,
+    // or an invalid index if no such record is in the tree.
+    QModelIndex indexForUid(const QString &uid) const;
+
     // QAbstractItemModel interface
     QModelIndex index(int row, int column, const QModelIndex &parent = {}) const override;
     QModelIndex parent(const QModelIndex &index) const override;

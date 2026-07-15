@@ -18,6 +18,7 @@ namespace dsqt::bridge {
 class DsContentTreeModel;
 class ContentFilterProxyModel;
 class MediaPreview;
+class UidPillDelegate;
 
 // A Qt Widgets window that browses the bridge database.
 //
@@ -65,6 +66,11 @@ private:
     // Shows or hides the media pane according to the Auto-Hide Media option.
     void applyMediaVisibility();
 
+    // UID pills: split a field into its UID tokens (empty unless at least one
+    // token is a known record UID), and jump the tree selection to a given UID.
+    QStringList uidTokensFor(const DatabaseRecord &record, const QString &key) const;
+    void navigateToUid(const QString &uid);
+
     // Expansion / selection preservation across model resets.
     void captureViewState();
     void restoreViewState();
@@ -79,6 +85,7 @@ private:
     QToolButton             *m_options;
     QTableWidget            *m_fields;
     MediaPreview            *m_preview;
+    UidPillDelegate         *m_pillDelegate;
 
     // View-option toggles (settings/cog popup, right of the filter box).
     QAction *m_showFieldUids;   // show "*_field_uid" fields          (off by default)

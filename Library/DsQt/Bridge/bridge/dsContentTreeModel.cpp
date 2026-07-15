@@ -1,6 +1,8 @@
 #include "bridge/dsContentTreeModel.h"
 #include "bridge/dsQmlBridge.h"
 
+#include <functional>
+
 namespace dsqt::bridge {
 
 // ── Construction ──────────────────────────────────────────────────────────────
@@ -105,6 +107,26 @@ DatabaseRecord DsContentTreeModel::recordAt(const QModelIndex &index) const
         return {};
     const auto *item = static_cast<ContentTreeItem *>(index.internalPointer());
     return item->isGroup ? DatabaseRecord{} : item->record;
+}
+
+QModelIndex DsContentTreeModel::indexForUid(const QString &uid) const
+{
+    if (uid.isEmpty())
+        return {};
+
+    // Depth-first walk that builds indexes as it descends.
+    std::function<QModelIndex(const QModelIndex &)> search = [&](const QModelIndex &parent) {
+        for (int row = 0; row < rowCount(parent); ++row) {
+            const QModelIndex idx = index(row, 0, parent);
+            const auto *item = static_cast<ContentTreeItem *>(idx.internalPointer());
+            if (item && !item->isGroup && item->record.uid() == uid)
+                return idx;
+            if (const QModelIndex found = search(idx); found.isValid())
+                return found;
+        }
+        return QModelIndex{};
+    };
+    return search(QModelIndex());
 }
 
 // ── QAbstractItemModel interface ──────────────────────────────────────────────

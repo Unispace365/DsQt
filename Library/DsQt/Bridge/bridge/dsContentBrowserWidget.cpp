@@ -1,8 +1,12 @@
 #include "bridge/dsContentBrowserWidget.h"
 #include "bridge/dsContentTreeModel.h"
+#include "bridge/dsQmlBridge.h"
 
+#include <QAbstractItemView>
 #include <QAction>
+#include <QApplication>
 #include <QAudioOutput>
+#include <QFontMetrics>
 #include <QHBoxLayout>
 #include <QHeaderView>
 #include <QHideEvent>
@@ -13,6 +17,8 @@
 #include <QLineEdit>
 #include <QMediaPlayer>
 #include <QMenu>
+#include <QMouseEvent>
+#include <QPainter>
 #include <QPixmap>
 #include <QRect>
 #include <QResizeEvent>
@@ -20,6 +26,8 @@
 #include <QSortFilterProxyModel>
 #include <QSplitter>
 #include <QStackedWidget>
+#include <QStyle>
+#include <QStyledItemDelegate>
 #include <QTableWidget>
 #include <QToolButton>
 #include <QTreeView>
@@ -28,6 +36,7 @@
 #include <QVideoWidget>
 
 #include <algorithm>
+#include <functional>
 
 namespace dsqt::bridge {
 
@@ -235,6 +244,111 @@ static QString formatFieldValue(const DatabaseRecord &record, const QString &key
     return v.toString();
 }
 
+// Item-data role (column 1) holding the ordered list of tokens to render as
+// pills. Present only on cells that contain at least one known UID.
+static constexpr int kPillTokensRole = Qt::UserRole + 1;
+
+// ── UidPillDelegate ───────────────────────────────────────────────────────────
+// Paints a value cell's UID tokens as rounded "pills" (unknown tokens are drawn
+// as plain text) and reports clicks on a pill through the onUidClicked callback.
+// A token is a pill when the current bridge database contains a record with that
+// UID, so it always reflects the live database.
+
+class UidPillDelegate : public QStyledItemDelegate
+{
+public:
+    using QStyledItemDelegate::QStyledItemDelegate;
+
+    std::function<void(const QString &)> onUidClicked;
+
+    void paint(QPainter *painter, const QStyleOptionViewItem &option,
+               const QModelIndex &index) const override
+    {
+        const QStringList tokens = index.data(kPillTokensRole).toStringList();
+        if (tokens.isEmpty()) {
+            QStyledItemDelegate::paint(painter, option, index);
+            return;
+        }
+
+        // Draw the standard item chrome (selection, alternating background) but
+        // suppress the text — we render our own content on top.
+        QStyleOptionViewItem opt(option);
+        initStyleOption(&opt, index);
+        opt.text.clear();
+        const QWidget *w = opt.widget;
+        QStyle *style = w ? w->style() : QApplication::style();
+        style->drawControl(QStyle::CE_ItemViewItem, &opt, painter, w);
+
+        const bool selected = option.state & QStyle::State_Selected;
+        painter->save();
+        painter->setClipRect(option.rect);
+        painter->setRenderHint(QPainter::Antialiasing, true);
+        for (const Pill &pill : layoutPills(option, tokens)) {
+            if (pill.isUid) {
+                QColor bg = option.palette.color(QPalette::Highlight);
+                bg.setAlpha(selected ? 200 : 70);
+                painter->setPen(Qt::NoPen);
+                painter->setBrush(bg);
+                const qreal r = pill.rect.height() / 2.0;
+                painter->drawRoundedRect(pill.rect, r, r);
+                painter->setPen(selected ? option.palette.color(QPalette::HighlightedText)
+                                         : option.palette.color(QPalette::Text));
+                painter->drawText(pill.rect, Qt::AlignCenter, pill.token);
+            } else {
+                painter->setPen(option.palette.color(
+                    selected ? QPalette::HighlightedText : QPalette::Text));
+                painter->drawText(pill.rect, Qt::AlignVCenter | Qt::AlignLeft, pill.token);
+            }
+        }
+        painter->restore();
+    }
+
+    bool editorEvent(QEvent *event, QAbstractItemModel *model,
+                     const QStyleOptionViewItem &option, const QModelIndex &index) override
+    {
+        if (event->type() == QEvent::MouseButtonRelease) {
+            const QStringList tokens = index.data(kPillTokensRole).toStringList();
+            if (!tokens.isEmpty()) {
+                auto *me = static_cast<QMouseEvent *>(event);
+                for (const Pill &pill : layoutPills(option, tokens)) {
+                    if (pill.isUid && pill.rect.contains(me->pos())) {
+                        if (onUidClicked)
+                            onUidClicked(pill.token);
+                        return true;
+                    }
+                }
+            }
+        }
+        return QStyledItemDelegate::editorEvent(event, model, option, index);
+    }
+
+private:
+    struct Pill { QRect rect; QString token; bool isUid; };
+
+    QList<Pill> layoutPills(const QStyleOptionViewItem &option, const QStringList &tokens) const
+    {
+        constexpr int hpad = 8, spacing = 4;
+        const DatabaseRecordHash &records = DsQmlBridge::instance().database().records();
+        const QFontMetrics fm(option.font);
+        const int h   = qMax(fm.height() + 2, option.rect.height() - 6);
+        const int top = option.rect.top() + (option.rect.height() - h) / 2;
+        int x = option.rect.left() + 4;
+
+        QList<Pill> pills;
+        for (const QString &raw : tokens) {
+            const QString token = raw.trimmed();
+            if (token.isEmpty())
+                continue;
+            const bool isUid = records.contains(token);
+            const int textW  = fm.horizontalAdvance(token);
+            const int w      = isUid ? textW + 2 * hpad : textW;
+            pills.append({QRect(x, top, w, h), token, isUid});
+            x += w + spacing;
+        }
+        return pills;
+    }
+};
+
 // ── DsContentBrowserWidget ────────────────────────────────────────────────────
 
 DsContentBrowserWidget::DsContentBrowserWidget(QWidget *parent)
@@ -247,6 +361,7 @@ DsContentBrowserWidget::DsContentBrowserWidget(QWidget *parent)
     , m_options(new QToolButton)
     , m_fields(new QTableWidget)
     , m_preview(new MediaPreview)
+    , m_pillDelegate(new UidPillDelegate(this))
 {
     setWindowTitle(tr("Content Browser"));
     resize(1200, 700);
@@ -305,6 +420,10 @@ DsContentBrowserWidget::DsContentBrowserWidget(QWidget *parent)
         vh->setSectionResizeMode(QHeaderView::Fixed);
         vh->setDefaultSectionSize(rowHeight);
     }
+
+    // Render UID-bearing value cells as clickable pills that jump to the record.
+    m_pillDelegate->onUidClicked = [this](const QString &uid) { navigateToUid(uid); };
+    m_fields->setItemDelegateForColumn(1, m_pillDelegate);
 
     // ── Right side: fields over preview ──
     auto *rightSplit = new QSplitter(Qt::Vertical);
@@ -409,6 +528,12 @@ void DsContentBrowserWidget::populateFields(const DatabaseRecord &record)
             valItem->setData(Qt::UserRole, key);
             if (firstResourceKey.isEmpty())
                 firstResourceKey = key;
+        } else {
+            // If the field holds one or more known UIDs, tag it so the delegate
+            // renders those tokens as clickable pills.
+            const QStringList tokens = uidTokensFor(record, key);
+            if (!tokens.isEmpty())
+                valItem->setData(kPillTokensRole, tokens);
         }
         m_fields->setItem(row, 0, keyItem);
         m_fields->setItem(row, 1, valItem);
@@ -462,6 +587,60 @@ bool DsContentBrowserWidget::fieldVisible(const QString &key) const
 void DsContentBrowserWidget::applyMediaVisibility()
 {
     m_preview->setVisible(!m_autoHideMedia->isChecked() || m_hasMedia);
+}
+
+// ── UID pills / navigation ────────────────────────────────────────────────────
+
+QStringList DsContentBrowserWidget::uidTokensFor(const DatabaseRecord &record,
+                                                 const QString &key) const
+{
+    const QVariant v = record.value(key);
+
+    QStringList tokens;
+    if (v.metaType() == QMetaType::fromType<QStringList>()) {
+        tokens = v.toStringList();
+    } else if (v.metaType() == QMetaType::fromType<QVariantList>()) {
+        const QVariantList list = v.toList();
+        tokens.reserve(list.size());
+        for (const QVariant &item : list)
+            tokens.append(item.toString());
+    } else {
+        // A scalar field may still hold a single UID, or a comma-separated list.
+        tokens = v.toString().split(QLatin1Char(','), Qt::SkipEmptyParts);
+    }
+
+    // Only treat this as a UID field if at least one token is a known record.
+    const DatabaseRecordHash &records = DsQmlBridge::instance().database().records();
+    bool anyKnown = false;
+    for (const QString &token : tokens) {
+        if (records.contains(token.trimmed())) {
+            anyKnown = true;
+            break;
+        }
+    }
+    return anyKnown ? tokens : QStringList{};
+}
+
+void DsContentBrowserWidget::navigateToUid(const QString &uid)
+{
+    const QModelIndex source = m_model->indexForUid(uid);
+    if (!source.isValid())
+        return;
+
+    // Clear any active filter so the target record can't be hidden.
+    if (!m_filter->text().isEmpty())
+        m_filter->clear();
+
+    const QModelIndex target = m_proxy->mapFromSource(source);
+    if (!target.isValid())
+        return;
+
+    for (QModelIndex p = target.parent(); p.isValid(); p = p.parent())
+        m_tree->expand(p);
+
+    m_tree->setCurrentIndex(target); // triggers the field panel to repopulate
+    m_tree->scrollTo(target, QAbstractItemView::PositionAtCenter);
+    m_tree->setFocus();
 }
 
 // ── Expansion / selection preservation ────────────────────────────────────────
