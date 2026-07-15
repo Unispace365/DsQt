@@ -169,11 +169,14 @@ ApplicationWindow {
 
     /// Setup the window after construction.
     Component.onCompleted: {
-        // Load content browser component dynamically from Bridge module.
-        contentViewerComponent = Qt.createComponent("qrc:/qt/qml/Dsqt/Bridge/qml/DsContentBrowser.qml")
-        if (contentViewerComponent.status === Component.Error) {
+        // Load the content browser helper dynamically from the (optional) Bridge
+        // module. Using the module/type overload lets us instantiate the C++
+        // DsContentBrowserHelper (QML_ELEMENT) without importing Dsqt.Bridge here,
+        // so Core keeps building even when Bridge is unavailable.
+        contentBrowserComponent = Qt.createComponent("Dsqt.Bridge", "DsContentBrowserHelper")
+        if (contentBrowserComponent.status === Component.Error) {
             console.warn("DsAppBase: Bridge module not available - content browser disabled")
-            contentViewerComponent = null
+            contentBrowserComponent = null
         }
 
         // Load TouchFilter controls window dynamically from Touch module.
@@ -256,15 +259,17 @@ ApplicationWindow {
 
         property var contentBrowser: null
         onContentBrowseToggled: (isChecked) => {
-            if (window.contentViewerComponent === null) {
+            if (window.contentBrowserComponent === null) {
                 console.warn("Content browser not available")
                 return
             }
             if(contentBrowser === null) {
-                contentBrowser = window.contentViewerComponent.createObject(window)
-                contentBrowser.closing.connect( () => { windowMenuBar.contentBrowseChecked = false } )
+                contentBrowser = window.contentBrowserComponent.createObject(window)
+                // Keep the menu checkbox in sync even when the window is closed
+                // via its own close button (helper emits visibleChanged on hide).
+                contentBrowser.visibleChanged.connect( (isVisible) => { windowMenuBar.contentBrowseChecked = isVisible } )
             }
-            contentBrowser.visible = isChecked
+            contentBrowser.setVisible(isChecked)
         }
 
         onSettingsTriggered: (isChecked) => { settingsViewer.setVisible(isChecked) }
@@ -315,8 +320,8 @@ ApplicationWindow {
         onVisibleChanged: (isVisible) => { windowMenuBar.settingsChecked = isVisible }
     }
 
-    /// Content browser component (loaded dynamically from Bridge module)
-    property Component contentViewerComponent: null
+    /// Content browser helper component (loaded dynamically from Bridge module)
+    property Component contentBrowserComponent: null
 
     /// TouchFilter debug controls window component (loaded dynamically from Touch module)
     property Component touchFilterDebugComponent: null
