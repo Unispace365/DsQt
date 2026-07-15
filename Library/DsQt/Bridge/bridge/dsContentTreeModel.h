@@ -42,7 +42,7 @@ struct ContentTreeItem
 // three-section tree:
 //
 //   Content    (root content records and their descendants)
-//   Events     (event records)
+//   Events     (event records and their descendants)
 //   Platforms  (platform records and their descendants)
 //
 // The model uses *only* DatabaseRecord/DatabaseContent to read the data — it
@@ -100,6 +100,13 @@ private:
     ContentTreeItem *itemForIndex(const QModelIndex &index) const;
 
     ContentTreeItem *m_root = nullptr;
+
+    // Re-entrancy guard for refresh(): a bridge update can arrive while we are
+    // still inside a reset (e.g. a media backend pumping the event loop during
+    // the browser's selection restore). Beginning a second reset before the
+    // first finishes corrupts the model, so we coalesce instead.
+    bool m_rebuilding    = false;
+    bool m_refreshPending = false;
 };
 
 } // namespace dsqt::bridge

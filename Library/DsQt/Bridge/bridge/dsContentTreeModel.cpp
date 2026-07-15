@@ -29,29 +29,46 @@ DsContentTreeModel::~DsContentTreeModel()
 
 void DsContentTreeModel::refresh()
 {
-    const DatabaseContent &db = DsQmlBridge::instance().database();
+    // Never begin a reset while one is already in progress (see m_rebuilding in
+    // the header). Record that another rebuild is needed and let the active call
+    // pick it up when it finishes.
+    if (m_rebuilding) {
+        m_refreshPending = true;
+        return;
+    }
+    m_rebuilding = true;
 
-    beginResetModel();
+    do {
+        m_refreshPending = false;
 
-    delete m_root;
-    m_root = new ContentTreeItem;
+        // Re-read the database each pass so a coalesced update uses the latest.
+        const DatabaseContent &db = DsQmlBridge::instance().database();
 
-    auto makeGroup = [this](const QString &label) {
-        auto *group     = new ContentTreeItem;
-        group->label    = label;
-        group->isGroup  = true;
-        group->parent   = m_root;
-        m_root->children.append(group);
-        return group;
-    };
+        beginResetModel();
 
-    // Content and platforms are hierarchical (records reference children via
-    // child_uid); events are shown as a flat list.
-    buildGroup(makeGroup(QStringLiteral("Content")),   db.content(),   db, /*recurse*/ true);
-    buildGroup(makeGroup(QStringLiteral("Events")),    db.events(),    db, /*recurse*/ false);
-    buildGroup(makeGroup(QStringLiteral("Platforms")), db.platforms(), db, /*recurse*/ true);
+        delete m_root;
+        m_root = new ContentTreeItem;
 
-    endResetModel();
+        auto makeGroup = [this](const QString &label) {
+            auto *group     = new ContentTreeItem;
+            group->label    = label;
+            group->isGroup  = true;
+            group->parent   = m_root;
+            m_root->children.append(group);
+            return group;
+        };
+
+        // All three sections are hierarchical: records reference their children
+        // via child_uid, and events can nest override/agenda records several
+        // levels deep.
+        buildGroup(makeGroup(QStringLiteral("Content")),   db.content(),   db, /*recurse*/ true);
+        buildGroup(makeGroup(QStringLiteral("Events")),    db.events(),    db, /*recurse*/ true);
+        buildGroup(makeGroup(QStringLiteral("Platforms")), db.platforms(), db, /*recurse*/ true);
+
+        endResetModel();
+    } while (m_refreshPending);
+
+    m_rebuilding = false;
 }
 
 void DsContentTreeModel::buildGroup(ContentTreeItem *group, const DatabaseRecordList &roots,
@@ -106,7 +123,9 @@ DatabaseRecord DsContentTreeModel::recordAt(const QModelIndex &index) const
     if (!index.isValid())
         return {};
     const auto *item = static_cast<ContentTreeItem *>(index.internalPointer());
-    return item->isGroup ? DatabaseRecord{} : item->record;
+    if (!item || item->isGroup)
+        return {};
+    return item->record;
 }
 
 QModelIndex DsContentTreeModel::indexForUid(const QString &uid) const

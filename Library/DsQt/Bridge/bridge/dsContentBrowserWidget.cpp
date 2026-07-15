@@ -475,10 +475,15 @@ DsContentBrowserWidget::DsContentBrowserWidget(QWidget *parent)
     applyMediaVisibility(); // apply the default (no media shown yet)
 
     // Preserve expansion/selection across the model's automatic rebuilds.
+    // Capture runs synchronously while the pre-reset tree is still valid.
+    // Restore is queued so it runs only after the reset has fully settled —
+    // this keeps the heavier restore work (expansion, re-selection, and the
+    // field/media repopulation it triggers) out of the model-reset signal,
+    // avoiding re-entrant resets that could corrupt the model.
     connect(m_proxy, &QAbstractItemModel::modelAboutToBeReset,
             this, &DsContentBrowserWidget::captureViewState);
     connect(m_proxy, &QAbstractItemModel::modelReset,
-            this, &DsContentBrowserWidget::restoreViewState);
+            this, &DsContentBrowserWidget::restoreViewState, Qt::QueuedConnection);
 }
 
 DsContentBrowserWidget::~DsContentBrowserWidget() = default;
@@ -574,9 +579,13 @@ bool DsContentBrowserWidget::fieldVisible(const QString &key) const
 
     if (!m_showCommonFields->isChecked()) {
         static const QSet<QString> kCommon = {
-            QStringLiteral("parent_slot"), QStringLiteral("rank"),
+            QStringLiteral("child_uid"),   QStringLiteral("label"),
+            QStringLiteral("parent_slot"), QStringLiteral("parent_uid"),
+            QStringLiteral("rank"),        QStringLiteral("reverse_ordered"),
+            QStringLiteral("record_name"),
             QStringLiteral("type_key"),    QStringLiteral("type_name"),
             QStringLiteral("type_uid"),    QStringLiteral("variant"),
+            QStringLiteral("uid"),
         };
         if (kCommon.contains(key))
             return false;
