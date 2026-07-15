@@ -1,6 +1,7 @@
 #include "bridge/dsContentBrowserWidget.h"
 #include "bridge/dsContentTreeModel.h"
 
+#include <QAction>
 #include <QAudioOutput>
 #include <QHBoxLayout>
 #include <QHeaderView>
@@ -11,6 +12,7 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QMediaPlayer>
+#include <QMenu>
 #include <QPixmap>
 #include <QRect>
 #include <QResizeEvent>
@@ -19,6 +21,7 @@
 #include <QSplitter>
 #include <QStackedWidget>
 #include <QTableWidget>
+#include <QToolButton>
 #include <QTreeView>
 #include <QUrl>
 #include <QVBoxLayout>
@@ -241,6 +244,7 @@ DsContentBrowserWidget::DsContentBrowserWidget(QWidget *parent)
     , m_proxy(new ContentFilterProxyModel(this))
     , m_tree(new QTreeView)
     , m_filter(new QLineEdit)
+    , m_options(new QToolButton)
     , m_fields(new QTableWidget)
     , m_preview(new MediaPreview)
 {
@@ -264,6 +268,23 @@ DsContentBrowserWidget::DsContentBrowserWidget(QWidget *parent)
     m_filter->setPlaceholderText(tr("Filter by name, type, or UID…"));
     m_filter->setClearButtonEnabled(true);
 
+    // ── View-options (cog) popup, to the right of the filter box ──
+    auto *optionsMenu = new QMenu(this);
+    m_showFieldUids = optionsMenu->addAction(tr("Show Field UIDs"));
+    m_showCommonFields = optionsMenu->addAction(tr("Show Common Fields"));
+    m_autoHideMedia = optionsMenu->addAction(tr("Auto-Hide Media"));
+    for (QAction *a : {m_showFieldUids, m_showCommonFields, m_autoHideMedia})
+        a->setCheckable(true);
+    m_showFieldUids->setChecked(false);   // hide "*_field_uid" fields by default
+    m_showCommonFields->setChecked(true); // show rank/type_*/variant by default
+    m_autoHideMedia->setChecked(true);    // hide the media pane when nothing is shown
+
+    m_options->setText(QStringLiteral("⚙")); // ⚙ gear glyph
+    m_options->setToolTip(tr("View options"));
+    m_options->setPopupMode(QToolButton::InstantPopup);
+    m_options->setAutoRaise(true);
+    m_options->setMenu(optionsMenu);
+
     // ── Field table ──
     m_fields->setColumnCount(2);
     m_fields->setHorizontalHeaderLabels({tr("Field"), tr("Value")});
@@ -271,9 +292,19 @@ DsContentBrowserWidget::DsContentBrowserWidget(QWidget *parent)
     m_fields->setEditTriggers(QAbstractItemView::NoEditTriggers);
     m_fields->setSelectionBehavior(QAbstractItemView::SelectRows);
     m_fields->setSelectionMode(QAbstractItemView::SingleSelection);
+    m_fields->setAlternatingRowColors(true); // match the tree
     m_fields->horizontalHeader()->resizeSection(0, 200);
     m_fields->horizontalHeader()->setStretchLastSection(true);
     m_fields->setWordWrap(false);
+
+    // Give the field rows the same height as the tree rows. sizeHintForRow() is
+    // valid here because the model already holds the three section rows.
+    const int rowHeight = m_tree->sizeHintForRow(0);
+    if (rowHeight > 0) {
+        QHeaderView *vh = m_fields->verticalHeader();
+        vh->setSectionResizeMode(QHeaderView::Fixed);
+        vh->setDefaultSectionSize(rowHeight);
+    }
 
     // ── Right side: fields over preview ──
     auto *rightSplit = new QSplitter(Qt::Vertical);
@@ -288,10 +319,15 @@ DsContentBrowserWidget::DsContentBrowserWidget(QWidget *parent)
     mainSplit->setStretchFactor(0, 2);
     mainSplit->setStretchFactor(1, 3);
 
+    auto *topRow = new QHBoxLayout;
+    topRow->setContentsMargins(0, 0, 0, 0);
+    topRow->addWidget(m_filter, 1);
+    topRow->addWidget(m_options);
+
     auto *layout = new QVBoxLayout(this);
     layout->setContentsMargins(6, 6, 6, 6);
     layout->setSpacing(6);
-    layout->addWidget(m_filter);
+    layout->addLayout(topRow);
     layout->addWidget(mainSplit, 1);
 
     // ── Wiring ──
@@ -308,6 +344,16 @@ DsContentBrowserWidget::DsContentBrowserWidget(QWidget *parent)
 
     connect(m_fields, &QTableWidget::cellClicked, this,
             [this](int row, int) { onFieldActivated(row); });
+
+    // View-option toggles: field visibility re-runs the field list; auto-hide
+    // just re-evaluates the media pane's visibility.
+    connect(m_showFieldUids, &QAction::toggled, this,
+            [this] { populateFields(m_currentRecord); });
+    connect(m_showCommonFields, &QAction::toggled, this,
+            [this] { populateFields(m_currentRecord); });
+    connect(m_autoHideMedia, &QAction::toggled, this,
+            [this] { applyMediaVisibility(); });
+    applyMediaVisibility(); // apply the default (no media shown yet)
 
     // Preserve expansion/selection across the model's automatic rebuilds.
     connect(m_proxy, &QAbstractItemModel::modelAboutToBeReset,
@@ -343,10 +389,12 @@ void DsContentBrowserWidget::populateFields(const DatabaseRecord &record)
 {
     m_fields->clearContents();
 
+    // Sort keys, then drop the ones hidden by the current view options.
     QStringList keys = record.keys();
     std::sort(keys.begin(), keys.end(), [](const QString &a, const QString &b) {
         return a.localeAwareCompare(b) < 0;
     });
+    keys.removeIf([this](const QString &key) { return !fieldVisible(key); });
 
     m_fields->setRowCount(keys.size());
     QString firstResourceKey;
@@ -367,10 +415,14 @@ void DsContentBrowserWidget::populateFields(const DatabaseRecord &record)
     }
 
     // Auto-preview the record's first media field, if any.
-    if (!firstResourceKey.isEmpty())
+    if (!firstResourceKey.isEmpty()) {
         m_preview->show(record.resource(firstResourceKey));
-    else
+        m_hasMedia = true;
+    } else {
         m_preview->clear();
+        m_hasMedia = false;
+    }
+    applyMediaVisibility();
 }
 
 void DsContentBrowserWidget::onFieldActivated(int row)
@@ -384,6 +436,32 @@ void DsContentBrowserWidget::onFieldActivated(int row)
     if (key.isEmpty())
         return; // not a resource field
     m_preview->show(m_currentRecord.resource(key));
+    m_hasMedia = true;
+    applyMediaVisibility();
+}
+
+// ── View options ──────────────────────────────────────────────────────────────
+
+bool DsContentBrowserWidget::fieldVisible(const QString &key) const
+{
+    if (!m_showFieldUids->isChecked() && key.endsWith(QLatin1String("_field_uid")))
+        return false;
+
+    if (!m_showCommonFields->isChecked()) {
+        static const QSet<QString> kCommon = {
+            QStringLiteral("parent_slot"), QStringLiteral("rank"),
+            QStringLiteral("type_key"),    QStringLiteral("type_name"),
+            QStringLiteral("type_uid"),    QStringLiteral("variant"),
+        };
+        if (kCommon.contains(key))
+            return false;
+    }
+    return true;
+}
+
+void DsContentBrowserWidget::applyMediaVisibility()
+{
+    m_preview->setVisible(!m_autoHideMedia->isChecked() || m_hasMedia);
 }
 
 // ── Expansion / selection preservation ────────────────────────────────────────

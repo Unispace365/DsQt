@@ -6,9 +6,11 @@
 #include <QString>
 #include <QWidget>
 
+class QAction;
 class QLineEdit;
 class QModelIndex;
 class QTableWidget;
+class QToolButton;
 class QTreeView;
 
 namespace dsqt::bridge {
@@ -58,6 +60,11 @@ private:
     void populateFields(const DatabaseRecord &record);
     void onFieldActivated(int row);
 
+    // Returns true if the field should be shown given the current view options.
+    bool fieldVisible(const QString &key) const;
+    // Shows or hides the media pane according to the Auto-Hide Media option.
+    void applyMediaVisibility();
+
     // Expansion / selection preservation across model resets.
     void captureViewState();
     void restoreViewState();
@@ -69,12 +76,21 @@ private:
     ContentFilterProxyModel *m_proxy;
     QTreeView               *m_tree;
     QLineEdit               *m_filter;
+    QToolButton             *m_options;
     QTableWidget            *m_fields;
     MediaPreview            *m_preview;
+
+    // View-option toggles (settings/cog popup, right of the filter box).
+    QAction *m_showFieldUids;   // show "*_field_uid" fields          (off by default)
+    QAction *m_showCommonFields; // show rank/type_*/variant fields   (on by default)
+    QAction *m_autoHideMedia;    // hide media pane when nothing shown (on by default)
 
     // Snapshot of the record whose fields are currently shown, so field-row
     // clicks can resolve resources without another lookup.
     DatabaseRecord m_currentRecord;
+
+    // Whether the preview currently shows a media resource — drives Auto-Hide.
+    bool m_hasMedia = false;
 
     // Captured view state (stable keys) used to restore expansion/selection.
     QSet<QString> m_savedExpanded;
