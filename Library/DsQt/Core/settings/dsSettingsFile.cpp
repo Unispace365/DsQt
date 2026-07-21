@@ -350,7 +350,13 @@ static QVariant nodeToVariant(const toml::node &node)
 
     case toml::node_type::array: {
         const toml::array &arr = *node.as_array();
-        if (arr.size() == 2 && arr[1].is_table())
+        // Legacy "value + metadata" form: [value, {type=...}]. The value slot
+        // holds a scalar or array (never a table), and the metadata table always
+        // carries a "type" marker. Requiring both guards prevents an ordinary
+        // array of two tables (e.g. a [[slide]] array-of-tables) from being
+        // mistaken for this form and collapsed to its first element.
+        if (arr.size() == 2 && arr[1].is_table() && !arr[0].is_table()
+            && arr[1].as_table()->contains("type"))
             return legacyMetadataValue(arr);
         if (arr.size() == 1 && arr[0].is_array())
             return nodeToVariant(arr[0]);
