@@ -201,12 +201,14 @@ class DsBridgeSqlQuery : public QObject {
     void onUpdated();
     // Create content records on the main thread.
     void onProcessContent();
-    // Make sure all content records are linked up (parent-child relations are enforced).
-    void onLinkContent();
-    //
-    void onSortContent();
     // Make sure obsolete content records are deleted.
     void onCleanContent();
+    // Make sure all content records are linked up (parent-child relations are enforced).
+    void onLinkContent();
+    // Sort children by rank and set the "children" property on ContentModel records
+    void onSortContent();
+    // Final step in the content processing pipeline
+    void onPublishContent();
 
   private:
     /**

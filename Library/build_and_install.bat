@@ -29,36 +29,8 @@ if defined PRINT_HELP (
 :script_start
 
 REM Set up the MSVC developer environment if not already active
-if not defined VSINSTALLDIR (
-    set VSWHERE="%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe"
-    for /f "usebackq delims=" %%i in (`!VSWHERE! -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath`) do set VS_PATH=%%i
-    if not defined VS_PATH (
-        powershell -NoProfile -Command "Write-Host 'Visual Studio with C++ tools not found. Install VS with the Desktop C++ workload.' -ForegroundColor Red"
-        exit /b 1
-    )
-    call "!VS_PATH!\VC\Auxiliary\Build\vcvarsall.bat" amd64
-    if !errorlevel! neq 0 (
-        powershell -NoProfile -Command "Write-Host 'Failed to set up MSVC environment.' -ForegroundColor Red"
-        exit /b !errorlevel!
-    )
-)
-
-:: --- Ensure ninja is on PATH ---
-where ninja >nul 2>&1
-if !errorlevel! neq 0 (
-    if defined VSINSTALLDIR (
-        set NINJA_DIR=!VSINSTALLDIR!Common7\IDE\CommonExtensions\Microsoft\CMake\Ninja
-        if exist "!NINJA_DIR!\ninja.exe" (
-            set PATH=!NINJA_DIR!;!PATH!
-        ) else (
-            powershell -NoProfile -Command "Write-Host 'ninja.exe not found. Install the CMake tools component in Visual Studio.' -ForegroundColor Red"
-            exit /b 1
-        )
-    ) else (
-        powershell -NoProfile -Command "Write-Host 'ninja not on PATH and VSINSTALLDIR not set.' -ForegroundColor Red"
-        exit /b 1
-    )
-)
+call :setup_msvc
+if errorlevel 1 exit /b 1
 
 set PRESET=ninja
 set RUN_TESTS=0
@@ -300,7 +272,7 @@ if !SKIP_INSTALL!==1 (
 if !DEBUG_NOOP!==1 if !RELEASE_NOOP!==1 (
     echo.
     powershell -NoProfile -Command "Write-Host 'No changes detected - skipping install.' -ForegroundColor Yellow"
-    goto :tools_build
+    goto :timing
 )
 
 echo.
@@ -323,22 +295,12 @@ if %errorlevel% neq 0 (
 )
 call :gettime INSTALL_RELEASE_END
 
-:tools_build
 :: --- Build and Install Tools (ProjectCloner + ClonerSource) ---
 if !BUILD_TOOLS!==1 (
     set TOOLS_DIR=%~dp0..\Tools\ProjectCloner
     set CLONER_SRC=%~dp0..\Examples\ClonerSource
     set TOOLS_BUILD=!TOOLS_DIR!\build\%PRESET%
     set INSTALL_PREFIX=%USERPROFILE%\Documents\DsQt
-
-    :: If -qt was not specified, auto-detect Qt path from the cmake cache
-    if not defined QT_PATH (
-        for /f "tokens=2 delims==" %%i in ('findstr /i "Qt6_DIR:PATH" "build\%PRESET%\CMakeCache.txt" 2^>nul') do (
-            set "_QT6DIR_TEMP=%%i"
-            for /f "delims=" %%p in ('powershell -NoProfile -Command "Split-Path (Split-Path (Split-Path $env:_QT6DIR_TEMP))"') do set QT_PATH=%%p
-        )
-        if defined QT_PATH powershell -NoProfile -Command "Write-Host '    Qt (auto-detected for tools): !QT_PATH!' -ForegroundColor Yellow"
-    )
 
     echo.
     call :header "Configuring ProjectCloner"
@@ -421,7 +383,6 @@ if !SKIP_INSTALL!==0 if not "!INSTALL_DEBUG_END!"=="0" (
 echo  Overall time        : %OVERALL_FMT%
 echo.
 powershell -NoProfile -Command "Write-Host 'Done.' -ForegroundColor Green"
-powershell -NoProfile -Command "Write-Host ('Finished at ' + (Get-Date).ToString('yyyy-MM-dd HH:mm:ss')) -ForegroundColor DarkGray"
 goto :eof
 
 :: Print a colored section header
@@ -450,4 +411,36 @@ set /a M = %~1 / 60
 set /a S = %~1 %% 60
 set RESULT=%M%m %S%s
 endlocal & set %~2=%RESULT%
+goto :eof
+
+:: Initialize the MSVC x64 developer environment if not already active.
+:: Locates Visual Studio 2022 (v17) or 2026 (v18), any edition, via vswhere
+:: with a path-probe fallback. Also ensures Ninja (bundled with the VS C++
+:: CMake tools) is on PATH.
+:setup_msvc
+if defined VSINSTALLDIR goto :eof
+set "_VSINSTALL="
+set "_VSWHERE=%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe"
+if exist "%_VSWHERE%" (
+    for /f "usebackq tokens=*" %%i in (`"%_VSWHERE%" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath`) do set "_VSINSTALL=%%i"
+)
+if not defined _VSINSTALL (
+    for %%V in (18 2026 2022 17) do for %%E in (Community Professional Enterprise BuildTools) do if not defined _VSINSTALL if exist "C:\Program Files\Microsoft Visual Studio\%%V\%%E\VC\Auxiliary\Build\vcvarsall.bat" set "_VSINSTALL=C:\Program Files\Microsoft Visual Studio\%%V\%%E"
+)
+if not defined _VSINSTALL (
+    powershell -NoProfile -Command "Write-Host 'ERROR: Could not find Visual Studio 2022 or 2026 with the C++ x64 toolset. Install the Desktop development with C++ workload.' -ForegroundColor Red"
+    exit /b 1
+)
+if not exist "%_VSINSTALL%\VC\Auxiliary\Build\vcvarsall.bat" (
+    powershell -NoProfile -Command "Write-Host 'ERROR: vcvarsall.bat not found under %_VSINSTALL%.' -ForegroundColor Red"
+    exit /b 1
+)
+powershell -NoProfile -Command "Write-Host '    Visual Studio: %_VSINSTALL%' -ForegroundColor Yellow"
+call "%_VSINSTALL%\VC\Auxiliary\Build\vcvarsall.bat" amd64
+if errorlevel 1 (
+    powershell -NoProfile -Command "Write-Host 'ERROR: Failed to initialize MSVC environment via vcvarsall.bat.' -ForegroundColor Red"
+    exit /b 1
+)
+REM Ensure Ninja (bundled with the VS C++ CMake tools) is on PATH.
+where ninja >nul 2>&1 || set "PATH=%_VSINSTALL%\Common7\IDE\CommonExtensions\Microsoft\CMake\Ninja;%PATH%"
 goto :eof
