@@ -86,10 +86,15 @@ project_path = ["my_project", {type="string", restart="full"}]
 volume = [75, {type="int", min=0, max=100}]
 ```
 
-**This format is only kept for backward compatibility.** When the settings system encounters a two-element array whose second element is a table, it strips the metadata and keeps the first element as the value — with two exceptions:
+**This format is only kept for backward compatibility.** A two-element array is treated as `[value, {metadata}]` only when **both** of these hold:
+
+1. The second element is a table **containing a `type` key**. A trailing table without a `type` key — `[10, {a=1}]` — is not metadata; the array loads literally, as a 2-element list.
+2. The first element is **not** a table, *or* `type` is `"color"` or `"rect"`. This keeps an ordinary array of two tables (an inline list of objects, or a two-entry `[[array.of.tables]]`) from being collapsed to its first element, while still allowing the table-valued colour and rect forms below.
+
+When both hold, the metadata is stripped and the first element becomes the value — with two exceptions, where the metadata actually changes how the value is read:
 
 - `{type="color", element_type="float"|"int", array_color_type="rgb"|"hsv"|"hsl"|"cmyk"}` — reinterprets an array or table value as a `QColor` (see [Colors](#colors)).
-- `{type="rect"}` on a 4-element array — reinterprets it as a `QRectF`.
+- `{type="rect"}` on a 4-element array — reinterprets it as a `QRectF`. A table value with `{type="rect"}` needs no reinterpretation: it is picked up by the normal structural detection.
 
 Every other metadata field (`restart`, `test`, `min`, `max`, `step`, custom `name`/`desc`, etc.) is **read and discarded**. It has no effect on the loaded value, on validation, or on UI behavior — nothing in the current codebase consumes those fields. Don't rely on them for new settings; they exist purely so old files still load without errors.
 
@@ -239,7 +244,14 @@ gray       = [[0.5], {type="color", element_type="float", array_color_type="rgb"
 gray_alpha = [[0.5, 0.8], {type="color", element_type="float", array_color_type="rgb"}]
 ```
 
-Note that in this legacy form `element_type` is required and read literally — it is **not** auto-detected the way the plain object format is.
+`element_type` is honoured literally when present: `"float"` reads channels as 0.0–1.0, `"int"` as 0–255 (or 0–360 / 0–100 for hue and the HSV/HSL/CMYK channels). When it is **omitted**, the range is auto-detected the same way the plain object format does it — every channel within 0.0–1.0 is read as float, anything else as int:
+
+```toml
+# element_type omitted — auto-detected as float, since all channels are <= 1.0
+color_auto = [[0.5, 0.5, 0.5, 1.0], {type="color"}]
+```
+
+Spell out `element_type` anyway on legacy entries whose channels could be read either way — `[[1, 0, 0]]` is a valid float red *and* a valid int near-black.
 
 ### Organizing Colors
 
@@ -381,28 +393,27 @@ numbers = [1, 2, 3, 4, 5]
 
 You only need to wrap a list in an extra set of brackets — `[[ ... ]]` — to dodge two specific ambiguities that come from the still-supported [legacy metadata](#legacy-metadata-format) format:
 
-- **A 2-item list whose 2nd item is a table**, e.g. `[10, {a=1}]`, would otherwise be read as `[value, metadata]` (keeping `10` and silently discarding the table). Wrap it: `pair = [[10, {a=1}]]`.
+- **A 2-item list whose 2nd item is a table carrying a `type` key**, e.g. `[10, {type="int", min=0}]`, is read as `[value, metadata]` — keeping `10` and discarding the table. Wrap it to keep both items: `pair = [[10, {type="int", min=0}]]`. A trailing table *without* a `type` key is not metadata, so `[10, {a=1}]` already loads as a 2-element list and needs no wrapping.
 - **A 1-item list whose item is itself an array**, e.g. `[[1, 2]]` meant as "a list containing the sublist `[1, 2]`", is instead auto-unwrapped one level to the flat list `[1, 2]`. A genuinely nested single-sublist list needs a third bracket: `[[[1, 2]]]`.
 
-Any other shape (empty, a single non-array item, 3+ items, or a 2-item list whose 2nd item isn't a table) doesn't need extra brackets at all. That said, since it's easy to lose track of which shape you have, the settings files in this repo double-bracket raw lists defensively as a habit — it's always correct, even where it isn't strictly necessary:
+Any other shape (empty, a single non-array item, 3+ items, or a 2-item list whose 2nd item isn't a `type`-bearing table) doesn't need extra brackets at all. That said, since it's easy to lose track of which shape you have, the settings files in this repo double-bracket raw lists defensively as a habit — it's always correct, even where it isn't strictly necessary:
 
 ```toml
 # Defensive double-bracket style used throughout the example settings files
 tags = [["red", "green", "blue"]]
 numbers = [[1, 2, 3, 4, 5]]
 
-# Mixed types — here the 4th element (a table) makes this shape genuinely
-# ambiguous only if the list were exactly 2 items long; with 4 items it
-# would work unwrapped too, but the convention wraps it anyway
+# Mixed types — the trailing table has no `type` key, so this is never
+# mistaken for metadata; the convention wraps it anyway
 mixed = [[10, "string", 3.14, {r=1, g=0, b=0, a=1}]]
 ```
 
 ### Lists of Objects
 
 ```toml
-# Method 1: Inline array — the double bracket is required here: this is a
-# 2-item list whose 2nd item is a table, which would otherwise be read as
-# [value, metadata] (see the two ambiguous cases above).
+# Method 1: Inline array. The double bracket is the house style, not a
+# requirement — a list of objects is never mistaken for [value, metadata],
+# because the 1st element is a table and the 2nd has no `type` key.
 buttons = [[
     {label="OK", action="confirm"},
     {label="Cancel", action="cancel"}
@@ -422,7 +433,9 @@ label = "View"
 shortcut = "Ctrl+V"
 ```
 
-> Older files sometimes wrap list values in the [legacy metadata](#legacy-metadata-format) form (e.g. `[[...], {types=[...]}]` or `[[...], {type="QVariantMap"}]`). These still load correctly, but the metadata itself (`types`, `type="QVariantMap"`, etc.) is discarded — it has no effect beyond the color/rect cases described earlier. New files don't need it.
+> Older files sometimes wrap list values in the [legacy metadata](#legacy-metadata-format) form. `[[...], {type="QVariantMap"}]` unwraps as expected, and the metadata is discarded — it has no effect beyond the color/rect cases described earlier.
+>
+> Watch out for the `types` (plural) variant, e.g. `[[10, "a"], {types=["int", "string"]}]`. The unwrap keys off `type`, so `types` is **not** recognised as metadata and the entry loads as a literal 2-element list — `[[10, "a"], {types: [...]}]` — rather than the intended `[10, "a"]`. Rename the key to `type`, or drop the metadata table entirely. New files don't need it.
 
 ### Nested Objects
 
