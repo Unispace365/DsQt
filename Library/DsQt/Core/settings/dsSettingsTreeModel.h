@@ -31,9 +31,10 @@ struct SettingsTreeItem
     ~SettingsTreeItem() { qDeleteAll(children); }
 };
 
-// A QAbstractItemModel that exposes a SettingsFile as a two-column tree.
+// A QAbstractItemModel that exposes a SettingsFile as a three-column tree.
 // Column 0: key name (carries tree indentation).
 // Column 1: value as a display string (leaves only).
+// Column 2: friendly type name (leaves only).
 // Additional roles: IsLeafRole and FullPathRole for use in QML delegates.
 class SettingsTreeModel : public QAbstractItemModel
 {

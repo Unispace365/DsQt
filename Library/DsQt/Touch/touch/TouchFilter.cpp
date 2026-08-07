@@ -1,6 +1,8 @@
 #include "TouchFilter.h"
 #include "settings/dsSettings.h"
 
+#include <utility>
+
 #include <QCoreApplication>
 #include <QPointerEvent>
 #include <QQuickWindow>

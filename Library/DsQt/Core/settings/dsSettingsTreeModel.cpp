@@ -1,11 +1,14 @@
 #include "settings/dsSettingsTreeModel.h"
 #include "settings/dsSettingsFile.h"
 
+#include <utility>
+
 #include <QColor>
 #include <QDateTime>
 #include <QFont>
 #include <QPixmap>
 #include <QPointF>
+#include <QQuaternion>
 #include <QRectF>
 #include <QSizeF>
 #include <QVector2D>
