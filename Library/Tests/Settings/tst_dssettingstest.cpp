@@ -126,6 +126,10 @@ class DsSettingsTest : public QObject
     static QString settingsDir() { return QDir::current().filePath("settings"); }
 
     std::unique_ptr<dsqt::SettingsFile> test_settings;
+
+    // Search paths the Settings singleton had on entry to the current test,
+    // restored by cleanup(). See the note there.
+    QStringList saved_search_paths;
 };
 
 DsSettingsTest::DsSettingsTest()
@@ -156,6 +160,8 @@ void DsSettingsTest::init()
     test_settings = std::make_unique<dsqt::SettingsFile>(nullptr, QStringList{settingsDir()});
     test_settings->setFileName("test_settings.toml");
 
+    saved_search_paths = dsqt::Settings::instance().searchPaths();
+
     QVERIFY2(!test_settings->resolvedFilePaths().isEmpty(),
              qPrintable("test_settings.toml not found under " + settingsDir()));
 }
@@ -163,6 +169,20 @@ void DsSettingsTest::init()
 void DsSettingsTest::cleanup()
 {
     test_settings.reset();
+
+    // The Settings singleton is process-wide, so registry mutations are undone
+    // here rather than at the end of the test that made them: cleanup() still
+    // runs when a test aborts early on a failed QVERIFY, whereas trailing
+    // teardown inside the test body does not.
+    //
+    // Forgetting every registered name is correct while nothing is registered
+    // in initTestCase(). If that changes, snapshot the names in init() and
+    // forget only the ones added since.
+    auto& settings = dsqt::Settings::instance();
+    const auto names = settings.settingsNames();
+    for (const QString& name : names)
+        dsqt::Settings::forget(name);
+    settings.setSearchPaths(saved_search_paths);
 }
 
 //*****************
