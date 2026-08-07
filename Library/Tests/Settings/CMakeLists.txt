@@ -29,20 +29,16 @@ qt_add_executable(${DS_EXE_NAME}
 if(DSQT_SETTINGS_TEST_STANDALONE)
     # Standalone build: compile settings sources and fetch dependencies
     set(DS_QT_PLATFORM_100 "${CMAKE_CURRENT_SOURCE_DIR}/../../..")
-    set(DS_QT_PLATFORM_100_LIBRARY "${DS_QT_PLATFORM_100}/Library/Dsqt")
+    set(DS_QT_PLATFORM_100_LIBRARY "${DS_QT_PLATFORM_100}/Library/Dsqt/Core")
 
     find_package(Qt6 REQUIRED COMPONENTS Gui Sql Qml)
 
+    # Post-revamp settings sources. Note: this standalone path is not exercised
+    # by the normal build (Tests/Settings is added as a subdirectory of Library,
+    # where Dsqt::Core already exists) and is best-effort.
     target_sources(${DS_EXE_NAME} PRIVATE
-        "${DS_QT_PLATFORM_100_LIBRARY}/settings/dsQmlSettingsProxy.cpp"
         "${DS_QT_PLATFORM_100_LIBRARY}/settings/dsSettings.cpp"
-        "${DS_QT_PLATFORM_100_LIBRARY}/settings/dsSettingsBase.cpp"
-        "${DS_QT_PLATFORM_100_LIBRARY}/settings/dsSettingsCollections.cpp"
-        "${DS_QT_PLATFORM_100_LIBRARY}/settings/dsSettingsDateTime.cpp"
-        "${DS_QT_PLATFORM_100_LIBRARY}/settings/dsSettingsGeomCommon.cpp"
-        "${DS_QT_PLATFORM_100_LIBRARY}/settings/dsSettingsGeomGlm.cpp"
-        "${DS_QT_PLATFORM_100_LIBRARY}/settings/dsSettingsGeomQt.cpp"
-        "${DS_QT_PLATFORM_100_LIBRARY}/settings/dsSettingsQColor.cpp"
+        "${DS_QT_PLATFORM_100_LIBRARY}/settings/dsSettingsFile.cpp"
         "${DS_QT_PLATFORM_100_LIBRARY}/core/dsEnvironment.cpp"
     )
 

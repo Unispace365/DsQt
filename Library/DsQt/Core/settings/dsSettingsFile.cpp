@@ -350,14 +350,23 @@ static QVariant nodeToVariant(const toml::node &node)
 
     case toml::node_type::array: {
         const toml::array &arr = *node.as_array();
-        // Legacy "value + metadata" form: [value, {type=...}]. The value slot
-        // holds a scalar or array (never a table), and the metadata table always
-        // carries a "type" marker. Requiring both guards prevents an ordinary
-        // array of two tables (e.g. a [[slide]] array-of-tables) from being
-        // mistaken for this form and collapsed to its first element.
-        if (arr.size() == 2 && arr[1].is_table() && !arr[0].is_table()
-            && arr[1].as_table()->contains("type"))
-            return legacyMetadataValue(arr);
+        // Legacy "value + metadata" form: [value, {type=...}]. The metadata
+        // table always carries a "type" marker.
+        //
+        // The value slot is normally a scalar or an array. Requiring that
+        // prevents an ordinary array of two tables (e.g. a [[slide]]
+        // array-of-tables) from being mistaken for this form and collapsed to
+        // its first element. Colours and rects are the exception: they are
+        // routinely written as a table — [{r=..,g=..,b=..}, {type="color"}] —
+        // and are the only two types legacyMetadataValue() interprets from a
+        // table, so allow a table value for exactly those markers.
+        if (arr.size() == 2 && arr[1].is_table() && arr[1].as_table()->contains("type")) {
+            const QString metaType = metaString(*arr[1].as_table(), "type");
+            const bool tableValueAllowed = metaType == QStringLiteral("color")
+                                           || metaType == QStringLiteral("rect");
+            if (!arr[0].is_table() || tableValueAllowed)
+                return legacyMetadataValue(arr);
+        }
         if (arr.size() == 1 && arr[0].is_array())
             return nodeToVariant(arr[0]);
         return arrayToList(arr);
