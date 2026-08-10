@@ -121,6 +121,10 @@ void DsQmlApplicationEngine::init() {
     // if (!mAppProxy) mAppProxy = new DsQmlSettingsProxy(this);
     if (!mQmlEnv) mQmlEnv = new DsQmlEnvironment(this);
 
+    // Created after readSettings() so its binding resolves immediately rather than being
+    // parked by Settings::bind(); either order is now correct.
+    if (!mAppHost) mAppHost = new DsQmlAppHost(this);
+
     // auto starts, but could also be this:
     // mNodeWatcher = new network::DsNodeWatcher(this,"localhost",7788,/*autostart*/false)
     // mNodeWatcher->start();
@@ -222,12 +226,14 @@ DsQmlIdle* DsQmlApplicationEngine::idle() const {
 }
 
 void DsQmlApplicationEngine::quit(bool force) {
-    // if engine.askAppHostToQuit is set send message to DsAppHost
+    // if engine.appHost.exitOnQuit is set send message to DsAppHost
     auto exitOnQuit = Settings::find<bool>("engine", "appHost.exitOnQuit", false);
 
-    QScopedPointer<DsQmlAppHost> appHost(new DsQmlAppHost(this));
     if (exitOnQuit || force) {
-        appHost->exit(true);
+        // DsQmlAppHost::exit() is asynchronous: it issues a network request and calls
+        // qApp->quit() from the reply's finished handler, so the host must outlive this
+        // scope. mAppHost is owned by the engine and created in init().
+        mAppHost->exit(true);
     } else {
         qApp->quit();
     }

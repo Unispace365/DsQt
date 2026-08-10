@@ -6,6 +6,8 @@
 #include <QCoreApplication>
 #include <QThread>
 
+#include <algorithm>
+
 namespace dsqt {
 
 // ── Settings ───────────────────────────────────────────────────────────────
@@ -149,6 +151,26 @@ void Settings::addImpl(const QString &name, const QString &fileName)
         m_named[name] = sf;
     }
     emit instancesChanged();
+
+    // Apply any binds that were made before this file existed.
+    flushPendingBinds(name, sf);
+}
+
+void Settings::flushPendingBinds(const QString &name, SettingsFile *sf)
+{
+    if (!m_pendingBinds.contains(name))
+        return;
+
+    // QMultiHash hands back the most recently inserted value first; replay in the
+    // original call order so that a later bind on the same key and context still wins.
+    auto pending = m_pendingBinds.values(name);
+    m_pendingBinds.remove(name);
+    std::reverse(pending.begin(), pending.end());
+
+    for (const auto &[context, apply] : std::as_const(pending)) {
+        if (context)
+            apply(sf);
+    }
 }
 
 void Settings::onFileChanged(const QString &path)

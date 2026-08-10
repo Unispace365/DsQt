@@ -1,9 +1,11 @@
 #pragma once
 
-#include <stdexcept>
+#include <functional>
 #include <utility>
 
 #include <QFileSystemWatcher>
+#include <QMultiHash>
+#include <QPointer>
 #include <QQmlEngine>
 #include <QQmlPropertyMap>
 #include <QReadWriteLock>
@@ -103,20 +105,39 @@ class Settings : public QQmlPropertyMap {
 
     // Calls callback immediately with the current value of `key` in the named SettingsFile,
     // then again whenever it changes. The connection is removed when context is destroyed.
+    //
+    // If no SettingsFile is registered under `name` yet, the callback is still called once
+    // with defaultValue and the bind is parked in m_pendingBinds, to be replayed by addImpl()
+    // as soon as the file appears. Callers therefore do not have to be constructed after the
+    // settings load.
     template <typename T, typename Context, typename Func>
     void bindImpl(const QString& name, const QString& key, Context* context, Func&& callback,
                   const T& defaultValue = {}) const {
-        auto* sf = qvariant_cast<SettingsFile*>(value(name));
-        if (!sf) {
-            const auto msg = "Settings::bind: no settings file registered for '" + name.toStdString() + "'";
-            qCritical("%s", msg.c_str());
-            throw std::runtime_error(msg);
+        if (auto* sf = qvariant_cast<SettingsFile*>(value(name))) {
+            sf->bind<T>(key, context, std::forward<Func>(callback), defaultValue);
+            return;
         }
-        sf->bind<T>(key, context, std::forward<Func>(callback), defaultValue);
+
+        // Type-erase the bind so it can be replayed without knowing T at the call site.
+        auto cb = std::forward<Func>(callback);
+        m_pendingBinds.insert(name, {context, [key, cb, context, defaultValue](SettingsFile* sf) {
+                                         sf->bind<T>(key, context, cb, defaultValue);
+                                     }});
+
+        qWarning("Settings::bind: no settings file registered for '%s' - binding '%s' is deferred "
+                 "until one is added.",
+                 qPrintable(name), qPrintable(key));
+
+        // Honour bind()'s guarantee that the callback runs once, immediately.
+        if constexpr (std::is_member_function_pointer_v<std::decay_t<Func>>)
+            std::invoke(cb, context, defaultValue);
+        else
+            cb(defaultValue);
     }
 
     // Prevent accidental access to internal SettingsFile instances via value(); use find<T>(name, key) instead.
     using QQmlPropertyMap::value;
+
     // Prevent accidental modification of internal SettingsFile instances via insert/remove/clear; use add()/forget()
     // instead.
     using QQmlPropertyMap::clear;
@@ -127,9 +148,18 @@ class Settings : public QQmlPropertyMap {
     void registerSettingsFile(SettingsFile* s);
     void unregisterSettingsFile(SettingsFile* s);
 
+    // Applies and discards every bind parked for `name`, skipping those whose context died.
+    void flushPendingBinds(const QString& name, SettingsFile* sf);
+
     void onFileChanged(const QString& path);
     void onDirectoryChanged(const QString& path);
     void rebuildWatcher();
+
+    /// Binds made before their settings file existed, keyed by file name.
+    /// Each entry is the bind context (to detect it being destroyed while parked)
+    /// and a replay function that performs the original SettingsFile::bind<T>().
+    using PendingBind = std::pair<QPointer<QObject>, std::function<void(SettingsFile*)>>;
+    mutable QMultiHash<QString, PendingBind> m_pendingBinds;
 
     QStringList                  m_searchPaths;
     QList<SettingsFile*>         m_instances;

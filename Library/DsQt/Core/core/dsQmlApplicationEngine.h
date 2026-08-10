@@ -24,6 +24,7 @@ namespace network {
 
 class DsQmlSettingsProxy;
 class DsQmlEnvironment;
+class DsQmlAppHost;
 
 /**
  * @class DsQmlApplicationEngine
@@ -258,6 +259,9 @@ class DsQmlApplicationEngine : public QQmlApplicationEngine {
 
     /// Pointer to the idle manager.
     DsQmlIdle* mIdle = nullptr;
+
+    /// Pointer to the AppHost client. Created in init(), once settings are available.
+    DsQmlAppHost* mAppHost = nullptr;
 
 };
 
