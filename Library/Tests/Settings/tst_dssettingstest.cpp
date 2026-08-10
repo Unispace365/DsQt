@@ -121,6 +121,23 @@ class DsSettingsTest : public QObject
     void settingsFile_shouldPruneOverridesThatMatchReloadedFiles();
     void settingsFile_shouldKeepOverridesSavedOutsideSearchPaths();
 
+    // SettingsFile::bind
+    void bind_shouldCallTheCallbackImmediately();
+    void bind_shouldCallTheCallbackWhenTheValueChanges();
+    void bind_shouldCallTheCallbackForANestedKey();
+    void bind_shouldUseTheDefaultForAnUnknownKey();
+    void bind_shouldCallAMemberFunction();
+    void bind_shouldReplaceTheCallbackWhenReboundOnTheSameKeyAndContext();
+    void bind_shouldStopWhenTheContextIsDestroyed();
+
+    // Settings::bind — registry lookup and deferral
+    void registryBind_shouldResolveImmediatelyWhenTheFileIsRegistered();
+    void registryBind_shouldDeferUntilTheFileIsAdded();
+    void registryBind_deferred_shouldKeepTrackingAfterItResolves();
+    void registryBind_deferred_shouldReplayInCallOrder();
+    void registryBind_deferred_shouldBeDroppedWhenTheContextDies();
+    void registryBind_deferred_shouldNotResolveOnAnUnrelatedFile();
+
   private:
     // Directory the test data is copied into by the build (see CMakeLists.txt).
     static QString settingsDir() { return QDir::current().filePath("settings"); }
@@ -1017,6 +1034,329 @@ void DsSettingsTest::settingsFile_shouldKeepOverridesSavedOutsideSearchPaths()
 
     QCOMPARE(settings.overrides().value("width").toInt(), 300);
     QCOMPARE(settings.find<int>("width"), 300);
+}
+
+//*****************
+//Bindings
+//*****************
+
+// Bind context for the member-function overload. No Q_OBJECT: bind() only needs a
+// QObject identity to parent its SettingsBinding to, and a lifetime to track.
+class BindTarget : public QObject
+{
+  public:
+    using QObject::QObject;
+
+    void onValue(const QString &value)
+    {
+        ++calls;
+        last = value;
+    }
+
+    int     calls = 0;
+    QString last;
+};
+
+void DsSettingsTest::bind_shouldCallTheCallbackImmediately()
+{
+    QObject context;
+    int     calls = 0;
+    QString seen;
+
+    test_settings->bind<QString>("no_table", &context, [&](const QString &value) {
+        ++calls;
+        seen = value;
+    });
+
+    QCOMPARE(calls, 1);
+    QCOMPARE(seen, QStringLiteral("test value"));
+}
+
+void DsSettingsTest::bind_shouldCallTheCallbackWhenTheValueChanges()
+{
+    QObject context;
+    int     calls = 0;
+    QString seen;
+
+    test_settings->bind<QString>("no_table", &context, [&](const QString &value) {
+        ++calls;
+        seen = value;
+    });
+    QCOMPARE(calls, 1);
+
+    test_settings->setOverride("no_table", QStringLiteral("changed"));
+
+    QCOMPARE(calls, 2);
+    QCOMPARE(seen, QStringLiteral("changed"));
+
+    // Removing the override restores the file value, which is another change.
+    test_settings->resetOverride("no_table");
+
+    QCOMPARE(calls, 3);
+    QCOMPARE(seen, QStringLiteral("test value"));
+}
+
+void DsSettingsTest::bind_shouldCallTheCallbackForANestedKey()
+{
+    QObject context;
+    int     calls = 0;
+    int     seen  = 0;
+
+    // Nested keys bind to the child QQmlPropertyMap, not to the file itself.
+    test_settings->bind<int>("test.int.int_positive", &context, [&](int value) {
+        ++calls;
+        seen = value;
+    });
+
+    QCOMPARE(calls, 1);
+    QCOMPARE(seen, 1024);
+
+    test_settings->setOverride("test.int.int_positive", 2048);
+
+    QCOMPARE(calls, 2);
+    QCOMPARE(seen, 2048);
+}
+
+void DsSettingsTest::bind_shouldUseTheDefaultForAnUnknownKey()
+{
+    QObject context;
+    int     calls = 0;
+    QString seen;
+
+    test_settings->bind<QString>(
+        "no_such_key", &context,
+        [&](const QString &value) {
+            ++calls;
+            seen = value;
+        },
+        QStringLiteral("fallback"));
+
+    QCOMPARE(calls, 1);
+    QCOMPARE(seen, QStringLiteral("fallback"));
+
+    // bind() creates the key path, so the binding is live before the key has a value.
+    test_settings->setOverride("no_such_key", QStringLiteral("now set"));
+
+    QCOMPARE(calls, 2);
+    QCOMPARE(seen, QStringLiteral("now set"));
+}
+
+void DsSettingsTest::bind_shouldCallAMemberFunction()
+{
+    BindTarget target;
+
+    test_settings->bind<QString>("no_table", &target, &BindTarget::onValue);
+
+    QCOMPARE(target.calls, 1);
+    QCOMPARE(target.last, QStringLiteral("test value"));
+
+    test_settings->setOverride("no_table", QStringLiteral("changed"));
+
+    QCOMPARE(target.calls, 2);
+    QCOMPARE(target.last, QStringLiteral("changed"));
+}
+
+void DsSettingsTest::bind_shouldReplaceTheCallbackWhenReboundOnTheSameKeyAndContext()
+{
+    QObject context;
+    int     first  = 0;
+    int     second = 0;
+
+    test_settings->bind<QString>("no_table", &context, [&](const QString &) { ++first; });
+    test_settings->bind<QString>("no_table", &context, [&](const QString &) { ++second; });
+
+    // Each bind() call invokes its own callback once, immediately.
+    QCOMPARE(first, 1);
+    QCOMPARE(second, 1);
+
+    test_settings->setOverride("no_table", QStringLiteral("changed"));
+
+    // Only the most recent callback is still installed.
+    QCOMPARE(first, 1);
+    QCOMPARE(second, 2);
+}
+
+void DsSettingsTest::bind_shouldStopWhenTheContextIsDestroyed()
+{
+    int   calls   = 0;
+    auto *context = new QObject;
+
+    test_settings->bind<QString>("no_table", context, [&](const QString &) { ++calls; });
+    QCOMPARE(calls, 1);
+
+    delete context;
+
+    test_settings->setOverride("no_table", QStringLiteral("changed"));
+
+    QCOMPARE(calls, 1);
+}
+
+void DsSettingsTest::registryBind_shouldResolveImmediatelyWhenTheFileIsRegistered()
+{
+    auto &settings = dsqt::Settings::instance();
+    settings.setSearchPaths({settingsDir()});
+    dsqt::Settings::add("test_settings");
+
+    QObject context;
+    int     calls = 0;
+    QString seen;
+
+    dsqt::Settings::bind<QString>(
+        "test_settings", "no_table", &context,
+        [&](const QString &value) {
+            ++calls;
+            seen = value;
+        },
+        QStringLiteral("fallback"));
+
+    QCOMPARE(calls, 1);
+    QCOMPARE(seen, QStringLiteral("test value"));
+}
+
+void DsSettingsTest::registryBind_shouldDeferUntilTheFileIsAdded()
+{
+    auto &settings = dsqt::Settings::instance();
+    settings.setSearchPaths({settingsDir()});
+    QVERIFY(!settings.hasSettingsFile("test_settings"));
+
+    QObject context;
+    int     calls = 0;
+    QString seen;
+
+    QTest::ignoreMessage(QtWarningMsg,
+                         "Settings::bind: no settings file registered for 'test_settings' - "
+                         "binding 'no_table' is deferred until one is added.");
+    dsqt::Settings::bind<QString>(
+        "test_settings", "no_table", &context,
+        [&](const QString &value) {
+            ++calls;
+            seen = value;
+        },
+        QStringLiteral("fallback"));
+
+    // The immediate call still happens, with the supplied default.
+    QCOMPARE(calls, 1);
+    QCOMPARE(seen, QStringLiteral("fallback"));
+
+    dsqt::Settings::add("test_settings");
+
+    // Replayed against the file as soon as it is registered.
+    QCOMPARE(calls, 2);
+    QCOMPARE(seen, QStringLiteral("test value"));
+}
+
+void DsSettingsTest::registryBind_deferred_shouldKeepTrackingAfterItResolves()
+{
+    auto &settings = dsqt::Settings::instance();
+    settings.setSearchPaths({settingsDir()});
+
+    QObject context;
+    int     calls = 0;
+    QString seen;
+
+    QTest::ignoreMessage(QtWarningMsg,
+                         "Settings::bind: no settings file registered for 'test_settings' - "
+                         "binding 'no_table' is deferred until one is added.");
+    dsqt::Settings::bind<QString>(
+        "test_settings", "no_table", &context,
+        [&](const QString &value) {
+            ++calls;
+            seen = value;
+        },
+        QStringLiteral("fallback"));
+
+    dsqt::Settings::add("test_settings");
+    QCOMPARE(calls, 2);
+
+    // A replayed bind is an ordinary bind: later changes still reach it.
+    settings.settingsFile("test_settings")->setOverride("no_table", QStringLiteral("changed"));
+
+    QCOMPARE(calls, 3);
+    QCOMPARE(seen, QStringLiteral("changed"));
+}
+
+void DsSettingsTest::registryBind_deferred_shouldReplayInCallOrder()
+{
+    auto &settings = dsqt::Settings::instance();
+    settings.setSearchPaths({settingsDir()});
+
+    QObject context;
+    int     first  = 0;
+    int     second = 0;
+
+    QTest::ignoreMessage(QtWarningMsg,
+                         "Settings::bind: no settings file registered for 'test_settings' - "
+                         "binding 'no_table' is deferred until one is added.");
+    dsqt::Settings::bind<QString>("test_settings", "no_table", &context,
+                                  [&](const QString &) { ++first; }, QStringLiteral("fallback"));
+
+    QTest::ignoreMessage(QtWarningMsg,
+                         "Settings::bind: no settings file registered for 'test_settings' - "
+                         "binding 'no_table' is deferred until one is added.");
+    dsqt::Settings::bind<QString>("test_settings", "no_table", &context,
+                                  [&](const QString &) { ++second; }, QStringLiteral("fallback"));
+
+    QCOMPARE(first, 1);
+    QCOMPARE(second, 1);
+
+    dsqt::Settings::add("test_settings");
+
+    // Both are replayed, each with its own immediate call.
+    QCOMPARE(first, 2);
+    QCOMPARE(second, 2);
+
+    settings.settingsFile("test_settings")->setOverride("no_table", QStringLiteral("changed"));
+
+    // Replaying in call order means the later bind is the one left installed,
+    // matching what would have happened had the file been registered all along.
+    QCOMPARE(first, 2);
+    QCOMPARE(second, 3);
+}
+
+void DsSettingsTest::registryBind_deferred_shouldBeDroppedWhenTheContextDies()
+{
+    auto &settings = dsqt::Settings::instance();
+    settings.setSearchPaths({settingsDir()});
+
+    int   calls   = 0;
+    auto *context = new QObject;
+
+    QTest::ignoreMessage(QtWarningMsg,
+                         "Settings::bind: no settings file registered for 'test_settings' - "
+                         "binding 'no_table' is deferred until one is added.");
+    dsqt::Settings::bind<QString>("test_settings", "no_table", context,
+                                  [&](const QString &) { ++calls; }, QStringLiteral("fallback"));
+    QCOMPARE(calls, 1);
+
+    delete context;
+
+    // The parked bind must be skipped rather than dereferenced.
+    dsqt::Settings::add("test_settings");
+
+    QCOMPARE(calls, 1);
+}
+
+void DsSettingsTest::registryBind_deferred_shouldNotResolveOnAnUnrelatedFile()
+{
+    auto &settings = dsqt::Settings::instance();
+    settings.setSearchPaths({settingsDir()});
+
+    QObject context;
+    int     calls = 0;
+
+    QTest::ignoreMessage(QtWarningMsg,
+                         "Settings::bind: no settings file registered for 'test_settings' - "
+                         "binding 'no_table' is deferred until one is added.");
+    dsqt::Settings::bind<QString>("test_settings", "no_table", &context,
+                                  [&](const QString &) { ++calls; }, QStringLiteral("fallback"));
+    QCOMPARE(calls, 1);
+
+    // Registering a different file leaves the bind parked.
+    dsqt::Settings::add("engine");
+    QCOMPARE(calls, 1);
+
+    dsqt::Settings::add("test_settings");
+    QCOMPARE(calls, 2);
 }
 
 QTEST_MAIN(DsSettingsTest)

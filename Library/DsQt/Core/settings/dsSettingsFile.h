@@ -38,17 +38,19 @@ public:
         : QObject(parent)
     {}
 
-    void setCallback(std::function<void(QVariant)> cb) { m_cb = std::move(cb); }
+    void setCallback(std::function<void()> cb) { m_cb = std::move(cb); }
 
 public slots:
-    void onChange(const QString &, const QVariant &v)
+    // Driven by SettingsFile::settingsRebuilt, which carries no payload, so the
+    // callback re-reads its own key and decides whether anything actually changed.
+    void onChange()
     {
         if (m_cb)
-            m_cb(v);
+            m_cb();
     }
 
 private:
-    std::function<void(QVariant)> m_cb;
+    std::function<void()> m_cb;
 };
 
 class SettingsFile : public QQmlPropertyMap
@@ -270,7 +272,10 @@ public:
     // Note: toml++ does not preserve comments when round-tripping an existing file.
     Q_INVOKABLE QString saveOverridesTo(const QString &filePath) const;
 
-    // Calls callback immediately with the current value of key, then again on every change.
+    // Calls callback immediately with the current value of key, then again whenever a
+    // rebuild leaves that key holding a different value — a file reload, setOverride,
+    // resetOverride or resetOverrides. Rebuilds that leave the key untouched do not
+    // call back.
     // Re-registering with the same key and context replaces the existing binding.
     // The connection is removed when context is destroyed.
     template<typename T, typename Context, typename Func>
@@ -280,18 +285,11 @@ public:
         // inserting intermediate maps and the leaf default as needed.
         setDefault<T>(key, defaultValue);
 
-        // Walk the QQmlPropertyMap tree to the parent of the leaf key.
-        QQmlPropertyMap *map = this;
-        const QStringList parts = key.split(u'.');
-        for (int i = 0; i < parts.size() - 1; ++i)
-            map = qvariant_cast<QQmlPropertyMap *>(map->value(parts[i]));
-        const QString leafKey = parts.last();
-
-        // Reuse or create a SettingsBinding child on context, keyed by (map, leafKey).
+        // Reuse or create a SettingsBinding child on context, keyed by (file, key).
         // This gives Qt::UniqueConnection a stable slot to deduplicate against.
         const QByteArray bindingName = QByteArray("__sb_")
-                                       + QByteArray::number(reinterpret_cast<quintptr>(map)) + "_"
-                                       + leafKey.toUtf8();
+                                       + QByteArray::number(reinterpret_cast<quintptr>(this)) + "_"
+                                       + key.toUtf8();
 
         auto *binding = context->template findChild<SettingsBinding *>(QString::fromLatin1(
                                                                            bindingName),
@@ -300,27 +298,45 @@ public:
         if (!binding) {
             binding = new SettingsBinding(context);
             binding->setObjectName(QString::fromLatin1(bindingName));
-            QObject::connect(map,
-                             &QQmlPropertyMap::valueChanged,
+            // settingsRebuilt fires at the end of every rebuild(): file reloads, setOverride,
+            // resetOverride and resetOverrides. QQmlPropertyMap::valueChanged cannot be used
+            // here — Qt only emits it for values written from QML, never for the insert()
+            // calls that syncMap() uses to publish a rebuild.
+            QObject::connect(this,
+                             &SettingsFile::settingsRebuilt,
                              binding,
                              &SettingsBinding::onChange,
                              Qt::UniqueConnection);
         }
 
+        // Copy the callable once: it is both stored on the binding and invoked below,
+        // so forwarding it straight into the capture would leave a moved-from callable here.
+        auto cb = std::forward<Func>(callback);
+
         // Replace (or set) the callback — the signal connection is reused.
         // Member function pointers are invoked with context; plain callables are called directly.
-        binding->setCallback([cb = std::forward<Func>(callback), ctx = context](const QVariant &v) {
-            if constexpr (std::is_member_function_pointer_v<std::decay_t<Func>>)
-                std::invoke(cb, ctx, v.value<T>());
-            else
-                cb(v.value<T>());
-        });
+        // settingsRebuilt is per-file, so every binding on this file is notified on every
+        // rebuild; each one re-reads its own key and reports only an actual change.
+        binding->setCallback(
+            [this, key, cb, ctx = context, defaultValue,
+             last = QVariant::fromValue(find<T>(key, defaultValue))]() mutable {
+                const T current = find<T>(key, defaultValue);
+                const QVariant currentValue = QVariant::fromValue(current);
+                if (currentValue == last)
+                    return;
+
+                last = currentValue;
+                if constexpr (std::is_member_function_pointer_v<std::decay_t<Func>>)
+                    std::invoke(cb, ctx, current);
+                else
+                    cb(current);
+            });
 
         // Call immediately with the current value.
         if constexpr (std::is_member_function_pointer_v<std::decay_t<Func>>)
-            std::invoke(callback, context, find<T>(key, defaultValue));
+            std::invoke(cb, context, find<T>(key, defaultValue));
         else
-            callback(find<T>(key, defaultValue));
+            cb(find<T>(key, defaultValue));
     }
 
 signals:
@@ -329,8 +345,11 @@ signals:
     void extraFilesChanged();
     void searchPathsChanged();
     // Emitted at the end of every rebuild() — fires for file reloads, setOverride,
-    // resetOverride, and ensurePath. Use this instead of valueChanged when you need
-    // to know that *any* value (including deeply nested ones) may have changed.
+    // resetOverride and resetOverrides. Use this instead of valueChanged when you need
+    // to know that *any* value (including deeply nested ones) may have changed:
+    // QQmlPropertyMap only emits valueChanged for writes coming from QML, never for
+    // the insert() calls syncMap() uses to publish a rebuild.
+    // Note that ensurePath() does not rebuild, so it does not emit this.
     void settingsRebuilt();
 
 private:
