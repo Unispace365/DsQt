@@ -794,13 +794,17 @@ void SettingsFile::ensurePath(const QString &key, const QVariant &defaultValue)
     // default can be chased against it directly.
     QVariant resolved = defaultValue;
     if (isReference(defaultValue)) {
+        QReadLocker locker(&m_mergedLock);
         const QVariant chased = chaseReference(defaultValue.toString(), m_merged);
         if (chased.isValid())
             resolved = chased;
     }
-    if (!ensureInMap(m_merged, parts, resolved))
-        return; // already present — the QQmlPropertyMap tree mirrors it
 
+    {
+        QWriteLocker locker(&m_mergedLock);
+        if (!ensureInMap(m_merged, parts, resolved))
+            return; // already present — the QQmlPropertyMap tree mirrors it
+    }
     // Mirror the path into the QQmlPropertyMap tree so bind()'s walk and QML
     // bindings see it immediately.
     QQmlPropertyMap *map = this;
