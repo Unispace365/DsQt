@@ -143,14 +143,15 @@ void Settings::addImpl(const QString &name, const QString &fileName)
 
     // Otherwise create a new SettingsFile, wire it up, and expose it as a property.
     auto *sf = new SettingsFile(this);
-    sf->setManager(this);
     sf->setFileName(fileName);
     insert(name, QVariant::fromValue(sf));
     {
         QWriteLocker locker(&m_namedLock);
         m_named[name] = sf;
     }
-    emit instancesChanged();
+
+    // This calls registerSettingsFile() to add it to m_instances and set up the file watcher.
+    sf->setManager(this);
 
     // Apply any binds that were made before this file existed.
     flushPendingBinds(name, sf);
