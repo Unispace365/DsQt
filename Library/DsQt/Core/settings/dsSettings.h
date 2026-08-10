@@ -41,7 +41,7 @@ class Settings : public QQmlPropertyMap {
     //
     bool hasSearchPath(const QString &path) const;
 
-    // Returns the names of all registered SettingsFile instances, in insertion order.
+    // Returns the names of all registered SettingsFile instances.
     Q_INVOKABLE QStringList settingsNames() const;
     // Returns the SettingsFile registered under `name`, or nullptr if not found.
     Q_INVOKABLE SettingsFile* settingsFile(const QString& name) const;

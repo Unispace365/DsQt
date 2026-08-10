@@ -812,8 +812,7 @@ DatabaseContent DsBridgeSqlQuery::queryTables() {
                                      double(result.value("duration").toFloat()), float(result.value("width").toInt()),
                                      float(result.value("height").toInt()), linkUrl, linkUrl, -1, linkUrl);
 
-                // Assumes app settings are not changed concurrently on another thread. DANGEROUS! Better to pass default size by copy.
-                auto webSize = Settings::find<QPointF>("app_settings", "web:default_size", QPointF(1920.f, 1080.f));
+                const auto webSize = Settings::find<QPointF>("app_settings", "web:default_size", QPointF(1920.f, 1080.f));
                 res.setWidth(webSize.x());
                 res.setHeight(webSize.y());
                 res.setType(dsqt::DsResource::WEB_TYPE);

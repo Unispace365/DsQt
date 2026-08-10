@@ -82,6 +82,8 @@ void Settings::registerSettingsFile(SettingsFile *s)
     connect(s, &SettingsFile::extraFilesChanged, this, [this] { rebuildWatcher(); });
 
     m_instances.append(s);
+    emit instancesChanged();
+    
     rebuildWatcher();
 }
 
