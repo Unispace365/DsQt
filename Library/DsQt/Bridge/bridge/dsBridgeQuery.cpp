@@ -58,13 +58,18 @@ DsBridgeSqlQuery::DsBridgeSqlQuery(DsQmlApplicationEngine* parent)
             if (!mWatcher) mWatcher = new DsBridgeWatcher(file, this);
             connect(mWatcher, &bridge::DsBridgeWatcher::databaseUpdated, this, [this]() { queryDatabase(); });
 
-            // Watch for database updates using UDP message (BridgeSync <= v4.4.0)
-            const auto engine      = DsQmlApplicationEngine::DefEngine();
-            const auto nodeWatcher = engine->getNodeWatcher();
-            if (nodeWatcher) {
-                connect(nodeWatcher, &network::DsNodeWatcher::messageArrived, this,
-                        [this](dsqt::network::Message msg) { queryDatabase(); });
-            }
+            // Note: we deliberately do NOT listen to the UDP notification (DsNodeWatcher::messageArrived) that
+            // BridgeSync <= v4.4.0 used. Newer versions signal an update through both channels, and the auth hash is
+            // split across two UDP datagrams, so a single update arrives as three separate notifications. Since
+            // queryDatabase() now queues a follow-up run for anything received while it is busy, listening to both
+            // channels would guarantee a redundant second pass on every update. The notification file is the
+            // supported mechanism; requires BridgeSync v4.4.0 or newer.
+			// const auto engine      = DsQmlApplicationEngine::DefEngine();
+            // const auto nodeWatcher = engine->getNodeWatcher();
+            // if (nodeWatcher) {
+            //     connect(nodeWatcher, &network::DsNodeWatcher::messageArrived, this,
+            //             [this](dsqt::network::Message msg) { queryDatabase(); });
+            // }
         }
     });
 }
@@ -380,8 +385,6 @@ void DsBridgeSqlQuery::onCleanContent() {
 void DsBridgeSqlQuery::onPublishContent() {
     qCDebug(lgBridgeSyncQueryVerbose) << "Publish content";
 
-    mIsRunning.testAndSetRelaxed(true, false);
-
     Q_ASSERT(QThread::currentThread() == QCoreApplication::instance()->thread());
 
     // Construct or update the content tree.
@@ -426,13 +429,33 @@ void DsBridgeSqlQuery::onPublishContent() {
     bridge.setDatabase(std::move(mContent));
 
     qCDebug(lgBridgeSyncQuery) << "Database sync pipeline complete.";
+
+    // Release the guard only now that the result has been published. Doing this any earlier would allow a new
+    // background read to start while we are still handing the previous result to the bridge.
+    mIsRunning.testAndSetRelaxed(true, false);
+
+    // If the database changed while we were busy, run the pipeline again to pick up what we missed. Queued rather
+    // than direct so that the current call stack unwinds and the UI gets a chance to breathe first.
+    if (mIsPending.fetchAndStoreRelaxed(false)) {
+        qCDebug(lgBridgeSyncQuery) << "Running queued update.";
+        QTimer::singleShot(0, this, &DsBridgeSqlQuery::queryDatabase);
+    }
 }
 
 void DsBridgeSqlQuery::queryDatabase() {
-    // Check if an update is in progress.
+    // Check if an update is in progress. If so, remember that the database changed again while we were busy, and
+    // re-run once the current pipeline has published its result. Without this, the notification would be discarded
+    // and the application would keep serving stale content until some later, unrelated update happened to arrive
+    // while we were idle. Note this coalesces: any number of notifications received during one run result in exactly
+    // one additional run.
     if (!mIsRunning.testAndSetRelaxed(false, true)) {
+        qCDebug(lgBridgeSyncQuery) << "Database changed while an update was in progress. Queueing another update.";
+        mIsPending.storeRelaxed(true);
         return;
     }
+
+    // We are about to read the database, so anything signalled up to this point is covered by this run.
+    mIsPending.storeRelaxed(false);
 
     // Perform update on a background thread.
     QFuture<DatabaseContent> future = QtConcurrent::run([=, this]() { return queryTables(); });
