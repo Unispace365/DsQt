@@ -493,7 +493,7 @@ DatabaseContent DsBridgeSqlQuery::queryTables() {
                        " INNER JOIN lookup AS l ON l.uid = r.type_uid"                            //
                        " WHERE r.complete = 1 AND r.visible = 1 AND (r.span_end_date IS NULL OR " //
                        " date(r.span_end_date, '+5 day') > date('now'))"                          //
-                       " ORDER BY r.parent_slot ASC, r.rank ASC;");                               //
+                       " ORDER BY r.parent_slot ASC, r.rank ASC, r.uid ASC;");                    //
 
     QString sSelectQuery =                               //
         QStringLiteral("SELECT "                         //
