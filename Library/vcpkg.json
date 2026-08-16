@@ -17,6 +17,7 @@
     },
     {
       "name": "spout2",
+      "platform": "windows",
       "version>=": "2.007.010",
       "features": ["dx"]
     }
