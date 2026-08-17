@@ -81,10 +81,48 @@ dotted version.) Commit the triplets alongside your project.
 
 ### 4. Build
 
-```powershell
-cmake --preset ninja -DVCPKG_TARGET_TRIPLET=x64-windows-qt6-10-2
-cmake --build --preset ninja-release
+Put everything in `CMakePresets.json` so nobody has to remember flags. Pair each
+Qt kit with its matching triplet — the two must agree, and `DsqtConfig.cmake`
+errors out if they don't:
+
+```json
+{
+  "name": "qt-6.10.2",
+  "hidden": true,
+  "inherits": "vcpkg-base",
+  "cacheVariables": {
+    "CMAKE_PREFIX_PATH": "C:/Qt/6.10.2/msvc2022_64",
+    "VCPKG_TARGET_TRIPLET": "x64-windows-qt6-10-2"
+  }
+}
 ```
+
+with `vcpkg-base` supplying the toolchain:
+
+```json
+{
+  "name": "vcpkg-base",
+  "hidden": true,
+  "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
+}
+```
+
+The overlay-triplets path belongs in `vcpkg-configuration.json`, not on the
+command line, so it applies automatically.
+
+Developers then only ever type:
+
+```powershell
+cmake --preset ninja-6.10.2
+cmake --build --preset ninja-6.10.2-release
+```
+
+The single prerequisite is the **`VCPKG_ROOT`** environment variable, which the
+toolchain path expands. Set it once per machine.
+
+`Examples/ClonerSource` is wired up exactly this way; copy its
+`CMakePresets.json`, `vcpkg-configuration.json` and `triplets/` folder as a
+starting point.
 
 Then in `CMakeLists.txt`:
 
@@ -181,6 +219,72 @@ number continues to increment underneath it.
 
 ---
 
+## Developing DsQt against a real project
+
+Two loops, trading speed against fidelity. Use the fast one while writing code
+and the slow one before you publish.
+
+### Fast loop: point the project at a local DsQt install
+
+`find_package` searches `<PackageName>_ROOT` **before** `CMAKE_PREFIX_PATH`, so
+`Dsqt_ROOT` overrides the copy vcpkg installed without changing the manifest,
+the registry, or anything else.
+
+```powershell
+# 1. Build and install DsQt the ordinary way (incremental, a minute or two).
+#    Use the same Qt kit the project's triplet names, or the version guard
+#    in DsqtConfig.cmake will stop you.
+cd <path/to/ds_qt/Library>
+.\build_and_install.bat -qt 6.10.2
+
+# 2. Configure the consuming project against it, in its OWN build directory.
+cd <path/to/project>
+cmake --preset ninja-release -B build\dsqt-dev `
+      -DDsqt_ROOT=$env:USERPROFILE\Documents\DsQt
+cmake --build build\dsqt-dev --config Release
+```
+
+After that, edit DsQt, re-run `build_and_install.bat`, rebuild the project.
+No vcpkg round-trip, no 8-minute port build.
+
+**Use a separate build directory.** `find_package` caches its result in
+`Dsqt_DIR`, so a tree configured once with `Dsqt_ROOT` keeps resolving to the
+local install even after you drop the flag. A dedicated directory keeps the
+normal build honest.
+
+What this loop does **not** exercise: the portfile, the vcpkg install layout
+(flat `lib/` versus `lib/$<CONFIG>/`), the Git LFS fetch, or the port manifest.
+It links a standalone install, which uses the other layout.
+
+### Slow loop: build the real port from your working tree
+
+```powershell
+cd <path/to/ds_qt>
+.\Library\vcpkg\Test-DsqtPort.ps1 -QtVersion 6.10.2 -StageOnly
+
+cd <path/to/project>
+cmake --preset ninja-release -B build\dsqt-port `
+      -DVCPKG_OVERLAY_PORTS=$env:TEMP\dsqt-port-test
+cmake --build build\dsqt-port --config Release
+```
+
+`-StageOnly` refreshes the overlay from your working tree without installing,
+so the port is compiled once — during the project's configure. An overlay port
+takes precedence over the registry, so nothing needs publishing.
+
+This is the loop that catches packaging mistakes: missing install rules, empty
+directories, renamed libraries, layout assumptions. Slow (~8 minutes per DsQt
+change, since the staged-source hash changes), so save it for just before you
+push to `ph/develop`.
+
+### Then publish
+
+Push to `ph/develop`, let the workflow publish, and bump the consuming
+project's `version>=` plus the registry `baseline` in
+`vcpkg-configuration.json`.
+
+---
+
 ## Testing the port before publishing
 
 Nothing here needs `ph/develop` to exist or the registry to be touched. vcpkg's
@@ -190,7 +294,7 @@ copy.
 ### The quick way
 
 ```powershell
-cd D:\Projects\ds_qt
+cd <path/to/ds_qt>
 .\Library\vcpkg\Test-DsqtPort.ps1 -QtVersion 6.10.2
 ```
 

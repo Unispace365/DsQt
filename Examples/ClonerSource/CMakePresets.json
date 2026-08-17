@@ -11,7 +11,8 @@
       "hidden": true,
       "inherits": "vcpkg-base",
       "cacheVariables": {
-        "CMAKE_PREFIX_PATH": "C:/Qt/6.10.0/msvc2022_64;$env{USERPROFILE}/Documents/DsQt"
+        "CMAKE_PREFIX_PATH": "C:/Qt/6.10.0/msvc2022_64",
+        "VCPKG_TARGET_TRIPLET": "x64-windows-qt6-10-0"
       }
     },
     {
@@ -19,7 +20,8 @@
       "hidden": true,
       "inherits": "vcpkg-base",
       "cacheVariables": {
-        "CMAKE_PREFIX_PATH": "C:/Qt/6.10.1/msvc2022_64;$env{USERPROFILE}/Documents/DsQt"
+        "CMAKE_PREFIX_PATH": "C:/Qt/6.10.1/msvc2022_64",
+        "VCPKG_TARGET_TRIPLET": "x64-windows-qt6-10-1"
       }
     },
     {
@@ -27,7 +29,8 @@
       "hidden": true,
       "inherits": "vcpkg-base",
       "cacheVariables": {
-        "CMAKE_PREFIX_PATH": "C:/Qt/6.10.2/msvc2022_64;$env{USERPROFILE}/Documents/DsQt"
+        "CMAKE_PREFIX_PATH": "C:/Qt/6.10.2/msvc2022_64",
+        "VCPKG_TARGET_TRIPLET": "x64-windows-qt6-10-2"
       }
     },
     {
@@ -50,7 +53,6 @@
     },
     {
       "name": "vs2022-6.10.2",
-      "hidden": true,
       "displayName": "VS2022 x64 - Qt 6.10.2",
       "inherits": "qt-6.10.2",
       "generator": "Visual Studio 17 2022",
@@ -72,20 +74,29 @@
       "name": "ninja-6.10.0",
       "hidden": true,
       "displayName": "Ninja - Qt 6.10.0",
-      "inherits": ["qt-6.10.0", "ninja-base"],
+      "inherits": [
+        "qt-6.10.0",
+        "ninja-base"
+      ],
       "binaryDir": "${sourceDir}/build/ninja-6.10.0"
     },
     {
       "name": "ninja-6.10.1",
       "hidden": true,
       "displayName": "Ninja - Qt 6.10.1",
-      "inherits": ["qt-6.10.1", "ninja-base"],
+      "inherits": [
+        "qt-6.10.1",
+        "ninja-base"
+      ],
       "binaryDir": "${sourceDir}/build/ninja-6.10.1"
     },
     {
       "name": "ninja-6.10.2",
       "displayName": "Ninja - Qt 6.10.2",
-      "inherits": ["qt-6.10.2", "ninja-base"],
+      "inherits": [
+        "qt-6.10.2",
+        "ninja-base"
+      ],
       "binaryDir": "${sourceDir}/build/ninja-6.10.2"
     }
   ],

@@ -9,5 +9,8 @@
         "dsqt"
       ]
     }
+  ],
+  "overlay-triplets": [
+    "./triplets"
   ]
 }

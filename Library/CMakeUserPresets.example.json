@@ -7,7 +7,8 @@
       "inherits": "vcpkg-base",
       "cacheVariables": {
         "CMAKE_PREFIX_PATH": "C:/Qt/6.10.0/msvc2022_64",
-        "CMAKE_INSTALL_PREFIX": "$env{USERPROFILE}/Documents/DsQt"
+        "CMAKE_INSTALL_PREFIX": "$env{USERPROFILE}/Documents/DsQt",
+        "VCPKG_TARGET_TRIPLET": "x64-windows-qt6-10-0"
       }
     },
     {
@@ -16,7 +17,8 @@
       "inherits": "vcpkg-base",
       "cacheVariables": {
         "CMAKE_PREFIX_PATH": "C:/Qt/6.10.1/msvc2022_64",
-        "CMAKE_INSTALL_PREFIX": "$env{USERPROFILE}/Documents/DsQt"
+        "CMAKE_INSTALL_PREFIX": "$env{USERPROFILE}/Documents/DsQt",
+        "VCPKG_TARGET_TRIPLET": "x64-windows-qt6-10-1"
       }
     },
     {
@@ -25,37 +27,151 @@
       "inherits": "vcpkg-base",
       "cacheVariables": {
         "CMAKE_PREFIX_PATH": "C:/Qt/6.10.2/msvc2022_64",
-        "CMAKE_INSTALL_PREFIX": "$env{USERPROFILE}/Documents/DsQt"
+        "CMAKE_INSTALL_PREFIX": "$env{USERPROFILE}/Documents/DsQt",
+        "VCPKG_TARGET_TRIPLET": "x64-windows-qt6-10-2"
       }
     },
     {
       "name": "ninja-6.10.0",
       "displayName": "Ninja - Qt 6.10.0",
-      "inherits": ["qt-6.10.0", "ninja-base"],
+      "inherits": [
+        "qt-6.10.0",
+        "ninja-base"
+      ],
       "binaryDir": "${sourceDir}/build/ninja-6.10.0"
     },
     {
       "name": "ninja-6.10.1",
       "displayName": "Ninja - Qt 6.10.1",
-      "inherits": ["qt-6.10.1", "ninja-base"],
+      "inherits": [
+        "qt-6.10.1",
+        "ninja-base"
+      ],
       "binaryDir": "${sourceDir}/build/ninja-6.10.1"
     },
     {
       "name": "ninja-6.10.2",
       "displayName": "Ninja - Qt 6.10.2",
-      "inherits": ["qt-6.10.2", "ninja-base"],
+      "inherits": [
+        "qt-6.10.2",
+        "ninja-base"
+      ],
       "binaryDir": "${sourceDir}/build/ninja-6.10.2"
+    },
+    {
+      "name": "qt-6.10.3",
+      "hidden": true,
+      "inherits": "vcpkg-base",
+      "cacheVariables": {
+        "CMAKE_PREFIX_PATH": "C:/Qt/6.10.3/msvc2022_64",
+        "CMAKE_INSTALL_PREFIX": "$env{USERPROFILE}/Documents/DsQt",
+        "VCPKG_TARGET_TRIPLET": "x64-windows-qt6-10-3"
+      }
+    },
+    {
+      "name": "ninja-6.10.3",
+      "displayName": "Ninja - Qt 6.10.3",
+      "inherits": [
+        "qt-6.10.3",
+        "ninja-base"
+      ],
+      "binaryDir": "${sourceDir}/build/ninja-6.10.3"
+    },
+    {
+      "name": "qt-6.11.1",
+      "hidden": true,
+      "inherits": "vcpkg-base",
+      "cacheVariables": {
+        "CMAKE_PREFIX_PATH": "C:/Qt/6.11.1/msvc2022_64",
+        "CMAKE_INSTALL_PREFIX": "$env{USERPROFILE}/Documents/DsQt",
+        "VCPKG_TARGET_TRIPLET": "x64-windows-qt6-11-1"
+      }
+    },
+    {
+      "name": "ninja-6.11.1",
+      "displayName": "Ninja - Qt 6.11.1",
+      "inherits": [
+        "qt-6.11.1",
+        "ninja-base"
+      ],
+      "binaryDir": "${sourceDir}/build/ninja-6.11.1"
     }
   ],
   "buildPresets": [
-    { "name": "ninja-6.10.0-debug",          "configurePreset": "ninja-6.10.0", "configuration": "Debug" },
-    { "name": "ninja-6.10.0-release",        "configurePreset": "ninja-6.10.0", "configuration": "Release" },
-    { "name": "ninja-6.10.0-relwithdebinfo", "configurePreset": "ninja-6.10.0", "configuration": "RelWithDebInfo" },
-    { "name": "ninja-6.10.1-debug",          "configurePreset": "ninja-6.10.1", "configuration": "Debug" },
-    { "name": "ninja-6.10.1-release",        "configurePreset": "ninja-6.10.1", "configuration": "Release" },
-    { "name": "ninja-6.10.1-relwithdebinfo", "configurePreset": "ninja-6.10.1", "configuration": "RelWithDebInfo" },
-    { "name": "ninja-6.10.2-debug",          "configurePreset": "ninja-6.10.2", "configuration": "Debug" },
-    { "name": "ninja-6.10.2-release",        "configurePreset": "ninja-6.10.2", "configuration": "Release" },
-    { "name": "ninja-6.10.2-relwithdebinfo", "configurePreset": "ninja-6.10.2", "configuration": "RelWithDebInfo" }
+    {
+      "name": "ninja-6.10.0-debug",
+      "configurePreset": "ninja-6.10.0",
+      "configuration": "Debug"
+    },
+    {
+      "name": "ninja-6.10.0-release",
+      "configurePreset": "ninja-6.10.0",
+      "configuration": "Release"
+    },
+    {
+      "name": "ninja-6.10.0-relwithdebinfo",
+      "configurePreset": "ninja-6.10.0",
+      "configuration": "RelWithDebInfo"
+    },
+    {
+      "name": "ninja-6.10.1-debug",
+      "configurePreset": "ninja-6.10.1",
+      "configuration": "Debug"
+    },
+    {
+      "name": "ninja-6.10.1-release",
+      "configurePreset": "ninja-6.10.1",
+      "configuration": "Release"
+    },
+    {
+      "name": "ninja-6.10.1-relwithdebinfo",
+      "configurePreset": "ninja-6.10.1",
+      "configuration": "RelWithDebInfo"
+    },
+    {
+      "name": "ninja-6.10.2-debug",
+      "configurePreset": "ninja-6.10.2",
+      "configuration": "Debug"
+    },
+    {
+      "name": "ninja-6.10.2-release",
+      "configurePreset": "ninja-6.10.2",
+      "configuration": "Release"
+    },
+    {
+      "name": "ninja-6.10.2-relwithdebinfo",
+      "configurePreset": "ninja-6.10.2",
+      "configuration": "RelWithDebInfo"
+    },
+    {
+      "name": "ninja-6.10.3-debug",
+      "configurePreset": "ninja-6.10.3",
+      "configuration": "Debug"
+    },
+    {
+      "name": "ninja-6.10.3-release",
+      "configurePreset": "ninja-6.10.3",
+      "configuration": "Release"
+    },
+    {
+      "name": "ninja-6.10.3-relwithdebinfo",
+      "configurePreset": "ninja-6.10.3",
+      "configuration": "RelWithDebInfo"
+    },
+    {
+      "name": "ninja-6.11.1-debug",
+      "configurePreset": "ninja-6.11.1",
+      "configuration": "Debug"
+    },
+    {
+      "name": "ninja-6.11.1-release",
+      "configurePreset": "ninja-6.11.1",
+      "configuration": "Release"
+    },
+    {
+      "name": "ninja-6.11.1-relwithdebinfo",
+      "configurePreset": "ninja-6.11.1",
+      "configuration": "RelWithDebInfo"
+    }
   ]
 }

@@ -1,0 +1,3 @@
+# vcpkg hashes the byte content of these files; CRLF would change the ABI
+# hash and split the binary cache between developers.
+* text eol=lf
