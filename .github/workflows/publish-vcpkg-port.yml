@@ -67,6 +67,15 @@ jobs:
           mkdir -p versions
           [ -f versions/baseline.json ] || echo '{ "default": {} }' > versions/baseline.json
 
+          # Consumers clone this registry, and vcpkg's ABI hash covers the byte
+          # content of every file in the port directory. A Windows clone with
+          # core.autocrlf=true would rewrite LF to CRLF and change the hash, so
+          # identical sources would not share cached builds. Pin to LF.
+          if [ ! -f .gitattributes ] || ! grep -q 'ports/\*\* text eol=lf' .gitattributes; then
+            printf '# Keep port files byte-identical across platforms: vcpkg hashes their contents.\nports/** text eol=lf\nversions/** text eol=lf\n' >> .gitattributes
+            echo "Added LF pinning to the registry's .gitattributes"
+          fi
+
       - name: Stage port files
         shell: bash
         run: |
@@ -127,6 +136,20 @@ jobs:
           vcpkgGitCommitId: '4b77da7fed37817f124936239197833469f1b9a8'
           runVcpkgInstall: false
 
+      - name: Normalise the manifest
+        shell: bash
+        working-directory: registry
+        run: |
+          set -euo pipefail
+          # x-add-version refuses to run on a manifest that is not in vcpkg's
+          # canonical form ("dsqt is not properly formatted"), and jq's output
+          # is not canonical -- it preserves key order and its own spacing.
+          # Normalise before committing: x-add-version records the git-tree of
+          # ports/dsqt, so any later edit would invalidate the recorded hash.
+          "${{ github.workspace }}/vcpkg/vcpkg" format-manifest ports/dsqt/vcpkg.json
+          echo "--- normalised manifest ---"
+          cat ports/dsqt/vcpkg.json
+
       - name: Commit port
         shell: bash
         working-directory: registry
@@ -134,7 +157,7 @@ jobs:
           set -euo pipefail
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add ports/dsqt
+          git add ports/dsqt .gitattributes
           if git diff --cached --quiet; then
             echo "Port is unchanged; nothing to publish."
             echo "SKIP=1" >> "$GITHUB_ENV"

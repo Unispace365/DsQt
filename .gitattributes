@@ -11,3 +11,14 @@
 *.ogg filter=lfs diff=lfs merge=lfs -text
 *.vorbis filter=lfs diff=lfs merge=lfs -text
 .pdf filter=lfs diff=lfs merge=lfs -text
+
+# ── vcpkg: byte-stable checkouts ─────────────────────────────────────────────
+# vcpkg's ABI hash covers the *byte content* of the triplet file and every file
+# in the port directory. With core.autocrlf=true a Windows checkout rewrites LF
+# to CRLF, which changes those bytes and therefore the hash -- so two developers
+# would compute different ABI hashes for identical sources and could never share
+# a cached build. Pin these to LF regardless of local git settings.
+Library/vcpkg/triplets/*.cmake text eol=lf
+Library/vcpkg/port/portfile.cmake text eol=lf
+Library/vcpkg/port/vcpkg.json    text eol=lf
+Library/vcpkg/port/usage         text eol=lf
