@@ -11,6 +11,7 @@ add_library(Core)
 add_library(Dsqt::Core ALIAS Core)
 
 qt_add_qml_module(Core
+    PLUGIN_TARGET DsqtCoreplugin
     URI Dsqt.Core
     VERSION 1.0
     OUTPUT_TARGETS CoreTargets
@@ -86,7 +87,7 @@ target_link_libraries(Core PUBLIC
     Qt6::Gui 
     Qt6::Qml 
     Qt6::Widgets
-    Coreplugin
+    DsqtCoreplugin
     $<$<PLATFORM_ID:Windows>:user32> # For WindowHelper
 )
 
@@ -108,6 +109,15 @@ target_include_directories(Core
 )
 
 target_link_libraries(Core PRIVATE tomlplusplus::tomlplusplus)
+
+
+# Prefix the installed library file so it cannot collide with another port in
+# vcpkg's shared prefix. The CMake target name and the Dsqt:: alias are
+# unchanged, so consumer code is unaffected.
+# NOTE: the QML plugin target must NOT use OUTPUT_NAME -- Qt writes the plugin
+# target name into the generated qmldir. It is renamed via PLUGIN_TARGET in
+# qt_add_qml_module() instead.
+set_target_properties(Core PROPERTIES OUTPUT_NAME DsqtCore)
 
 # ----------------------------------------------------------------------
 # Installation rules (headers only - target install is in main CMakeLists.txt)

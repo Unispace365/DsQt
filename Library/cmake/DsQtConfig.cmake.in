@@ -27,21 +27,181 @@ find_dependency(Qt6
         Sql
 )
 
-# tomlplusplus is a PRIVATE implementation detail of Dsqt::Core, but on Windows
-# vcpkg builds it as a DLL. Core.lib's object files contain __declspec(dllimport)
-# stubs for toml++ symbols, so every executable that links Core.lib must also
-# satisfy those stubs by linking the tomlplusplus import library. We surface that
-# requirement here so consumers don't have to do it manually.
+# ----------------------------------------------------------------------
+# Qt kit consistency
+# ----------------------------------------------------------------------
+# DsQt is built as static libraries and links Qt6::GuiPrivate, so it is bound to
+# the exact Qt build it was compiled against -- private headers change between
+# patch releases, and there is no ABI promise across them.
+#
+# The vcpkg triplet pins the kit for the port build (DSQT_QT_VERSION). This is
+# the other half: it catches a consumer whose CMAKE_PREFIX_PATH points at a
+# different kit. Without it the mismatch surfaces as unresolved externals, or
+# worse, as a build that links and then misbehaves at runtime.
+#
+# Set DSQT_ALLOW_QT_VERSION_MISMATCH=ON to downgrade this to a warning.
+set(DSQT_BUILT_AGAINST_QT_VERSION "@Qt6_VERSION@")
+
+if(DSQT_BUILT_AGAINST_QT_VERSION AND Qt6_VERSION
+        AND NOT Qt6_VERSION VERSION_EQUAL DSQT_BUILT_AGAINST_QT_VERSION)
+    set(_dsqt_qt_mismatch
+        "Qt version mismatch.\n"
+        "  Dsqt was built against Qt ${DSQT_BUILT_AGAINST_QT_VERSION}\n"
+        "  This project is configuring with Qt ${Qt6_VERSION}\n"
+        "\n"
+        "Dsqt links Qt private APIs, so the versions must match exactly. Either "
+        "point CMAKE_PREFIX_PATH at C:/Qt/${DSQT_BUILT_AGAINST_QT_VERSION}/<arch>, "
+        "or rebuild Dsqt against Qt ${Qt6_VERSION} by selecting the matching "
+        "vcpkg triplet (x64-windows-qt"
+    )
+    string(REPLACE "." "-" _dsqt_wanted_slug "${Qt6_VERSION}")
+    string(APPEND _dsqt_qt_mismatch "${_dsqt_wanted_slug}).")
+
+    if(DSQT_ALLOW_QT_VERSION_MISMATCH)
+        message(WARNING ${_dsqt_qt_mismatch})
+    else()
+        message(FATAL_ERROR ${_dsqt_qt_mismatch})
+    endif()
+endif()
+
+# ----------------------------------------------------------------------
+# Toolchain consistency
+# ----------------------------------------------------------------------
+# Static libraries from different compilers cannot be linked together, and the
+# Qt kit itself is built for one specific toolchain. vcpkg folds the compiler
+# into the ABI hash for the *port* build, but a consuming project chooses its
+# own compiler independently -- notably, "-G Ninja" with no explicit compiler
+# can pick up clang++ from Visual Studio's LLVM directory instead of cl.exe.
+#
+# Set DSQT_ALLOW_COMPILER_MISMATCH=ON to downgrade this to a warning.
+set(DSQT_BUILT_WITH_COMPILER_ID "@CMAKE_CXX_COMPILER_ID@")
+set(DSQT_BUILT_WITH_COMPILER_VERSION "@CMAKE_CXX_COMPILER_VERSION@")
+
+if(DSQT_BUILT_WITH_COMPILER_ID AND CMAKE_CXX_COMPILER_ID
+        AND NOT CMAKE_CXX_COMPILER_ID STREQUAL DSQT_BUILT_WITH_COMPILER_ID)
+    set(_dsqt_cc_msg
+        "Compiler mismatch.\n"
+        "  Dsqt was built with ${DSQT_BUILT_WITH_COMPILER_ID} ${DSQT_BUILT_WITH_COMPILER_VERSION}\n"
+        "  This project is configuring with ${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}\n"
+        "\n"
+        "Dsqt ships static libraries, so the compilers must match. If you are "
+        "using a Ninja generator, set the compiler explicitly:\n"
+        "    -DCMAKE_C_COMPILER=cl -DCMAKE_CXX_COMPILER=cl\n"
+        "Note that Qt will also reject its own kit on a toolchain mismatch, "
+        "reporting it confusingly as an incompatible *version*.")
+    if(DSQT_ALLOW_COMPILER_MISMATCH)
+        message(WARNING ${_dsqt_cc_msg})
+    else()
+        message(FATAL_ERROR ${_dsqt_cc_msg})
+    endif()
+endif()
+
+# tomlplusplus is a PRIVATE implementation detail of Dsqt::Core, but Core is a
+# static library: its object files still carry unresolved toml++ symbols that the
+# final link has to satisfy. So consumers must link tomlplusplus even though they
+# never touch its API. We surface that here rather than making them do it.
+#
+# The DsQt triplets build toml++ statically (see the PORT override in
+# Library/vcpkg/triplets/), which means nothing extra to deploy at runtime. If
+# you build DsQt against a triplet that makes it a DLL instead, the imported
+# target below carries the matching dllimport definitions and the DLL has to
+# ship next to the executable.
 find_dependency(tomlplusplus CONFIG)
 
 # ----------------------------------------------------------------------
 # Compute installation paths (public variables for consumers)
 # ----------------------------------------------------------------------
-get_filename_component(DSQT_INSTALL_PREFIX "${CMAKE_CURRENT_LIST_DIR}/../../.." ABSOLUTE)
+# PACKAGE_PREFIX_DIR is computed by @PACKAGE_INIT@ from the INSTALL_DESTINATION
+# that was passed to configure_package_config_file(), so it stays correct
+# whether this file was installed to lib/cmake/Dsqt (default layout) or to
+# share/dsqt (vcpkg layout).
+set(DSQT_INSTALL_PREFIX "${PACKAGE_PREFIX_DIR}")
 set(DSQT_LIB_DIR "${DSQT_INSTALL_PREFIX}/lib")
 set(DSQT_INCLUDE_DIR "${DSQT_INSTALL_PREFIX}/include")
 set(DSQT_BIN_DIR "${DSQT_INSTALL_PREFIX}/bin")
-set(DSQT_QML_DIR "${DSQT_INSTALL_PREFIX}/qml")
+
+# QML modules live at <prefix>/qml in the default layout and next to this file
+# (share/dsqt/qml) when installed through vcpkg.
+if(IS_DIRECTORY "${CMAKE_CURRENT_LIST_DIR}/qml/Dsqt")
+    set(DSQT_QML_DIR "${CMAKE_CURRENT_LIST_DIR}/qml")
+else()
+    set(DSQT_QML_DIR "${DSQT_INSTALL_PREFIX}/qml")
+endif()
+
+# ----------------------------------------------------------------------
+# Detect which install layout we are sitting in
+# ----------------------------------------------------------------------
+# "vcpkg"        <prefix>/lib + <prefix>/debug/lib          (one config per prefix)
+# "split-config" <prefix>/lib/Release + <prefix>/lib/Debug  (Ninja Multi-Config)
+# "flat"         <prefix>/lib                               (single-config build)
+#
+# Consumers never have to care which one they got: the imported targets below
+# are given per-config locations either way.
+if(IS_DIRECTORY "${DSQT_INSTALL_PREFIX}/debug/lib")
+    set(DSQT_INSTALL_LAYOUT "vcpkg")
+    set(_DSQT_LIBDIR_RELEASE "${DSQT_INSTALL_PREFIX}/lib")
+    set(_DSQT_LIBDIR_DEBUG   "${DSQT_INSTALL_PREFIX}/debug/lib")
+    set(_DSQT_BINDIR_RELEASE "${DSQT_INSTALL_PREFIX}/bin")
+    set(_DSQT_BINDIR_DEBUG   "${DSQT_INSTALL_PREFIX}/debug/bin")
+    # vcpkg only ever produces Release and Debug.
+    set(_DSQT_HAVE_RELWITHDEBINFO FALSE)
+elseif(IS_DIRECTORY "${DSQT_LIB_DIR}/Release" OR IS_DIRECTORY "${DSQT_LIB_DIR}/Debug")
+    set(DSQT_INSTALL_LAYOUT "split-config")
+    set(_DSQT_LIBDIR_RELEASE "${DSQT_LIB_DIR}/Release")
+    set(_DSQT_LIBDIR_DEBUG   "${DSQT_LIB_DIR}/Debug")
+    set(_DSQT_BINDIR_RELEASE "${DSQT_BIN_DIR}/Release")
+    set(_DSQT_BINDIR_DEBUG   "${DSQT_BIN_DIR}/Debug")
+    set(_DSQT_LIBDIR_RELWITHDEBINFO "${DSQT_LIB_DIR}/RelWithDebInfo")
+    set(_DSQT_BINDIR_RELWITHDEBINFO "${DSQT_BIN_DIR}/RelWithDebInfo")
+    set(_DSQT_HAVE_RELWITHDEBINFO TRUE)
+else()
+    set(DSQT_INSTALL_LAYOUT "flat")
+    set(_DSQT_LIBDIR_RELEASE "${DSQT_LIB_DIR}")
+    set(_DSQT_LIBDIR_DEBUG   "${DSQT_LIB_DIR}")
+    set(_DSQT_BINDIR_RELEASE "${DSQT_BIN_DIR}")
+    set(_DSQT_BINDIR_DEBUG   "${DSQT_BIN_DIR}")
+    set(_DSQT_HAVE_RELWITHDEBINFO FALSE)
+endif()
+
+if(_DSQT_HAVE_RELWITHDEBINFO)
+    set(_DSQT_IMPORTED_CONFIGS "RELEASE;DEBUG;RELWITHDEBINFO")
+else()
+    set(_DSQT_IMPORTED_CONFIGS "RELEASE;DEBUG")
+endif()
+
+set(_DSQT_STATIC_SUFFIX "${CMAKE_STATIC_LIBRARY_SUFFIX}")
+if(NOT _DSQT_STATIC_SUFFIX)
+    set(_DSQT_STATIC_SUFFIX ".lib")
+endif()
+
+# Point every imported target at the right file for each configuration, and
+# map the configurations we do not ship onto Release.
+#   _dsqt_set_locations(<target> <basename> <libdir-var-prefix>)
+function(_dsqt_set_locations _target _basename)
+    # IMPORTED_CONFIGURATIONS is a list, so it is set on its own: expanding a
+    # semicolon-separated value through a PROPERTIES key/value list would
+    # flatten it and silently turn the remaining entries into bogus properties.
+    set_property(TARGET ${_target}
+        PROPERTY IMPORTED_CONFIGURATIONS ${_DSQT_IMPORTED_CONFIGS})
+
+    set_target_properties(${_target} PROPERTIES
+        IMPORTED_LOCATION_RELEASE "${_DSQT_LIBDIR_RELEASE}/${_basename}${_DSQT_STATIC_SUFFIX}"
+        IMPORTED_LOCATION_DEBUG   "${_DSQT_LIBDIR_DEBUG}/${_basename}${_DSQT_STATIC_SUFFIX}"
+        MAP_IMPORTED_CONFIG_MINSIZEREL Release
+    )
+
+    if(_DSQT_HAVE_RELWITHDEBINFO)
+        set_target_properties(${_target} PROPERTIES
+            IMPORTED_LOCATION_RELWITHDEBINFO
+                "${_DSQT_LIBDIR_RELWITHDEBINFO}/${_basename}${_DSQT_STATIC_SUFFIX}")
+    else()
+        # No RelWithDebInfo was installed (vcpkg / flat layouts): a consumer
+        # building RelWithDebInfo links the Release artifacts rather than
+        # failing to find a library at all.
+        set_target_properties(${_target} PROPERTIES
+            MAP_IMPORTED_CONFIG_RELWITHDEBINFO Release)
+    endif()
+endfunction()
 
 # Legacy internal names (for backwards compatibility within this file)
 set(_DSQT_INSTALL_PREFIX "${DSQT_INSTALL_PREFIX}")
@@ -65,49 +225,40 @@ endif()
 # ----------------------------------------------------------------------
 
 # Helper macro to create an imported static library with per-config locations.
-# Libraries are installed under lib/Debug/, lib/Release/, etc.
-macro(_dsqt_create_imported_target _name)
+#   _dsqt_create_imported_target(<component> <library-file-basename>)
+# The component name is what consumers see (Dsqt::Core); the basename is the
+# installed file, which is prefixed (DsqtCore.lib) so it cannot collide with
+# another package in vcpkg's shared prefix.
+macro(_dsqt_create_imported_target _name _lib)
     if(NOT TARGET Dsqt::${_name})
         add_library(Dsqt::${_name} STATIC IMPORTED)
-        set_target_properties(Dsqt::${_name} PROPERTIES
-            IMPORTED_LOCATION_DEBUG          "${_DSQT_LIB_DIR}/Debug/${_name}.lib"
-            IMPORTED_LOCATION_RELEASE        "${_DSQT_LIB_DIR}/Release/${_name}.lib"
-            IMPORTED_LOCATION_RELWITHDEBINFO "${_DSQT_LIB_DIR}/RelWithDebInfo/${_name}.lib"
-            MAP_IMPORTED_CONFIG_MINSIZEREL   Release
-        )
+        _dsqt_set_locations(Dsqt::${_name} "${_lib}")
     endif()
 endmacro()
 
 # Helper macro to create an imported plugin target with per-config locations.
-# Creates both namespaced (Dsqt::Coreplugin) and non-namespaced (Coreplugin) targets.
-# The non-namespaced target is needed because Qt's qt6_import_qml_plugins() looks for
-# the linktarget name from qmldir without namespace prefix.
-macro(_dsqt_create_plugin_target _name)
-    # Create namespaced target (Dsqt::Coreplugin) for explicit use in our code
+#   _dsqt_create_plugin_target(<component> <plugin-target-name>)
+# Creates both the namespaced alias (Dsqt::Coreplugin), used in our own link
+# interfaces, and a non-namespaced target under the plugin's real name
+# (DsqtCoreplugin). The latter is required because Qt writes that name into the
+# module's qmldir, and qt6_import_qml_plugins() resolves it verbatim, without a
+# namespace. It is therefore also the installed library's basename.
+macro(_dsqt_create_plugin_target _name _plugin)
+    # Namespaced target (Dsqt::Coreplugin) for explicit use in our code
     if(NOT TARGET Dsqt::${_name}plugin)
         add_library(Dsqt::${_name}plugin STATIC IMPORTED)
-        set_target_properties(Dsqt::${_name}plugin PROPERTIES
-            IMPORTED_LOCATION_DEBUG          "${_DSQT_LIB_DIR}/Debug/${_name}plugin.lib"
-            IMPORTED_LOCATION_RELEASE        "${_DSQT_LIB_DIR}/Release/${_name}plugin.lib"
-            IMPORTED_LOCATION_RELWITHDEBINFO "${_DSQT_LIB_DIR}/RelWithDebInfo/${_name}plugin.lib"
-            MAP_IMPORTED_CONFIG_MINSIZEREL   Release
-        )
+        _dsqt_set_locations(Dsqt::${_name}plugin "${_plugin}")
     endif()
-    # Create non-namespaced target (Coreplugin) for Qt's qmlimportscanner
-    if(NOT TARGET ${_name}plugin)
-        add_library(${_name}plugin STATIC IMPORTED)
-        set_target_properties(${_name}plugin PROPERTIES
-            IMPORTED_LOCATION_DEBUG          "${_DSQT_LIB_DIR}/Debug/${_name}plugin.lib"
-            IMPORTED_LOCATION_RELEASE        "${_DSQT_LIB_DIR}/Release/${_name}plugin.lib"
-            IMPORTED_LOCATION_RELWITHDEBINFO "${_DSQT_LIB_DIR}/RelWithDebInfo/${_name}plugin.lib"
-            MAP_IMPORTED_CONFIG_MINSIZEREL   Release
-        )
+    # Non-namespaced target, named exactly as the qmldir 'plugin' line
+    if(NOT TARGET ${_plugin})
+        add_library(${_plugin} STATIC IMPORTED)
+        _dsqt_set_locations(${_plugin} "${_plugin}")
     endif()
 endmacro()
 
 # Create Core targets
-_dsqt_create_imported_target(Core)
-_dsqt_create_plugin_target(Core)
+_dsqt_create_imported_target(Core DsqtCore)
+_dsqt_create_plugin_target(Core DsqtCoreplugin)
 
 set_target_properties(Dsqt::Core PROPERTIES
     INTERFACE_INCLUDE_DIRECTORIES "${_DSQT_INCLUDE_DIR};${_DSQT_INCLUDE_DIR}/core;${_DSQT_INCLUDE_DIR}/model;${_DSQT_INCLUDE_DIR}/network;${_DSQT_INCLUDE_DIR}/settings;${_DSQT_INCLUDE_DIR}/ui;${_DSQT_INCLUDE_DIR}/utility"
@@ -115,23 +266,23 @@ set_target_properties(Dsqt::Core PROPERTIES
 )
 
 # Create Bridge targets
-_dsqt_create_imported_target(Bridge)
-_dsqt_create_plugin_target(Bridge)
+_dsqt_create_imported_target(Bridge DsqtBridge)
+_dsqt_create_plugin_target(Bridge DsqtBridgeplugin)
 set_target_properties(Dsqt::Bridge PROPERTIES
     INTERFACE_INCLUDE_DIRECTORIES "${_DSQT_INCLUDE_DIR};${_DSQT_INCLUDE_DIR}/bridge;${_DSQT_INCLUDE_DIR}/model"
     INTERFACE_LINK_LIBRARIES "Qt6::Core;Qt6::Concurrent;Qt6::Qml;Qt6::Sql;Qt6::Gui;Qt6::Widgets;Qt6::Multimedia;Qt6::MultimediaWidgets;Dsqt::Core;Dsqt::Bridgeplugin"
 )
 
 # Create Waffles targets
-_dsqt_create_imported_target(Waffles)
-_dsqt_create_plugin_target(Waffles)
+_dsqt_create_imported_target(Waffles DsqtWaffles)
+_dsqt_create_plugin_target(Waffles DsqtWafflesplugin)
 set_target_properties(Dsqt::Waffles PROPERTIES
     INTERFACE_LINK_LIBRARIES "Qt6::Core;Qt6::Quick;Qt6::Gui;Qt6::Qml;Dsqt::Wafflesplugin"
 )
 
 # Create Touch targets
-_dsqt_create_imported_target(Touch)
-_dsqt_create_plugin_target(Touch)
+_dsqt_create_imported_target(Touch DsqtTouch)
+_dsqt_create_plugin_target(Touch DsqtTouchplugin)
 set(_dsqt_touch_iface_libs "Qt6::Core;Qt6::Gui;Qt6::Quick;Dsqt::Touchplugin")
 if(NOT @DSQT_TOUCH_NO_PRIVATE_REINJECT@)
     find_dependency(Qt6 REQUIRED COMPONENTS GuiPrivate)
@@ -144,21 +295,29 @@ set_target_properties(Dsqt::Touch PROPERTIES
 )
 
 # Create TouchEngine targets
-_dsqt_create_imported_target(TouchEngine)
-_dsqt_create_plugin_target(TouchEngine)
+_dsqt_create_imported_target(TouchEngine DsqtTouchEngine)
+_dsqt_create_plugin_target(TouchEngine DsqtTouchEngineplugin)
 
 # TouchEngine SDK library
 if(NOT TARGET Dsqt::TouchEngineSDK)
     add_library(Dsqt::TouchEngineSDK SHARED IMPORTED)
     set_target_properties(Dsqt::TouchEngineSDK PROPERTIES
-        IMPORTED_LOCATION_DEBUG          "${_DSQT_BIN_DIR}/Debug/TouchEngine.dll"
-        IMPORTED_IMPLIB_DEBUG            "${_DSQT_LIB_DIR}/Debug/TouchEngineSDK.lib"
-        IMPORTED_LOCATION_RELEASE        "${_DSQT_BIN_DIR}/Release/TouchEngine.dll"
-        IMPORTED_IMPLIB_RELEASE          "${_DSQT_LIB_DIR}/Release/TouchEngineSDK.lib"
-        IMPORTED_LOCATION_RELWITHDEBINFO "${_DSQT_BIN_DIR}/RelWithDebInfo/TouchEngine.dll"
-        IMPORTED_IMPLIB_RELWITHDEBINFO   "${_DSQT_LIB_DIR}/RelWithDebInfo/TouchEngineSDK.lib"
+        IMPORTED_CONFIGURATIONS          "${_DSQT_IMPORTED_CONFIGS}"
+        IMPORTED_LOCATION_DEBUG          "${_DSQT_BINDIR_DEBUG}/TouchEngine.dll"
+        IMPORTED_IMPLIB_DEBUG            "${_DSQT_LIBDIR_DEBUG}/DsqtTouchEngineSDK.lib"
+        IMPORTED_LOCATION_RELEASE        "${_DSQT_BINDIR_RELEASE}/TouchEngine.dll"
+        IMPORTED_IMPLIB_RELEASE          "${_DSQT_LIBDIR_RELEASE}/DsqtTouchEngineSDK.lib"
         MAP_IMPORTED_CONFIG_MINSIZEREL   Release
     )
+    if(_DSQT_HAVE_RELWITHDEBINFO)
+        set_target_properties(Dsqt::TouchEngineSDK PROPERTIES
+            IMPORTED_LOCATION_RELWITHDEBINFO "${_DSQT_BINDIR_RELWITHDEBINFO}/TouchEngine.dll"
+            IMPORTED_IMPLIB_RELWITHDEBINFO   "${_DSQT_LIBDIR_RELWITHDEBINFO}/DsqtTouchEngineSDK.lib"
+        )
+    else()
+        set_target_properties(Dsqt::TouchEngineSDK PROPERTIES
+            MAP_IMPORTED_CONFIG_RELWITHDEBINFO Release)
+    endif()
 endif()
 
 # Find Vulkan for TouchEngine
@@ -179,45 +338,25 @@ set(DSQT_HAS_TOUCHENGINE TRUE)
 if(WIN32)
     if(NOT TARGET Dsqt::Spout)
         add_library(Dsqt::Spout STATIC IMPORTED)
-        set_target_properties(Dsqt::Spout PROPERTIES
-            IMPORTED_LOCATION_DEBUG          "${_DSQT_LIB_DIR}/Debug/DsSpout.lib"
-            IMPORTED_LOCATION_RELEASE        "${_DSQT_LIB_DIR}/Release/DsSpout.lib"
-            IMPORTED_LOCATION_RELWITHDEBINFO "${_DSQT_LIB_DIR}/RelWithDebInfo/DsSpout.lib"
-            MAP_IMPORTED_CONFIG_MINSIZEREL   Release
-        )
+        _dsqt_set_locations(Dsqt::Spout "DsqtSpout")
     endif()
     # Plugin targets (namespaced + non-namespaced for qmlimportscanner)
-    if(NOT TARGET Dsqt::DsSpoutplugin)
-        add_library(Dsqt::DsSpoutplugin STATIC IMPORTED)
-        set_target_properties(Dsqt::DsSpoutplugin PROPERTIES
-            IMPORTED_LOCATION_DEBUG          "${_DSQT_LIB_DIR}/Debug/DsSpoutplugin.lib"
-            IMPORTED_LOCATION_RELEASE        "${_DSQT_LIB_DIR}/Release/DsSpoutplugin.lib"
-            IMPORTED_LOCATION_RELWITHDEBINFO "${_DSQT_LIB_DIR}/RelWithDebInfo/DsSpoutplugin.lib"
-            MAP_IMPORTED_CONFIG_MINSIZEREL   Release
-        )
+    if(NOT TARGET Dsqt::Spoutplugin)
+        add_library(Dsqt::Spoutplugin STATIC IMPORTED)
+        _dsqt_set_locations(Dsqt::Spoutplugin "DsqtSpoutplugin")
     endif()
-    if(NOT TARGET DsSpoutplugin)
-        add_library(DsSpoutplugin STATIC IMPORTED)
-        set_target_properties(DsSpoutplugin PROPERTIES
-            IMPORTED_LOCATION_DEBUG          "${_DSQT_LIB_DIR}/Debug/DsSpoutplugin.lib"
-            IMPORTED_LOCATION_RELEASE        "${_DSQT_LIB_DIR}/Release/DsSpoutplugin.lib"
-            IMPORTED_LOCATION_RELWITHDEBINFO "${_DSQT_LIB_DIR}/RelWithDebInfo/DsSpoutplugin.lib"
-            MAP_IMPORTED_CONFIG_MINSIZEREL   Release
-        )
+    if(NOT TARGET DsqtSpoutplugin)
+        add_library(DsqtSpoutplugin STATIC IMPORTED)
+        _dsqt_set_locations(DsqtSpoutplugin "DsqtSpoutplugin")
     endif()
     # SpoutDX static library (from Spout2 SDK, installed alongside DsSpout)
     if(NOT TARGET Dsqt::SpoutDX_static)
         add_library(Dsqt::SpoutDX_static STATIC IMPORTED)
-        set_target_properties(Dsqt::SpoutDX_static PROPERTIES
-            IMPORTED_LOCATION_DEBUG          "${_DSQT_LIB_DIR}/Debug/SpoutDX_static.lib"
-            IMPORTED_LOCATION_RELEASE        "${_DSQT_LIB_DIR}/Release/SpoutDX_static.lib"
-            IMPORTED_LOCATION_RELWITHDEBINFO "${_DSQT_LIB_DIR}/RelWithDebInfo/SpoutDX_static.lib"
-            MAP_IMPORTED_CONFIG_MINSIZEREL   Release
-        )
+        _dsqt_set_locations(Dsqt::SpoutDX_static "SpoutDX_static")
     endif()
     set_target_properties(Dsqt::Spout PROPERTIES
         INTERFACE_INCLUDE_DIRECTORIES "${_DSQT_INCLUDE_DIR};${_DSQT_INCLUDE_DIR}/src"
-        INTERFACE_LINK_LIBRARIES "Qt6::Core;Qt6::Quick;Qt6::Gui;Qt6::GuiPrivate;Dsqt::DsSpoutplugin;Dsqt::SpoutDX_static;d3d11;d3d12;dxgi;opengl32;$<$<BOOL:${Vulkan_FOUND}>:Vulkan::Vulkan>"
+        INTERFACE_LINK_LIBRARIES "Qt6::Core;Qt6::Quick;Qt6::Gui;Qt6::GuiPrivate;Dsqt::Spoutplugin;Dsqt::SpoutDX_static;d3d11;d3d12;dxgi;opengl32;$<$<BOOL:${Vulkan_FOUND}>:Vulkan::Vulkan>"
     )
     set(DSQT_HAS_SPOUT TRUE)
 endif()
@@ -262,8 +401,8 @@ endforeach()
 # ----------------------------------------------------------------------
 # Runtime DLL deployment helper
 # Usage: dsqt_deploy_runtime_dlls(myTarget)
-# Adds a post-build command that copies bundled runtime DLLs (tomlplusplus,
-# TouchEngine) from the DsQt install prefix into the target's output directory.
+# Adds a post-build command that copies bundled runtime DLLs (TouchEngine) from
+# the DsQt install prefix into the target's output directory.
 # Call this once per executable target in consumer CMakeLists.txt.
 # ----------------------------------------------------------------------
 set(DSQT_RUNTIME_DLLS "")
@@ -271,14 +410,41 @@ if(WIN32)
     list(APPEND DSQT_RUNTIME_DLLS "TouchEngine.dll")
 endif()
 
+# Resolve the runtime directory for the config being built. In the vcpkg and
+# flat layouts there is no per-config subdirectory, so this is just DSQT_BIN_DIR.
+set(_DSQT_RUNTIME_DIR_GENEX "$<IF:$<CONFIG:Debug>,${_DSQT_BINDIR_DEBUG},${_DSQT_BINDIR_RELEASE}>")
+if(_DSQT_HAVE_RELWITHDEBINFO)
+    set(_DSQT_RUNTIME_DIR_GENEX
+        "$<IF:$<CONFIG:Debug>,${_DSQT_BINDIR_DEBUG},$<IF:$<CONFIG:RelWithDebInfo>,${_DSQT_BINDIR_RELWITHDEBINFO},${_DSQT_BINDIR_RELEASE}>>")
+endif()
+
+# Public: the directory holding the bundled runtime DLLs for the configuration
+# being built. This is a generator expression, so it cannot be inspected with
+# if() or EXISTS at configure time -- use it only where genexes are allowed.
+# Prefer the two macros below; they keep consumers from hardcoding a layout.
+set(DSQT_RUNTIME_DIR "${_DSQT_RUNTIME_DIR_GENEX}")
+
 macro(dsqt_deploy_runtime_dlls _target)
     foreach(_dll IN LISTS DSQT_RUNTIME_DLLS)
         add_custom_command(TARGET ${_target} POST_BUILD
             COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                "${DSQT_BIN_DIR}/$<CONFIG>/${_dll}"
+                "${_DSQT_RUNTIME_DIR_GENEX}/${_dll}"
                 "$<TARGET_FILE_DIR:${_target}>/${_dll}"
             COMMENT "Deploying ${_dll} to $<TARGET_FILE_DIR:${_target}>"
         )
+    endforeach()
+endmacro()
+
+# ----------------------------------------------------------------------
+# Install-time counterpart
+# Usage: dsqt_install_runtime_dlls(${CMAKE_INSTALL_BINDIR})
+# ----------------------------------------------------------------------
+# Installs the bundled runtime DLLs into <destination>. Layout-aware, so a
+# consumer never has to know whether the DLLs live in bin/ or bin/$<CONFIG>/.
+macro(dsqt_install_runtime_dlls _destination)
+    foreach(_dll IN LISTS DSQT_RUNTIME_DLLS)
+        install(FILES "${_DSQT_RUNTIME_DIR_GENEX}/${_dll}"
+                DESTINATION "${_destination}" OPTIONAL)
     endforeach()
 endmacro()
 

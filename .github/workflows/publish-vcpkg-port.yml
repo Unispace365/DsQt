@@ -1,0 +1,180 @@
+name: Publish vcpkg Port
+
+# Publishes the dsqt source port to our own registry on every push to
+# ph/develop.
+#
+# This replaces the old prebuilt-zip flow (update-vcpkg-registry.yml). Nothing
+# is compiled here: the port builds from source on the consumer's machine, so
+# their binaries always match their own compiler and Qt kit. What gets published
+# is a new version whose portfile pins the exact commit that was pushed.
+
+on:
+  push:
+    branches:
+      - ph/develop
+    paths:
+      - 'Library/**'
+      - '.github/workflows/publish-vcpkg-port.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  # Registry pushes are serialised: two concurrent runs would race on
+  # versions/baseline.json.
+  group: publish-vcpkg-port
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout DsQt
+        uses: actions/checkout@v4
+        with:
+          path: dsqt
+          fetch-depth: 0
+
+      - name: Checkout vcpkg-registry
+        uses: actions/checkout@v4
+        with:
+          repository: Unispace365/vcpkg-registry
+          token: ${{ secrets.REGISTRY_PAT }}
+          path: registry
+
+      - name: Resolve version and commit
+        id: meta
+        shell: bash
+        working-directory: dsqt
+        run: |
+          set -euo pipefail
+          BASE=$(tr -d '[:space:]' < Library/VERSION.txt)
+          VERSION="${BASE}.${{ github.run_number }}"
+          SHA=$(git rev-parse HEAD)
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "sha=$SHA"         >> "$GITHUB_OUTPUT"
+          echo "Publishing dsqt $VERSION from $SHA"
+
+      - name: Bootstrap registry layout
+        shell: bash
+        working-directory: registry
+        run: |
+          set -euo pipefail
+          # A brand-new registry has no version database yet; x-add-version
+          # needs baseline.json to exist before it will write to it.
+          mkdir -p versions
+          [ -f versions/baseline.json ] || echo '{ "default": {} }' > versions/baseline.json
+
+      - name: Stage port files
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p registry/ports/dsqt
+          # The port is authored in the DsQt repo so it stays in step with the
+          # library; the registry only ever holds a generated copy.
+          cp dsqt/Library/vcpkg/port/portfile.cmake registry/ports/dsqt/portfile.cmake
+          cp dsqt/Library/vcpkg/port/vcpkg.json     registry/ports/dsqt/vcpkg.json
+          cp dsqt/Library/vcpkg/port/usage          registry/ports/dsqt/usage
+
+      - name: Pin commit and version in the port
+        shell: bash
+        working-directory: registry/ports/dsqt
+        run: |
+          set -euo pipefail
+          # Replace the placeholder SHA on the line tagged "# DSQT_REF".
+          sed -i -E 's|REF "[0-9a-f]{40}"(\s*# DSQT_REF)|REF "${{ steps.meta.outputs.sha }}"\1|' portfile.cmake
+          grep -q '${{ steps.meta.outputs.sha }}' portfile.cmake \
+            || { echo "::error::Failed to substitute REF in portfile.cmake"; exit 1; }
+
+          jq --arg v "${{ steps.meta.outputs.version }}" \
+             '.version = $v | del(."port-version")' vcpkg.json > vcpkg.json.tmp
+          mv vcpkg.json.tmp vcpkg.json
+
+      - name: Verify the version is new and increasing
+        shell: bash
+        working-directory: registry
+        run: |
+          set -euo pipefail
+          VERSION="${{ steps.meta.outputs.version }}"
+          DB=versions/d-/dsqt.json
+          [ -f "$DB" ] || { echo "No existing version database; $VERSION is the first."; exit 0; }
+
+          if jq -e --arg v "$VERSION" '.versions[] | select(.version == $v)' "$DB" > /dev/null; then
+            echo "::error::Version $VERSION already exists in the registry."
+            exit 1
+          fi
+
+          # Run numbers restart when a workflow is renamed or recreated, so a new
+          # pipeline can otherwise publish a version *below* what the old one
+          # already shipped. vcpkg would then resolve version>= to the older
+          # entry, and the baseline would point backwards.
+          LATEST=$(jq -r '.versions[].version' "$DB" | sort -V | tail -1)
+          HIGHEST=$(printf '%s\n%s\n' "$LATEST" "$VERSION" | sort -V | tail -1)
+          if [ "$HIGHEST" != "$VERSION" ]; then
+            echo "::error::Version $VERSION is not greater than the published $LATEST."
+            echo "Bump the major/minor in Library/VERSION.txt so the new numbering"
+            echo "starts above everything the previous pipeline published."
+            exit 1
+          fi
+          echo "$VERSION is new and above the current highest ($LATEST)."
+
+      - name: Setup vcpkg
+        uses: lukka/run-vcpkg@v11
+        with:
+          vcpkgDirectory: '${{ github.workspace }}/vcpkg'
+          vcpkgGitCommitId: '4b77da7fed37817f124936239197833469f1b9a8'
+          runVcpkgInstall: false
+
+      - name: Commit port
+        shell: bash
+        working-directory: registry
+        run: |
+          set -euo pipefail
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add ports/dsqt
+          if git diff --cached --quiet; then
+            echo "Port is unchanged; nothing to publish."
+            echo "SKIP=1" >> "$GITHUB_ENV"
+          else
+            git commit -m "dsqt ${{ steps.meta.outputs.version }} (DsQt@${{ steps.meta.outputs.sha }})"
+          fi
+
+      - name: Update version database
+        if: env.SKIP != '1'
+        shell: bash
+        working-directory: registry
+        run: |
+          set -euo pipefail
+          # x-add-version records the git-tree SHA of ports/dsqt, which is why
+          # the port has to be committed first.
+          "${{ github.workspace }}/vcpkg/vcpkg" \
+            --x-builtin-ports-root=./ports \
+            --x-builtin-registry-versions-dir=./versions \
+            x-add-version dsqt --overwrite-version
+          git add versions
+          git commit -m "Register dsqt ${{ steps.meta.outputs.version }}"
+
+      - name: Push
+        if: env.SKIP != '1'
+        shell: bash
+        working-directory: registry
+        run: git push
+
+      - name: Summary
+        if: env.SKIP != '1'
+        shell: bash
+        run: |
+          {
+            echo "### Published \`dsqt\` ${{ steps.meta.outputs.version }}"
+            echo ""
+            echo "Built from \`${{ steps.meta.outputs.sha }}\` on \`ph/develop\`."
+            echo ""
+            echo "Consumers get it with:"
+            echo ""
+            echo '```json'
+            echo '{ "name": "dsqt", "version>=": "${{ steps.meta.outputs.version }}" }'
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -1,0 +1,40 @@
+{
+  "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
+  "name": "dsqt",
+  "version": "0.0.0",
+  "description": "DsQt — Downstream's Qt 6 application framework (Core, Bridge, Waffles, Touch, TouchEngine, Spout).",
+  "homepage": "https://github.com/Unispace365/DsQt",
+  "supports": "windows & x64 & !static",
+  "dependencies": [
+    {
+      "name": "tomlplusplus",
+      "version>=": "3.4.0"
+    },
+    {
+      "name": "vcpkg-cmake",
+      "host": true
+    },
+    {
+      "name": "vcpkg-cmake-config",
+      "host": true
+    },
+    "vulkan"
+  ],
+  "default-features": [
+    "spout"
+  ],
+  "features": {
+    "spout": {
+      "description": "Spout2 texture sharing support (Windows/DirectX only)",
+      "dependencies": [
+        {
+          "name": "spout2",
+          "version>=": "2.007.010",
+          "features": [
+            "dx"
+          ]
+        }
+      ]
+    }
+  }
+}

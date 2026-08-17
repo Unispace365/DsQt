@@ -193,19 +193,15 @@ target_link_libraries(${DS_EXE_NAME}
 message("HEADERS ${Dsqt_INCLUDES}")
 include(GNUInstallDirs)
 
-if(Dsqt_TouchEngine_FOUND)
-    # TouchEngine SDK DLL location (from installed package, config-specific subdirectory)
-    set(TOUCHENGINE_DLL "${DSQT_BIN_DIR}/$<CONFIG>/TouchEngine.dll")
-
-    # Copy TouchEngine.dll next to the executable during build
-    if(WIN32)
-        add_custom_command(TARGET ${DS_EXE_NAME} POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                "${TOUCHENGINE_DLL}"
-                $<TARGET_FILE_DIR:${DS_EXE_NAME}>
-            COMMENT "Copying TouchEngine.dll to output directory"
-        )
-    endif()
+if(Dsqt_TouchEngine_FOUND AND WIN32)
+    # Copy the bundled runtime DLLs (TouchEngine.dll) next to the executable.
+    #
+    # Use the helper rather than building the path by hand: DsQt installs into
+    # bin/$<CONFIG>/ in a standalone install but flat bin/ under vcpkg, and
+    # dsqt_deploy_runtime_dlls() resolves whichever layout is in use. The old
+    # hardcoded "${DSQT_BIN_DIR}/$<CONFIG>/TouchEngine.dll" silently broke when
+    # consuming DsQt from vcpkg.
+    dsqt_deploy_runtime_dlls(${DS_EXE_NAME})
 endif()
 
 # Must be the first install() rule — appends the config name to the prefix so
@@ -221,9 +217,10 @@ install(TARGETS ${DS_EXE_NAME}
 install(DIRECTORY "settings/" DESTINATION ${CMAKE_INSTALL_BINDIR}/settings OPTIONAL)
 install(DIRECTORY "data/" DESTINATION ${CMAKE_INSTALL_BINDIR}/data OPTIONAL)
 
-# Install TouchEngine.dll to the deploy directory
+# Install the bundled runtime DLLs (TouchEngine.dll) to the deploy directory.
+# Layout-aware; see the note on dsqt_deploy_runtime_dlls above.
 if(WIN32 AND Dsqt_TouchEngine_FOUND)
-    install(FILES "${DSQT_BIN_DIR}/$<CONFIG>/TouchEngine.dll" DESTINATION ${CMAKE_INSTALL_BINDIR} OPTIONAL)
+    dsqt_install_runtime_dlls(${CMAKE_INSTALL_BINDIR})
 endif()
 
 # Install vcpkg runtime dependencies — select debug or release DLLs at install time.

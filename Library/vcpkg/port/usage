@@ -1,0 +1,20 @@
+dsqt provides CMake targets:
+
+    find_package(Dsqt CONFIG REQUIRED)
+    target_link_libraries(main PRIVATE Dsqt::Dsqt)
+
+Or link individual modules:
+
+    find_package(Dsqt CONFIG REQUIRED COMPONENTS Core Bridge Waffles Touch)
+    target_link_libraries(main PRIVATE Dsqt::Core Dsqt::Bridge)
+
+The QML modules are added to QML_IMPORT_PATH automatically; DSQT_QML_DIR
+holds their location if you need it for qt_add_qml_module or deployment.
+
+Windows executables that use TouchEngine should call:
+
+    dsqt_deploy_runtime_dlls(main)
+
+Note: dsqt is compiled against the Qt kit named by your triplet's
+DSQT_QT_VERSION. Building with a different Qt kit means selecting a
+different triplet.

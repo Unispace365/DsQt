@@ -80,6 +80,7 @@ if(Vulkan_FOUND)
 endif()
 
 qt_add_qml_module(DsSpout
+    PLUGIN_TARGET DsqtSpoutplugin
     URI Dsqt.Spout
     VERSION 1.0
     OUTPUT_TARGETS SpoutQmlTargets
@@ -106,7 +107,7 @@ target_link_libraries(DsSpout
         Qt6::Quick
         Qt6::Gui
         Qt6::GuiPrivate
-        DsSpoutplugin
+        DsqtSpoutplugin
         ${_spout_dx_target}
         d3d11
         d3d12
@@ -141,6 +142,15 @@ set_target_properties(DsSpout PROPERTIES
     WIN32_EXECUTABLE TRUE
 )
 
+
+# Prefix the installed library file so it cannot collide with another port in
+# vcpkg's shared prefix. The CMake target name and the Dsqt:: alias are
+# unchanged, so consumer code is unaffected.
+# NOTE: the QML plugin target must NOT use OUTPUT_NAME -- Qt writes the plugin
+# target name into the generated qmldir. It is renamed via PLUGIN_TARGET in
+# qt_add_qml_module() instead.
+set_target_properties(DsSpout PROPERTIES OUTPUT_NAME DsqtSpout)
+
 # ----------------------------------------------------------------------
 # Installation rules (headers only - target install is in main CMakeLists.txt)
 # ----------------------------------------------------------------------
@@ -150,10 +160,16 @@ install(DIRECTORY .
         PATTERN "*.h"
         PATTERN "*.hpp"
 )
-if(Spout2_Static)
+# Re-install Spout2's static lib into our own prefix so a standalone DsQt
+# installation is self-contained. Skipped under vcpkg (DSQT_BUNDLE_DEPENDENCIES
+# =OFF): there, spout2 is a declared dependency that installs this exact file
+# into the shared prefix itself, and a second copy is a file-conflict error.
+# DsqtConfig.cmake resolves Dsqt::SpoutDX_static from <prefix>/lib either way,
+# because vcpkg puts dependency libraries in that same prefix.
+if(Spout2_Static AND DSQT_BUNDLE_DEPENDENCIES)
     install(FILES
         "$<$<CONFIG:Debug>:${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/debug/lib/SpoutDX_static.lib>"
         "$<$<NOT:$<CONFIG:Debug>>:${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/lib/SpoutDX_static.lib>"
-    DESTINATION ${CMAKE_INSTALL_LIBDIR}/$<CONFIG>
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}${DSQT_CONFIG_DIR}
             )
 endif()

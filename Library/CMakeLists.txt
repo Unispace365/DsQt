@@ -23,6 +23,48 @@ endif()
 
 set(QT_FORCE_CMP0156_TO_VALUE NEW)
 
+# ----------------------------------------------------------------------
+# Install layout
+# ----------------------------------------------------------------------
+# Historically DsQt installs into per-config subdirectories (lib/Debug,
+# lib/Release, bin/Debug, ...) so that a Ninja Multi-Config build can put
+# every configuration into one prefix. That remains the default.
+#
+# vcpkg works differently: it configures and builds each configuration in a
+# separate pass and expects the flat layout <prefix>/lib + <prefix>/debug/lib,
+# with the CMake package files under <prefix>/share/<port>. The dsqt portfile
+# therefore passes:
+#     -DDSQT_INSTALL_CONFIG_SUBDIR=OFF
+#     -DDSQT_REGISTER_PACKAGE=OFF
+#     -DDSQT_INSTALL_CMAKEDIR=share/dsqt
+# DsqtConfig.cmake detects which of the two layouts it is sitting in at
+# find_package() time, so both consumption paths use the same config file.
+option(DSQT_INSTALL_CONFIG_SUBDIR
+    "Install binaries into per-config subdirectories (lib/Debug, lib/Release)" ON)
+option(DSQT_REGISTER_PACKAGE
+    "Record the install prefix in the user-level CMake package registry" ON)
+# The standalone install bundles third-party libraries that DsQt links against
+# (currently Spout2's SpoutDX_static) into its own prefix, so consumers get a
+# self-contained tree without needing vcpkg. Under vcpkg those libraries are
+# real dependencies that already install themselves into the shared prefix, and
+# installing them a second time is a hard file-conflict error.
+option(DSQT_BUNDLE_DEPENDENCIES
+    "Copy third-party dependency libraries into the DsQt install prefix" ON)
+set(DSQT_INSTALL_CMAKEDIR "lib/cmake/Dsqt"
+    CACHE STRING "Directory (relative to the install prefix) for DsqtConfig.cmake")
+# vcpkg's post-build validation rejects unexpected top-level directories in a
+# package, so the port installs the QML modules to share/dsqt/qml instead.
+# DsqtConfig.cmake looks in both places.
+set(DSQT_INSTALL_QMLDIR "qml"
+    CACHE STRING "Directory (relative to the install prefix) for the QML modules")
+
+if(DSQT_INSTALL_CONFIG_SUBDIR)
+    # Expands to /Debug, /Release, ... at install time.
+    set(DSQT_CONFIG_DIR "/$<CONFIG>")
+else()
+    set(DSQT_CONFIG_DIR "")
+endif()
+
 # Consolidate all QML module output into a single directory structure
 set(QT_QML_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/qml")
 
@@ -51,19 +93,47 @@ if(PROJECT_IS_TOP_LEVEL)
     endif()
 endif()
 
-# --- Qt auto-discovery (Windows) -------------------------------------------------
-# Scans C:/Qt/*/msvc2022_64 and selects the highest installed version.
-# Override by setting CMAKE_PREFIX_PATH or Qt6_DIR in your CMakeUserPresets.json.
+# --- Qt kit discovery (Windows) --------------------------------------------------
+# Three ways to select a Qt kit, highest precedence first:
+#
+#   1. Qt6_DIR / CMAKE_PREFIX_PATH        - explicit, nothing is guessed.
+#   2. DSQT_QT_VERSION + DSQT_QT_ARCH     - pin an exact kit, e.g. "6.10.2".
+#                                           This is what the vcpkg triplets use:
+#                                           the requested version is part of the
+#                                           triplet's text, and therefore part of
+#                                           vcpkg's ABI hash, so each Qt kit gets
+#                                           its own binary-cache entry.
+#   3. auto-discovery                     - highest kit installed under DSQT_QT_ROOT.
+#
+# A pinned kit that is not installed is a hard error: silently falling back to a
+# different Qt would produce binaries that get cached under the wrong ABI hash.
 if(WIN32 AND NOT Qt6_DIR)
-    file(GLOB _qt_dirs LIST_DIRECTORIES true "C:/Qt/*/msvc2022_64")
-    if(_qt_dirs)
-        list(SORT _qt_dirs ORDER DESCENDING)
-        list(GET _qt_dirs 0 _qt_auto)
-        message(STATUS "DsQt: Auto-discovered Qt at ${_qt_auto}")
-        list(APPEND CMAKE_PREFIX_PATH "${_qt_auto}")
+    set(DSQT_QT_ROOT "C:/Qt" CACHE PATH "Root of the Qt online-installer tree")
+    set(DSQT_QT_ARCH "msvc2022_64" CACHE STRING "Qt kit architecture directory name")
+    set(DSQT_QT_VERSION "" CACHE STRING "Exact Qt kit version to build against, e.g. 6.10.2")
+
+    if(DSQT_QT_VERSION)
+        set(_qt_pinned "${DSQT_QT_ROOT}/${DSQT_QT_VERSION}/${DSQT_QT_ARCH}")
+        if(NOT IS_DIRECTORY "${_qt_pinned}")
+            message(FATAL_ERROR
+                "DsQt: Qt kit ${DSQT_QT_VERSION} (${DSQT_QT_ARCH}) was requested but "
+                "'${_qt_pinned}' does not exist.\n"
+                "Install that kit with the Qt Maintenance Tool, or select a triplet "
+                "matching a kit you do have.")
+        endif()
+        message(STATUS "DsQt: Using pinned Qt kit ${_qt_pinned}")
+        list(APPEND CMAKE_PREFIX_PATH "${_qt_pinned}")
     else()
-        message(WARNING "DsQt: No Qt installation found in C:/Qt/. "
-                        "Set CMAKE_PREFIX_PATH or Qt6_DIR to your Qt path.")
+        file(GLOB _qt_dirs LIST_DIRECTORIES true "${DSQT_QT_ROOT}/*/${DSQT_QT_ARCH}")
+        if(_qt_dirs)
+            list(SORT _qt_dirs COMPARE NATURAL ORDER DESCENDING)
+            list(GET _qt_dirs 0 _qt_auto)
+            message(STATUS "DsQt: Auto-discovered Qt at ${_qt_auto}")
+            list(APPEND CMAKE_PREFIX_PATH "${_qt_auto}")
+        else()
+            message(WARNING "DsQt: No Qt installation found in ${DSQT_QT_ROOT}/. "
+                            "Set CMAKE_PREFIX_PATH or Qt6_DIR to your Qt path.")
+        endif()
     endif()
 endif()
 # ---------------------------------------------------------------------------------
@@ -175,38 +245,43 @@ if(PROJECT_IS_TOP_LEVEL)
     # Note: Qt's qt_add_qml_module creates internal OBJECT library targets that
     # cannot be exported. We install the libraries without export and create
     # imported targets manually in DsqtConfig.cmake.
+    # Backing targets keep their short CMake names; only the installed file is
+    # prefixed (OUTPUT_NAME, set per module). Plugin targets are renamed
+    # outright via PLUGIN_TARGET, because Qt writes the plugin target's name
+    # into the generated qmldir and forbids OUTPUT_NAME on it.
     install(TARGETS
         Core
-        Coreplugin
+        DsqtCoreplugin
         Bridge
-        Bridgeplugin
+        DsqtBridgeplugin
         Waffles
-        Wafflesplugin
+        DsqtWafflesplugin
         TouchEngine
-        TouchEngineplugin
+        DsqtTouchEngineplugin
         Touch
-        Touchplugin
+        DsqtTouchplugin
 
-        # Where to put the different kinds of files
-        # Install into config-specific subdirectories so Debug and Release
-        # libraries can coexist in the same install prefix.
-        LIBRARY    DESTINATION ${CMAKE_INSTALL_LIBDIR}/$<CONFIG>      # .so / .dylib
-        ARCHIVE    DESTINATION ${CMAKE_INSTALL_LIBDIR}/$<CONFIG>      # .a / .lib
-        RUNTIME    DESTINATION ${CMAKE_INSTALL_BINDIR}/$<CONFIG>      # .dll / executables
+        # Where to put the different kinds of files.
+        # DSQT_CONFIG_DIR is "/$<CONFIG>" in the default layout (so Debug and
+        # Release can coexist in one prefix) and empty under vcpkg, which keeps
+        # the two configurations in separate prefixes already.
+        LIBRARY    DESTINATION ${CMAKE_INSTALL_LIBDIR}${DSQT_CONFIG_DIR}   # .so / .dylib
+        ARCHIVE    DESTINATION ${CMAKE_INSTALL_LIBDIR}${DSQT_CONFIG_DIR}   # .a / .lib
+        RUNTIME    DESTINATION ${CMAKE_INSTALL_BINDIR}${DSQT_CONFIG_DIR}   # .dll / executables
     )
 
     # Spout module (Windows only)
     if(WIN32 AND TARGET DsSpout)
-        set(_spout_install_targets DsSpout DsSpoutplugin)
+        set(_spout_install_targets DsSpout DsqtSpoutplugin)
 
         #if(TARGET SpoutDX_static)
             # FetchContent build — install the in-tree #static lib too
             #list(APPEND _spout_install_targets #SpoutDX_static)
         #endif()
         install(TARGETS ${_spout_install_targets}
-            LIBRARY    DESTINATION ${CMAKE_INSTALL_LIBDIR}/$<CONFIG>
-            ARCHIVE    DESTINATION ${CMAKE_INSTALL_LIBDIR}/$<CONFIG>
-            RUNTIME    DESTINATION ${CMAKE_INSTALL_BINDIR}/$<CONFIG>
+            LIBRARY    DESTINATION ${CMAKE_INSTALL_LIBDIR}${DSQT_CONFIG_DIR}
+            ARCHIVE    DESTINATION ${CMAKE_INSTALL_LIBDIR}${DSQT_CONFIG_DIR}
+            RUNTIME    DESTINATION ${CMAKE_INSTALL_BINDIR}${DSQT_CONFIG_DIR}
         )
     endif()
 
@@ -219,27 +294,27 @@ if(PROJECT_IS_TOP_LEVEL)
     install(FILES
         "${QT_QML_OUTPUT_DIRECTORY}/Dsqt/Core/qmldir"
         "${QT_QML_OUTPUT_DIRECTORY}/Dsqt/Core/Core.qmltypes"
-        DESTINATION "qml/Dsqt/Core"
+        DESTINATION "${DSQT_INSTALL_QMLDIR}/Dsqt/Core"
     )
     install(FILES
         "${QT_QML_OUTPUT_DIRECTORY}/Dsqt/Bridge/qmldir"
         "${QT_QML_OUTPUT_DIRECTORY}/Dsqt/Bridge/Bridge.qmltypes"
-        DESTINATION "qml/Dsqt/Bridge"
+        DESTINATION "${DSQT_INSTALL_QMLDIR}/Dsqt/Bridge"
     )
     install(FILES
         "${QT_QML_OUTPUT_DIRECTORY}/Dsqt/Waffles/qmldir"
         "${QT_QML_OUTPUT_DIRECTORY}/Dsqt/Waffles/Waffles.qmltypes"
-        DESTINATION "qml/Dsqt/Waffles"
+        DESTINATION "${DSQT_INSTALL_QMLDIR}/Dsqt/Waffles"
     )
     install(FILES
         "${QT_QML_OUTPUT_DIRECTORY}/Dsqt/TouchEngine/qmldir"
         "${QT_QML_OUTPUT_DIRECTORY}/Dsqt/TouchEngine/TouchEngine.qmltypes"
-        DESTINATION "qml/Dsqt/TouchEngine"
+        DESTINATION "${DSQT_INSTALL_QMLDIR}/Dsqt/TouchEngine"
     )
     install(FILES
         "${QT_QML_OUTPUT_DIRECTORY}/Dsqt/Touch/qmldir"
         "${QT_QML_OUTPUT_DIRECTORY}/Dsqt/Touch/Touch.qmltypes"
-        DESTINATION "qml/Dsqt/Touch"
+        DESTINATION "${DSQT_INSTALL_QMLDIR}/Dsqt/Touch"
     )
 
     # Spout QML module metadata (Windows only)
@@ -247,34 +322,34 @@ if(PROJECT_IS_TOP_LEVEL)
         install(FILES
             "${QT_QML_OUTPUT_DIRECTORY}/Dsqt/Spout/qmldir"
             "${QT_QML_OUTPUT_DIRECTORY}/Dsqt/Spout/DsSpout.qmltypes"
-            DESTINATION "qml/Dsqt/Spout"
+            DESTINATION "${DSQT_INSTALL_QMLDIR}/Dsqt/Spout"
         )
     endif()
 
     # Install QML source files for each module
     # These are needed by qmlimportscanner which looks for files referenced in qmldir
     install(DIRECTORY "${QT_QML_OUTPUT_DIRECTORY}/Dsqt/Core/qml"
-        DESTINATION "qml/Dsqt/Core"
+        DESTINATION "${DSQT_INSTALL_QMLDIR}/Dsqt/Core"
         OPTIONAL
         FILES_MATCHING PATTERN "*.qml"
     )
     install(DIRECTORY "${QT_QML_OUTPUT_DIRECTORY}/Dsqt/Bridge/qml"
-        DESTINATION "qml/Dsqt/Bridge"
+        DESTINATION "${DSQT_INSTALL_QMLDIR}/Dsqt/Bridge"
         OPTIONAL
         FILES_MATCHING PATTERN "*.qml"
     )
     install(DIRECTORY "${QT_QML_OUTPUT_DIRECTORY}/Dsqt/Waffles/qml"
-        DESTINATION "qml/Dsqt/Waffles"
+        DESTINATION "${DSQT_INSTALL_QMLDIR}/Dsqt/Waffles"
         OPTIONAL
         FILES_MATCHING PATTERN "*.qml"
     )
     install(DIRECTORY "${QT_QML_OUTPUT_DIRECTORY}/Dsqt/TouchEngine/qml"
-        DESTINATION "qml/Dsqt/TouchEngine"
+        DESTINATION "${DSQT_INSTALL_QMLDIR}/Dsqt/TouchEngine"
         OPTIONAL
         FILES_MATCHING PATTERN "*.qml"
     )
     install(DIRECTORY "${QT_QML_OUTPUT_DIRECTORY}/Dsqt/Touch/qml"
-        DESTINATION "qml/Dsqt/Touch"
+        DESTINATION "${DSQT_INSTALL_QMLDIR}/Dsqt/Touch"
         OPTIONAL
         FILES_MATCHING PATTERN "*.qml"
     )
@@ -282,7 +357,7 @@ if(PROJECT_IS_TOP_LEVEL)
     # Spout QML files (Windows only)
     if(WIN32 AND TARGET DsSpout)
         install(DIRECTORY "${QT_QML_OUTPUT_DIRECTORY}/Dsqt/Spout/qml"
-            DESTINATION "qml/Dsqt/Spout"
+            DESTINATION "${DSQT_INSTALL_QMLDIR}/Dsqt/Spout"
             OPTIONAL
             FILES_MATCHING PATTERN "*.qml"
         )
@@ -295,7 +370,7 @@ if(PROJECT_IS_TOP_LEVEL)
     configure_package_config_file(
         "${CMAKE_CURRENT_SOURCE_DIR}/cmake/DsqtConfig.cmake.in"
         "${CMAKE_CURRENT_BINARY_DIR}/DsqtConfig.cmake"
-        INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/Dsqt
+        INSTALL_DESTINATION ${DSQT_INSTALL_CMAKEDIR}
     )
 
     # Generate the version file that find_package() will check
@@ -310,37 +385,44 @@ if(PROJECT_IS_TOP_LEVEL)
     install(FILES
         "${CMAKE_CURRENT_BINARY_DIR}/DsqtConfig.cmake"
         "${CMAKE_CURRENT_BINARY_DIR}/DsqtConfigVersion.cmake"
-        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/Dsqt
+        DESTINATION ${DSQT_INSTALL_CMAKEDIR}
     )
 
     # ----------------------------------------------------------------------
     # Register install location in package registry (cross-platform)
     # Uses install-time prefix via CMAKE_INSTALL_PREFIX set by cmake --install
     # ----------------------------------------------------------------------
-    if(WIN32)
-        # Windows: Write to registry
-        install(CODE [[
-            set(_config_dir "${CMAKE_INSTALL_PREFIX}/lib/cmake/Dsqt")
-            string(MD5 _hash "${_config_dir}")
-            execute_process(
-                COMMAND reg add "HKEY_CURRENT_USER\\Software\\Kitware\\CMake\\Packages\\Dsqt"
-                        /v "${_hash}" /t REG_SZ
-                        /d "${_config_dir}"
-                        /f
-                OUTPUT_QUIET ERROR_QUIET
-            )
-            message(STATUS "Registered Dsqt in CMake package registry: ${_config_dir}")
-        ]])
-    else()
-        # Linux/macOS: Write file to ~/.cmake/packages/Dsqt/
-        install(CODE [[
-            set(_config_dir "${CMAKE_INSTALL_PREFIX}/lib/cmake/Dsqt")
-            set(_reg_dir "$ENV{HOME}/.cmake/packages/Dsqt")
-            file(MAKE_DIRECTORY "${_reg_dir}")
-            string(MD5 _hash "${_config_dir}")
-            file(WRITE "${_reg_dir}/${_hash}" "${_config_dir}")
-            message(STATUS "Registered Dsqt in CMake package registry: ${_config_dir}")
-        ]])
+    # Never do this inside a vcpkg port: the package would be registered under
+    # vcpkg's private packages/ staging directory, which is wiped and rebuilt on
+    # every install, leaving dangling registry entries that shadow the real one.
+    if(DSQT_REGISTER_PACKAGE)
+        if(WIN32)
+            # Windows: Write to registry
+            install(CODE "set(_dsqt_cmakedir \"${DSQT_INSTALL_CMAKEDIR}\")")
+            install(CODE [[
+                set(_config_dir "${CMAKE_INSTALL_PREFIX}/${_dsqt_cmakedir}")
+                string(MD5 _hash "${_config_dir}")
+                execute_process(
+                    COMMAND reg add "HKEY_CURRENT_USER\\Software\\Kitware\\CMake\\Packages\\Dsqt"
+                            /v "${_hash}" /t REG_SZ
+                            /d "${_config_dir}"
+                            /f
+                    OUTPUT_QUIET ERROR_QUIET
+                )
+                message(STATUS "Registered Dsqt in CMake package registry: ${_config_dir}")
+            ]])
+        else()
+            # Linux/macOS: Write file to ~/.cmake/packages/Dsqt/
+            install(CODE "set(_dsqt_cmakedir \"${DSQT_INSTALL_CMAKEDIR}\")")
+            install(CODE [[
+                set(_config_dir "${CMAKE_INSTALL_PREFIX}/${_dsqt_cmakedir}")
+                set(_reg_dir "$ENV{HOME}/.cmake/packages/Dsqt")
+                file(MAKE_DIRECTORY "${_reg_dir}")
+                string(MD5 _hash "${_config_dir}")
+                file(WRITE "${_reg_dir}/${_hash}" "${_config_dir}")
+                message(STATUS "Registered Dsqt in CMake package registry: ${_config_dir}")
+            ]])
+        endif()
     endif()
 
     # ----------------------------------------------------------------------
