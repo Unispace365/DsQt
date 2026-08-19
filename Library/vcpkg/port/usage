@@ -8,6 +8,11 @@ Or link individual modules:
     find_package(Dsqt CONFIG REQUIRED COMPONENTS Core Bridge Waffles Touch)
     target_link_libraries(main PRIVATE Dsqt::Core Dsqt::Bridge)
 
+Spout is available as a separate component:
+
+    find_package(Dsqt CONFIG REQUIRED COMPONENTS Spout)
+    target_link_libraries(main PRIVATE Dsqt::Spout)
+
 The QML modules are added to QML_IMPORT_PATH automatically; DSQT_QML_DIR
 holds their location if you need it for qt_add_qml_module or deployment.
 

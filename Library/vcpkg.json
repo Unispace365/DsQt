@@ -5,16 +5,16 @@
   "builtin-baseline": "4b77da7fed37817f124936239197833469f1b9a8",
   "dependencies": [
     {
+      "name": "spout2",
+      "features": [
+        "dx"
+      ],
+      "version>=": "2.007.010"
+    },
+    {
       "name": "tomlplusplus",
       "version>=": "3.4.0"
     },
-    {
-      "name": "vulkan"
-    },
-    {
-      "name": "spout2",
-      "version>=": "2.007.010",
-      "features": ["dx"]
-    }
+    "vulkan"
   ]
 }

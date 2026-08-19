@@ -1,7 +1,5 @@
 cmake_minimum_required(VERSION 3.29)
 
-include(FetchContent)
-
 # Read version from VERSION.txt (source of truth)
 file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/VERSION.txt" DSQT_VERSION_STRING LIMIT_COUNT 1)
 string(STRIP "${DSQT_VERSION_STRING}" DSQT_VERSION_STRING)
@@ -274,10 +272,6 @@ if(PROJECT_IS_TOP_LEVEL)
     if(WIN32 AND TARGET DsSpout)
         set(_spout_install_targets DsSpout DsqtSpoutplugin)
 
-        #if(TARGET SpoutDX_static)
-            # FetchContent build — install the in-tree #static lib too
-            #list(APPEND _spout_install_targets #SpoutDX_static)
-        #endif()
         install(TARGETS ${_spout_install_targets}
             LIBRARY    DESTINATION ${CMAKE_INSTALL_LIBDIR}${DSQT_CONFIG_DIR}
             ARCHIVE    DESTINATION ${CMAKE_INSTALL_LIBDIR}${DSQT_CONFIG_DIR}

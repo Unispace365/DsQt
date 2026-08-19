@@ -14,30 +14,16 @@ find_package(Qt6 REQUIRED COMPONENTS
 qt_standard_project_setup(REQUIRES 6.9)
 
 # ----------------------------------------------------------------------
-# Spout2: prefer an installed copy, fall back to fetching from source.
-# SpoutGL always creates a "Spout" shared-lib target, which is why our
-# own library is named DsSpout (see below).
+# Spout2
 # ----------------------------------------------------------------------
-find_package(Spout2 QUIET)
-if(Spout2_FOUND)
-    message(STATUS "DsQt/Spout: Using installed Spout2 ${Spout2_VERSION}")
-    set(_spout_dx_target Spout2::SpoutDX_static)
-    set(Spout2_Static "true")
-else()
-    message(STATUS "DsQt/Spout: Spout2 not found locally — fetching from GitHub")
-    include(FetchContent)
-    FetchContent_Declare(
-        Spout2
-        GIT_REPOSITORY https://github.com/leadedge/Spout2.git
-        GIT_TAG        2.007.017
-    )
-    set(SPOUT_BUILD_SPOUTDX ON  CACHE BOOL "" FORCE)
-    set(SPOUT_BUILD_LIBRARY OFF CACHE BOOL "" FORCE)
-    set(SPOUT_BUILD_CMT     OFF CACHE BOOL "" FORCE)  # Don't override MSVC runtime globally
-    set(SKIP_INSTALL_ALL    ON  CACHE BOOL "" FORCE)   # Don't install Spout2 targets
-    FetchContent_MakeAvailable(Spout2)
-    set(_spout_dx_target SpoutDX_static)
-endif()
+# Spout is built as a regular DsQt component. Its dependency is supplied by the
+# active package/dependency manager; under vcpkg, spout2 is a declared package
+# dependency. Standalone builds can point CMAKE_PREFIX_PATH at an installed
+# Spout2 package.
+find_package(Spout2 CONFIG REQUIRED)
+message(STATUS "DsQt/Spout: Using installed Spout2 ${Spout2_VERSION}")
+set(_spout_dx_target Spout2::SpoutDX_static)
+set(Spout2_Static "true")
 
 # ----------------------------------------------------------------------
 # Vulkan (optional — enables Vulkan backend for Spout texture import)

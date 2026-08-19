@@ -7,6 +7,13 @@
   "supports": "windows & x64 & !static",
   "dependencies": [
     {
+      "name": "spout2",
+      "features": [
+        "dx"
+      ],
+      "version>=": "2.007.010"
+    },
+    {
       "name": "tomlplusplus",
       "version>=": "3.4.0"
     },
@@ -19,22 +26,5 @@
       "host": true
     },
     "vulkan"
-  ],
-  "default-features": [
-    "spout"
-  ],
-  "features": {
-    "spout": {
-      "description": "Spout2 texture sharing support (Windows/DirectX only)",
-      "dependencies": [
-        {
-          "name": "spout2",
-          "features": [
-            "dx"
-          ],
-          "version>=": "2.007.010"
-        }
-      ]
-    }
-  }
+  ]
 }
