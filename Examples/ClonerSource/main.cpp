@@ -12,12 +12,6 @@
 #include <dsReloadUrlInterceptor.h>
 
 #include <QQuickWindow>
-#ifdef DSQT_HAS_TouchEngine
-#include "dsQmlTouchEngineManager.h"
-#include "dsQmlTouchEngineInstance.h"
-#include "dsQmlTouchEngineTextureOutputView.h"
-#endif
-
 // Import statically linked Dsqt QML plugins
 #ifdef DSQT_HAS_Core
 Q_IMPORT_QML_PLUGIN(Dsqt_CorePlugin)
@@ -25,7 +19,7 @@ Q_IMPORT_QML_PLUGIN(Dsqt_CorePlugin)
 #ifdef DSQT_HAS_Bridge
 Q_IMPORT_QML_PLUGIN(Dsqt_BridgePlugin)
 #endif
-#ifdef DSQT_HAS_TouchEngine
+#ifdef DSQT_HAS_TOUCHENGINE
 Q_IMPORT_QML_PLUGIN(Dsqt_TouchEnginePlugin)
 #endif
 #ifdef DSQT_HAS_Waffles
@@ -147,12 +141,6 @@ int main(int argc, char *argv[])
             return;
         }
 
-        // Initialize TouchEngine graphics after window is created
-#ifdef DSQT_HAS_TouchEngine
-        if (auto* window = qobject_cast<QQuickWindow*>(obj)) {
-            DsQmlTouchEngineManager::initializeFromWindow(window);
-        }
-#endif
     },Qt::DirectConnection);
 
 

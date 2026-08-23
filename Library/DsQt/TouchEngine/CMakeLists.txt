@@ -1,154 +1,101 @@
-cmake_minimum_required(VERSION  3.29)
+cmake_minimum_required(VERSION 3.29)
 
-SET(QT_NO_PRIVATE_MODULE_WARNING ON)
+if(NOT WIN32)
+    message(FATAL_ERROR "Dsqt.TouchEngine currently targets TouchEngine-Windows; Metal is intentionally unsupported")
+endif()
 
-# Find Qt6 components
-find_package(Qt6 REQUIRED COMPONENTS
-    Concurrent
+set(QT_NO_PRIVATE_MODULE_WARNING ON)
+
+find_package(Qt6 6.9 REQUIRED COMPONENTS
     Core
+    Gui
+    GuiPrivate
+    Qml
     Quick
-    QuickControls2
-    GuiPrivate 
     ShaderTools
 )
+find_package(Vulkan REQUIRED)
+
 qt_standard_project_setup(REQUIRES 6.9)
+include(GNUInstallDirs)
 
-add_library(TouchEngine)
-add_library(Dsqt::TouchEngine ALIAS TouchEngine)
+set(TOUCHENGINE_SDK_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/sdk" CACHE PATH
+    "Root of a TouchEngine 3.3 Windows SDK")
+set(TOUCHENGINE_INCLUDE_DIR "${TOUCHENGINE_SDK_ROOT}/include")
+set(TOUCHENGINE_LIBRARY "${TOUCHENGINE_SDK_ROOT}/lib/TouchEngine.lib")
+set(TOUCHENGINE_RUNTIME "${TOUCHENGINE_SDK_ROOT}/bin/TouchEngine.dll")
 
-#set qml import path. This is used by Qt Creator to find the QML files.
-# set(QML_BIN_ROOT "${CMAKE_CURRENT_BINARY_DIR}")
-# message("TOUCHE ENGINE PLACEMENT: ${QML_BIN_ROOT}")
-# set(QML_TMP_PATH
-#      "${CMAKE_CURRENT_SOURCE_DIR};${CMAKE_CURRENT_SOURCE_DIR}\\qml;${QML_BIN_ROOT};${QML_BIN_ROOT}\\qml;${QML_IMPORT_PATH}"
-# )
+foreach(_required_file
+        "${TOUCHENGINE_INCLUDE_DIR}/TouchEngine/TEInstance.h"
+        "${TOUCHENGINE_LIBRARY}"
+        "${TOUCHENGINE_RUNTIME}")
+    if(NOT EXISTS "${_required_file}")
+        message(FATAL_ERROR "The TouchEngine 3.3 SDK is incomplete: ${_required_file} is missing")
+    endif()
+endforeach()
 
-# #set(CMAKE_INSTALL_PREFIX "${CMAKE_BINARY_DIR}/DEPLOY/")
+# TEInstanceLinkGetChoices was introduced with the 3.3 SDK. Refuse mixed or
+# stale header/lib/DLL payloads at configure time instead of failing at runtime.
+file(READ "${TOUCHENGINE_INCLUDE_DIR}/TouchEngine/TEInstance.h" _te_instance_header)
+if(NOT _te_instance_header MATCHES "TEInstanceLinkGetChoices")
+    message(FATAL_ERROR "Dsqt.TouchEngine requires TouchEngine SDK 3.3 or newer")
+endif()
+unset(_te_instance_header)
 
-# list(REMOVE_DUPLICATES QML_TMP_PATH)
-
-# set(QML_IMPORT_PATH
-#      "${QML_TMP_PATH}"
-#      CACHE PATH "QT creator qml import path" FORCE
-#  )
-
-
-# TouchEngine SDK paths - adjust as needed
-set(TOUCHENGINE_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/TouchEngine/include" CACHE PATH "TouchEngine include directory")
-set(TOUCHENGINE_LIB_DIR "${CMAKE_CURRENT_SOURCE_DIR}/TouchEngine/lib" CACHE PATH "TouchEngine library directory")
-set(TOUCHENGINE_BIN_DIR "${CMAKE_CURRENT_SOURCE_DIR}/TouchEngine/bin" CACHE PATH "TouchEngine library directory")
-
-# Create an imported target for the TouchEngine SDK to avoid name conflict with our module
-add_library(TouchEngineSDK SHARED IMPORTED)
-set_target_properties(TouchEngineSDK PROPERTIES
-    IMPORTED_LOCATION "${TOUCHENGINE_BIN_DIR}/TouchEngine.dll"
-    IMPORTED_IMPLIB "${TOUCHENGINE_LIB_DIR}/TouchEngine.lib"
+add_library(DsqtTouchEngineSDK SHARED IMPORTED GLOBAL)
+set_target_properties(DsqtTouchEngineSDK PROPERTIES
+    IMPORTED_LOCATION "${TOUCHENGINE_RUNTIME}"
+    IMPORTED_IMPLIB "${TOUCHENGINE_LIBRARY}"
     INTERFACE_INCLUDE_DIRECTORIES "${TOUCHENGINE_INCLUDE_DIR}"
 )
 
-# Find Vulkan SDK
-find_package(Vulkan)
+add_library(TouchEngine STATIC)
+add_library(Dsqt::TouchEngine ALIAS TouchEngine)
 
-# Source files
-set(SOURCES
-    src/dsQmlTouchEngineManager.cpp
-    src/dsTouchEngineTextureNode.cpp
-    src/dsQmlTouchEngineTextureOutputView.cpp
-    src/OpenGLImage.cpp
-    src/OpenGlRenderer.cpp
-    src/OpenGLTexture.cpp
-    src/Renderer.cpp
-    src/dsTouchEngineMaterial.cpp
-    src/dsQmlTouchEngineInstance.cpp
+set(_touchengine_public_headers
+    include/Dsqt/TouchEngine/DsTouchEngineSession.h
+    include/Dsqt/TouchEngine/DsTouchEngineTypes.h
+    include/Dsqt/TouchEngine/DsTouchEngineView.h
 )
 
-# D3D12 and Vulkan renderer sources (Windows only)
-if(WIN32)
-    list(APPEND SOURCES
-        src/D3D12Texture.cpp
-        src/D3D12Image.cpp
-        src/D3D12Renderer.cpp
-        src/VulkanTexture.cpp
-        src/VulkanImage.cpp
-        src/VulkanRenderer.cpp
-    )
-endif()
-
-
-set(HEADERS
-
-    src/dsQmlTouchEngineManager.h
-    src/dsTouchEngineTextureNode.h
-    src/dsQmlTouchEngineTextureOutputView.h
-    src/platform_headers.h
-    src/OpenGLImage.h
-    src/OpenGLRenderer.h
-    src/OpenGLTexture.h
-    src/Renderer.h
-    src/dsTouchEngineMaterial.h
-    src/dsQmlTouchEngineInstance.h
-)
-
-# D3D12 and Vulkan renderer headers (Windows only)
-if(WIN32)
-    list(APPEND HEADERS
-        src/D3D12Texture.h
-        src/D3D12Image.h
-        src/D3D12Renderer.h
-        src/VulkanTexture.h
-        src/VulkanImage.h
-        src/VulkanRenderer.h
-    )
-endif()
-
-set(QML_FILES
-
-    qml/DsTouchEngineTextureView.qml
-    qml/InstanceControl.qml
-    #qml/debug/DsTENumericInputView.qml
-)
-
-set(TOUCHENGINE_INPUT_SOURCES
-    src/dsQmlTouchEngineInputBase.h
-    src/dsQmlTouchEngineInputBase.cpp
-    src/dsQmlTouchEngineStringInput.h
-    src/dsQmlTouchEngineStringInput.cpp
-    src/dsQmlTouchEngineTableInput.h
-    src/dsQmlTouchEngineTableInput.cpp
-    src/dsQmlTouchEngineNumericInput.h
-    src/dsQmlTouchEngineNumericInput.cpp
-    src/dsQmlTouchEngineFloatBufferInput.h
-    src/dsQmlTouchEngineFloatBufferInput.cpp
-    src/dsQmlTouchEngineTextureInput.h
-    src/dsQmlTouchEngineTextureInput.cpp
-)
-
-set(TOUCHENGINE_OUTPUT_SOURCES
-    src/dsQmlTouchEngineOutputBase.h
-    src/dsQmlTouchEngineOutputBase.cpp
-    src/dsQmlTouchEngineStringOutput.h
-    src/dsQmlTouchEngineStringOutput.cpp
-    src/dsQmlTouchEngineNumericOutput.h
-    src/dsQmlTouchEngineNumericOutput.cpp
-    src/dsQmlTouchEngineTableOutput.h
-    src/dsQmlTouchEngineTableOutput.cpp
-    src/dsQmlTouchEngineFloatBufferOutput.h
-    src/dsQmlTouchEngineFloatBufferOutput.cpp
+set(_touchengine_sources
+    src/DsTouchEngineSession.cpp
+    src/DsTouchEngineTypes.cpp
+    src/DsTouchEngineView.cpp
+    src/private/DsTouchEngineSessionPrivate_p.h
+    src/private/DsTouchEngineViewRenderer.cpp
+    src/private/DsTouchEngineViewRenderer_p.h
+    src/private/TouchEngineCore.cpp
+    src/private/TouchEngineCore_p.h
+    src/private/TouchEngineRhiBackend.cpp
+    src/private/TouchEngineRhiBackend_p.h
+    src/private/TouchEngineSharedState_p.h
+    src/private/d3d/D3D11TouchEngineBackend.cpp
+    src/private/d3d/D3D11TouchEngineBackend_p.h
+    src/private/d3d/D3D12TouchEngineBackend.cpp
+    src/private/d3d/D3D12TouchEngineBackend_p.h
+    src/private/opengl/OpenGLTouchEngineBackend.cpp
+    src/private/opengl/OpenGLTouchEngineBackend_p.h
+    src/private/vulkan/VulkanTouchEngineBackend.cpp
+    src/private/vulkan/VulkanTouchEngineBackend_p.h
 )
 
 qt_add_qml_module(TouchEngine
     URI Dsqt.TouchEngine
     VERSION 1.0
-    OUTPUT_TARGETS TouchEngineTargets
-    QML_FILES ${QML_FILES}
-    OUTPUT_TARGETS
-            touchqt_targets
-    SOURCES ${SOURCES} ${HEADERS} ${TOUCHENGINE_INPUT_SOURCES} ${TOUCHENGINE_OUTPUT_SOURCES}
-    DEPENDENCIES QtQuick
+    OUTPUT_TARGETS TouchEngineQmlTargets
+    QML_FILES
+        qml/DsTouchEngineTextureView.qml
+    SOURCES
+        ${_touchengine_public_headers}
+        ${_touchengine_sources}
+    DEPENDENCIES
+        QtQuick
 )
 
-qt6_add_shaders(TouchEngine "shaders"
-    PREFIX "/"
+qt_add_shaders(TouchEngine "dsqt_touchengine_shaders"
+    PREFIX "/dsqt/touchengine/shaders"
+    BASE "resources/shaders"
     HLSL 50
     PRECOMPILE
     BATCHABLE
@@ -158,103 +105,64 @@ qt6_add_shaders(TouchEngine "shaders"
         resources/shaders/texture.frag
 )
 
-set(TouchEngineTargets ${TouchEngineTargets} ${TouchEngineShaderTargets} PARENT_SCOPE)
-
-#qt_add_resources(TouchEngineQt "resources"
-#    PREFIX "/"
-#    FILES
-#        resources/TD/Testbed.tox
-#)
-
-# Optional: Add shaders if they exist
-#if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/resources/shaders/texture.vert.qsb")
-#    target_sources(TouchEngineQt PRIVATE
-#        resources/shaders/texture.vert.qsb
-#        resources/shaders/texture.frag.qsb
-#    )
-#    message(STATUS "Including compiled shader files")
-#else()
-#    message(STATUS "Shader files not found - will use Qt's default rendering")
-#    message(STATUS "Run compile_shaders.bat (Windows) or compile_shaders.sh (Unix) to compile shaders")
-#endif()
-
-
-
-target_link_directories(TouchEngine
-    PUBLIC $<BUILD_INTERFACE:${TOUCHENGINE_LIB_DIR}>
-)
-
-target_link_libraries(TouchEngine
-    PUBLIC
-        Qt6::Concurrent
-        Qt6::Core
-        Qt6::Quick
-        Qt6::QuickControls2
-        Qt6::Gui
-        Qt6::GuiPrivate
-        Qt6::ShaderTools
-        TouchEngineplugin
-        # Link to TouchEngine SDK library file directly (not the imported target)
-        # The imported target TouchEngineSDK is only used for include directories
-        $<BUILD_INTERFACE:${TOUCHENGINE_LIB_DIR}/TouchEngine.lib>
+set(TouchEngineTargets
+    ${TouchEngineQmlTargets}
+    ${TouchEngineShaderTargets}
+    PARENT_SCOPE
 )
 
 target_include_directories(TouchEngine
     PUBLIC
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
-        # TouchEngine SDK include directory - needs to be on the target for proper export
-        $<BUILD_INTERFACE:${TOUCHENGINE_INCLUDE_DIR}>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+    PRIVATE
+        "${CMAKE_CURRENT_SOURCE_DIR}/include/Dsqt/TouchEngine"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/private"
 )
 
-# Link D3D12 and Vulkan libraries on Windows
-if(WIN32)
-    target_link_libraries(TouchEngine PUBLIC
+target_link_libraries(TouchEngine
+    PUBLIC
+        Qt6::Core
+        Qt6::Gui
+        Qt6::Qml
+        Qt6::Quick
+    PRIVATE
+        Qt6::GuiPrivate
+        DsqtTouchEngineSDK
+        Vulkan::Vulkan
+        d3d11
         d3d12
         dxgi
-    )
-    if(Vulkan_FOUND)
-        target_link_libraries(TouchEngine PUBLIC Vulkan::Vulkan)
-        target_compile_definitions(TouchEngine PRIVATE TOUCHENGINE_VULKAN_ENABLED)
-    endif()
-endif()
-
-# Copy TouchEngine DLL to output directory on Windows
-if(WIN32)
-    add_custom_command(TARGET TouchEngine POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            "${TOUCHENGINE_BIN_DIR}/TouchEngine.dll"
-            $<TARGET_FILE_DIR:TouchEngine>
-    )
-    target_compile_definitions(TouchEngine PRIVATE NOMINMAX)
-endif()
-
-# Set output directories
-set_target_properties(TouchEngine PROPERTIES
-    WIN32_EXECUTABLE TRUE
-    MACOSX_BUNDLE TRUE
+        opengl32
 )
 
-# ----------------------------------------------------------------------
-# Installation rules (headers and SDK DLL only - target install is in main CMakeLists.txt)
-# ----------------------------------------------------------------------
-
-# Install TouchEngine SDK files (DLL and import lib)
-# Use $<CONFIG> subdirectories to match the target install layout
-install(FILES "${TOUCHENGINE_BIN_DIR}/TouchEngine.dll"
-    DESTINATION ${CMAKE_INSTALL_BINDIR}/$<CONFIG>
+target_compile_definitions(TouchEngine PRIVATE
+    NOMINMAX
+    WIN32_LEAN_AND_MEAN
+    VK_USE_PLATFORM_WIN32_KHR
 )
-install(FILES "${TOUCHENGINE_LIB_DIR}/TouchEngine.lib"
-    DESTINATION ${CMAKE_INSTALL_LIBDIR}/$<CONFIG>
+
+add_custom_command(TARGET TouchEngine POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${TOUCHENGINE_RUNTIME}"
+        "$<TARGET_FILE_DIR:TouchEngine>"
+    VERBATIM
+)
+
+install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/include/"
+    DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
+    FILES_MATCHING PATTERN "*.h"
+)
+install(FILES "${TOUCHENGINE_RUNTIME}"
+    DESTINATION "${CMAKE_INSTALL_BINDIR}/$<CONFIG>"
+)
+install(FILES "${TOUCHENGINE_LIBRARY}"
+    DESTINATION "${CMAKE_INSTALL_LIBDIR}/$<CONFIG>"
     RENAME TouchEngineSDK.lib
 )
-
-# Install public header files
-install(DIRECTORY .
-    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
-    FILES_MATCHING
-        PATTERN "*.h" 
-        PATTERN "*.hpp"
-    # Optional: exclude internal/private headers if needed
-    # PATTERN "internal/*" EXCLUDE
+install(FILES
+    "${TOUCHENGINE_SDK_ROOT}/LICENSE.md"
+    "${TOUCHENGINE_SDK_ROOT}/CHANGES.md"
+    DESTINATION "${CMAKE_INSTALL_DATADIR}/Dsqt/TouchEngine"
 )

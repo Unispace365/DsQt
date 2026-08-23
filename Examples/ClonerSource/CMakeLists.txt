@@ -155,17 +155,15 @@ find_package(glm CONFIG REQUIRED)
 
 
 
-target_include_directories(${DS_EXE_NAME} PRIVATE
-    ${Dsqt_INCLUDES}
-    $<$<BOOL:${Dsqt_TouchEngine_FOUND}>:${TouchEngineQt_INCLUDES}>
-)
-
 # Provide DSQT_HAS_<MODULE> compile definitions for optional plugin imports
-foreach(_comp Core Bridge Waffles TouchEngine Spout)
+foreach(_comp Core Bridge Waffles Spout)
     if(Dsqt_${_comp}_FOUND)
         target_compile_definitions(${DS_EXE_NAME} PRIVATE DSQT_HAS_${_comp})
     endif()
 endforeach()
+if(Dsqt_TouchEngine_FOUND)
+    target_compile_definitions(${DS_EXE_NAME} PRIVATE DSQT_HAS_TOUCHENGINE)
+endif()
 
 
 target_link_libraries(${DS_EXE_NAME}
@@ -173,6 +171,7 @@ target_link_libraries(${DS_EXE_NAME}
         Dsqt::Core
         Dsqt::Bridge
         $<$<BOOL:${Dsqt_TouchEngine_FOUND}>:Dsqt::TouchEngine>
+        $<$<BOOL:${Dsqt_TouchEngine_FOUND}>:Dsqt::TouchEngineplugin>
         Dsqt::Waffles
         $<$<BOOL:${Dsqt_Spout_FOUND}>:Dsqt::Spout>
 
@@ -190,7 +189,6 @@ target_link_libraries(${DS_EXE_NAME}
         glm::glm
 )
 
-message("HEADERS ${Dsqt_INCLUDES}")
 include(GNUInstallDirs)
 
 if(Dsqt_TouchEngine_FOUND)
