@@ -11,9 +11,24 @@
     {
       "name": "glm",
       "version>=": "1.0.1"
-    },
-    {
-      "name": "vulkan"
     }
-  ]
+  ],
+  "features": {
+    "touchengine": {
+      "description": "Dependencies required by the TouchEngine integration",
+      "dependencies": [
+        {
+          "name": "vulkan"
+        }
+      ]
+    },
+    "spout": {
+      "description": "Dependencies required by the Spout integration",
+      "dependencies": [
+        {
+          "name": "vulkan"
+        }
+      ]
+    }
+  }
 }

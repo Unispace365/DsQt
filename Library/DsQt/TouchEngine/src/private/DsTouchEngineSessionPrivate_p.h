@@ -52,6 +52,36 @@ public:
         return true;
     }
 
+    bool updateStatistics(qint64 cpuMemoryBytes,
+                          qint64 gpuMemoryBytes,
+                          qint64 cpuFrameTimeNs,
+                          qint64 gpuFrameTimeNs,
+                          qint64 frames,
+                          qint64 framesDropped)
+    {
+        if (statisticsCpuMemoryBytes == cpuMemoryBytes
+            && statisticsGpuMemoryBytes == gpuMemoryBytes
+            && statisticsCpuFrameTimeNs == cpuFrameTimeNs
+            && statisticsGpuFrameTimeNs == gpuFrameTimeNs
+            && statisticsFrames == frames
+            && statisticsFramesDropped == framesDropped) {
+            return false;
+        }
+
+        statisticsCpuMemoryBytes = cpuMemoryBytes;
+        statisticsGpuMemoryBytes = gpuMemoryBytes;
+        statisticsCpuFrameTimeNs = cpuFrameTimeNs;
+        statisticsGpuFrameTimeNs = gpuFrameTimeNs;
+        statisticsFrames = frames;
+        statisticsFramesDropped = framesDropped;
+        return true;
+    }
+
+    bool resetStatistics()
+    {
+        return updateStatistics(0, 0, 0, -1, 0, -1);
+    }
+
     QString componentPath;
     QString preferredEnginePath;
     double frameRate = 60.0;
@@ -65,6 +95,13 @@ public:
     QVariantList links;
     QHash<QString, QVariant> outputValues;
     quint64 frameCount = 0;
+    qint64 statisticsCpuMemoryBytes = 0;
+    qint64 statisticsGpuMemoryBytes = 0;
+    qint64 statisticsCpuFrameTimeNs = 0;
+    qint64 statisticsGpuFrameTimeNs = -1;
+    qint64 statisticsFrames = 0;
+    qint64 statisticsFramesDropped = -1;
+    QString touchDesignerVersion = QStringLiteral("unknown");
 
     QHash<QString, QPointer<QQuickItem>> textureInputs;
     QVector<QPointer<DsTouchEngineView>> views;

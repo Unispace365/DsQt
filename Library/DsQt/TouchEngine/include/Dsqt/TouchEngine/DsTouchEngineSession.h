@@ -35,6 +35,14 @@ class DsTouchEngineSession : public QObject
     Q_PROPERTY(QString errorString READ errorString NOTIFY errorStringChanged FINAL)
     Q_PROPERTY(QVariantList links READ links NOTIFY linksChanged FINAL)
     Q_PROPERTY(quint64 frameCount READ frameCount NOTIFY frameFinished FINAL)
+    Q_PROPERTY(double cpuFrameTimeMs READ cpuFrameTimeMs NOTIFY statisticsChanged FINAL)
+    Q_PROPERTY(double gpuFrameTimeMs READ gpuFrameTimeMs NOTIFY statisticsChanged FINAL)
+    Q_PROPERTY(qint64 statisticsFrames READ statisticsFrames NOTIFY statisticsChanged FINAL)
+    Q_PROPERTY(qint64 framesDropped READ framesDropped NOTIFY statisticsChanged FINAL)
+    Q_PROPERTY(qint64 cpuMemoryBytes READ cpuMemoryBytes NOTIFY statisticsChanged FINAL)
+    Q_PROPERTY(qint64 gpuMemoryBytes READ gpuMemoryBytes NOTIFY statisticsChanged FINAL)
+    Q_PROPERTY(QString touchEngineLibraryVersion READ touchEngineLibraryVersion CONSTANT FINAL)
+    Q_PROPERTY(QString touchDesignerVersion READ touchDesignerVersion NOTIFY touchDesignerVersionChanged FINAL)
 
 public:
     explicit DsTouchEngineSession(QObject *parent = nullptr);
@@ -62,6 +70,14 @@ public:
     QString errorString() const;
     QVariantList links() const;
     quint64 frameCount() const;
+    double cpuFrameTimeMs() const;
+    double gpuFrameTimeMs() const;
+    qint64 statisticsFrames() const;
+    qint64 framesDropped() const;
+    qint64 cpuMemoryBytes() const;
+    qint64 gpuMemoryBytes() const;
+    QString touchEngineLibraryVersion() const;
+    QString touchDesignerVersion() const;
 
     Q_INVOKABLE void load();
     Q_INVOKABLE void unload();
@@ -87,6 +103,8 @@ signals:
     void linksChanged();
     void outputValueChanged(const QString &link, const QVariant &value);
     void frameFinished(quint64 frameNumber);
+    void statisticsChanged();
+    void touchDesignerVersionChanged();
 
 private:
     friend class DsTouchEngineView;

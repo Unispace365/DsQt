@@ -61,10 +61,12 @@ struct PendingInputCommand
 enum class EventKind {
     State,
     GraphicsApi,
+    ConfiguredEngine,
     Error,
     Links,
     OutputValue,
-    FrameFinished
+    FrameFinished,
+    Statistics
 };
 
 struct Event
@@ -72,12 +74,19 @@ struct Event
     EventKind kind = EventKind::State;
     DsTouchEngineTypes::State state = DsTouchEngineTypes::State::Idle;
     DsTouchEngineTypes::GraphicsApi graphicsApi = DsTouchEngineTypes::GraphicsApi::Unknown;
+    QString configuredEnginePath;
     QString message;
     QString diagnosticKey;
     QString link;
     QVariant value;
     QVariantList links;
     quint64 frameNumber = 0;
+    qint64 statisticsCpuMemoryBytes = 0;
+    qint64 statisticsGpuMemoryBytes = 0;
+    qint64 statisticsCpuFrameTimeNs = 0;
+    qint64 statisticsGpuFrameTimeNs = -1;
+    qint64 statisticsFrames = 0;
+    qint64 statisticsFramesDropped = -1;
 };
 
 inline QString coreDiagnosticKey()
@@ -461,6 +470,7 @@ public:
 
     std::atomic_bool rendererAttached = false;
     std::atomic_bool renderLoopNeeded = false;
+    std::atomic_bool callbackDrainPending = false;
     std::atomic_bool shuttingDown = false;
     std::atomic<quint64> nextSerial = 1;
     std::atomic<quint64> nextInstanceToken = 1;

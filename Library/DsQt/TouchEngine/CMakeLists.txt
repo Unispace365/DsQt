@@ -49,12 +49,6 @@ set_target_properties(DsqtTouchEngineSDK PROPERTIES
     INTERFACE_INCLUDE_DIRECTORIES "${TOUCHENGINE_INCLUDE_DIR}"
 )
 
-# Find Vulkan SDK
-find_package(Vulkan)
-set(DSQT_TOUCHENGINE_VULKAN_ENABLED FALSE PARENT_SCOPE)
-if(Vulkan_FOUND)
-    set(DSQT_TOUCHENGINE_VULKAN_ENABLED TRUE PARENT_SCOPE)
-endif()
 add_library(TouchEngine STATIC)
 add_library(Dsqt::TouchEngine ALIAS TouchEngine)
 
@@ -141,6 +135,7 @@ target_link_libraries(TouchEngine
         d3d12
         dxgi
         opengl32
+        version
 )
 
 target_compile_definitions(TouchEngine PRIVATE

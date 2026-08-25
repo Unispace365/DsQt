@@ -185,6 +185,7 @@ TouchEngineCore::~TouchEngineCore()
         // its graphics context alive until the instance has been released.
         m_instance.reset();
     }
+    clearCallbacks();
 
     if (m_backend)
         m_backend->clearTextureOutputs();
@@ -260,10 +261,7 @@ bool TouchEngineCore::recreateInstance(QString *error)
         }
         m_backendResetPending = false;
     }
-    {
-        QMutexLocker lock(&m_callbackMutex);
-        m_callbacks.clear();
-    }
+    clearCallbacks();
 
     TEResult result = TEInstanceCreate(&TouchEngineCore::instanceCallback,
                                        &TouchEngineCore::linkCallback,
@@ -271,23 +269,30 @@ bool TouchEngineCore::recreateInstance(QString *error)
                                        m_instance.take());
     if (result != TEResultSuccess) {
         m_instance.reset();
-        {
-            QMutexLocker lock(&m_callbackMutex);
-            m_callbacks.clear();
-        }
+        clearCallbacks();
         m_acceptCallbacks.store(true, std::memory_order_release);
         if (error)
             *error = QStringLiteral("TEInstanceCreate failed: %1").arg(resultDescription(result));
         return false;
     }
 
+    result = TEInstanceSetStatisticsCallback(m_instance,
+                                             &TouchEngineCore::statisticsCallback);
+    if (result != TEResultSuccess) {
+        m_instance.reset();
+        clearCallbacks();
+        m_acceptCallbacks.store(true, std::memory_order_release);
+        if (error) {
+            *error = QStringLiteral("TEInstanceSetStatisticsCallback failed: %1")
+                         .arg(resultDescription(result));
+        }
+        return false;
+    }
+
     result = TEInstanceAssociateGraphicsContext(m_instance, m_backend->graphicsContext());
     if (result != TEResultSuccess) {
         m_instance.reset();
-        {
-            QMutexLocker lock(&m_callbackMutex);
-            m_callbacks.clear();
-        }
+        clearCallbacks();
         m_acceptCallbacks.store(true, std::memory_order_release);
         if (error)
             *error = QStringLiteral("TEInstanceAssociateGraphicsContext failed: %1")
@@ -482,10 +487,13 @@ void TouchEngineCore::processCallbacks(QRhiCommandBuffer *commandBuffer)
 {
     auto callbacks = takeCallbacks();
     for (const auto &event : callbacks) {
-        if (event.kind == CallbackKind::Instance)
+        if (event.kind == CallbackKind::Instance) {
             handleInstanceEvent(event, commandBuffer);
-        else
+        } else if (event.kind == CallbackKind::Link) {
             handleLinkEvent(event);
+        } else {
+            handleStatisticsEvent(event);
+        }
     }
 }
 
@@ -735,6 +743,26 @@ void TouchEngineCore::handleInstanceEvent(const CallbackEvent &event,
         }
 
         {
+            TouchObject<TEString> configuredEnginePath;
+            const TEResult result = TEInstanceGetConfiguredEnginePath(
+                m_instance, configuredEnginePath.take());
+            Event published;
+            published.kind = EventKind::ConfiguredEngine;
+            if (result == TEResultSuccess && configuredEnginePath
+                && configuredEnginePath->string) {
+                published.configuredEnginePath = QString::fromUtf8(
+                    configuredEnginePath->string);
+                qCDebug(lcTouchEngineCore)
+                    << "configured TouchDesigner path=" << published.configuredEnginePath;
+            } else {
+                qCWarning(lcTouchEngineCore)
+                    << "could not query configured TouchDesigner path:"
+                    << resultDescription(result);
+            }
+            m_shared->pushEvent(std::move(published));
+        }
+
+        {
             QString error;
             if (!m_backend->configureInstance(m_instance, &error)) {
                 m_hasPendingLoad = false;
@@ -866,6 +894,19 @@ void TouchEngineCore::handleLinkEvent(const CallbackEvent &event)
         m_linksDirty = true;
         break;
     }
+}
+
+void TouchEngineCore::handleStatisticsEvent(const CallbackEvent &event)
+{
+    Event published;
+    published.kind = EventKind::Statistics;
+    published.statisticsCpuMemoryBytes = event.statisticsCpuMemoryBytes;
+    published.statisticsGpuMemoryBytes = event.statisticsGpuMemoryBytes;
+    published.statisticsCpuFrameTimeNs = event.statisticsCpuFrameTimeNs;
+    published.statisticsGpuFrameTimeNs = event.statisticsGpuFrameTimeNs;
+    published.statisticsFrames = event.statisticsFrames;
+    published.statisticsFramesDropped = event.statisticsFramesDropped;
+    m_shared->pushEvent(std::move(published));
 }
 
 bool TouchEngineCore::enumerateLinks(QString *error)
@@ -1776,7 +1817,10 @@ void TouchEngineCore::maybeStartFrame()
     if (manuallyRequested)
         --m_requestedFrames;
     const qint64 interval = static_cast<qint64>(1'000'000'000.0 / std::max(1.0, m_frameRate));
-    m_nextFrameTimeNs = std::max(m_nextFrameTimeNs + interval, now + interval);
+    if (m_nextFrameTimeNs <= now) {
+        const qint64 elapsedIntervals = (now - m_nextFrameTimeNs) / interval;
+        m_nextFrameTimeNs += (elapsedIntervals + 1) * interval;
+    }
 }
 
 void TouchEngineCore::setState(DsTouchEngineTypes::State state)
@@ -1874,10 +1918,39 @@ void TouchEngineCore::linkCallback(TEInstance *, TELinkEvent event,
     core->enqueueCallback(std::move(queued));
 }
 
+void TouchEngineCore::statisticsCallback(TEInstance *,
+                                         const TEInstanceStatistics *statistics,
+                                         void *info)
+{
+    auto *core = static_cast<TouchEngineCore *>(info);
+    if (!core || !statistics
+        || !core->m_acceptCallbacks.load(std::memory_order_acquire)) {
+        return;
+    }
+
+    CallbackEvent queued;
+    queued.kind = CallbackKind::Statistics;
+    queued.statisticsCpuMemoryBytes = statistics->memUsedCPU;
+    queued.statisticsGpuMemoryBytes = statistics->memUsedGPU;
+    queued.statisticsCpuFrameTimeNs = statistics->frameTimeCPU;
+    queued.statisticsGpuFrameTimeNs = statistics->frameTimeGPU;
+    queued.statisticsFrames = statistics->frames;
+    queued.statisticsFramesDropped = statistics->framesDropped;
+    core->enqueueCallback(std::move(queued));
+}
+
 void TouchEngineCore::enqueueCallback(CallbackEvent event)
 {
     QMutexLocker lock(&m_callbackMutex);
     m_callbacks.push_back(std::move(event));
+    m_shared->callbackDrainPending.store(true, std::memory_order_release);
+}
+
+void TouchEngineCore::clearCallbacks()
+{
+    QMutexLocker lock(&m_callbackMutex);
+    m_callbacks.clear();
+    m_shared->callbackDrainPending.store(false, std::memory_order_release);
 }
 
 std::deque<TouchEngineCore::CallbackEvent> TouchEngineCore::takeCallbacks()
@@ -1885,6 +1958,7 @@ std::deque<TouchEngineCore::CallbackEvent> TouchEngineCore::takeCallbacks()
     QMutexLocker lock(&m_callbackMutex);
     std::deque<CallbackEvent> result;
     result.swap(m_callbacks);
+    m_shared->callbackDrainPending.store(false, std::memory_order_release);
     return result;
 }
 

@@ -55,7 +55,7 @@ private:
         int attempts = 0;
     };
 
-    enum class CallbackKind { Instance, Link };
+    enum class CallbackKind { Instance, Link, Statistics };
     struct CallbackEvent
     {
         CallbackKind kind = CallbackKind::Instance;
@@ -67,6 +67,12 @@ private:
         qint32 startTimeScale = 1;
         qint64 endTimeValue = 0;
         qint32 endTimeScale = 1;
+        qint64 statisticsCpuMemoryBytes = 0;
+        qint64 statisticsGpuMemoryBytes = 0;
+        qint64 statisticsCpuFrameTimeNs = 0;
+        qint64 statisticsGpuFrameTimeNs = -1;
+        qint64 statisticsFrames = 0;
+        qint64 statisticsFramesDropped = -1;
     };
 
     TouchEngineCore(std::shared_ptr<TouchEngineSharedState> shared, QRhi *rhi);
@@ -82,6 +88,7 @@ private:
     void completeUnload();
     void handleInstanceEvent(const CallbackEvent &event, QRhiCommandBuffer *commandBuffer);
     void handleLinkEvent(const CallbackEvent &event);
+    void handleStatisticsEvent(const CallbackEvent &event);
 
     bool enumerateLinks(QString *error);
     bool enumerateChildren(const char *identifier, DsTouchEngineTypes::LinkScope scope,
@@ -113,7 +120,11 @@ private:
                                  int64_t endTimeValue, int32_t endTimeScale, void *info);
     static void linkCallback(TEInstance *instance, TELinkEvent event,
                              const char *identifier, void *info);
+    static void statisticsCallback(TEInstance *instance,
+                                   const TEInstanceStatistics *statistics,
+                                   void *info);
     void enqueueCallback(CallbackEvent event);
+    void clearCallbacks();
     std::deque<CallbackEvent> takeCallbacks();
 
     std::shared_ptr<TouchEngineSharedState> m_shared;

@@ -1,5 +1,6 @@
 #include "OpenGLTouchEngineBackend_p.h"
 
+#include <TouchEngine/TED3D.h>
 #include <TouchEngine/TEOpenGL.h>
 #include <TouchEngine/TouchObject.h>
 
@@ -543,6 +544,28 @@ class OpenGLTouchEngineBackend::Impl {
         return result;
     }
 
+    bool outputSource(TETexture* texture, const QString& link, TouchObject<TEOpenGLTexture>* result,
+                      QString* error) {
+        const TETextureType type = TETextureGetType(texture);
+        if (type == TETextureTypeOpenGL) {
+            result->set(static_cast<TEOpenGLTexture*>(texture));
+            return true;
+        }
+        if (type != TETextureTypeD3DShared) {
+            return fail(error, QStringLiteral("Texture output %1 has unsupported TouchEngine type %2")
+                                   .arg(link)
+                                   .arg(static_cast<int>(type)));
+        }
+
+        const TEResult conversionResult = TEOpenGLContextGetTexture(
+            teContext, static_cast<TED3DSharedTexture*>(texture), result->take());
+        if (conversionResult != TEResultSuccess || !*result) {
+            return fail(error, QStringLiteral("Could not open TouchEngine output %1 in OpenGL: %2")
+                                   .arg(link, resultDescription(conversionResult)));
+        }
+        return true;
+    }
+
     bool hasPendingOutputUnlock(const QString& link) const {
         return std::any_of(pendingOutputUnlocks.cbegin(), pendingOutputUnlocks.cend(),
                            [&link](const PendingOutputUnlock& pending) { return pending.link == link; });
@@ -807,21 +830,7 @@ bool OpenGLTouchEngineBackend::updateTextureOutput(TEInstance* instance, const Q
     if (!d->ensureCurrentContext(error)) return false;
 
     TouchObject<TEOpenGLTexture> source;
-    const TETextureType          type = TETextureGetType(texture);
-    if (type == TETextureTypeOpenGL) {
-        source.set(static_cast<TEOpenGLTexture*>(texture));
-    } else if (type == TETextureTypeD3DShared) {
-        const TEResult result =
-            TEOpenGLContextGetTexture(d->teContext, static_cast<TED3DSharedTexture*>(texture), source.take());
-        if (result != TEResultSuccess || !source) {
-            return fail(error, QStringLiteral("Could not open TouchEngine output %1 in OpenGL: %2")
-                                   .arg(link, resultDescription(result)));
-        }
-    } else {
-        return fail(error, QStringLiteral("Texture output %1 has unsupported TouchEngine type %2")
-                               .arg(link)
-                               .arg(static_cast<int>(type)));
-    }
+    if (!d->outputSource(texture, link, &source, error)) return false;
 
     const GLenum sourceTarget = TEOpenGLTextureGetTarget(source);
     if (sourceTarget != GL_TEXTURE_2D && sourceTarget != GL_TEXTURE_RECTANGLE) {
@@ -867,32 +876,19 @@ bool OpenGLTouchEngineBackend::updateTextureOutput(TEInstance* instance, const Q
                                          : QStringLiteral("Could not copy TouchEngine output %1").arg(link));
     const bool mirrorVertically = TETextureGetOrigin(texture) == TETextureOriginBottomLeft;
 
-    // The copy must be visible to the interop owner before releasing its lock.
-    // WGL interop performs the ownership synchronization; glFlush is sufficient
-    // to submit our copy without stalling the Qt Quick render thread.
-    d->gl->glFlush();
-    const TEResult unlockResult = TEOpenGLTextureUnlock(source);
-    if (!completedLocallyOwnedOpenGLUnlock(unlockResult)) {
-        QString unlockError = QStringLiteral("Could not unlock TouchEngine output %1: %2")
-                                  .arg(link, resultDescription(unlockResult));
-        d->pendingOutputUnlocks.push_back(Impl::PendingOutputUnlock{
-            .link = link,
-            .source = std::move(source),
-            .output = std::move(output),
-            .publishOutput = copied,
-            .mirrorVertically = mirrorVertically,
-            .copyError = copyError,
-        });
-        if (!copyError.isEmpty()) unlockError.prepend(copyError + QLatin1Char('\n'));
-        return fail(error, unlockError);
-    }
-    source.reset();
-
-    if (!copied) return false;
-
-    output->mirrorVertically = mirrorVertically;
-    d->outputs.insert(link, std::move(output));
-    return true;
+    // Keep every source locked until all output copies have been recorded. afterFrameEnd()
+    // flushes the batch once, unlocks every source, and only then publishes the stable Qt
+    // caches. This removes one WGL/D3D interop flush per output at the cost of one frame of
+    // initial output latency.
+    d->pendingOutputUnlocks.push_back(Impl::PendingOutputUnlock{
+        .link = link,
+        .source = std::move(source),
+        .output = std::move(output),
+        .publishOutput = copied,
+        .mirrorVertically = mirrorVertically,
+        .copyError = copyError,
+    });
+    return copied;
 }
 
 TextureOutput OpenGLTouchEngineBackend::textureOutput(const QString& link) const {
@@ -935,7 +931,8 @@ bool OpenGLTouchEngineBackend::afterFrameEnd(TEInstance* instance, QString* erro
     QStringList failures;
     d->retryPendingOutputUnlocks(&failures);
 
-    if (!d->pendingInputs.isEmpty()) {
+    const bool publishInputs = !d->pendingInputs.isEmpty();
+    if (publishInputs) {
         QHash<QString, Impl::InputSlot*> pending = std::exchange(d->pendingInputs, {});
         for (auto it = pending.cbegin(); it != pending.cend(); ++it) {
             Impl::InputSlot* slot = it.value();
@@ -974,8 +971,10 @@ bool OpenGLTouchEngineBackend::afterFrameEnd(TEInstance* instance, QString* erro
         }
     }
 
-    // Unlock and SetTextureValue may submit interop work in this QRhi-owned context.
-    d->gl->glFlush();
+    // Input wrapping and SetTextureValue may submit additional interop work. Output-only
+    // frames have already been submitted by the single flush before the unlock batch.
+    if (publishInputs)
+        d->gl->glFlush();
     if (!failures.isEmpty()) return fail(error, failures.join(QLatin1Char('\n')));
     return true;
 }

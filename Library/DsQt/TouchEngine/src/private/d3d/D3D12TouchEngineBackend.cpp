@@ -39,6 +39,8 @@ namespace {
 using Microsoft::WRL::ComPtr;
 
 constexpr qsizetype kMaximumInputTexturesPerLink = 6;
+constexpr std::size_t kMaximumOutputImports = 32;
+constexpr std::size_t kMaximumFenceImports = 16;
 
 template<typename T>
 QString enumValues(const std::vector<T> &values)
@@ -320,12 +322,30 @@ public:
         bool mirrorVertically = false;
     };
 
-    struct PendingOutput
+    struct ImportedOutput
     {
         TouchObject<TETexture> teTexture;
+        const TETexture *sourceObject = nullptr;
+        HANDLE sourceHandle = nullptr;
         ComPtr<ID3D12Resource> nativeTexture;
-        ComPtr<ID3D12Fence> sourceFence;
         std::unique_ptr<QRhiTexture> importedTexture;
+        QSize size;
+        TextureFormat format;
+        quint64 lastUseSerial = 0;
+    };
+
+    struct ImportedFence
+    {
+        TouchObject<TESemaphore> teSemaphore;
+        HANDLE sourceHandle = nullptr;
+        ComPtr<ID3D12Fence> nativeFence;
+        quint64 lastUseSerial = 0;
+    };
+
+    struct PendingOutput
+    {
+        std::shared_ptr<ImportedOutput> imported;
+        std::shared_ptr<ImportedFence> sourceFence;
     };
 
     struct RetiredOutput
@@ -337,9 +357,9 @@ public:
     ~Impl()
     {
         clearTextureOutputs();
-        // PendingOutput destroys importedTexture before its native COM objects (member
-        // destruction is reverse declaration order). Do not use QRhi::deleteLater here:
-        // createFrom() is non-owning and its native object must outlive the wrapper.
+        // ImportedOutput destroys importedTexture before its native COM object (member
+        // destruction is reverse declaration order). createFrom() is non-owning, so the
+        // cache and pending/retired shared references keep both alive through GPU use.
     }
 
     bool initialize(QRhi *newRhi, QString *error)
@@ -391,6 +411,12 @@ public:
             assignError(error, QStringLiteral("D3D12 backend is not initialized"));
             return false;
         }
+        // A reloaded TEInstance owns a different texture/fence pool. Drop reusable
+        // references from the previous instance so it can release that pool. Any record
+        // still covered by a host-fence retirement remains alive through RetiredOutput.
+        outputImports.clear();
+        fenceImports.clear();
+        importUseSerial = 0;
         std::vector<TETextureType> textureTypes;
         std::vector<TED3DHandleType> handleTypes;
         std::vector<DXGI_FORMAT> formats;
@@ -596,6 +622,135 @@ public:
         return true;
     }
 
+    template<typename T>
+    static void pruneImports(std::vector<std::shared_ptr<T>> &imports, std::size_t maximum)
+    {
+        while (imports.size() > maximum) {
+            auto oldest = imports.end();
+            for (auto it = imports.begin(); it != imports.end(); ++it) {
+                if (it->use_count() != 1)
+                    continue;
+                if (oldest == imports.end()
+                    || (*it)->lastUseSerial < (*oldest)->lastUseSerial) {
+                    oldest = it;
+                }
+            }
+            if (oldest == imports.end())
+                break;
+            imports.erase(oldest);
+        }
+    }
+
+    std::shared_ptr<ImportedOutput> importOutput(TED3DSharedTexture *shared,
+                                                 const QString &link,
+                                                 QString *error)
+    {
+        auto *sourceObject = reinterpret_cast<TETexture *>(shared);
+        const HANDLE sourceHandle = TED3DSharedTextureGetHandle(shared);
+        if (!sourceHandle) {
+            assignError(error,
+                        QStringLiteral("TouchEngine output '%1' has no D3D12 shared handle")
+                            .arg(link));
+            return {};
+        }
+
+        for (const auto &imported : outputImports) {
+            if (imported->sourceObject == sourceObject
+                && imported->sourceHandle == sourceHandle) {
+                imported->lastUseSerial = ++importUseSerial;
+                return imported;
+            }
+        }
+
+        auto imported = std::make_shared<ImportedOutput>();
+        imported->sourceObject = sourceObject;
+        imported->sourceHandle = sourceHandle;
+        imported->teTexture.set(sourceObject);
+        HRESULT result = device->OpenSharedHandle(sourceHandle,
+                                                  IID_PPV_ARGS(&imported->nativeTexture));
+        if (FAILED(result)) {
+            assignError(error, hresultError("ID3D12Device::OpenSharedHandle(texture)", result));
+            return {};
+        }
+
+        const D3D12_RESOURCE_DESC description = imported->nativeTexture->GetDesc();
+        if (description.Dimension != D3D12_RESOURCE_DIMENSION_TEXTURE2D
+            || !description.Width || !description.Height || description.SampleDesc.Count != 1
+            || description.DepthOrArraySize != 1) {
+            assignError(error,
+                        QStringLiteral("TouchEngine output '%1' has an unsupported D3D12 shape")
+                            .arg(link));
+            return {};
+        }
+
+        DXGI_FORMAT viewFormat = TED3DSharedTextureGetFormat(shared);
+        if (viewFormat == DXGI_FORMAT_UNKNOWN)
+            viewFormat = description.Format;
+        imported->format = textureFormat(viewFormat);
+        if (!imported->format) {
+            assignError(error,
+                        QStringLiteral("TouchEngine output '%1' has unsupported DXGI format %2")
+                            .arg(link).arg(static_cast<int>(viewFormat)));
+            return {};
+        }
+        if (description.Width > static_cast<UINT64>(std::numeric_limits<int>::max())
+            || description.Height > static_cast<UINT>(std::numeric_limits<int>::max())) {
+            assignError(error,
+                        QStringLiteral("TouchEngine output '%1' is too large for QRhi").arg(link));
+            return {};
+        }
+        imported->size = QSize(static_cast<int>(description.Width),
+                               static_cast<int>(description.Height));
+        imported->importedTexture.reset(
+            rhi->newTexture(imported->format.rhi, imported->size, 1,
+                            imported->format.flags | QRhiTexture::UsedAsTransferSource));
+        const QRhiTexture::NativeTexture native {
+            static_cast<quint64>(reinterpret_cast<quintptr>(imported->nativeTexture.Get())),
+            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE
+        };
+        if (!imported->importedTexture || !imported->importedTexture->createFrom(native)) {
+            assignError(error,
+                        QStringLiteral("QRhi could not import TouchEngine output '%1'").arg(link));
+            return {};
+        }
+
+        imported->lastUseSerial = ++importUseSerial;
+        outputImports.push_back(imported);
+        pruneImports(outputImports, kMaximumOutputImports);
+        return imported;
+    }
+
+    std::shared_ptr<ImportedFence> importFence(TESemaphore *semaphore, QString *error)
+    {
+        auto *sharedFence = static_cast<TED3DSharedFence *>(semaphore);
+        const HANDLE sourceHandle = TED3DSharedFenceGetHandle(sharedFence);
+        if (!sourceHandle) {
+            assignError(error, QStringLiteral("TouchEngine returned a D3D fence without a handle"));
+            return {};
+        }
+
+        for (const auto &imported : fenceImports) {
+            if (imported->sourceHandle == sourceHandle) {
+                imported->lastUseSerial = ++importUseSerial;
+                return imported;
+            }
+        }
+
+        auto imported = std::make_shared<ImportedFence>();
+        imported->sourceHandle = sourceHandle;
+        imported->teSemaphore.set(semaphore);
+        const HRESULT result = device->OpenSharedHandle(sourceHandle,
+                                                        IID_PPV_ARGS(&imported->nativeFence));
+        if (FAILED(result)) {
+            assignError(error, hresultError("ID3D12Device::OpenSharedHandle(fence)", result));
+            return {};
+        }
+        imported->lastUseSerial = ++importUseSerial;
+        fenceImports.push_back(imported);
+        pruneImports(fenceImports, kMaximumFenceImports);
+        return imported;
+    }
+
     std::shared_ptr<OutputCache> ensureOutputCache(const QString &link, const QSize &size,
                                                    const TextureFormat &format, QString *error)
     {
@@ -643,48 +798,16 @@ public:
         }
 
         PendingOutput pending;
-        HRESULT result = device->OpenSharedHandle(TED3DSharedTextureGetHandle(shared),
-                                                  IID_PPV_ARGS(&pending.nativeTexture));
-        if (FAILED(result)) {
-            assignError(error, hresultError("ID3D12Device::OpenSharedHandle(texture)", result));
-            return false;
-        }
-        const D3D12_RESOURCE_DESC description = pending.nativeTexture->GetDesc();
-        if (description.Dimension != D3D12_RESOURCE_DIMENSION_TEXTURE2D
-            || !description.Width || !description.Height || description.SampleDesc.Count != 1
-            || description.DepthOrArraySize != 1) {
-            assignError(error, QStringLiteral("TouchEngine output '%1' has an unsupported D3D12 shape").arg(link));
-            return false;
-        }
-        DXGI_FORMAT viewFormat = TED3DSharedTextureGetFormat(shared);
-        if (viewFormat == DXGI_FORMAT_UNKNOWN)
-            viewFormat = description.Format;
-        const TextureFormat format = textureFormat(viewFormat);
-        if (!format) {
-            assignError(error, QStringLiteral("TouchEngine output '%1' has unsupported DXGI format %2")
-                                   .arg(link).arg(static_cast<int>(viewFormat)));
-            return false;
-        }
-        if (description.Width > static_cast<UINT64>(std::numeric_limits<int>::max())
-            || description.Height > static_cast<UINT>(std::numeric_limits<int>::max())) {
-            assignError(error, QStringLiteral("TouchEngine output '%1' is too large for QRhi").arg(link));
-            return false;
-        }
-        const QSize size(static_cast<int>(description.Width), static_cast<int>(description.Height));
-        const auto cache = ensureOutputCache(link, size, format, error);
-        if (!cache)
+        pending.imported = importOutput(shared, link, error);
+        if (!pending.imported)
             return false;
 
-        pending.importedTexture.reset(rhi->newTexture(format.rhi, size, 1,
-                                                      format.flags | QRhiTexture::UsedAsTransferSource));
-        const QRhiTexture::NativeTexture native {
-            static_cast<quint64>(reinterpret_cast<quintptr>(pending.nativeTexture.Get())),
-            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE
-        };
-        if (!pending.importedTexture || !pending.importedTexture->createFrom(native)) {
-            assignError(error, QStringLiteral("QRhi could not import TouchEngine output '%1'").arg(link));
+        const auto cache = ensureOutputCache(link,
+                                             pending.imported->size,
+                                             pending.imported->format,
+                                             error);
+        if (!cache)
             return false;
-        }
         if (TEInstanceHasTextureTransfer(instance, texture)) {
             TouchObject<TESemaphore> semaphore;
             quint64 waitValue = 0;
@@ -698,31 +821,28 @@ public:
                 assignError(error, QStringLiteral("TouchEngine output '%1' did not provide a D3D fence").arg(link));
                 return false;
             }
-            auto *sharedFence = static_cast<TED3DSharedFence *>(semaphore.get());
-            result = device->OpenSharedHandle(TED3DSharedFenceGetHandle(sharedFence),
-                                              IID_PPV_ARGS(&pending.sourceFence));
-            if (FAILED(result)) {
-                assignError(error, hresultError("ID3D12Device::OpenSharedHandle(fence)", result));
+            pending.sourceFence = importFence(semaphore.get(), error);
+            if (!pending.sourceFence)
                 return false;
-            }
-            result = commandQueue->Wait(pending.sourceFence.Get(), waitValue);
+            const HRESULT result = commandQueue->Wait(pending.sourceFence->nativeFence.Get(),
+                                                      waitValue);
             if (FAILED(result)) {
                 assignError(error, hresultError("ID3D12CommandQueue::Wait", result));
                 return false;
             }
         }
 
-        pending.teTexture.set(texture);
         pendingOutputs.push_back(std::move(pending));
         PendingOutput &queued = pendingOutputs.back();
         QRhiTextureCopyDescription copy;
-        copy.setPixelSize(size);
+        copy.setPixelSize(queued.imported->size);
         QRhiResourceUpdateBatch *updates = rhi->nextResourceUpdateBatch();
-        updates->copyTexture(cache->texture.get(), queued.importedTexture.get(), copy);
+        updates->copyTexture(cache->texture.get(), queued.imported->importedTexture.get(), copy);
         commandBuffer->resourceUpdate(updates);
-        queued.importedTexture->setNativeLayout(D3D12_RESOURCE_STATE_COPY_SOURCE);
-        if (!transitionToShaderResource(commandBuffer, queued.importedTexture.get(),
-                                        queued.nativeTexture.Get(),
+        queued.imported->importedTexture->setNativeLayout(D3D12_RESOURCE_STATE_COPY_SOURCE);
+        if (!transitionToShaderResource(commandBuffer,
+                                        queued.imported->importedTexture.get(),
+                                        queued.imported->nativeTexture.Get(),
                                         D3D12_RESOURCE_STATE_COPY_SOURCE, error)) {
             return false; // afterFrameEnd still safely returns ownership.
         }
@@ -769,6 +889,8 @@ public:
             else
                 ++it;
         }
+        pruneImports(outputImports, kMaximumOutputImports);
+        pruneImports(fenceImports, kMaximumFenceImports);
     }
 
     bool afterFrameEnd(TEInstance *instance, QString *error)
@@ -797,7 +919,8 @@ public:
         nextPendingOutputs.reserve(pendingOutputs.size());
         for (PendingOutput &pending : pendingOutputs) {
             const TEResult result = TEInstanceAddTextureTransfer(
-                instance, pending.teTexture, static_cast<TESemaphore *>(hostTeFence.get()),
+                instance, pending.imported->teTexture,
+                static_cast<TESemaphore *>(hostTeFence.get()),
                 fenceValue);
             if (result != TEResultSuccess) {
                 appendError(error, teError("TEInstanceAddTextureTransfer", result));
@@ -857,9 +980,12 @@ public:
     QHash<QString, QList<std::shared_ptr<InputSlot>>> inputSlots;
     std::vector<std::shared_ptr<InputSlot>> pendingInputs;
     QHash<QString, std::shared_ptr<OutputCache>> outputCaches;
+    std::vector<std::shared_ptr<ImportedOutput>> outputImports;
+    std::vector<std::shared_ptr<ImportedFence>> fenceImports;
     std::vector<PendingOutput> pendingOutputs;
     std::list<RetiredOutput> retiredOutputs;
     std::vector<std::shared_ptr<InputSlot>> retryInputTransfers;
+    quint64 importUseSerial = 0;
 };
 
 D3D12TouchEngineBackend::D3D12TouchEngineBackend()

@@ -1,6 +1,20 @@
 cmake_minimum_required(VERSION 3.29)
 include(FetchContent)
 
+option(DS_APP_ENABLE_TOUCHENGINE "Enable the Dsqt TouchEngine integration" OFF)
+option(DS_APP_ENABLE_SPOUT "Enable the Dsqt Spout integration" OFF)
+
+# vcpkg evaluates manifest features while project() initializes the toolchain.
+if(DS_APP_ENABLE_TOUCHENGINE)
+    list(APPEND VCPKG_MANIFEST_FEATURES "touchengine")
+endif()
+if(DS_APP_ENABLE_SPOUT)
+    list(APPEND VCPKG_MANIFEST_FEATURES "spout")
+endif()
+if(VCPKG_MANIFEST_FEATURES)
+    list(REMOVE_DUPLICATES VCPKG_MANIFEST_FEATURES)
+endif()
+
 #project info
 set(DS_APP_NAME ClonerSource)
 set(DS_EXE_NAME app${DS_APP_NAME})
@@ -63,7 +77,15 @@ find_package(Qt6 6.9 REQUIRED COMPONENTS Core Quick QuickControls2 Multimedia Gu
 qt_standard_project_setup(REQUIRES 6.9)
 
 # Find Dsqt from installed package (CMAKE_PREFIX_PATH set via CMakePresets.json)
-find_package(Dsqt REQUIRED COMPONENTS Core Bridge Waffles OPTIONAL_COMPONENTS TouchEngine Spout)
+set(_dsqt_components Core Bridge Waffles)
+if(DS_APP_ENABLE_TOUCHENGINE)
+    list(APPEND _dsqt_components TouchEngine)
+endif()
+if(DS_APP_ENABLE_SPOUT)
+    list(APPEND _dsqt_components Spout)
+endif()
+find_package(Dsqt REQUIRED COMPONENTS ${_dsqt_components})
+unset(_dsqt_components)
 
 message("DSQT is at ${Dsqt_DIR}")
 
@@ -95,15 +117,21 @@ set_source_files_properties(Fnt.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
 message(STATUS "DSQT_INSTALL_PREFIX: ${DSQT_INSTALL_PREFIX}")
 message(STATUS "DSQT_QML_IMPORT_PATH: ${DSQT_QML_IMPORT_PATH}")
 
+set(_ds_app_qml_files
+    Main.qml
+    Fnt.qml
+    qml/MainView.qml
+    qml/CustomClock.qml
+)
+if(DS_APP_ENABLE_TOUCHENGINE)
+    list(APPEND _ds_app_qml_files qml/TouchDesigner.qml)
+endif()
+
 qt_add_qml_module(${DS_EXE_NAME}
     URI ${DS_APP_NAME}
     VERSION 1.0
     QML_FILES
-        Main.qml
-        Fnt.qml
-        qml/MainView.qml
-        qml/CustomClock.qml
-        qml/TouchDesigner.qml
+        ${_ds_app_qml_files}
 
     IMPORT_PATH "${DSQT_QML_IMPORT_PATH}"
     DEPENDENCIES
@@ -113,6 +141,7 @@ qt_add_qml_module(${DS_EXE_NAME}
         QtQuick
         #RESOURCES cmake/app.rc.in
 )
+unset(_ds_app_qml_files)
 
 
 
@@ -155,14 +184,17 @@ find_package(glm CONFIG REQUIRED)
 
 
 
-# Provide DSQT_HAS_<MODULE> compile definitions for optional plugin imports
-foreach(_comp Core Bridge Waffles Spout)
+# Provide DSQT_HAS_<MODULE> compile definitions for plugin imports
+foreach(_comp Core Bridge Waffles)
     if(Dsqt_${_comp}_FOUND)
         target_compile_definitions(${DS_EXE_NAME} PRIVATE DSQT_HAS_${_comp})
     endif()
 endforeach()
-if(Dsqt_TouchEngine_FOUND)
+if(DS_APP_ENABLE_TOUCHENGINE)
     target_compile_definitions(${DS_EXE_NAME} PRIVATE DSQT_HAS_TOUCHENGINE)
+endif()
+if(DS_APP_ENABLE_SPOUT)
+    target_compile_definitions(${DS_EXE_NAME} PRIVATE DSQT_HAS_Spout)
 endif()
 
 
@@ -170,10 +202,7 @@ target_link_libraries(${DS_EXE_NAME}
     PRIVATE
         Dsqt::Core
         Dsqt::Bridge
-        $<$<BOOL:${Dsqt_TouchEngine_FOUND}>:Dsqt::TouchEngine>
-        $<$<BOOL:${Dsqt_TouchEngine_FOUND}>:Dsqt::TouchEngineplugin>
         Dsqt::Waffles
-        $<$<BOOL:${Dsqt_Spout_FOUND}>:Dsqt::Spout>
 
         Qt6::Concurrent
         Qt6::Core
@@ -189,9 +218,21 @@ target_link_libraries(${DS_EXE_NAME}
         glm::glm
 )
 
+if(DS_APP_ENABLE_TOUCHENGINE)
+    target_link_libraries(${DS_EXE_NAME}
+        PRIVATE
+            Dsqt::TouchEngine
+            Dsqt::TouchEngineplugin
+    )
+endif()
+
+if(DS_APP_ENABLE_SPOUT)
+    target_link_libraries(${DS_EXE_NAME} PRIVATE Dsqt::Spout)
+endif()
+
 include(GNUInstallDirs)
 
-if(Dsqt_TouchEngine_FOUND)
+if(DS_APP_ENABLE_TOUCHENGINE)
     # TouchEngine SDK DLL location (from installed package, config-specific subdirectory)
     set(TOUCHENGINE_DLL "${DSQT_BIN_DIR}/$<CONFIG>/TouchEngine.dll")
 
@@ -220,7 +261,7 @@ install(DIRECTORY "settings/" DESTINATION ${CMAKE_INSTALL_BINDIR}/settings OPTIO
 install(DIRECTORY "data/" DESTINATION ${CMAKE_INSTALL_BINDIR}/data OPTIONAL)
 
 # Install TouchEngine.dll to the deploy directory
-if(WIN32 AND Dsqt_TouchEngine_FOUND)
+if(WIN32 AND DS_APP_ENABLE_TOUCHENGINE)
     install(FILES "${DSQT_BIN_DIR}/$<CONFIG>/TouchEngine.dll" DESTINATION ${CMAKE_INSTALL_BINDIR} OPTIONAL)
 endif()
 

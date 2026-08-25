@@ -10,7 +10,14 @@
 #include <QtMath>
 
 #include <algorithm>
+#include <string>
 #include <utility>
+#include <vector>
+
+#ifdef Q_OS_WIN
+#include <qt_windows.h>
+#include <winver.h>
+#endif
 
 namespace dsqt::touchengine {
 
@@ -19,6 +26,93 @@ using detail::CommandKind;
 using detail::EventKind;
 
 namespace {
+
+QString productVersionForFile(const QString &filePath)
+{
+#ifdef Q_OS_WIN
+    if (filePath.isEmpty())
+        return QStringLiteral("unknown");
+
+    const std::wstring path = QDir::toNativeSeparators(filePath).toStdWString();
+
+    DWORD ignoredHandle = 0;
+    const DWORD infoSize = GetFileVersionInfoSizeW(path.c_str(), &ignoredHandle);
+    if (infoSize == 0)
+        return QStringLiteral("unknown");
+
+    std::vector<std::byte> versionInfo(infoSize);
+    if (!GetFileVersionInfoW(path.c_str(), 0, infoSize, versionInfo.data()))
+        return QStringLiteral("unknown");
+
+    struct Translation {
+        WORD language;
+        WORD codePage;
+    };
+
+    Translation *translations = nullptr;
+    UINT translationsSize = 0;
+    if (!VerQueryValueW(versionInfo.data(),
+                        L"\\VarFileInfo\\Translation",
+                        reinterpret_cast<void **>(&translations),
+                        &translationsSize)) {
+        return QStringLiteral("unknown");
+    }
+
+    const UINT translationCount = translationsSize / sizeof(Translation);
+    for (UINT index = 0; index < translationCount; ++index) {
+        const QString query = QStringLiteral("\\StringFileInfo\\%1%2\\ProductVersion")
+                                  .arg(translations[index].language, 4, 16, QLatin1Char('0'))
+                                  .arg(translations[index].codePage, 4, 16, QLatin1Char('0'));
+        wchar_t *productVersion = nullptr;
+        UINT productVersionSize = 0;
+        if (VerQueryValueW(versionInfo.data(),
+                           reinterpret_cast<LPCWSTR>(query.utf16()),
+                           reinterpret_cast<void **>(&productVersion),
+                           &productVersionSize)
+            && productVersion && productVersionSize > 1) {
+            return QString::fromWCharArray(productVersion,
+                                           static_cast<qsizetype>(productVersionSize - 1))
+                .trimmed();
+        }
+    }
+#endif
+    return QStringLiteral("unknown");
+}
+
+QString loadedTouchEngineLibraryVersion()
+{
+#ifdef Q_OS_WIN
+    const HMODULE module = GetModuleHandleW(L"TouchEngine.dll");
+    if (!module)
+        return QStringLiteral("unknown");
+
+    std::wstring path(32768, L'\0');
+    const DWORD pathLength = GetModuleFileNameW(module,
+                                                path.data(),
+                                                static_cast<DWORD>(path.size()));
+    if (pathLength == 0 || pathLength >= path.size())
+        return QStringLiteral("unknown");
+    path.resize(pathLength);
+    return productVersionForFile(QString::fromStdWString(path));
+#else
+    return QStringLiteral("unknown");
+#endif
+}
+
+QString touchDesignerVersionForEnginePath(const QString &enginePath)
+{
+    if (enginePath.isEmpty())
+        return QStringLiteral("unknown");
+
+    const QDir installation(enginePath);
+    const QString applicationVersion = productVersionForFile(
+        installation.filePath(QStringLiteral("TouchDesigner.exe")));
+    if (applicationVersion != QStringLiteral("unknown"))
+        return applicationVersion;
+
+    return productVersionForFile(
+        installation.filePath(QStringLiteral("bin/TouchEngine.exe")));
+}
 
 bool isTimeDependentInput(const QVariant &value)
 {
@@ -127,6 +221,33 @@ bool DsTouchEngineSession::isReady() const { return d->state == DsTouchEngineTyp
 QString DsTouchEngineSession::errorString() const { return d->errorString; }
 QVariantList DsTouchEngineSession::links() const { return d->links; }
 quint64 DsTouchEngineSession::frameCount() const { return d->frameCount; }
+
+double DsTouchEngineSession::cpuFrameTimeMs() const
+{
+    if (d->statisticsFrames <= 0 || d->statisticsCpuFrameTimeNs < 0)
+        return 0.0;
+    return static_cast<double>(d->statisticsCpuFrameTimeNs)
+        / static_cast<double>(d->statisticsFrames) / 1'000'000.0;
+}
+
+double DsTouchEngineSession::gpuFrameTimeMs() const
+{
+    if (d->statisticsFrames <= 0 || d->statisticsGpuFrameTimeNs < 0)
+        return -1.0;
+    return static_cast<double>(d->statisticsGpuFrameTimeNs)
+        / static_cast<double>(d->statisticsFrames) / 1'000'000.0;
+}
+
+qint64 DsTouchEngineSession::statisticsFrames() const { return d->statisticsFrames; }
+qint64 DsTouchEngineSession::framesDropped() const { return d->statisticsFramesDropped; }
+qint64 DsTouchEngineSession::cpuMemoryBytes() const { return d->statisticsCpuMemoryBytes; }
+qint64 DsTouchEngineSession::gpuMemoryBytes() const { return d->statisticsGpuMemoryBytes; }
+QString DsTouchEngineSession::touchEngineLibraryVersion() const
+{
+    static const QString version = loadedTouchEngineLibraryVersion();
+    return version;
+}
+QString DsTouchEngineSession::touchDesignerVersion() const { return d->touchDesignerVersion; }
 
 void DsTouchEngineSession::load()
 {
@@ -318,6 +439,10 @@ void DsTouchEngineSession::drainEvents()
                 d->state = event.state;
                 emit stateChanged();
             }
+            if (event.state != DsTouchEngineTypes::State::Ready
+                && d->resetStatistics()) {
+                emit statisticsChanged();
+            }
             break;
         case EventKind::GraphicsApi:
             if (d->graphicsApi != event.graphicsApi) {
@@ -325,6 +450,15 @@ void DsTouchEngineSession::drainEvents()
                 emit graphicsApiChanged();
             }
             break;
+        case EventKind::ConfiguredEngine: {
+            const QString version = touchDesignerVersionForEnginePath(
+                event.configuredEnginePath);
+            if (d->touchDesignerVersion != version) {
+                d->touchDesignerVersion = version;
+                emit touchDesignerVersionChanged();
+            }
+            break;
+        }
         case EventKind::Error:
             if (d->updateDiagnostic(std::move(event.diagnosticKey), event.message))
                 emit errorStringChanged();
@@ -351,8 +485,22 @@ void DsTouchEngineSession::drainEvents()
             d->frameCount = event.frameNumber;
             emit frameFinished(d->frameCount);
             break;
+        case EventKind::Statistics:
+            if (d->state == DsTouchEngineTypes::State::Ready
+                && d->updateStatistics(event.statisticsCpuMemoryBytes,
+                                       event.statisticsGpuMemoryBytes,
+                                       event.statisticsCpuFrameTimeNs,
+                                       event.statisticsGpuFrameTimeNs,
+                                       event.statisticsFrames,
+                                       event.statisticsFramesDropped)) {
+                emit statisticsChanged();
+            }
+            break;
         }
     }
+
+    if (d->shared->callbackDrainPending.load(std::memory_order_acquire))
+        wakeViews();
 }
 
 } // namespace dsqt::touchengine

@@ -69,6 +69,13 @@ Item {
             compare(session.errorString, "")
             compare(session.links.length, 0)
             compare(session.frameCount, 0)
+            compare(session.cpuFrameTimeMs, 0.0)
+            compare(session.gpuFrameTimeMs, -1.0)
+            compare(session.statisticsFrames, 0)
+            compare(session.framesDropped, -1)
+            compare(session.cpuMemoryBytes, 0)
+            compare(session.gpuMemoryBytes, 0)
+            compare(session.touchDesignerVersion, "unknown")
         }
 
         function test_sessionWritablePropertiesWithoutLoadingComponent() {

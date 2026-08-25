@@ -50,6 +50,13 @@ void DsTouchEngineSessionTest::defaultsAreStable()
     QVERIFY(session.errorString().isEmpty());
     QVERIFY(session.links().isEmpty());
     QCOMPARE(session.frameCount(), quint64{0});
+    QCOMPARE(session.cpuFrameTimeMs(), 0.0);
+    QCOMPARE(session.gpuFrameTimeMs(), -1.0);
+    QCOMPARE(session.statisticsFrames(), qint64{0});
+    QCOMPARE(session.framesDropped(), qint64{-1});
+    QCOMPARE(session.cpuMemoryBytes(), qint64{0});
+    QCOMPARE(session.gpuMemoryBytes(), qint64{0});
+    QCOMPARE(session.touchDesignerVersion(), QStringLiteral("unknown"));
     QVERIFY(!session.outputValue(QStringLiteral("missing")).isValid());
 }
 
@@ -300,6 +307,8 @@ void DsTouchEngineSessionTest::runtimeEventPurgePreservesDiagnostics()
                            .state = DsTouchEngineTypes::State::Ready});
     shared.pushEvent(Event{.kind = EventKind::GraphicsApi,
                            .graphicsApi = DsTouchEngineTypes::GraphicsApi::Vulkan});
+    shared.pushEvent(Event{.kind = EventKind::ConfiguredEngine,
+                           .configuredEnginePath = QStringLiteral("C:/TouchDesigner")});
     shared.pushEvent(Event{.kind = EventKind::Links,
                            .links = QVariantList{QVariantMap{{QStringLiteral("identifier"),
                                                              QStringLiteral("old")}}}});
@@ -308,6 +317,13 @@ void DsTouchEngineSessionTest::runtimeEventPurgePreservesDiagnostics()
                            .value = 1});
     shared.pushEvent(Event{.kind = EventKind::FrameFinished,
                            .frameNumber = 42});
+    shared.pushEvent(Event{.kind = EventKind::Statistics,
+                           .statisticsCpuMemoryBytes = 1024,
+                           .statisticsGpuMemoryBytes = 2048,
+                           .statisticsCpuFrameTimeNs = 3'000'000,
+                           .statisticsGpuFrameTimeNs = 4'000'000,
+                           .statisticsFrames = 2,
+                           .statisticsFramesDropped = 1});
     shared.pushEvent(Event{.kind = EventKind::Error,
                            .message = QString(),
                            .diagnosticKey = coreDiagnosticKey()});

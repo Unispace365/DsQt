@@ -1,0 +1,1104 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Architecture, migration, diagnostics, testing, and graphics-backend stabilization of the DsQt TouchEngine integration.">
+    <title>DsQt TouchEngine Rewrite and Multi-Backend Stabilization</title>
+    <style>
+        :root {
+            color-scheme: light dark;
+            --page: #f4f7fb;
+            --surface: #ffffff;
+            --surface-muted: #eef3f8;
+            --text: #172033;
+            --muted: #526078;
+            --border: #d8e0ea;
+            --accent: #1769aa;
+            --accent-soft: #e4f1fb;
+            --code: #f1f4f8;
+            --shadow: 0 12px 32px rgba(23, 32, 51, 0.08);
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --page: #111722;
+                --surface: #182131;
+                --surface-muted: #202b3d;
+                --text: #edf3fb;
+                --muted: #afbdd0;
+                --border: #344156;
+                --accent: #75bfff;
+                --accent-soft: #183753;
+                --code: #222d3e;
+                --shadow: 0 12px 32px rgba(0, 0, 0, 0.24);
+            }
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            margin: 0;
+            background: var(--page);
+            color: var(--text);
+            font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+                "Segoe UI", sans-serif;
+            font-size: 16px;
+            line-height: 1.65;
+        }
+
+        a {
+            color: var(--accent);
+        }
+
+        a:hover {
+            text-decoration-thickness: 2px;
+        }
+
+        code {
+            border-radius: 0.3rem;
+            background: var(--code);
+            padding: 0.12rem 0.35rem;
+            font-family: "Cascadia Code", "SFMono-Regular", Consolas, monospace;
+            font-size: 0.92em;
+        }
+
+        .skip-link {
+            position: absolute;
+            left: 1rem;
+            top: -4rem;
+            z-index: 10;
+            border-radius: 0.35rem;
+            background: var(--surface);
+            padding: 0.7rem 1rem;
+        }
+
+        .skip-link:focus {
+            top: 1rem;
+        }
+
+        .hero {
+            border-bottom: 1px solid var(--border);
+            background: linear-gradient(135deg, var(--surface), var(--accent-soft));
+        }
+
+        .hero-inner {
+            width: min(1180px, calc(100% - 2rem));
+            margin: 0 auto;
+            padding: 3.5rem 0 3rem;
+        }
+
+        .eyebrow {
+            margin: 0 0 0.5rem;
+            color: var(--accent);
+            font-size: 0.78rem;
+            font-weight: 750;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+        }
+
+        h1,
+        h2,
+        h3 {
+            line-height: 1.2;
+            text-wrap: balance;
+        }
+
+        h1 {
+            max-width: 900px;
+            margin: 0;
+            font-size: clamp(2rem, 5vw, 3.8rem);
+        }
+
+        .subtitle {
+            max-width: 850px;
+            margin: 1.15rem 0 0;
+            color: var(--muted);
+            font-size: 1.1rem;
+        }
+
+        .metadata {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.6rem;
+            margin: 1.5rem 0 0;
+            padding: 0;
+            list-style: none;
+        }
+
+        .metadata li {
+            border: 1px solid var(--border);
+            border-radius: 999px;
+            background: color-mix(in srgb, var(--surface) 78%, transparent);
+            padding: 0.35rem 0.75rem;
+            color: var(--muted);
+            font-size: 0.88rem;
+        }
+
+        .page-grid {
+            display: grid;
+            grid-template-columns: minmax(220px, 280px) minmax(0, 860px);
+            gap: 2rem;
+            width: min(1180px, calc(100% - 2rem));
+            margin: 2rem auto 4rem;
+            align-items: start;
+        }
+
+        .toc {
+            position: sticky;
+            top: 1rem;
+            max-height: calc(100vh - 2rem);
+            overflow: auto;
+            border: 1px solid var(--border);
+            border-radius: 0.8rem;
+            background: var(--surface);
+            padding: 1rem;
+            box-shadow: var(--shadow);
+        }
+
+        .toc h2 {
+            margin: 0 0 0.75rem;
+            font-size: 1rem;
+        }
+
+        .toc ol {
+            margin: 0;
+            padding-left: 1.2rem;
+        }
+
+        .toc li {
+            margin: 0.32rem 0;
+            color: var(--muted);
+            font-size: 0.88rem;
+        }
+
+        .toc a {
+            color: inherit;
+            text-decoration: none;
+        }
+
+        .toc a:hover {
+            color: var(--accent);
+            text-decoration: underline;
+        }
+
+        main {
+            min-width: 0;
+            border: 1px solid var(--border);
+            border-radius: 0.8rem;
+            background: var(--surface);
+            padding: clamp(1.2rem, 3.5vw, 3rem);
+            box-shadow: var(--shadow);
+        }
+
+        section {
+            scroll-margin-top: 1.5rem;
+        }
+
+        section + section {
+            margin-top: 3.25rem;
+            padding-top: 2.5rem;
+            border-top: 1px solid var(--border);
+        }
+
+        h2 {
+            margin: 0 0 1rem;
+            font-size: clamp(1.55rem, 3vw, 2.15rem);
+        }
+
+        h3 {
+            margin: 2rem 0 0.7rem;
+            font-size: 1.2rem;
+        }
+
+        p,
+        li {
+            max-width: 78ch;
+        }
+
+        .lead {
+            color: var(--muted);
+            font-size: 1.08rem;
+        }
+
+        .callout {
+            border-left: 4px solid var(--accent);
+            border-radius: 0.35rem;
+            background: var(--accent-soft);
+            padding: 0.9rem 1rem;
+        }
+
+        .flow {
+            overflow-x: auto;
+            border: 1px solid var(--border);
+            border-radius: 0.6rem;
+            background: var(--surface-muted);
+            padding: 1rem;
+            color: var(--muted);
+            font-family: "Cascadia Code", "SFMono-Regular", Consolas, monospace;
+            white-space: nowrap;
+        }
+
+        .table-wrap {
+            overflow-x: auto;
+            margin: 1.25rem 0;
+            border: 1px solid var(--border);
+            border-radius: 0.6rem;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: var(--surface);
+            font-size: 0.94rem;
+        }
+
+        th,
+        td {
+            padding: 0.75rem 0.85rem;
+            border-bottom: 1px solid var(--border);
+            text-align: left;
+            vertical-align: top;
+        }
+
+        th {
+            background: var(--surface-muted);
+            font-weight: 700;
+        }
+
+        tr:last-child td {
+            border-bottom: 0;
+        }
+
+        footer {
+            border-top: 1px solid var(--border);
+            padding: 2rem 1rem 3rem;
+            color: var(--muted);
+            text-align: center;
+        }
+
+        @media (max-width: 860px) {
+            .page-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .toc {
+                position: static;
+                max-height: none;
+            }
+        }
+
+        @media print {
+            :root {
+                --page: #ffffff;
+                --surface: #ffffff;
+                --surface-muted: #f4f4f4;
+                --text: #000000;
+                --muted: #333333;
+                --border: #bbbbbb;
+                --accent: #000000;
+                --accent-soft: #f2f2f2;
+                --code: #f2f2f2;
+                --shadow: none;
+            }
+
+            .toc,
+            .skip-link {
+                display: none;
+            }
+
+            .hero-inner,
+            .page-grid {
+                width: 100%;
+            }
+
+            .page-grid {
+                display: block;
+                margin: 0;
+            }
+
+            main {
+                border: 0;
+                padding: 1.2rem 0;
+            }
+
+            a {
+                color: inherit;
+                text-decoration: none;
+            }
+
+            section {
+                break-inside: auto;
+            }
+
+            table,
+            .callout,
+            .flow {
+                break-inside: avoid;
+            }
+        }
+    </style>
+</head>
+<body>
+    <a class="skip-link" href="#content">Skip to content</a>
+
+    <header class="hero">
+        <div class="hero-inner">
+            <p class="eyebrow">DsQt engineering documentation</p>
+            <h1>TouchEngine Rewrite and Multi-Backend Stabilization</h1>
+            <p class="subtitle">
+                The architectural migration from the legacy manager-based integration to a
+                session-and-view QRhi module, followed by build, diagnostics, testing, and
+                graphics-backend stabilization.
+            </p>
+            <ul class="metadata" aria-label="Document metadata">
+                <li>Module: <code>Dsqt.TouchEngine</code></li>
+                <li>Platform: Windows</li>
+                <li>TouchEngine SDK: 3.3+</li>
+                <li>Backends: D3D11, D3D12, Vulkan, OpenGL</li>
+            </ul>
+        </div>
+    </header>
+
+    <div class="page-grid">
+        <nav class="toc" aria-label="Table of contents">
+            <h2>Contents</h2>
+            <ol>
+                <li><a href="#summary">Executive summary</a></li>
+                <li><a href="#why-rewrite">Why the rewrite was needed</a></li>
+                <li><a href="#goals">Architecture goals</a></li>
+                <li><a href="#architecture">Architecture after the rewrite</a></li>
+                <li><a href="#public-api">New public API</a></li>
+                <li><a href="#qml-migration">QML migration</a></li>
+                <li><a href="#threading">Threading and lifecycle</a></li>
+                <li><a href="#backends">Graphics backends</a></li>
+                <li><a href="#scheduling">Scheduling and diagnostics</a></li>
+                <li><a href="#demo">NewTouchDemo and graphics testing</a></li>
+                <li><a href="#build">Build and packaging</a></li>
+                <li><a href="#dependencies">Conditional dependencies</a></li>
+                <li><a href="#tooling">ProjectCloner and Qt Creator</a></li>
+                <li><a href="#testing">Testing strategy</a></li>
+                <li><a href="#investigation">Performance investigation</a></li>
+                <li><a href="#results">Results and validation</a></li>
+                <li><a href="#migration-map">Breaking API changes</a></li>
+                <li><a href="#remaining">Remaining work</a></li>
+                <li><a href="#conclusion">Conclusion</a></li>
+            </ol>
+        </nav>
+
+        <main id="content">
+            <section id="summary">
+                <h2>Executive summary</h2>
+                <p class="lead">
+                    The DsQt TouchEngine integration was rewritten from a collection of
+                    manager-based QML wrappers, custom texture nodes, and backend-specific
+                    renderers into a reusable Qt Quick module built around Qt's Rendering
+                    Hardware Interface (QRhi).
+                </p>
+                <p>
+                    The former API centered on <code>DsTouchEngineManager</code>, instance
+                    identifiers, <code>DsTouchEngineInstance</code>, and separate types for
+                    individual input and output categories. Applications had to coordinate
+                    manager initialization, instance creation and recreation, component loading,
+                    and view attachment.
+                </p>
+                <p>The rewrite replaces that model with three principal public types:</p>
+                <ul>
+                    <li><code>DsTouchEngineSession</code> owns the logical component and its state.</li>
+                    <li><code>DsTouchEngineView</code> displays one texture output from a session.</li>
+                    <li><code>DsTouchEngineTypes</code> supplies state, graphics, link, and timing enums.</li>
+                </ul>
+                <p>
+                    Internally, the module reuses Qt's graphics device, command queue, and context;
+                    isolates graphics work on the render thread; performs explicit native resource
+                    ownership transfers; and preserves desired session state across reloads and
+                    renderer recreation.
+                </p>
+                <p>
+                    The principal rewrite changed roughly 128 files, adding about 13,000 lines and
+                    removing about 8,500. Later work integrated the module into ClonerSource and
+                    NewTouchDemo, made Vulkan dependencies conditional for consumers, added runtime
+                    diagnostics, and corrected performance and texture-identity problems in D3D12,
+                    OpenGL, and Vulkan.
+                </p>
+            </section>
+
+            <section id="why-rewrite">
+                <h2>Why the rewrite was needed</h2>
+
+                <h3>Application-managed engine instances</h3>
+                <p>The legacy ClonerSource QML had to:</p>
+                <ol>
+                    <li>Ask <code>DsTouchEngineManager</code> to create an instance.</li>
+                    <li>Store the returned identifier.</li>
+                    <li>Retrieve a <code>DsTouchEngineInstance</code>.</li>
+                    <li>Wait for manager initialization.</li>
+                    <li>Respond when the manager recreated the instance.</li>
+                    <li>Assign the component path and invoke the old loading method.</li>
+                    <li>Pass the instance identifier to every output view.</li>
+                </ol>
+                <p>
+                    This exposed internal lifecycle mechanics to every application screen using
+                    TouchEngine.
+                </p>
+
+                <h3>Fragmented value API</h3>
+                <p>
+                    Numeric, string, table, float-buffer, and texture values used separate public
+                    QObject types, split again by input and output direction. This made simple use
+                    cases verbose and made consistent lifecycle and error handling difficult.
+                </p>
+
+                <h3>Graphics code outside Qt Quick's lifecycle</h3>
+                <p>
+                    The legacy implementation maintained custom renderer, image, texture, material,
+                    and scene-graph classes for individual graphics APIs. It was difficult to prove
+                    that TouchEngine resource operations used the same native device, queue, and
+                    lifetime boundaries as Qt Quick.
+                </p>
+
+                <h3>Unclear destruction and recreation behavior</h3>
+                <p>
+                    A logical TouchEngine component may outlive a Qt renderer, while a view may
+                    outlive its session. The old manager-and-ID design made these transitions hard
+                    for applications to reason about and test.
+                </p>
+            </section>
+
+            <section id="goals">
+                <h2>Architecture goals</h2>
+                <ul>
+                    <li>Represent each loaded component with one logical session.</li>
+                    <li>Allow any number of views to share that session.</li>
+                    <li>Remove application-visible engine instance identifiers.</li>
+                    <li>Select the TouchEngine backend from Qt's active QRhi API.</li>
+                    <li>Perform native graphics operations only on the Qt Quick render thread.</li>
+                    <li>Keep Qt-owned output textures stable across TouchEngine pool reuse.</li>
+                    <li>Make load, unload, reload, and renderer recreation deterministic.</li>
+                    <li>Expose a common API to QML and C++.</li>
+                    <li>Support scalar, string, table, float-buffer, and QML texture values.</li>
+                    <li>Provide fast tests plus optional real-GPU tests for all four backends.</li>
+                </ul>
+            </section>
+
+            <section id="architecture">
+                <h2>Architecture after the rewrite</h2>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>Layer</th><th>Responsibility</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><code>DsTouchEngineSession</code></td><td>Public state, inputs, outputs, diagnostics, and lifecycle commands.</td></tr>
+                            <tr><td>Shared state</td><td>Thread-safe commands, events, durable desired state, and renderer coordination.</td></tr>
+                            <tr><td><code>DsTouchEngineView</code> and renderer</td><td>Qt Quick presentation and QML texture-input staging.</td></tr>
+                            <tr><td><code>TouchEngineCore</code></td><td>TouchEngine instance lifecycle, callbacks, links, scheduling, and backend coordination.</td></tr>
+                            <tr><td>QRhi backend</td><td>Native texture import and export, copies, ownership transfer, and synchronization.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>Texture output flow:</p>
+                <p class="flow">TouchEngine native texture → backend import → QRhi copy → stable link-owned Qt texture → DsTouchEngineView</p>
+                <p>QML texture input flow:</p>
+                <p class="flow">QML texture provider → QRhi staging texture → backend exportable texture → TouchEngine input</p>
+                <p class="callout">
+                    TouchEngine's native texture and the texture displayed by Qt do not have the
+                    same ownership or lifetime. Keeping them separate is the central protection
+                    against output swapping and premature native-resource destruction.
+                </p>
+            </section>
+
+            <section id="public-api">
+                <h2>New public API</h2>
+
+                <h3><code>DsTouchEngineSession</code></h3>
+                <p>
+                    <code>DsTouchEngineSession</code> is a <code>QObject</code> registered in QML
+                    under the same name. It represents one logical component independently of any
+                    particular view.
+                </p>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>Property</th><th>Purpose</th></tr></thead>
+                        <tbody>
+                            <tr><td><code>componentPath</code></td><td>File-system path of the <code>.tox</code> component.</td></tr>
+                            <tr><td><code>preferredEnginePath</code></td><td>Optional preferred TouchDesigner or TouchEngine installation.</td></tr>
+                            <tr><td><code>frameRate</code></td><td>Requested automatic TouchEngine frame rate.</td></tr>
+                            <tr><td><code>timeMode</code></td><td>Selects external or internal TouchEngine time.</td></tr>
+                            <tr><td><code>running</code></td><td>Enables or pauses automatic frame production.</td></tr>
+                            <tr><td><code>state</code>, <code>loaded</code>, <code>ready</code></td><td>Report lifecycle status.</td></tr>
+                            <tr><td><code>graphicsApi</code></td><td>Reports the backend selected from Qt's active QRhi.</td></tr>
+                            <tr><td><code>errorString</code></td><td>Aggregates active session, renderer, input, and backend diagnostics.</td></tr>
+                            <tr><td><code>links</code></td><td>Describes the component's input and output links.</td></tr>
+                            <tr><td><code>frameCount</code></td><td>Counts completed TouchEngine frames.</td></tr>
+                            <tr><td><code>cpuFrameTimeMs</code>, <code>gpuFrameTimeMs</code></td><td>Expose TouchEngine frame-time statistics.</td></tr>
+                            <tr><td><code>statisticsFrames</code>, <code>framesDropped</code></td><td>Describe the current statistics sample.</td></tr>
+                            <tr><td><code>cpuMemoryBytes</code>, <code>gpuMemoryBytes</code></td><td>Expose TouchEngine memory statistics.</td></tr>
+                            <tr><td><code>touchEngineLibraryVersion</code></td><td>Reports the loaded <code>TouchEngine.dll</code> product version.</td></tr>
+                            <tr><td><code>touchDesignerVersion</code></td><td>Reports the selected TouchDesigner engine product version.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>The QML-callable operations are:</p>
+                <ul>
+                    <li><code>load()</code>, <code>unload()</code>, and <code>reload()</code></li>
+                    <li><code>requestFrame()</code></li>
+                    <li><code>setInputValue(link, value)</code> and <code>clearInputValue(link)</code></li>
+                    <li><code>outputValue(link)</code></li>
+                    <li><code>setTextureInput(link, sourceItem)</code> and <code>clearTextureInput(link)</code></li>
+                </ul>
+
+                <h3><code>DsTouchEngineView</code></h3>
+                <p>
+                    <code>DsTouchEngineView</code> derives from <code>QQuickRhiItem</code>. Its
+                    <code>session</code> property selects the session, <code>outputLink</code>
+                    selects the texture output, and <code>clearColor</code> supplies the background
+                    when no output is available.
+                </p>
+                <p>
+                    The session is stored through <code>QPointer</code>. Destroying a live session
+                    clears the view reference instead of leaving a dangling pointer.
+                </p>
+
+                <h3><code>DsTouchEngineTypes</code></h3>
+                <p>
+                    This type is exposed to QML as the uncreatable <code>DsTouchEngine</code> enum
+                    container. It supplies session states, graphics APIs, time modes, link scopes,
+                    and link data types.
+                </p>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>State</th><th>Meaning</th></tr></thead>
+                        <tbody>
+                            <tr><td><code>Idle</code></td><td>No active component operation.</td></tr>
+                            <tr><td><code>WaitingForRenderer</code></td><td>A load is requested, but no usable QRhi renderer is attached.</td></tr>
+                            <tr><td><code>Configuring</code></td><td>The TouchEngine instance and graphics context are being configured.</td></tr>
+                            <tr><td><code>Loading</code></td><td>The component is loading.</td></tr>
+                            <tr><td><code>Ready</code></td><td>The component can process frames and links.</td></tr>
+                            <tr><td><code>Unloading</code></td><td>The component or instance is being released.</td></tr>
+                            <tr><td><code>Error</code></td><td>A non-recoverable operation failed.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section id="qml-migration">
+                <h2>QML migration</h2>
+                <h3>Previous ClonerSource design</h3>
+                <p>
+                    The old <code>TouchDesigner.qml</code> created an instance through the manager,
+                    stored its ID, retrieved an engine object, listened for manager initialization
+                    and recreation, loaded the component, and declared four nearly identical output
+                    views.
+                </p>
+
+                <h3>Rewritten design</h3>
+                <p>
+                    The rewritten component creates one <code>DsTouchEngineSession</code> with a
+                    component path, a requested 60 FPS frame rate, and automatic running enabled.
+                    It calls <code>load()</code> on completion.
+                </p>
+                <p>
+                    A <code>Repeater</code> creates four <code>DsTouchEngineView</code> objects for
+                    <code>op/out1</code> through <code>op/out4</code>. Every view shares the same
+                    session but selects a different output link. The screen displays
+                    <code>errorString</code> when loading, rendering, or backend operations fail.
+                </p>
+
+                <h3>Compatibility type</h3>
+                <p>
+                    <code>DsTouchEngineTextureView.qml</code> remains as an alias for
+                    <code>DsTouchEngineView</code>. It preserves the old type name for limited
+                    source compatibility, but it does not restore the former
+                    <code>instanceId</code> or <code>autoUpdate</code> contract.
+                </p>
+            </section>
+
+            <section id="threading">
+                <h2>Threading, ownership, and lifecycle</h2>
+
+                <h3>Application thread</h3>
+                <p>
+                    <code>DsTouchEngineSession</code> owns the public QObject and QML state. Its
+                    setters update durable desired state and enqueue commands instead of issuing
+                    native graphics operations directly.
+                </p>
+
+                <h3>Qt Quick render thread</h3>
+                <p>
+                    <code>DsTouchEngineView</code> creates a <code>QQuickRhiItemRenderer</code>. The
+                    renderer receives Qt's current <code>QRhi</code> and command buffer, stages QML
+                    texture inputs, asks the core to process work, draws the selected stable output,
+                    and finalizes native transfers after the frame ends.
+                </p>
+
+                <h3>TouchEngine callbacks</h3>
+                <p>
+                    TouchEngine callbacks enqueue lightweight records under a mutex. They do not
+                    mutate QML objects or issue graphics commands. A callback-drain flag wakes the
+                    views so state and statistics records are not left pending when no other visual
+                    change requests a frame.
+                </p>
+
+                <h3>Load and renderer attachment</h3>
+                <p>
+                    A load requested before a renderer exists enters
+                    <code>WaitingForRenderer</code>. When a view supplies an active QRhi, the core
+                    creates the matching backend, creates the TouchEngine instance, associates its
+                    graphics context, and loads the component.
+                </p>
+
+                <h3>Unload and reload</h3>
+                <p>
+                    Unload stops new work, observes the TouchEngine lifecycle callbacks, releases
+                    the component and instance, clears runtime link state, and resets backend state
+                    belonging to that instance. Releasing the <code>TEInstance</code> is the callback
+                    lifetime fence.
+                </p>
+                <p>
+                    Reload performs a controlled unload followed by a fresh instance load. Durable
+                    configuration and input state are replayed. Backend caches tied to the old
+                    native texture pool are cleared at this boundary.
+                </p>
+
+                <h3>Renderer recreation</h3>
+                <p>
+                    Qt may recreate its scene graph while the public session remains alive. Desired
+                    application state stays in shared storage; the old render-side resources are
+                    released, and the replacement renderer creates a new backend and replays that
+                    state.
+                </p>
+            </section>
+
+            <section id="backends">
+                <h2>Graphics backends</h2>
+                <p>
+                    <code>TouchEngineRhiBackend</code> defines one contract for D3D11, D3D12,
+                    Vulkan, and OpenGL. It initializes against Qt's QRhi, supplies a TouchEngine
+                    graphics context, negotiates capabilities, stages inputs, imports and copies
+                    outputs, maintains stable per-link caches, and finalizes transfers after the
+                    Qt frame ends.
+                </p>
+
+                <h3>D3D11</h3>
+                <p>
+                    D3D11 proved to be the most stable initial implementation and became the control
+                    backend. It demonstrated that the test component, session scheduler, and QML
+                    presentation could operate without progressive slowdown.
+                </p>
+
+                <h3>D3D12</h3>
+                <p>
+                    The first D3D12 path repeatedly opened native shared texture and fence handles.
+                    This caused native object and wrapper churn. Texture imports now cache the
+                    TouchEngine texture identity, NT handle, <code>ID3D12Resource</code>, QRhi
+                    wrapper, dimensions, format, and last-use serial. Fence imports similarly cache
+                    the TouchEngine semaphore, handle, and <code>ID3D12Fence</code>.
+                </p>
+                <p>
+                    Texture and fence caches are bounded to 32 and 16 entries. Pending and retired
+                    transfers retain shared ownership so in-flight resources cannot be pruned. When
+                    a new TouchEngine instance is configured, reusable caches are cleared while
+                    retired GPU work keeps only the objects it still needs.
+                </p>
+
+                <h3>OpenGL</h3>
+                <p>
+                    On Windows, TouchEngine can supply a D3D shared texture while Qt uses OpenGL.
+                    The backend converts that source through <code>TEOpenGLContextGetTexture</code>,
+                    locks it, copies it, and later unlocks it.
+                </p>
+                <p>
+                    The original path flushed and unlocked every output independently. The final
+                    path records all pending unlocks, performs one flush after the frame, unlocks the
+                    batch, and publishes the stable output caches. A cross-frame conversion cache
+                    was tested and removed after a later reload hung.
+                </p>
+
+                <h3>Vulkan</h3>
+                <p>
+                    Vulkan reuses Qt's <code>VkInstance</code>, physical device, logical device,
+                    graphics queue, queue family, and command buffer. The backend enables the
+                    external-memory and external-semaphore extensions required by TouchEngine.
+                </p>
+                <p>
+                    The four-output test exposed link swapping because an imported native resource
+                    could become associated with whichever output link most recently supplied it.
+                    Imported resources are now keyed by native TouchEngine and Vulkan identity,
+                    while every output link retains a stable Qt-side texture. Ambiguous reuse of one
+                    native source through multiple links in the same frame is deferred, preserving
+                    the affected link's previous stable frame.
+                </p>
+                <p>
+                    Binary TouchEngine waits and signals are composed into Qt's existing Vulkan
+                    queue submission, and ownership and layout barriers are recorded in Qt's command
+                    buffer. Timeline-semaphore cases retain a native-submit fallback. Host-return
+                    binary semaphores are cached per imported texture and reused only after the same
+                    texture has returned from TouchEngine, proving the previous signal was consumed.
+                </p>
+                <p>
+                    The <code>dsqt.touchengine.vulkan.mapping</code> logging category records link,
+                    TouchEngine object, external handle, <code>VkImage</code>, Qt cache, and frame
+                    slot to support future identity investigations.
+                </p>
+            </section>
+
+            <section id="scheduling">
+                <h2>Frame scheduling and runtime diagnostics</h2>
+
+                <h3>Scheduler correction</h3>
+                <p>
+                    The initial scheduler restarted a full interval from the current time whenever
+                    a frame was late. Repeated small delays could therefore reduce the achieved
+                    TouchEngine rate. The revised scheduler keeps the original phase and advances by
+                    whole elapsed intervals until the next target is in the future.
+                </p>
+                <p>
+                    TouchEngine still depends on Qt render-thread opportunities for GPU work and
+                    callback draining, but ordinary lateness no longer adds an unnecessary extra
+                    interval. <code>requestFrame()</code> remains available for manual operation.
+                </p>
+
+                <h3>TouchEngine statistics</h3>
+                <p>
+                    Qt presentation FPS can remain high while TouchEngine completes frames more
+                    slowly. The module registers <code>TEInstanceSetStatisticsCallback</code> and
+                    exposes CPU and GPU frame time, measured frames, dropped frames, and CPU and GPU
+                    memory. Statistics reset when the session leaves <code>Ready</code>.
+                </p>
+
+                <h3>Runtime versions</h3>
+                <p>
+                    On Windows, the session locates the loaded <code>TouchEngine.dll</code> module
+                    and reads its product-version metadata. This reports the DLL actually loaded by
+                    the process.
+                </p>
+                <p>
+                    After TouchEngine configuration, the core calls
+                    <code>TEInstanceGetConfiguredEnginePath</code>. The session reads the product
+                    version from <code>TouchDesigner.exe</code>, with
+                    <code>bin/TouchEngine.exe</code> as a fallback.
+                </p>
+            </section>
+
+            <section id="demo">
+                <h2>NewTouchDemo and graphics testing</h2>
+                <p>
+                    NewTouchDemo was migrated to the session-and-view API and became the primary
+                    interactive graphics test application. It currently loads
+                    <code>four_out10.tox</code> and displays <code>op/out1</code> through
+                    <code>op/out4</code>.
+                </p>
+
+                <h3>F3 diagnostics</h3>
+                <p>Pressing F3 toggles an overlay containing:</p>
+                <ul>
+                    <li>Qt presentation FPS</li>
+                    <li>TouchEngine completed-frame FPS</li>
+                    <li>TouchEngine CPU and GPU frame time</li>
+                    <li>Dropped and measured frame counts</li>
+                    <li>CPU and GPU memory usage</li>
+                    <li>Loaded TouchEngine SDK DLL version</li>
+                    <li>Configured TouchDesigner engine version</li>
+                </ul>
+
+                <h3>Graphics API and color depth</h3>
+                <p>
+                    <code>DSQT_GRAPHICS_API</code>, with <code>QSG_RHI_BACKEND</code> as a fallback,
+                    selects <code>d3d11</code>, <code>d3d12</code>, <code>vulkan</code>, or
+                    <code>opengl</code>. D3D12 is the default. <code>DSQT_COLOR_DEPTH</code> accepts
+                    8 or 10, with 10 as the current default.
+                </p>
+                <p>
+                    The application logs the requested and active API, requested and effective bit
+                    depth, and actual surface channel sizes. OpenGL treats a requested 10-bit mode
+                    as effectively 8-bit in the current test configuration.
+                </p>
+
+                <h3>Ten-bit output and HDR</h3>
+                <p class="callout">
+                    Ten-bit transport and HDR color correctness are separate. Correct HDR10 output
+                    also requires the source, renderer, swapchain, and display to agree on transfer
+                    function, primaries, and tone mapping. The observed oversaturation is therefore
+                    not the same problem as backend synchronization or texture identity.
+                </p>
+            </section>
+
+            <section id="build">
+                <h2>Build and packaging rewrite</h2>
+
+                <h3>SDK layout and version gate</h3>
+                <p>The SDK now resides under <code>Library/DsQt/TouchEngine/sdk</code>:</p>
+                <ul>
+                    <li><code>include</code> contains TouchEngine headers.</li>
+                    <li><code>lib</code> contains the import library.</li>
+                    <li><code>bin</code> contains the runtime DLL.</li>
+                    <li>The license and SDK change history are packaged with the module.</li>
+                </ul>
+                <p>
+                    Configuration checks for <code>TEInstanceLinkGetChoices</code>, introduced with
+                    TouchEngine 3.3, and fails early when the SDK payload is incomplete or stale.
+                </p>
+
+                <h3>Static QML module and shaders</h3>
+                <p>
+                    The module is built with <code>qt_add_qml_module</code> under the URI
+                    <code>Dsqt.TouchEngine</code>. Checked-in compiled shader files and standalone
+                    shader scripts were removed. <code>qt_add_shaders</code> now produces the QRhi
+                    variants using the Qt version performing the build.
+                </p>
+
+                <h3>Installed target graph</h3>
+                <p>
+                    A static Qt QML module includes resource objects, plugin initialization, shader
+                    resources, and generated object libraries in addition to its primary archive.
+                    The install exports that complete target graph through
+                    <code>DsqtTouchEngineTargets.cmake</code>.
+                </p>
+
+                <h3>Configuration-specific runtime</h3>
+                <p>
+                    TouchEngine runtime and import libraries install into Debug, Release, and
+                    RelWithDebInfo directories. MinSizeRel maps to Release, and consuming
+                    applications copy the matching DLL beside their executable.
+                </p>
+            </section>
+
+            <section id="dependencies">
+                <h2>Conditional TouchEngine and Vulkan dependencies</h2>
+                <p>
+                    An application requesting only <code>Dsqt::Core</code> should not need to find
+                    Vulkan or inspect TouchEngine targets. The installed package now creates those
+                    targets only when TouchEngine is requested. TouchEngine itself requires Vulkan
+                    because its static module contains the Vulkan backend.
+                </p>
+                <p>
+                    ClonerSource provides <code>DS_APP_ENABLE_TOUCHENGINE</code> and
+                    <code>DS_APP_ENABLE_SPOUT</code>, both defaulting to <code>OFF</code>. When
+                    TouchEngine is disabled, its QML file, plugin import, libraries, runtime copy,
+                    and vcpkg feature are all omitted.
+                </p>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>vcpkg feature</th><th>Additional dependency</th></tr></thead>
+                        <tbody>
+                            <tr><td><code>touchengine</code></td><td>Vulkan</td></tr>
+                            <tr><td><code>spout</code></td><td>Vulkan</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>
+                    CMake selects manifest features before <code>project()</code>, when vcpkg first
+                    resolves the manifest. A no-components package lookup still represents the
+                    all-modules umbrella and therefore requires every included module dependency.
+                </p>
+            </section>
+
+            <section id="tooling">
+                <h2>ProjectCloner and Qt Creator configuration</h2>
+                <p>
+                    Qt Creator reported that no CMake configuration matched the available Debug,
+                    Release, and RelWithDebInfo configurations. The generated preset mixed
+                    single-config assumptions with Qt Creator's selected build type.
+                </p>
+                <p>
+                    ProjectCloner now generates a Ninja Multi-Config configure preset with those
+                    three configurations and separate build presets for each one. It also detects
+                    Qt installations, Visual Studio 2019/2022/2026 through <code>vswhere</code>, and
+                    Ninja from <code>PATH</code>, Qt, or Visual Studio.
+                </p>
+                <p><code>build_and_install.bat</code> was updated to:</p>
+                <ul>
+                    <li>Preserve an explicitly configured standalone <code>VCPKG_ROOT</code>.</li>
+                    <li>Bootstrap the vcpkg executable when scripts require a newer version.</li>
+                    <li>Detect a build cache created with a different vcpkg toolchain.</li>
+                    <li>Resolve and log the Ninja executable.</li>
+                    <li>Clear stale vcpkg PowerShell cache paths.</li>
+                    <li>Support <code>-force-install</code> after an otherwise no-op build.</li>
+                </ul>
+            </section>
+
+            <section id="testing">
+                <h2>Testing strategy</h2>
+
+                <h3>Fast tests</h3>
+                <p>
+                    C++ tests cover session defaults, property changes, commands, link metadata,
+                    input validation, event purging, lifecycle behavior, statistics, and versions.
+                    QML tests verify type registration, enums, writable properties, read-only
+                    defaults, invokable methods, statistics, and version properties.
+                </p>
+
+                <h3>Installed-package test</h3>
+                <p>
+                    A small consumer verifies that the installed static QML module can be found,
+                    linked, imported, and executed with its generated plugin and resource targets.
+                </p>
+
+                <h3>Real texture-input test</h3>
+                <p>
+                    The input test creates a QML texture source, publishes it to TouchEngine,
+                    receives the processed output, and captures the result under D3D11, D3D12,
+                    Vulkan, and OpenGL.
+                </p>
+
+                <h3>Multi-output lifecycle test</h3>
+                <p>The expanded real-GPU test:</p>
+                <ul>
+                    <li>Finds every texture output.</li>
+                    <li>Creates one view per output and arranges the views in a grid.</li>
+                    <li>Measures 30 completed TouchEngine frames per epoch.</li>
+                    <li>Runs an initial load plus three reload cycles.</li>
+                    <li>Changes the window size between epochs.</li>
+                    <li>Captures three images per epoch.</li>
+                    <li>Records backend, API, outputs, frames, elapsed time, and FPS.</li>
+                    <li>Destroys the live session and confirms that every view detaches safely.</li>
+                </ul>
+
+                <h3>Texture-identity regression check</h3>
+                <p>
+                    Each captured tile is sampled into a mean RGB signature. Later captures are
+                    compared with the first capture in the same epoch. The test reports a failure
+                    only when visually distinct outputs confidently cross to different links. If
+                    the outputs are too similar, it skips the identity conclusion instead of
+                    producing an unreliable result.
+                </p>
+            </section>
+
+            <section id="investigation">
+                <h2>Performance investigation process</h2>
+                <ol>
+                    <li><strong>Measure Qt and TouchEngine separately.</strong> The F3 overlay showed that Qt could remain at 60 or 90 FPS while TouchEngine declined.</li>
+                    <li><strong>Check display and VSync behavior.</strong> Changing presentation timing did not prevent TouchEngine degradation.</li>
+                    <li><strong>Use Release builds.</strong> Release reproduced the problem, ruling out Debug overhead as the primary cause.</li>
+                    <li><strong>Compare APIs.</strong> D3D11 remained stable enough to serve as the control.</li>
+                    <li><strong>Stress four outputs.</strong> <code>four_out10.tox</code> amplified per-output synchronization and native-pool behavior.</li>
+                    <li><strong>Add reload cycles.</strong> This exposed caches that retained objects across instance boundaries.</li>
+                    <li><strong>Capture output identity.</strong> Performance measurements alone could not detect Vulkan link swapping.</li>
+                    <li><strong>Retain only lifecycle-safe optimizations.</strong> The unsafe OpenGL cache was removed; D3D12 caches were scoped to one instance; Vulkan semaphore reuse was retained only after its lifecycle could be proven.</li>
+                </ol>
+            </section>
+
+            <section id="results">
+                <h2>Results and validation</h2>
+                <p>
+                    The values below come from the four-output stress test. They are intended for
+                    backend and lifecycle comparison, not as maximum interactive frame rates.
+                </p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>Backend</th><th>Initial</th><th>Reload 1</th><th>Reload 2</th><th>Reload 3</th><th>Range</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>D3D11 control</td><td>20.1</td><td>21.0</td><td>21.8</td><td>19.4</td><td>19.4–21.8</td></tr>
+                            <tr><td>Vulkan</td><td>24.1</td><td>20.1</td><td>27.3</td><td>20.2</td><td>20.1–27.3</td></tr>
+                            <tr><td>D3D12</td><td>20.0</td><td>21.1</td><td>17.6</td><td>18.9</td><td>17.6–21.1</td></tr>
+                            <tr><td>OpenGL</td><td>12.3</td><td>12.9</td><td>14.1</td><td>14.0</td><td>12.3–14.1</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <ul>
+                    <li>Vulkan performs within or above the D3D11 control range in this harness.</li>
+                    <li>Vulkan produced no detected cross-link permutations in the final captures.</li>
+                    <li>D3D12 no longer declines monotonically after every reload.</li>
+                    <li>OpenGL remains slower but stable across reloads.</li>
+                    <li>Every backend completed session-detachment validation.</li>
+                </ul>
+                <p>
+                    The Release TouchEngine module and real-GPU test built successfully. The
+                    TouchEngine types, session, and QML tests all passed, completing in about
+                    0.70 seconds. NewTouchDemo was rebuilt against the installed module and tested
+                    interactively with Vulkan, 10-bit configuration, <code>four_out10.tox</code>,
+                    and the F3 overlay.
+                </p>
+            </section>
+
+            <section id="migration-map">
+                <h2>Breaking API changes</h2>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>Legacy API</th><th>Replacement</th></tr></thead>
+                        <tbody>
+                            <tr><td><code>DsTouchEngineManager</code></td><td>No manager is required.</td></tr>
+                            <tr><td>Manager-created instance ID</td><td>Direct <code>DsTouchEngineSession</code> reference.</td></tr>
+                            <tr><td><code>DsTouchEngineInstance</code></td><td><code>DsTouchEngineSession</code>.</td></tr>
+                            <tr><td><code>loadComponent()</code></td><td><code>load()</code>.</td></tr>
+                            <tr><td>Manager recreation signals</td><td>Session-managed <code>reload()</code> and renderer recovery.</td></tr>
+                            <tr><td>View <code>instanceId</code></td><td>View <code>session</code>.</td></tr>
+                            <tr><td>View <code>autoUpdate</code></td><td>Session <code>running</code> and render-loop coordination.</td></tr>
+                            <tr><td>Per-type scalar wrappers</td><td><code>setInputValue()</code>, <code>clearInputValue()</code>, and <code>outputValue()</code>.</td></tr>
+                            <tr><td>Legacy texture-input wrapper</td><td><code>setTextureInput()</code> and <code>clearTextureInput()</code>.</td></tr>
+                            <tr><td>Custom output texture node</td><td><code>DsTouchEngineView</code> based on <code>QQuickRhiItem</code>.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section id="remaining">
+                <h2>Remaining work</h2>
+
+                <h3>OpenGL performance</h3>
+                <p>
+                    OpenGL is stable but remains slower than the native D3D and Vulkan paths on
+                    Windows. Further improvement requires a lifecycle-safe reduction in the
+                    D3D-to-OpenGL conversion cost.
+                </p>
+
+                <h3>HDR color management</h3>
+                <p>
+                    The application can request a 10-bit surface, but correct HDR10 output still
+                    requires an explicit policy for swapchain color space, transfer function,
+                    primaries, texture encoding, SDR conversion, tone mapping, and display state.
+                </p>
+
+                <h3>Longer endurance tests</h3>
+                <p>
+                    A longer mode could record moving-average FPS, worst frame time, cache sizes,
+                    pending and retired transfer counts, GPU-memory growth, callback continuity,
+                    and texture-identity failures over dozens of reloads.
+                </p>
+
+                <h3>Additional link types</h3>
+                <p>
+                    New TouchDesigner data categories should extend the common session API rather
+                    than reintroducing one public QObject class per data type.
+                </p>
+            </section>
+
+            <section id="conclusion">
+                <h2>Conclusion</h2>
+                <p>
+                    This work began as a full architectural rewrite, not a narrow Vulkan or
+                    frame-rate patch. The manager, instance-ID, custom renderer, and per-type
+                    wrapper system was replaced by a session-and-view API built around QRhi and
+                    <code>QQuickRhiItem</code>.
+                </p>
+                <p>
+                    That foundation made the later backend corrections possible: D3D12 imports are
+                    reused without retaining obsolete instance pools; OpenGL output synchronization
+                    is batched without an unsafe conversion cache; Vulkan synchronization is
+                    composed with Qt's submission; Vulkan return semaphores are safely reused; and
+                    stable link-owned display textures prevent TouchEngine pool reuse from swapping
+                    outputs.
+                </p>
+                <p>
+                    The result is both a replacement public API and a more rigorous graphics,
+                    lifecycle, packaging, diagnostics, and testing foundation for future
+                    TouchDesigner work in DsQt.
+                </p>
+            </section>
+        </main>
+    </div>
+
+    <footer>
+        DsQt TouchEngine engineering documentation
+    </footer>
+</body>
+</html>

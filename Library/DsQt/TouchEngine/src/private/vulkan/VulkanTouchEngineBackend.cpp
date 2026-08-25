@@ -22,6 +22,7 @@
 
 #include <QDebug>
 #include <QHash>
+#include <QLoggingCategory>
 #include <QMutex>
 #include <QMutexLocker>
 #include <QStringList>
@@ -47,6 +48,10 @@
 
 namespace dsqt::touchengine::detail {
 namespace {
+
+Q_LOGGING_CATEGORY(lcTouchEngineVulkanMapping,
+                   "dsqt.touchengine.vulkan.mapping",
+                   QtWarningMsg)
 
 constexpr VkExternalMemoryHandleTypeFlagBits kMemoryHandleType =
     VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT;
@@ -198,24 +203,31 @@ bool vkToRhiFormat(VkFormat vkFormat,
     }
 }
 
-class QueueSignalRegistry
+class QueueSubmitRegistry
 {
 public:
-    static void add(QRhi *rhi, VkSemaphore semaphore)
+    static void addSignal(QRhi *rhi, VkSemaphore semaphore)
     {
         QMutexLocker lock(&mutex());
         auto &entries = registryEntries()[rhi];
-        entries.push_back(semaphore);
-
-        QRhiVulkanQueueSubmitParams params = {};
-        params.signalSemaphoreCount = uint32_t(entries.size());
-        params.signalSemaphores = entries.data();
-        rhi->setQueueSubmitParams(&params);
+        entries.signalSemaphores.push_back(semaphore);
+        apply(rhi, entries);
     }
 
-    static void remove(QRhi *rhi, const std::vector<VkSemaphore> &owned)
+    static void addWaitAndSignal(QRhi *rhi, VkSemaphore semaphore)
     {
-        if (!rhi || owned.empty())
+        QMutexLocker lock(&mutex());
+        auto &entries = registryEntries()[rhi];
+        entries.waitSemaphores.push_back(semaphore);
+        entries.signalSemaphores.push_back(semaphore);
+        apply(rhi, entries);
+    }
+
+    static void remove(QRhi *rhi,
+                       const std::vector<VkSemaphore> &ownedWaits,
+                       const std::vector<VkSemaphore> &ownedSignals)
+    {
+        if (!rhi || (ownedWaits.empty() && ownedSignals.empty()))
             return;
 
         QMutexLocker lock(&mutex());
@@ -224,22 +236,40 @@ public:
             return;
 
         auto &entries = it.value();
-        for (VkSemaphore semaphore : owned)
-            entries.removeAll(semaphore);
-        if (entries.isEmpty())
+        for (VkSemaphore semaphore : ownedWaits)
+            entries.waitSemaphores.removeAll(semaphore);
+        for (VkSemaphore semaphore : ownedSignals)
+            entries.signalSemaphores.removeAll(semaphore);
+        if (entries.waitSemaphores.isEmpty() && entries.signalSemaphores.isEmpty())
             registryEntries().erase(it);
     }
 
 private:
+    struct Entries
+    {
+        QVector<VkSemaphore> waitSemaphores;
+        QVector<VkSemaphore> signalSemaphores;
+    };
+
+    static void apply(QRhi *rhi, Entries &entries)
+    {
+        QRhiVulkanQueueSubmitParams params = {};
+        params.waitSemaphoreCount = uint32_t(entries.waitSemaphores.size());
+        params.waitSemaphores = entries.waitSemaphores.data();
+        params.signalSemaphoreCount = uint32_t(entries.signalSemaphores.size());
+        params.signalSemaphores = entries.signalSemaphores.data();
+        rhi->setQueueSubmitParams(&params);
+    }
+
     static QMutex &mutex()
     {
         static QMutex value;
         return value;
     }
 
-    static QHash<QRhi *, QVector<VkSemaphore>> &registryEntries()
+    static QHash<QRhi *, Entries> &registryEntries()
     {
-        static QHash<QRhi *, QVector<VkSemaphore>> value;
+        static QHash<QRhi *, Entries> value;
         return value;
     }
 };
@@ -353,6 +383,14 @@ struct VulkanTouchEngineBackend::Impl
         InputEntry *currentPublished = nullptr;
     };
 
+    struct HostSignal
+    {
+        VkSemaphore native = VK_NULL_HANDLE;
+        TouchObject<TEVulkanSemaphore> textureTransfer;
+        int frameSlot = -1;
+        bool reused = false;
+    };
+
     struct ImportedOutput
     {
         NativeImage native;
@@ -361,7 +399,7 @@ struct VulkanTouchEngineBackend::Impl
         quint64 instanceGeneration = 0;
         VkExternalMemoryHandleTypeFlagBits handleType = kMemoryHandleType;
         OutputReleaseState *lifetime = nullptr;
-        QString link;
+        HostSignal cachedReturnSignal;
         int lastUsedFrameSlot = -1;
         bool purgeRequested = false;
         bool nativeRetirementPending = false;
@@ -382,13 +420,6 @@ struct VulkanTouchEngineBackend::Impl
         QRhiTexture::Format format = QRhiTexture::UnknownFormat;
         QRhiTexture::Flags flags;
         bool mirrorVertically = false;
-    };
-
-    struct HostSignal
-    {
-        VkSemaphore native = VK_NULL_HANDLE;
-        TouchObject<TEVulkanSemaphore> textureTransfer;
-        int frameSlot = -1;
     };
 
     struct PendingInput
@@ -446,6 +477,7 @@ struct VulkanTouchEngineBackend::Impl
     std::vector<OutputRecord> outputs;
     std::vector<PendingInput> pendingInputs;
     std::vector<PendingOutput> pendingOutputs;
+    std::vector<VkSemaphore> frameWaits;
     std::vector<VkSemaphore> frameSignals;
     quint64 instanceGeneration = 1;
 
@@ -582,6 +614,18 @@ struct VulkanTouchEngineBackend::Impl
         imported->lifetime = nullptr;
     }
 
+    void destroyCachedReturnSignal(ImportedOutput *imported)
+    {
+        if (!imported)
+            return;
+        imported->cachedReturnSignal.textureTransfer.reset();
+        if (imported->cachedReturnSignal.native)
+            vkDestroySemaphore(device, imported->cachedReturnSignal.native, nullptr);
+        imported->cachedReturnSignal.native = VK_NULL_HANDLE;
+        imported->cachedReturnSignal.frameSlot = -1;
+        imported->cachedReturnSignal.reused = false;
+    }
+
     bool importHasPendingUse(const ImportedOutput *imported) const
     {
         return std::any_of(pendingOutputs.begin(), pendingOutputs.end(),
@@ -627,6 +671,7 @@ struct VulkanTouchEngineBackend::Impl
                 if (!importHasNative(imported)) {
                     imported->purgeRequested = false;
                     if (teReleased) {
+                        destroyCachedReturnSignal(imported);
                         releaseImportedState(imported);
                         it = importedOutputs.erase(it);
                     } else {
@@ -655,12 +700,10 @@ struct VulkanTouchEngineBackend::Impl
         }
     }
 
-    void requestImportPurge(const QString &link)
+    void requestImportPurge()
     {
-        for (const auto &imported : importedOutputs) {
-            if (link.isEmpty() || imported->link == link)
-                imported->purgeRequested = true;
-        }
+        for (const auto &imported : importedOutputs)
+            imported->purgeRequested = true;
     }
 
     bool purgeRequestedImportsOutsideFrame(QString *error)
@@ -727,6 +770,7 @@ struct VulkanTouchEngineBackend::Impl
 
             if (importWasReleased(imported) && !imported->nativeRetirementPending
                 && !importHasNative(imported)) {
+                destroyCachedReturnSignal(imported);
                 releaseImportedState(imported);
                 it = importedOutputs.erase(it);
             } else {
@@ -916,6 +960,7 @@ struct VulkanTouchEngineBackend::Impl
                                        VkAccessFlags destinationAccess,
                                        VkPipelineStageFlags destinationStage,
                                        bool transferQueueOwnership,
+                                       QRhiCommandBuffer *qtCommandBuffer,
                                        QString *error)
     {
         VkSemaphore importedSemaphore = VK_NULL_HANDLE;
@@ -927,6 +972,55 @@ struct VulkanTouchEngineBackend::Impl
             vkDestroySemaphore(device, importedSemaphore, nullptr);
             return TextureAcquireResult::Error;
         }
+
+        const VkSemaphoreType semaphoreType = TEVulkanSemaphoreGetType(teSemaphore);
+        if (semaphoreType == VK_SEMAPHORE_TYPE_BINARY && qtCommandBuffer) {
+            // Fold the TouchEngine acquire into Qt's existing submit. With several texture
+            // outputs this replaces one native queue submission per output with a single
+            // set of waits and barriers on the Qt command buffer.
+            qtCommandBuffer->beginExternal();
+            const auto *handles = static_cast<const QRhiVulkanCommandBufferNativeHandles *>(
+                qtCommandBuffer->nativeHandles());
+            if (!handles || !handles->commandBuffer) {
+                qtCommandBuffer->endExternal();
+                vkDestroySemaphore(device, importedSemaphore, nullptr);
+                fail(error,
+                     QStringLiteral("Qt did not expose its Vulkan command buffer for a "
+                                    "TouchEngine acquire"));
+                return TextureAcquireResult::Error;
+            }
+
+            VkImageMemoryBarrier barrier = {};
+            barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+            barrier.srcAccessMask = 0;
+            barrier.dstAccessMask = destinationAccess;
+            barrier.oldLayout = oldLayout;
+            barrier.newLayout = newLayout;
+            const bool useExternalQueueFamily = ownershipTransfer && transferQueueOwnership;
+            barrier.srcQueueFamilyIndex = useExternalQueueFamily ? VK_QUEUE_FAMILY_EXTERNAL
+                                                                 : VK_QUEUE_FAMILY_IGNORED;
+            barrier.dstQueueFamilyIndex = useExternalQueueFamily ? queueFamily
+                                                                 : VK_QUEUE_FAMILY_IGNORED;
+            barrier.image = native->image;
+            barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+            barrier.subresourceRange.levelCount = 1;
+            barrier.subresourceRange.layerCount = 1;
+            vkCmdPipelineBarrier(handles->commandBuffer,
+                                 VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+                                 destinationStage,
+                                 0, 0, nullptr, 0, nullptr, 1, &barrier);
+            qtCommandBuffer->endExternal();
+
+            // TouchEngine's binary-semaphore contract requires re-signaling the imported
+            // semaphore after waiting. Both operations therefore belong to the same Qt
+            // submission that contains the acquire barrier and texture copy.
+            attachWaitAndSignal(importedSemaphore);
+            slot->retiredSemaphores.push_back(importedSemaphore);
+            native->layout = newLayout;
+            native->wrapper->setNativeLayout(int(newLayout));
+            return TextureAcquireResult::Acquired;
+        }
+
         VkCommandBuffer commandBuffer = nextNativeCommandBuffer(slot, error);
         if (!commandBuffer) {
             vkDestroySemaphore(device, importedSemaphore, nullptr);
@@ -973,7 +1067,6 @@ struct VulkanTouchEngineBackend::Impl
         // The imported semaphore orders the entire acquire submission, including
         // the layout/ownership barrier itself, after TouchEngine's release.
         const VkPipelineStageFlags waitStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-        const VkSemaphoreType semaphoreType = TEVulkanSemaphoreGetType(teSemaphore);
         VkSubmitInfo submitInfo = {};
         submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
         submitInfo.waitSemaphoreCount = 1;
@@ -1010,6 +1103,7 @@ struct VulkanTouchEngineBackend::Impl
     TextureAcquireResult acquireFromTouchEngine(TEInstance *instance,
                                                 TETexture *texture,
                                                 NativeImage *native,
+                                                QRhiCommandBuffer *commandBuffer,
                                                 QString *error)
     {
         if (!TEInstanceHasVulkanTextureTransfer(instance, texture)) {
@@ -1046,6 +1140,7 @@ struct VulkanTouchEngineBackend::Impl
                              VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT,
                              VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
                              true,
+                             commandBuffer,
                              error);
     }
 
@@ -1097,6 +1192,7 @@ struct VulkanTouchEngineBackend::Impl
                              VK_ACCESS_TRANSFER_WRITE_BIT,
                              VK_PIPELINE_STAGE_TRANSFER_BIT,
                              false,
+                             nullptr,
                              error);
     }
 
@@ -1142,13 +1238,22 @@ struct VulkanTouchEngineBackend::Impl
         return true;
     }
 
-    bool createHostSignal(HostSignal *signal, QString *error)
+    bool createHostSignal(HostSignal *signal,
+                          QString *error,
+                          ImportedOutput *reusableOutput = nullptr)
     {
         // Even frames with no TE->Qt acquire need a slot-owned retirement list. The
         // semaphore is still referenced by Qt's submit after afterFrameEnd() returns.
         if (!beginFrameSlot(error))
             return false;
         signal->frameSlot = rhi->currentFrameSlot();
+
+        if (reusableOutput && reusableOutput->cachedReturnSignal.native) {
+            *signal = std::move(reusableOutput->cachedReturnSignal);
+            signal->frameSlot = rhi->currentFrameSlot();
+            signal->reused = true;
+            return true;
+        }
 
         VkExportSemaphoreCreateInfo exportInfo = {};
         exportInfo.sType = VK_STRUCTURE_TYPE_EXPORT_SEMAPHORE_CREATE_INFO;
@@ -1184,13 +1289,21 @@ struct VulkanTouchEngineBackend::Impl
             signal->native = VK_NULL_HANDLE;
             return fail(error, QStringLiteral("TEVulkanSemaphoreCreate returned null"));
         }
+        signal->reused = false;
         return true;
     }
 
     void attachSignal(VkSemaphore semaphore)
     {
         frameSignals.push_back(semaphore);
-        QueueSignalRegistry::add(rhi, semaphore);
+        QueueSubmitRegistry::addSignal(rhi, semaphore);
+    }
+
+    void attachWaitAndSignal(VkSemaphore semaphore)
+    {
+        frameWaits.push_back(semaphore);
+        frameSignals.push_back(semaphore);
+        QueueSubmitRegistry::addWaitAndSignal(rhi, semaphore);
     }
 
     void retireSignal(HostSignal *signal)
@@ -1313,7 +1426,6 @@ struct VulkanTouchEngineBackend::Impl
     }
 
     ImportedOutput *importOutput(TEVulkanTexture *source,
-                                 const QString &link,
                                  QRhiTexture::Format rhiFormat,
                                  QRhiTexture::Flags rhiFlags,
                                  QString *error)
@@ -1329,7 +1441,6 @@ struct VulkanTouchEngineBackend::Impl
                 && entry->sourceObject == source && entry->sourceHandle == handle
                 && entry->native.vkFormat == format && entry->native.size == size
                 && entry->handleType == handleType) {
-                entry->link = link;
                 entry->purgeRequested = false;
                 if (entry->nativeRetirementPending) {
                     // Normal frame-slot back-pressure: Core keeps this output
@@ -1363,7 +1474,6 @@ struct VulkanTouchEngineBackend::Impl
             imported->instanceGeneration = instanceGeneration;
             imported->handleType = handleType;
         }
-        imported->link = link;
         imported->native.size = size;
         imported->native.vkFormat = format;
         imported->native.rhiFormat = rhiFormat;
@@ -1599,7 +1709,8 @@ struct VulkanTouchEngineBackend::Impl
         if (++instanceGeneration == 0)
             instanceGeneration = 1;
 
-        QueueSignalRegistry::remove(rhi, frameSignals);
+        QueueSubmitRegistry::remove(rhi, frameWaits, frameSignals);
+        frameWaits.clear();
         frameSignals.clear();
 
         // The previous instance has already been released, so no TouchEngine
@@ -1614,7 +1725,7 @@ struct VulkanTouchEngineBackend::Impl
             pending.texture.reset();
         }
         pendingOutputs.clear();
-        requestImportPurge(QString{});
+        requestImportPurge();
 
         // Detach every callback before deleting its embedded InputUseState.
         // TEInstance release above is the callback fence; detaching also makes
@@ -1678,7 +1789,8 @@ struct VulkanTouchEngineBackend::Impl
         if (!device)
             return;
 
-        QueueSignalRegistry::remove(rhi, frameSignals);
+        QueueSubmitRegistry::remove(rhi, frameWaits, frameSignals);
+        frameWaits.clear();
         std::vector<VkSemaphore> pendingNativeSemaphores;
         for (auto &pending : pendingInputs) {
             if (pending.signal.native)
@@ -1714,8 +1826,10 @@ struct VulkanTouchEngineBackend::Impl
             for (auto &link : inputLinks)
                 for (auto &entry : link.entries)
                     destroyNative(&entry->native);
-            for (auto &imported : importedOutputs)
+            for (auto &imported : importedOutputs) {
+                destroyCachedReturnSignal(imported.get());
                 destroyNative(&imported->native);
+            }
             for (auto &slot : frameSlots) {
                 for (const RetiredImportNative &retired : slot.importsAwaitingNativeDestroy) {
                     if (retired.image)
@@ -2209,6 +2323,28 @@ bool VulkanTouchEngineBackend::updateTextureOutput(TEInstance *instance,
     if (!size.isValid())
         return fail(error, QStringLiteral("TouchEngine output '%1' has an invalid size").arg(link));
 
+    const HANDLE sourceHandle = TEVulkanTextureGetHandle(vulkanTexture);
+    const auto pendingIdentity = std::find_if(
+        m_impl->pendingOutputs.begin(), m_impl->pendingOutputs.end(),
+        [vulkanTexture, sourceHandle](const Impl::PendingOutput &pending) {
+            return pending.imported
+                && (pending.imported->sourceObject == vulkanTexture
+                    || (sourceHandle && pending.imported->sourceHandle == sourceHandle));
+        });
+    if (pendingIdentity != m_impl->pendingOutputs.end()) {
+        // A native image has one Vulkan ownership state. Never consume or return its
+        // TouchEngine transfer twice merely because it was observed through two links.
+        // Keeping the second link's previous stable cache is preferable to publishing
+        // another link's pixels into it while the source mapping is ambiguous.
+        qCDebug(lcTouchEngineVulkanMapping).noquote()
+            << "shared source deferred"
+            << "requestedLink=" << link
+            << "ownerLink=" << pendingIdentity->link
+            << "teTexture=" << static_cast<const void *>(vulkanTexture)
+            << "handle=" << static_cast<void *>(sourceHandle);
+        return false;
+    }
+
     if (!TEInstanceHasVulkanTextureTransfer(instance, texture)) {
         // The output value is valid, but TouchEngine has not yet supplied the
         // semaphore and layouts required for safe Vulkan access. Core retains
@@ -2223,34 +2359,41 @@ bool VulkanTouchEngineBackend::updateTextureOutput(TEInstance *instance,
         return false;
 
     Impl::ImportedOutput *imported = m_impl->importOutput(vulkanTexture,
-                                                          link,
                                                           rhiFormat,
                                                           rhiFlags,
                                                           error);
     if (!imported)
         return false;
 
-    // A link can publish a new TE texture before the old object's final Release callback.
-    // The old native import is no longer useful, but remains alive until its last Qt frame
-    // slot is known complete (and until any pending ownership return has succeeded).
-    for (const auto &candidate : m_impl->importedOutputs) {
-        if (candidate.get() != imported && candidate->link == link)
-            candidate->purgeRequested = true;
-    }
-
     Impl::OutputRecord *record = m_impl->outputRecord(link);
     if (!m_impl->ensureOutputCache(record, rhiFormat, rhiFlags, size, error))
         return false;
 
+    qCDebug(lcTouchEngineVulkanMapping).noquote()
+        << "output mapping"
+        << "link=" << link
+        << "teTexture=" << static_cast<const void *>(vulkanTexture)
+        << "handle=" << static_cast<void *>(sourceHandle)
+        << "vkImage=" << quint64(imported->native.image)
+        << "qtCache=" << static_cast<const void *>(record->cache.get())
+        << "frameSlot=" << m_impl->rhi->currentFrameSlot();
+
     Impl::HostSignal signal;
-    if (!m_impl->createHostSignal(&signal, error))
+    if (!m_impl->createHostSignal(&signal, error, imported))
         return false;
     imported->lastUsedFrameSlot = signal.frameSlot;
     const TextureAcquireResult acquireResult = m_impl->acquireFromTouchEngine(
-        instance, texture, &imported->native, error);
+        instance, texture, &imported->native, commandBuffer, error);
     if (acquireResult != TextureAcquireResult::Acquired) {
-        vkDestroySemaphore(m_impl->device, signal.native, nullptr);
-        signal.native = VK_NULL_HANDLE;
+        if (signal.reused) {
+            signal.reused = false;
+            signal.frameSlot = -1;
+            imported->cachedReturnSignal = std::move(signal);
+        } else {
+            vkDestroySemaphore(m_impl->device, signal.native, nullptr);
+            signal.native = VK_NULL_HANDLE;
+            signal.textureTransfer.reset();
+        }
         if (acquireResult == TextureAcquireResult::NotReady && error)
             error->clear();
         return false;
@@ -2310,8 +2453,6 @@ TextureOutput VulkanTouchEngineBackend::textureOutput(const QString &link) const
 
 void VulkanTouchEngineBackend::clearTextureOutput(const QString &link)
 {
-    m_impl->requestImportPurge(link);
-
     auto it = std::find_if(m_impl->outputs.begin(), m_impl->outputs.end(),
                            [&link](const Impl::OutputRecord &record) {
                                return record.link == link;
@@ -2332,7 +2473,7 @@ void VulkanTouchEngineBackend::clearTextureOutput(const QString &link)
 
 void VulkanTouchEngineBackend::clearTextureOutputs()
 {
-    m_impl->requestImportPurge(QString{});
+    m_impl->requestImportPurge();
 
     auto it = m_impl->outputs.begin();
     while (it != m_impl->outputs.end()) {
@@ -2360,7 +2501,10 @@ bool VulkanTouchEngineBackend::afterFrameEnd(TEInstance *instance, QString *erro
     // publish until InstanceReady configures the replacement; treating that
     // quiet frame as a transfer failure would incorrectly gate its load.
     if (m_impl->pendingInputs.empty() && m_impl->pendingOutputs.empty()) {
-        QueueSignalRegistry::remove(m_impl->rhi, m_impl->frameSignals);
+        QueueSubmitRegistry::remove(m_impl->rhi,
+                                    m_impl->frameWaits,
+                                    m_impl->frameSignals);
+        m_impl->frameWaits.clear();
         m_impl->frameSignals.clear();
         for (auto &slot : m_impl->frameSlots)
             slot.active = false;
@@ -2438,7 +2582,12 @@ bool VulkanTouchEngineBackend::afterFrameEnd(TEInstance *instance, QString *erro
             reinterpret_cast<TESemaphore *>(pending.signal.textureTransfer.get()),
             0);
         if (result == TEResultSuccess) {
-            m_impl->retireSignal(&pending.signal);
+            // The same native texture cannot be returned to Qt until TouchEngine has
+            // waited on this binary semaphore. Cache it with that texture so the next
+            // acquire can safely reuse the now-unsignaled object.
+            pending.signal.frameSlot = -1;
+            pending.signal.reused = false;
+            pending.imported->cachedReturnSignal = std::move(pending.signal);
             outputIt = m_impl->pendingOutputs.erase(outputIt);
         } else {
             failures.push_back(teResultMessage("Vulkan texture output return", result));
@@ -2449,7 +2598,10 @@ bool VulkanTouchEngineBackend::afterFrameEnd(TEInstance *instance, QString *erro
     // These registrations belong only to the Qt submit that just ended. Failed TE API
     // publication keeps the semaphore objects above, but must not enqueue a second signal
     // of the already-signaled binary semaphore on a later Qt frame.
-    QueueSignalRegistry::remove(m_impl->rhi, m_impl->frameSignals);
+    QueueSubmitRegistry::remove(m_impl->rhi,
+                                m_impl->frameWaits,
+                                m_impl->frameSignals);
+    m_impl->frameWaits.clear();
     m_impl->frameSignals.clear();
     for (auto &slot : m_impl->frameSlots)
         slot.active = false;
