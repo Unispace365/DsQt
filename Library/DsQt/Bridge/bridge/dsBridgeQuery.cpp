@@ -840,7 +840,7 @@ DatabaseContent DsBridgeSqlQuery::queryTables() {
                     auto res = dsqt::DsResource(
                         previewId, dsqt::DsResource::Id::CMS_TYPE, double(result.value("preview_duration").toFloat()),
                         float(result.value("preview_width").toInt()), float(result.value("preview_height").toInt()),
-                        result.value("filename").toString(), previewUri, -1, cms.getResourcePath() + previewUri);
+                        result.value("filename").toString(), previewUri, -1, cms.getResourcePath() + "/" + previewUri);
                     res.setType(previewType == "FILE_IMAGE" ? dsqt::DsResource::IMAGE_TYPE
                                                             : dsqt::DsResource::VIDEO_TYPE);
 
