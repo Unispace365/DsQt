@@ -41,6 +41,7 @@ using Microsoft::WRL::ComPtr;
 constexpr qsizetype kMaximumInputTexturesPerLink = 6;
 constexpr std::size_t kMaximumOutputImports = 32;
 constexpr std::size_t kMaximumFenceImports = 16;
+constexpr quint64 kMaximumOutputImportBytes = 512ull * 1024ull * 1024ull;
 
 template<typename T>
 QString enumValues(const std::vector<T> &values)
@@ -191,39 +192,6 @@ TextureFormat textureFormat(DXGI_FORMAT format)
     }
 }
 
-bool sourceRectangle(const TextureInputSource &source, QRect *rectangle, QString *error)
-{
-    if (!source.texture || !rectangle) {
-        assignError(error, QStringLiteral("The texture input source is null"));
-        return false;
-    }
-    const QSize textureSize = source.texture->pixelSize();
-    const QRectF normalized = source.normalizedSourceRect;
-    if (textureSize.isEmpty() || normalized.width() <= 0.0 || normalized.height() <= 0.0
-        || normalized.left() < 0.0 || normalized.top() < 0.0
-        || normalized.right() > 1.0 || normalized.bottom() > 1.0) {
-        assignError(error, QStringLiteral("The normalized texture source rectangle is invalid"));
-        return false;
-    }
-    const int left = qBound(0, qFloor(normalized.left() * textureSize.width()), textureSize.width());
-    const int top = qBound(0, qFloor(normalized.top() * textureSize.height()), textureSize.height());
-    const int right = qBound(left, qCeil(normalized.right() * textureSize.width()), textureSize.width());
-    const int bottom = qBound(top, qCeil(normalized.bottom() * textureSize.height()), textureSize.height());
-    *rectangle = QRect(QPoint(left, top), QPoint(right - 1, bottom - 1));
-    if (rectangle->isEmpty()) {
-        assignError(error, QStringLiteral("The texture input source rectangle is empty"));
-        return false;
-    }
-    if (!source.pixelSize.isEmpty() && source.pixelSize != rectangle->size()) {
-        assignError(error,
-                    QStringLiteral("D3D12 texture input cannot scale from %1x%2 to %3x%4")
-                        .arg(rectangle->width()).arg(rectangle->height())
-                        .arg(source.pixelSize.width()).arg(source.pixelSize.height()));
-        return false;
-    }
-    return true;
-}
-
 template<typename T>
 bool contains(const std::vector<T> &values, T value)
 {
@@ -299,6 +267,9 @@ public:
         ~InputSlot()
         {
             teTexture.reset();
+            renderTarget.reset();
+            renderPassDescriptor.reset();
+            releaseLater(rhiTexture);
             releaseToken(token);
         }
 
@@ -307,6 +278,8 @@ public:
         TextureFormat format;
         ComPtr<ID3D12Resource> nativeTexture;
         std::unique_ptr<QRhiTexture> rhiTexture;
+        std::unique_ptr<QRhiTextureRenderTarget> renderTarget;
+        std::unique_ptr<QRhiRenderPassDescriptor> renderPassDescriptor;
         TouchObject<TED3DSharedTexture> teTexture;
         InputUseToken *token = nullptr;
         quint64 publishedEndUseSerial = 0;
@@ -331,6 +304,7 @@ public:
         std::unique_ptr<QRhiTexture> importedTexture;
         QSize size;
         TextureFormat format;
+        quint64 allocationBytes = 0;
         quint64 lastUseSerial = 0;
     };
 
@@ -488,7 +462,9 @@ public:
                                                 const TextureFormat &format, QString *error)
     {
         QList<std::shared_ptr<InputSlot>> &pool = inputSlots[link];
-        for (const auto &slot : pool) {
+        qsizetype reclaimableIndex = -1;
+        for (qsizetype index = 0; index < pool.size(); ++index) {
+            const auto &slot = pool[index];
             if (slot->awaitingEndUse
                 && slot->token->endUseSerial.load(std::memory_order_acquire) > slot->publishedEndUseSerial) {
                 slot->awaitingEndUse = false;
@@ -496,7 +472,11 @@ public:
             if (!slot->awaitingEndUse && !slot->pendingPublication
                 && slot->size == size && slot->format.dxgi == format.dxgi)
                 return slot;
+            if (!slot->awaitingEndUse && !slot->pendingPublication && reclaimableIndex < 0)
+                reclaimableIndex = index;
         }
+        if (reclaimableIndex >= 0)
+            pool.removeAt(reclaimableIndex);
         if (pool.size() >= kMaximumInputTexturesPerLink) {
             assignError(error,
                         QStringLiteral("TouchEngine has not released a D3D12 input texture for '%1'; "
@@ -524,11 +504,11 @@ public:
         description.Format = format.dxgi;
         description.SampleDesc.Count = 1;
         description.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
-        description.Flags = D3D12_RESOURCE_FLAG_NONE;
+        description.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
         HRESULT result = device->CreateCommittedResource(&heap, D3D12_HEAP_FLAG_SHARED,
-                                                          &description,
-                                                          D3D12_RESOURCE_STATE_COPY_DEST,
-                                                          nullptr,
+                                                           &description,
+                                                           D3D12_RESOURCE_STATE_RENDER_TARGET,
+                                                           nullptr,
                                                           IID_PPV_ARGS(&slot->nativeTexture));
         if (FAILED(result)) {
             assignError(error, hresultError("ID3D12Device::CreateCommittedResource", result));
@@ -555,14 +535,33 @@ public:
         retainToken(slot->token); // Held until TEObjectEventRelease.
         slot->teTexture.take(teTexture);
 
-        slot->rhiTexture.reset(rhi->newTexture(format.rhi, size, 1,
-                                               format.flags | QRhiTexture::UsedAsTransferSource));
+        slot->rhiTexture.reset(rhi->newTexture(
+            format.rhi, size, 1,
+            format.flags | QRhiTexture::RenderTarget | QRhiTexture::UsedAsTransferSource));
         const QRhiTexture::NativeTexture native {
             static_cast<quint64>(reinterpret_cast<quintptr>(slot->nativeTexture.Get())),
-            D3D12_RESOURCE_STATE_COPY_DEST
+            D3D12_RESOURCE_STATE_RENDER_TARGET
         };
         if (!slot->rhiTexture || !slot->rhiTexture->createFrom(native)) {
             assignError(error, QStringLiteral("QRhi could not import the D3D12 input staging texture"));
+            return {};
+        }
+        const QRhiTextureRenderTargetDescription targetDescription(
+            QRhiColorAttachment(slot->rhiTexture.get()));
+        slot->renderTarget.reset(rhi->newTextureRenderTarget(targetDescription));
+        if (!slot->renderTarget) {
+            assignError(error, QStringLiteral("QRhi could not create the D3D12 input render target"));
+            return {};
+        }
+        slot->renderPassDescriptor.reset(
+            slot->renderTarget->newCompatibleRenderPassDescriptor());
+        if (!slot->renderPassDescriptor) {
+            assignError(error, QStringLiteral("QRhi could not create the D3D12 input render pass"));
+            return {};
+        }
+        slot->renderTarget->setRenderPassDescriptor(slot->renderPassDescriptor.get());
+        if (!slot->renderTarget->create()) {
+            assignError(error, QStringLiteral("QRhi could not initialize the D3D12 input render target"));
             return {};
         }
         pool.append(slot);
@@ -572,25 +571,17 @@ public:
     bool prepareTextureInput(TEInstance *instance, const TextureInputSource &source,
                              QRhiCommandBuffer *commandBuffer, QString *error)
     {
-        if (!configured || !instance || !commandBuffer || !source.texture || source.link.isEmpty()) {
+        if (!configured || !instance || !commandBuffer || !source.render || source.link.isEmpty()) {
             assignError(error, QStringLiteral("D3D12 texture input has invalid or unconfigured arguments"));
             return false;
         }
-        if (source.texture->sampleCount() != 1) {
-            assignError(error, QStringLiteral("Multisampled D3D12 texture inputs must be resolved before sharing"));
+        if (!source.pixelSize.isValid()) {
+            assignError(error, QStringLiteral("D3D12 texture input '%1' has no usable size")
+                                   .arg(source.link));
             return false;
         }
-        if (!source.texture->flags().testFlag(QRhiTexture::UsedAsTransferSource)) {
-            assignError(error,
-                        QStringLiteral("The Qt texture for '%1' was not created with UsedAsTransferSource")
-                            .arg(source.link));
-            return false;
-        }
-        QRect rectangle;
-        if (!sourceRectangle(source, &rectangle, error))
-            return false;
-        const TextureFormat format = textureFormat(source.texture->format(),
-                                                   source.texture->flags().testFlag(QRhiTexture::sRGB));
+        const TextureFormat format = textureFormat(
+            source.format, source.flags.testFlag(QRhiTexture::sRGB));
         if (!format) {
             assignError(error, QStringLiteral("The Qt texture format for '%1' is not supported by D3D12 interop")
                                    .arg(source.link));
@@ -601,20 +592,16 @@ public:
                                    .arg(static_cast<int>(format.dxgi)).arg(source.link));
             return false;
         }
-        const auto slot = acquireInputSlot(source.link, rectangle.size(), format, error);
+        const auto slot = acquireInputSlot(source.link, source.pixelSize, format, error);
         if (!slot)
             return false;
 
-        QRhiTextureCopyDescription copy;
-        copy.setSourceTopLeft(rectangle.topLeft());
-        copy.setPixelSize(rectangle.size());
-        QRhiResourceUpdateBatch *updates = rhi->nextResourceUpdateBatch();
-        updates->copyTexture(slot->rhiTexture.get(), source.texture, copy);
-        commandBuffer->resourceUpdate(updates);
-        slot->rhiTexture->setNativeLayout(D3D12_RESOURCE_STATE_COPY_DEST);
+        if (!source.render(slot->rhiTexture.get(), slot->renderTarget.get(), commandBuffer, error))
+            return false;
+        slot->rhiTexture->setNativeLayout(D3D12_RESOURCE_STATE_RENDER_TARGET);
         if (!transitionToShaderResource(commandBuffer, slot->rhiTexture.get(),
-                                        slot->nativeTexture.Get(),
-                                        D3D12_RESOURCE_STATE_COPY_DEST, error)) {
+                                         slot->nativeTexture.Get(),
+                                         D3D12_RESOURCE_STATE_RENDER_TARGET, error)) {
             return false;
         }
         slot->pendingPublication = true;
@@ -638,6 +625,33 @@ public:
             if (oldest == imports.end())
                 break;
             imports.erase(oldest);
+        }
+    }
+
+    void pruneOutputImports()
+    {
+        const auto cachedBytes = [this] {
+            quint64 total = 0;
+            for (const auto &imported : outputImports)
+                total += imported->allocationBytes;
+            return total;
+        };
+
+        while (outputImports.size() > 1
+               && (outputImports.size() > kMaximumOutputImports
+                   || cachedBytes() > kMaximumOutputImportBytes)) {
+            auto oldest = outputImports.end();
+            for (auto it = outputImports.begin(); it != outputImports.end(); ++it) {
+                if (it->use_count() != 1)
+                    continue;
+                if (oldest == outputImports.end()
+                    || (*it)->lastUseSerial < (*oldest)->lastUseSerial) {
+                    oldest = it;
+                }
+            }
+            if (oldest == outputImports.end())
+                break;
+            outputImports.erase(oldest);
         }
     }
 
@@ -701,6 +715,7 @@ public:
         }
         imported->size = QSize(static_cast<int>(description.Width),
                                static_cast<int>(description.Height));
+        imported->allocationBytes = device->GetResourceAllocationInfo(0, 1, &description).SizeInBytes;
         imported->importedTexture.reset(
             rhi->newTexture(imported->format.rhi, imported->size, 1,
                             imported->format.flags | QRhiTexture::UsedAsTransferSource));
@@ -716,7 +731,7 @@ public:
 
         imported->lastUseSerial = ++importUseSerial;
         outputImports.push_back(imported);
-        pruneImports(outputImports, kMaximumOutputImports);
+        pruneOutputImports();
         return imported;
     }
 
@@ -889,7 +904,7 @@ public:
             else
                 ++it;
         }
-        pruneImports(outputImports, kMaximumOutputImports);
+        pruneOutputImports();
         pruneImports(fenceImports, kMaximumFenceImports);
     }
 

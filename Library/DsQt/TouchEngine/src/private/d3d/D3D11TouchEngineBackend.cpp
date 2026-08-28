@@ -179,40 +179,6 @@ TextureFormat textureFormat(DXGI_FORMAT format)
     }
 }
 
-bool sourceRectangle(const TextureInputSource &source, QRect *rectangle, QString *error)
-{
-    if (!source.texture || !rectangle) {
-        assignError(error, QStringLiteral("The texture input source is null"));
-        return false;
-    }
-    const QSize textureSize = source.texture->pixelSize();
-    const QRectF normalized = source.normalizedSourceRect;
-    if (textureSize.isEmpty() || normalized.width() <= 0.0 || normalized.height() <= 0.0
-        || normalized.left() < 0.0 || normalized.top() < 0.0
-        || normalized.right() > 1.0 || normalized.bottom() > 1.0) {
-        assignError(error, QStringLiteral("The normalized texture source rectangle is invalid"));
-        return false;
-    }
-
-    const int left = qBound(0, qFloor(normalized.left() * textureSize.width()), textureSize.width());
-    const int top = qBound(0, qFloor(normalized.top() * textureSize.height()), textureSize.height());
-    const int right = qBound(left, qCeil(normalized.right() * textureSize.width()), textureSize.width());
-    const int bottom = qBound(top, qCeil(normalized.bottom() * textureSize.height()), textureSize.height());
-    *rectangle = QRect(QPoint(left, top), QPoint(right - 1, bottom - 1));
-    if (rectangle->isEmpty()) {
-        assignError(error, QStringLiteral("The texture input source rectangle is empty"));
-        return false;
-    }
-    if (!source.pixelSize.isEmpty() && source.pixelSize != rectangle->size()) {
-        assignError(error,
-                    QStringLiteral("D3D11 texture input cannot scale from %1x%2 to %3x%4")
-                        .arg(rectangle->width()).arg(rectangle->height())
-                        .arg(source.pixelSize.width()).arg(source.pixelSize.height()));
-        return false;
-    }
-    return true;
-}
-
 template<typename T>
 bool contains(const std::vector<T> &values, T value)
 {
@@ -287,6 +253,9 @@ public:
     {
         ~InputSlot()
         {
+            renderTarget.reset();
+            renderPassDescriptor.reset();
+            releaseLater(rhiTexture);
             releaseToken(token);
         }
 
@@ -295,6 +264,8 @@ public:
         TextureFormat format;
         ComPtr<ID3D11Texture2D> nativeTexture;
         std::unique_ptr<QRhiTexture> rhiTexture;
+        std::unique_ptr<QRhiTextureRenderTarget> renderTarget;
+        std::unique_ptr<QRhiRenderPassDescriptor> renderPassDescriptor;
         InputUseToken *token = nullptr;
         quint64 publishedReleaseSerial = 0;
         bool awaitingRelease = false;
@@ -473,13 +444,32 @@ public:
             return {};
         }
 
-        slot->rhiTexture.reset(rhi->newTexture(format.rhi, size, 1,
-                                               format.flags | QRhiTexture::UsedAsTransferSource));
+        slot->rhiTexture.reset(rhi->newTexture(
+            format.rhi, size, 1,
+            format.flags | QRhiTexture::RenderTarget | QRhiTexture::UsedAsTransferSource));
         const QRhiTexture::NativeTexture native {
             static_cast<quint64>(reinterpret_cast<quintptr>(slot->nativeTexture.Get())), 0
         };
         if (!slot->rhiTexture || !slot->rhiTexture->createFrom(native)) {
             assignError(error, QStringLiteral("QRhi could not import the D3D11 input staging texture"));
+            return {};
+        }
+        const QRhiTextureRenderTargetDescription targetDescription(
+            QRhiColorAttachment(slot->rhiTexture.get()));
+        slot->renderTarget.reset(rhi->newTextureRenderTarget(targetDescription));
+        if (!slot->renderTarget) {
+            assignError(error, QStringLiteral("QRhi could not create the D3D11 input render target"));
+            return {};
+        }
+        slot->renderPassDescriptor.reset(
+            slot->renderTarget->newCompatibleRenderPassDescriptor());
+        if (!slot->renderPassDescriptor) {
+            assignError(error, QStringLiteral("QRhi could not create the D3D11 input render pass"));
+            return {};
+        }
+        slot->renderTarget->setRenderPassDescriptor(slot->renderPassDescriptor.get());
+        if (!slot->renderTarget->create()) {
+            assignError(error, QStringLiteral("QRhi could not initialize the D3D11 input render target"));
             return {};
         }
         slot->token = new InputUseToken;
@@ -490,25 +480,17 @@ public:
     bool prepareTextureInput(TEInstance *instance, const TextureInputSource &source,
                              QRhiCommandBuffer *commandBuffer, QString *error)
     {
-        if (!configured || !instance || !commandBuffer || !source.texture || source.link.isEmpty()) {
+        if (!configured || !instance || !commandBuffer || !source.render || source.link.isEmpty()) {
             assignError(error, QStringLiteral("D3D11 texture input has invalid or unconfigured arguments"));
             return false;
         }
-        if (source.texture->sampleCount() != 1) {
-            assignError(error, QStringLiteral("Multisampled D3D11 texture inputs must be resolved before sharing"));
+        if (!source.pixelSize.isValid()) {
+            assignError(error, QStringLiteral("D3D11 texture input '%1' has no usable size")
+                                   .arg(source.link));
             return false;
         }
-        if (!source.texture->flags().testFlag(QRhiTexture::UsedAsTransferSource)) {
-            assignError(error,
-                        QStringLiteral("The Qt texture for '%1' was not created with UsedAsTransferSource")
-                            .arg(source.link));
-            return false;
-        }
-        QRect rectangle;
-        if (!sourceRectangle(source, &rectangle, error))
-            return false;
-        const TextureFormat format = textureFormat(source.texture->format(),
-                                                   source.texture->flags().testFlag(QRhiTexture::sRGB));
+        const TextureFormat format = textureFormat(
+            source.format, source.flags.testFlag(QRhiTexture::sRGB));
         if (!format) {
             assignError(error, QStringLiteral("The Qt texture format for '%1' is not supported by D3D11 interop")
                                    .arg(source.link));
@@ -521,16 +503,12 @@ public:
         }
 
         bool backpressured = false;
-        const auto slot = acquireInputSlot(source.link, rectangle.size(), format,
+        const auto slot = acquireInputSlot(source.link, source.pixelSize, format,
                                            &backpressured, error);
         if (!slot)
             return backpressured;
-        QRhiTextureCopyDescription copy;
-        copy.setSourceTopLeft(rectangle.topLeft());
-        copy.setPixelSize(rectangle.size());
-        QRhiResourceUpdateBatch *updates = rhi->nextResourceUpdateBatch();
-        updates->copyTexture(slot->rhiTexture.get(), source.texture, copy);
-        commandBuffer->resourceUpdate(updates);
+        if (!source.render(slot->rhiTexture.get(), slot->renderTarget.get(), commandBuffer, error))
+            return false;
         slot->pendingPublication = true;
         pendingInputs.push_back(slot);
         return true;

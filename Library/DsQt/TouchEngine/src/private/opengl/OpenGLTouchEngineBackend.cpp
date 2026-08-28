@@ -1,5 +1,7 @@
 #include "OpenGLTouchEngineBackend_p.h"
 
+#include "D3D11NvInteropBridge_p.h"
+
 #include <TouchEngine/TED3D.h>
 #include <TouchEngine/TEOpenGL.h>
 #include <TouchEngine/TouchObject.h>
@@ -24,6 +26,12 @@
 #include <optional>
 #include <utility>
 #include <vector>
+
+#ifdef Q_OS_WIN
+#include <d3d11.h>
+#include <dxgi1_2.h>
+#include <wrl/client.h>
+#endif
 
 namespace dsqt::touchengine::detail {
 
@@ -76,6 +84,132 @@ namespace {
 
     constexpr std::size_t kMaximumInputTexturesPerLink = 6;
 
+    constexpr auto kNvInteropProbePrefix = "Dsqt.TouchEngine NV interop probe:";
+
+    bool isValidWglProcAddress(PROC address) noexcept {
+        const auto value = reinterpret_cast<quintptr>(address);
+        return address && value != 1 && value != 2 && value != 3 && value != static_cast<quintptr>(-1);
+    }
+
+    template<typename Function>
+    Function resolveWglFunction(const char* name) noexcept {
+        const PROC address = wglGetProcAddress(name);
+        return isValidWglProcAddress(address) ? reinterpret_cast<Function>(address) : nullptr;
+    }
+
+    bool containsWglExtension(const char* extensions, const QByteArray& requested) {
+        if (!extensions || requested.isEmpty()) return false;
+        return QByteArray(extensions).split(' ').contains(requested);
+    }
+
+    OpenGLNvInteropCapability probeNvInterop(QOpenGLExtraFunctions* gl, HDC dc) {
+        OpenGLNvInteropCapability capability;
+        if (gl) {
+            if (const GLubyte* vendor = gl->glGetString(GL_VENDOR))
+                capability.glVendor = QString::fromLatin1(reinterpret_cast<const char*>(vendor));
+            if (const GLubyte* renderer = gl->glGetString(GL_RENDERER))
+                capability.glRenderer = QString::fromLatin1(reinterpret_cast<const char*>(renderer));
+        }
+
+        using GetExtensionsStringArb = const char* (WINAPI*)(HDC);
+        using GetExtensionsStringExt = const char* (WINAPI*)();
+        const auto getExtensionsArb = resolveWglFunction<GetExtensionsStringArb>("wglGetExtensionsStringARB");
+        const auto getExtensionsExt = resolveWglFunction<GetExtensionsStringExt>("wglGetExtensionsStringEXT");
+        const char* extensions = getExtensionsArb && dc ? getExtensionsArb(dc)
+                                                       : (getExtensionsExt ? getExtensionsExt() : nullptr);
+        capability.extensionAdvertised =
+            containsWglExtension(extensions, QByteArrayLiteral("WGL_NV_DX_interop2"));
+        if (!capability.extensionAdvertised) {
+            capability.detail = QStringLiteral("The current WGL context does not advertise WGL_NV_DX_interop2");
+            return capability;
+        }
+
+        using OpenDevice = HANDLE (WINAPI*)(void*);
+        using CloseDevice = BOOL (WINAPI*)(HANDLE);
+        using RegisterObject = HANDLE (WINAPI*)(HANDLE, void*, GLuint, GLenum, GLenum);
+        using UnregisterObject = BOOL (WINAPI*)(HANDLE, HANDLE);
+        using LockObjects = BOOL (WINAPI*)(HANDLE, GLint, HANDLE*);
+        using UnlockObjects = BOOL (WINAPI*)(HANDLE, GLint, HANDLE*);
+
+        const auto openDevice = resolveWglFunction<OpenDevice>("wglDXOpenDeviceNV");
+        const auto closeDevice = resolveWglFunction<CloseDevice>("wglDXCloseDeviceNV");
+        const auto registerObject = resolveWglFunction<RegisterObject>("wglDXRegisterObjectNV");
+        const auto unregisterObject = resolveWglFunction<UnregisterObject>("wglDXUnregisterObjectNV");
+        const auto lockObjects = resolveWglFunction<LockObjects>("wglDXLockObjectsNV");
+        const auto unlockObjects = resolveWglFunction<UnlockObjects>("wglDXUnlockObjectsNV");
+        capability.entryPointsAvailable = openDevice && closeDevice && registerObject &&
+                                          unregisterObject && lockObjects && unlockObjects;
+        if (!capability.entryPointsAvailable) {
+            capability.detail = QStringLiteral("WGL_NV_DX_interop2 is advertised but one or more entry points are missing");
+            return capability;
+        }
+
+        using Microsoft::WRL::ComPtr;
+        ComPtr<IDXGIFactory1> factory;
+        HRESULT result = CreateDXGIFactory1(IID_PPV_ARGS(&factory));
+        if (FAILED(result) || !factory) {
+            capability.detail = QStringLiteral("CreateDXGIFactory1 failed (0x%1)")
+                                    .arg(QString::number(static_cast<quint32>(result), 16));
+            return capability;
+        }
+
+        QStringList attemptedAdapters;
+        for (UINT index = 0;; ++index) {
+            ComPtr<IDXGIAdapter1> adapter;
+            result = factory->EnumAdapters1(index, &adapter);
+            if (result == DXGI_ERROR_NOT_FOUND) break;
+            if (FAILED(result) || !adapter) continue;
+
+            DXGI_ADAPTER_DESC1 description{};
+            if (FAILED(adapter->GetDesc1(&description)) ||
+                (description.Flags & DXGI_ADAPTER_FLAG_SOFTWARE)) {
+                continue;
+            }
+
+            const QString adapterName = QString::fromWCharArray(description.Description).trimmed();
+            attemptedAdapters.push_back(adapterName);
+
+            ComPtr<ID3D11Device> device;
+            ComPtr<ID3D11DeviceContext> context;
+            result = D3D11CreateDevice(adapter.Get(), D3D_DRIVER_TYPE_UNKNOWN, nullptr,
+                                       D3D11_CREATE_DEVICE_BGRA_SUPPORT, nullptr, 0,
+                                       D3D11_SDK_VERSION, &device, nullptr, &context);
+            if (FAILED(result) || !device) continue;
+
+            HANDLE interopDevice = openDevice(device.Get());
+            if (!interopDevice) continue;
+            if (!closeDevice(interopDevice)) {
+                capability.detail = QStringLiteral("NV interop opened adapter '%1' but could not close the probe device")
+                                        .arg(adapterName);
+                return capability;
+            }
+
+            capability.adapterMatched = true;
+            capability.d3d11Adapter = adapterName;
+            capability.detail = QStringLiteral("The current OpenGL context can share D3D11 resources with this adapter");
+            return capability;
+        }
+
+        capability.detail = attemptedAdapters.isEmpty()
+            ? QStringLiteral("No hardware D3D11 adapters were available to probe")
+            : QStringLiteral("No D3D11 adapter accessible to the current OpenGL context was found; tried: %1")
+                  .arg(attemptedAdapters.join(QStringLiteral(", ")));
+        return capability;
+    }
+
+    void logNvInteropCapability(const OpenGLNvInteropCapability& capability) {
+        qInfo().noquote()
+            << kNvInteropProbePrefix
+            << "usable=" << (capability.isUsable() ? "yes" : "no")
+            << "extension=" << (capability.extensionAdvertised ? "yes" : "no")
+            << "entryPoints=" << (capability.entryPointsAvailable ? "yes" : "no")
+            << "adapterMatch=" << (capability.adapterMatched ? "yes" : "no")
+            << "glVendor=" << (capability.glVendor.isEmpty() ? QStringLiteral("<unknown>") : capability.glVendor)
+            << "glRenderer=" << (capability.glRenderer.isEmpty() ? QStringLiteral("<unknown>") : capability.glRenderer)
+            << "d3d11Adapter=" << (capability.d3d11Adapter.isEmpty() ? QStringLiteral("<none>") : capability.d3d11Adapter)
+            << "detail=" << capability.detail;
+    }
+
     struct TextureFormat {
         QRhiTexture::Format rhiFormat = QRhiTexture::UnknownFormat;
         QRhiTexture::Flags  rhiFlags;
@@ -86,14 +220,13 @@ namespace {
         }
     };
 
-    std::optional<TextureFormat> inputFormatFor(const QRhiTexture* texture) {
-        if (!texture) return std::nullopt;
-
+    std::optional<TextureFormat> inputFormatFor(QRhiTexture::Format format,
+                                                QRhiTexture::Flags flags) {
         TextureFormat result;
         result.rhiFlags = QRhiTexture::RenderTarget | QRhiTexture::UsedAsTransferSource;
-        const bool srgb = texture->flags().testFlag(QRhiTexture::sRGB);
+        const bool srgb = flags.testFlag(QRhiTexture::sRGB);
 
-        switch (texture->format()) {
+        switch (format) {
         case QRhiTexture::RGBA8:
         case QRhiTexture::BGRA8:
             result.rhiFormat = QRhiTexture::RGBA8;
@@ -240,34 +373,6 @@ namespace {
         int y1 = 0;
     };
 
-    std::optional<BlitRect> sourceBlitRect(const TextureInputSource& source) {
-        if (!source.texture) return std::nullopt;
-
-        const QSize  nativeSize = source.texture->pixelSize();
-        const QRectF rect       = source.normalizedSourceRect;
-        if (nativeSize.width() <= 0 || nativeSize.height() <= 0 || !std::isfinite(rect.x()) ||
-            !std::isfinite(rect.y()) || !std::isfinite(rect.width()) || !std::isfinite(rect.height()) ||
-            rect.width() <= 0.0 || rect.height() <= 0.0) {
-            return std::nullopt;
-        }
-
-        const double left   = std::clamp(rect.left(), 0.0, 1.0);
-        const double top    = std::clamp(rect.top(), 0.0, 1.0);
-        const double right  = std::clamp(rect.right(), 0.0, 1.0);
-        const double bottom = std::clamp(rect.bottom(), 0.0, 1.0);
-        if (right <= left || bottom <= top) return std::nullopt;
-
-        BlitRect result;
-        result.x0 = static_cast<int>(std::lround(left * nativeSize.width()));
-        result.x1 = static_cast<int>(std::lround(right * nativeSize.width()));
-        // QSGTexture sub-rects use top-left coordinates; framebuffer blits use
-        // OpenGL's bottom-left coordinates.
-        result.y0 = nativeSize.height() - static_cast<int>(std::lround(bottom * nativeSize.height()));
-        result.y1 = nativeSize.height() - static_cast<int>(std::lround(top * nativeSize.height()));
-        if (result.x1 <= result.x0 || result.y1 <= result.y0) return std::nullopt;
-        return result;
-    }
-
     struct InputCallbackEvent {
         quint64       slotId     = 0;
         quint64       generation = 0;
@@ -295,14 +400,20 @@ namespace {
         InputCallbackQueue* queue      = info->queue;
         const quint64       slotId     = info->slotId;
         const quint64       generation = info->generation;
-        QMutexLocker        lock(&queue->mutex);
-        if (queue->accepting) {
-            queue->events.push_back(InputCallbackEvent{
-                slotId,
-                generation,
-                event,
-            });
+        {
+            QMutexLocker lock(&queue->mutex);
+            if (queue->accepting) {
+                queue->events.push_back(InputCallbackEvent{
+                    slotId,
+                    generation,
+                    event,
+                });
+            }
         }
+        // Each published wrapper owns an immutable callback record. EndUse can make
+        // the underlying GL texture reusable before the wrapper's final Release, so a
+        // slot-wide mutable record would let an older Release affect a newer generation.
+        if (event == TEObjectEventRelease) delete info;
     }
 
 } // namespace
@@ -321,9 +432,10 @@ class OpenGLTouchEngineBackend::Impl {
         InputState                   state      = InputState::Available;
         QString                      link;
         std::unique_ptr<QRhiTexture> texture;
+        std::unique_ptr<QRhiRenderPassDescriptor> renderPassDescriptor;
+        std::unique_ptr<QRhiTextureRenderTarget> renderTarget;
         QSize                        size;
         TextureFormat                format;
-        InputCallbackInfo            callbackInfo;
     };
 
     struct OutputRecord {
@@ -347,6 +459,11 @@ class OpenGLTouchEngineBackend::Impl {
         bool                          publishOutput = false;
         bool                          mirrorVertically = false;
         QString                       copyError;
+    };
+
+    struct DeferredOutput {
+        QString link;
+        TouchObject<TETexture> texture;
     };
 
     ~Impl() { releaseResources(); }
@@ -449,7 +566,7 @@ class OpenGLTouchEngineBackend::Impl {
         }
 
         for (const InputCallbackEvent& event : events) {
-            if (event.event != TEObjectEventRelease) continue;
+            if (event.event != TEObjectEventEndUse && event.event != TEObjectEventRelease) continue;
             const auto it =
                 std::find_if(inputSlots.cbegin(), inputSlots.cend(),
                              [&event](const std::unique_ptr<InputSlot>& slot) { return slot->id == event.slotId; });
@@ -481,19 +598,20 @@ class OpenGLTouchEngineBackend::Impl {
         auto slot                 = std::make_unique<InputSlot>();
         slot->id                  = nextSlotId++;
         slot->link                = link;
-        slot->callbackInfo.queue  = &callbackQueue;
-        slot->callbackInfo.slotId = slot->id;
         InputSlot* result         = slot.get();
         inputSlots.push_back(std::move(slot));
         return result;
     }
 
     bool ensureInputTexture(InputSlot* slot, const QSize& size, const TextureFormat& format, QString* error) {
-        if (slot->texture && slot->size == size && slot->format.rhiFormat == format.rhiFormat &&
+        if (slot->texture && slot->renderTarget && slot->renderPassDescriptor
+            && slot->size == size && slot->format.rhiFormat == format.rhiFormat &&
             slot->format.rhiFlags == format.rhiFlags) {
             return true;
         }
 
+        slot->renderTarget.reset();
+        slot->renderPassDescriptor.reset();
         slot->texture.reset();
         slot->size   = {};
         slot->format = {};
@@ -510,6 +628,19 @@ class OpenGLTouchEngineBackend::Impl {
             slot->texture.reset();
             return fail(error, QStringLiteral("Qt did not expose the input staging texture's OpenGL name"));
         }
+
+        const QRhiTextureRenderTargetDescription targetDescription(
+            QRhiColorAttachment(slot->texture.get()));
+        slot->renderTarget.reset(rhi->newTextureRenderTarget(targetDescription));
+        if (!slot->renderTarget)
+            return fail(error, QStringLiteral("Qt could not create the OpenGL input render target"));
+        slot->renderPassDescriptor.reset(
+            slot->renderTarget->newCompatibleRenderPassDescriptor());
+        if (!slot->renderPassDescriptor)
+            return fail(error, QStringLiteral("Qt could not create the OpenGL input render pass"));
+        slot->renderTarget->setRenderPassDescriptor(slot->renderPassDescriptor.get());
+        if (!slot->renderTarget->create())
+            return fail(error, QStringLiteral("Qt could not initialize the OpenGL input render target"));
 
         slot->size   = size;
         slot->format = format;
@@ -563,12 +694,8 @@ class OpenGLTouchEngineBackend::Impl {
             return fail(error, QStringLiteral("Could not open TouchEngine output %1 in OpenGL: %2")
                                    .arg(link, resultDescription(conversionResult)));
         }
-        return true;
-    }
 
-    bool hasPendingOutputUnlock(const QString& link) const {
-        return std::any_of(pendingOutputUnlocks.cbegin(), pendingOutputUnlocks.cend(),
-                           [&link](const PendingOutputUnlock& pending) { return pending.link == link; });
+        return true;
     }
 
     bool retryPendingOutputUnlocks(QStringList* failures) {
@@ -596,6 +723,46 @@ class OpenGLTouchEngineBackend::Impl {
         return pendingOutputUnlocks.empty();
     }
 
+    bool enableHybridPresentationPacing() {
+        using SwapInterval = BOOL (WINAPI*)(int);
+        using GetSwapInterval = int (WINAPI*)();
+        using DwmFlushFunction = HRESULT (WINAPI*)();
+
+        swapInterval = reinterpret_cast<SwapInterval>(
+            resolveWglFunction<PROC>("wglSwapIntervalEXT"));
+        getSwapInterval = reinterpret_cast<GetSwapInterval>(
+            resolveWglFunction<PROC>("wglGetSwapIntervalEXT"));
+        dwmModule = LoadLibraryW(L"dwmapi.dll");
+        dwmFlush = dwmModule
+            ? reinterpret_cast<DwmFlushFunction>(GetProcAddress(dwmModule, "DwmFlush"))
+            : nullptr;
+        if (!swapInterval || !getSwapInterval || !dwmFlush)
+            return false;
+
+        previousSwapInterval = getSwapInterval();
+        if (!swapInterval(0))
+            return false;
+        hybridPresentationPacing = true;
+        return true;
+    }
+
+    void disableHybridPresentationPacing() {
+        if (hybridPresentationPacing && swapInterval)
+            swapInterval(previousSwapInterval);
+        hybridPresentationPacing = false;
+        swapInterval = nullptr;
+        getSwapInterval = nullptr;
+        dwmFlush = nullptr;
+        if (dwmModule)
+            FreeLibrary(dwmModule);
+        dwmModule = nullptr;
+    }
+
+    void paceHybridPresentation() const {
+        if (hybridPresentationPacing && dwmFlush)
+            dwmFlush();
+    }
+
     void releaseResources() {
         if (!rhi) return;
 
@@ -611,8 +778,9 @@ class OpenGLTouchEngineBackend::Impl {
 
         if (current && gl && !pendingOutputUnlocks.empty()) {
             gl->glFlush();
-            for (PendingOutputUnlock& pending : pendingOutputUnlocks)
+            for (PendingOutputUnlock& pending : pendingOutputUnlocks) {
                 pending.publishOutput = false;
+            }
             QStringList failures;
             retryPendingOutputUnlocks(&failures);
             for (const QString& failure : failures)
@@ -621,9 +789,29 @@ class OpenGLTouchEngineBackend::Impl {
         // Whether or not Unlock succeeded, drop retained TE wrappers before releasing
         // TEOpenGLContext. The normal path above does so with Qt's context current.
         pendingOutputUnlocks.clear();
+        deferredOutputs.clear();
         pendingInputs.clear();
         outputs.clear();
         inputSlots.clear();
+
+        if (current) {
+            disableHybridPresentationPacing();
+        } else {
+            // Restoring the WGL swap interval requires the render context, but
+            // the dynamically loaded compositor API must still be released.
+            hybridPresentationPacing = false;
+            swapInterval = nullptr;
+            getSwapInterval = nullptr;
+            dwmFlush = nullptr;
+            if (dwmModule)
+                FreeLibrary(dwmModule);
+            dwmModule = nullptr;
+        }
+
+        if (nvBridge) {
+            nvBridge->releaseResources();
+            nvBridge.reset();
+        }
 
         if (current && gl) {
             if (readFramebuffer) gl->glDeleteFramebuffers(1, &readFramebuffer);
@@ -653,10 +841,22 @@ class OpenGLTouchEngineBackend::Impl {
     GLuint                       readFramebuffer = 0;
     GLuint                       drawFramebuffer = 0;
     QString                      rendererName;
+    OpenGLNvInteropCapability    nvInterop;
+    std::unique_ptr<D3D11NvInteropBridge> nvBridge;
+    using SwapInterval = BOOL (WINAPI*)(int);
+    using GetSwapInterval = int (WINAPI*)();
+    using DwmFlushFunction = HRESULT (WINAPI*)();
+    SwapInterval swapInterval = nullptr;
+    GetSwapInterval getSwapInterval = nullptr;
+    DwmFlushFunction dwmFlush = nullptr;
+    HMODULE dwmModule = nullptr;
+    int previousSwapInterval = 1;
+    bool hybridPresentationPacing = false;
 
     InputCallbackQueue                            callbackQueue;
     std::vector<std::unique_ptr<InputSlot>>       inputSlots;
     QHash<QString, InputSlot*>                    pendingInputs;
+    std::vector<DeferredOutput>                   deferredOutputs;
     std::vector<PendingOutputUnlock>              pendingOutputUnlocks;
     QHash<QString, std::shared_ptr<OutputRecord>> outputs;
     quint64                                       nextSlotId = 1;
@@ -667,6 +867,10 @@ OpenGLTouchEngineBackend::OpenGLTouchEngineBackend()
 }
 
 OpenGLTouchEngineBackend::~OpenGLTouchEngineBackend() = default;
+
+OpenGLNvInteropCapability OpenGLTouchEngineBackend::nvInteropCapability() const {
+    return d->nvInterop;
+}
 
 DsTouchEngineTypes::GraphicsApi OpenGLTouchEngineBackend::graphicsApi() const noexcept {
     return DsTouchEngineTypes::GraphicsApi::OpenGL;
@@ -721,22 +925,53 @@ bool OpenGLTouchEngineBackend::initialize(QRhi* rhi, QRhiCommandBuffer* commandB
     if (const GLubyte* renderer = d->gl->glGetString(GL_RENDERER))
         d->rendererName = QString::fromLatin1(reinterpret_cast<const char*>(renderer));
 
+    d->nvInterop = probeNvInterop(d->gl, d->nativeDc);
+    logNvInteropCapability(d->nvInterop);
+
+    if (d->nvInterop.isUsable()) {
+        auto bridge = std::make_unique<D3D11NvInteropBridge>();
+        QString bridgeError;
+        if (bridge->initialize(rhi, d->gl, d->nativeDc, &bridgeError)) {
+            qInfo().noquote()
+                << "Dsqt.TouchEngine OpenGL transfer route: d3d11-nvinterop"
+                << "adapter=" << bridge->adapterName();
+            d->nvBridge = std::move(bridge);
+            if (d->enableHybridPresentationPacing()) {
+                qInfo().noquote()
+                    << "Dsqt.TouchEngine OpenGL presentation pacing: compositor";
+            } else {
+                qWarning().noquote()
+                    << "Dsqt.TouchEngine could not enable compositor presentation pacing;"
+                       " Qt's swap interval remains active";
+            }
+            return true;
+        }
+        qWarning().noquote()
+            << "Dsqt.TouchEngine could not initialize the D3D11/NV OpenGL route; using the SDK OpenGL fallback:"
+            << bridgeError;
+    }
+
     TEOpenGLContext* context = nullptr;
     const TEResult   result  = TEOpenGLContextCreate(d->nativeDc, d->nativeContext, &context);
     if (result != TEResultSuccess || !context) {
         return fail(error, QStringLiteral("TEOpenGLContextCreate failed: %1").arg(resultDescription(result)));
     }
     d->teContext.take(context);
+    qInfo().noquote() << "Dsqt.TouchEngine OpenGL transfer route: sdk-opengl";
     return true;
 }
 
 TEGraphicsContext* OpenGLTouchEngineBackend::graphicsContext() const noexcept {
+    if (d->nvBridge)
+        return d->nvBridge->graphicsContext();
     return reinterpret_cast<TEGraphicsContext*>(d->teContext.get());
 }
 
 bool OpenGLTouchEngineBackend::configureInstance(TEInstance* instance, QString* error) {
     if (error) error->clear();
     if (!d->checkRenderThread(error)) return false;
+    if (d->nvBridge)
+        return d->nvBridge->configureInstance(instance, error);
     if (!instance || !d->teContext)
         return fail(error, QStringLiteral("Cannot configure OpenGL interop without an instance and context"));
     if (!d->makeContextCurrent(error)) return false;
@@ -746,37 +981,34 @@ bool OpenGLTouchEngineBackend::configureInstance(TEInstance* instance, QString* 
     return fail(error, QStringLiteral("TouchEngine cannot exchange OpenGL textures with %1").arg(device));
 }
 
-bool OpenGLTouchEngineBackend::prepareTextureInput(TEInstance* instance, const TextureInputSource& source,
-                                                   QRhiCommandBuffer* commandBuffer, QString* error) {
-    Q_UNUSED(instance)
+bool OpenGLTouchEngineBackend::resetInstance(QString* error) {
     if (error) error->clear();
     if (!d->checkRenderThread(error)) return false;
+    if (!d->nvBridge) return true;
+    if (!d->makeContextCurrent(error)) return false;
+    return d->nvBridge->resetInstance(error);
+}
+
+bool OpenGLTouchEngineBackend::prepareTextureInput(TEInstance* instance, const TextureInputSource& source,
+                                                   QRhiCommandBuffer* commandBuffer, QString* error) {
+    if (error) error->clear();
+    if (!d->checkRenderThread(error)) return false;
+    if (d->nvBridge) {
+        if (!d->ensureCurrentContext(error)) return false;
+        return d->nvBridge->prepareTextureInput(instance, source, commandBuffer, error);
+    }
+    Q_UNUSED(instance)
     if (!d->rhi || !d->teContext || !commandBuffer)
         return fail(error, QStringLiteral("The OpenGL backend is not ready for texture input"));
-    if (source.link.isEmpty() || !source.texture)
-        return fail(error, QStringLiteral("Texture input requires a link and source texture"));
-    if (source.texture->sampleCount() != 1 || source.texture->flags().testFlag(QRhiTexture::CubeMap) ||
-        source.texture->flags().testFlag(QRhiTexture::ThreeDimensional) ||
-        source.texture->flags().testFlag(QRhiTexture::TextureArray) ||
-        source.texture->flags().testFlag(QRhiTexture::OneDimensional) ||
-        source.texture->flags().testFlag(QRhiTexture::ExternalOES)) {
-        return fail(error, QStringLiteral("Texture input %1 is not a single-sample 2D texture").arg(source.link));
-    }
+    if (source.link.isEmpty() || !source.render)
+        return fail(error, QStringLiteral("Texture input requires a link and render source"));
 
-    const auto format = inputFormatFor(source.texture);
+    const auto format = inputFormatFor(source.format, source.flags);
     if (!format) {
         return fail(error,
                     QStringLiteral("Texture input %1 uses a format TouchEngine OpenGL cannot import").arg(source.link));
     }
-    const auto sourceRect = sourceBlitRect(source);
-    if (!sourceRect) {
-        return fail(error, QStringLiteral("Texture input %1 has an invalid source rectangle").arg(source.link));
-    }
-
     QSize destinationSize = source.pixelSize;
-    if (destinationSize.width() <= 0 || destinationSize.height() <= 0) {
-        destinationSize = QSize(sourceRect->x1 - sourceRect->x0, sourceRect->y1 - sourceRect->y0);
-    }
     if (destinationSize.width() <= 0 || destinationSize.height() <= 0) {
         return fail(error, QStringLiteral("Texture input %1 has no usable pixel size").arg(source.link));
     }
@@ -785,18 +1017,12 @@ bool OpenGLTouchEngineBackend::prepareTextureInput(TEInstance* instance, const T
     if (!slot) return false;
     slot->state           = Impl::InputState::Pending;
 
-    ExternalCommands external(commandBuffer);
-    if (!d->ensureCurrentContext(error) || !d->ensureInputTexture(slot, destinationSize, *format, error)) {
+    if (!d->ensureInputTexture(slot, destinationSize, *format, error)) {
         slot->state = Impl::InputState::Available;
         return false;
     }
 
-    const QRhiTexture::NativeTexture sourceNative      = source.texture->nativeTexture();
-    const QRhiTexture::NativeTexture destinationNative = slot->texture->nativeTexture();
-    const GLenum                     sourceTarget =
-        source.texture->flags().testFlag(QRhiTexture::TextureRectangleGL) ? GL_TEXTURE_RECTANGLE : GL_TEXTURE_2D;
-    if (!d->blit(static_cast<GLuint>(sourceNative.object), sourceTarget, *sourceRect,
-                 static_cast<GLuint>(destinationNative.object), destinationSize, error)) {
+    if (!source.render(slot->texture.get(), slot->renderTarget.get(), commandBuffer, error)) {
         slot->state = Impl::InputState::Available;
         return false;
     }
@@ -808,20 +1034,63 @@ bool OpenGLTouchEngineBackend::prepareTextureInput(TEInstance* instance, const T
 
 bool OpenGLTouchEngineBackend::updateTextureOutput(TEInstance* instance, const QString& link, TETexture* texture,
                                                    QRhiCommandBuffer* commandBuffer, QString* error) {
-    Q_UNUSED(instance)
     if (error) error->clear();
     if (!d->checkRenderThread(error)) return false;
+    if (d->nvBridge) {
+        if (!instance || !d->rhi || !commandBuffer || link.isEmpty() || !texture)
+            return fail(error, QStringLiteral("The D3D11/NV OpenGL backend is not ready for texture output"));
+
+        if (!d->ensureCurrentContext(error)) return false;
+        ExternalCommands external(commandBuffer);
+        D3D11NvInteropBridge::AcquiredOutput acquired;
+        if (!d->nvBridge->acquireTextureOutput(instance, link, texture,
+                                               commandBuffer, &acquired, error)) {
+            return false;
+        }
+        if (!acquired.textureName)
+            return true;
+
+        const auto format = inputFormatFor(acquired.format, acquired.flags);
+        if (!format) {
+            return fail(error,
+                        QStringLiteral("Texture output %1 has a D3D11 format Qt OpenGL cannot cache")
+                            .arg(link));
+        }
+        const auto output = d->outputRecord(link, acquired.pixelSize, *format, error);
+        if (!output) return false;
+
+        if (!d->nvBridge->copyAcquiredOutput(
+                acquired,
+                static_cast<quint32>(output->texture->nativeTexture().object),
+                error)) {
+            return false;
+        }
+        output->mirrorVertically = acquired.mirrorVertically;
+        d->outputs.insert(link, output);
+        return true;
+    }
+    Q_UNUSED(instance)
     if (!d->rhi || !d->teContext || !commandBuffer)
         return fail(error, QStringLiteral("The OpenGL backend is not ready for texture output"));
     if (link.isEmpty() || !texture)
         return fail(error, QStringLiteral("Texture output requires a link and TouchEngine texture"));
-    if (d->hasPendingOutputUnlock(link)) {
-        return fail(error,
-                    QStringLiteral("TouchEngine output %1 is still locked after a failed OpenGL unlock; "
-                                   "the backend will retry after this Qt frame")
-                        .arg(link));
+
+    auto deferred = std::find_if(
+        d->deferredOutputs.begin(), d->deferredOutputs.end(),
+        [&link](const Impl::DeferredOutput& pending) { return pending.link == link; });
+    if (deferred == d->deferredOutputs.end()) {
+        Impl::DeferredOutput pending;
+        pending.link = link;
+        pending.texture.set(texture);
+        d->deferredOutputs.push_back(std::move(pending));
+        // Defer the blocking WGL/D3D lock by one Qt frame so TouchEngine's GPU work can
+        // finish in parallel. Core keeps this output in its normal retry set.
+        return false;
     }
-    if (!isIdentityComponentMap(TETextureGetComponentMap(texture))) {
+
+    TETexture* textureToProcess = deferred->texture.get();
+    const bool currentMatchesDeferred = textureToProcess == texture;
+    if (!isIdentityComponentMap(TETextureGetComponentMap(textureToProcess))) {
         return fail(error,
                     QStringLiteral("Texture output %1 uses a component map OpenGL copying cannot preserve").arg(link));
     }
@@ -830,7 +1099,7 @@ bool OpenGLTouchEngineBackend::updateTextureOutput(TEInstance* instance, const Q
     if (!d->ensureCurrentContext(error)) return false;
 
     TouchObject<TEOpenGLTexture> source;
-    if (!d->outputSource(texture, link, &source, error)) return false;
+    if (!d->outputSource(textureToProcess, link, &source, error)) return false;
 
     const GLenum sourceTarget = TEOpenGLTextureGetTarget(source);
     if (sourceTarget != GL_TEXTURE_2D && sourceTarget != GL_TEXTURE_RECTANGLE) {
@@ -867,14 +1136,14 @@ bool OpenGLTouchEngineBackend::updateTextureOutput(TEInstance* instance, const Q
     }
 
     const BlitRect rect{0, 0, size.width(), size.height()};
-    const bool     copied = d->blit(TEOpenGLTextureGetName(source), sourceTarget, rect,
-                                    static_cast<GLuint>(output->texture->nativeTexture().object), size, error);
+    const bool copied = d->blit(TEOpenGLTextureGetName(source), sourceTarget, rect,
+                                static_cast<GLuint>(output->texture->nativeTexture().object), size, error);
     const QString copyError = copied
                                   ? QString{}
                                   : (error && !error->isEmpty()
                                          ? *error
                                          : QStringLiteral("Could not copy TouchEngine output %1").arg(link));
-    const bool mirrorVertically = TETextureGetOrigin(texture) == TETextureOriginBottomLeft;
+    const bool mirrorVertically = TETextureGetOrigin(textureToProcess) == TETextureOriginBottomLeft;
 
     // Keep every source locked until all output copies have been recorded. afterFrameEnd()
     // flushes the batch once, unlocks every source, and only then publishes the stable Qt
@@ -888,7 +1157,18 @@ bool OpenGLTouchEngineBackend::updateTextureOutput(TEInstance* instance, const Q
         .mirrorVertically = mirrorVertically,
         .copyError = copyError,
     });
-    return copied;
+    if (!copied)
+        return false;
+
+    if (currentMatchesDeferred) {
+        d->deferredOutputs.erase(deferred);
+        return true;
+    }
+
+    deferred->texture.set(texture);
+    // The older retained value was copied; keep the current value queued so this same
+    // one-frame pipeline continues without blocking TouchEngine frame production.
+    return false;
 }
 
 TextureOutput OpenGLTouchEngineBackend::textureOutput(const QString& link) const {
@@ -907,6 +1187,8 @@ void OpenGLTouchEngineBackend::clearTextureOutput(const QString& link) {
         if (pending.link == link)
             pending.publishOutput = false;
     }
+    std::erase_if(d->deferredOutputs,
+                  [&link](const Impl::DeferredOutput& pending) { return pending.link == link; });
     d->outputs.remove(link);
 }
 
@@ -914,12 +1196,17 @@ void OpenGLTouchEngineBackend::clearTextureOutputs() {
     Q_ASSERT(!d->renderThread || QThread::currentThread() == d->renderThread);
     for (Impl::PendingOutputUnlock& pending : d->pendingOutputUnlocks)
         pending.publishOutput = false;
+    d->deferredOutputs.clear();
     d->outputs.clear();
 }
 
 bool OpenGLTouchEngineBackend::afterFrameEnd(TEInstance* instance, QString* error) {
     if (error) error->clear();
     if (!d->checkRenderThread(error)) return false;
+    if (d->nvBridge) {
+        if (!d->makeContextCurrent(error)) return false;
+        return d->nvBridge->afterFrameEnd(instance, error);
+    }
     if (!instance || !d->rhi || !d->teContext)
         return fail(error, QStringLiteral("The OpenGL backend is not ready to publish texture inputs"));
 
@@ -942,14 +1229,19 @@ bool OpenGLTouchEngineBackend::afterFrameEnd(TEInstance* instance, QString* erro
             }
 
             ++slot->generation;
-            slot->callbackInfo.generation = slot->generation;
-            slot->state                   = Impl::InputState::Published;
+            slot->state = Impl::InputState::Published;
 
+            auto* callbackInfo = new InputCallbackInfo{
+                &d->callbackQueue,
+                slot->id,
+                slot->generation,
+            };
             TEOpenGLTexture* created = TEOpenGLTextureCreate(
                 static_cast<GLuint>(slot->texture->nativeTexture().object), GL_TEXTURE_2D,
                 slot->format.glInternalFormat, slot->size.width(), slot->size.height(), TETextureOriginBottomLeft,
-                kTETextureComponentMapIdentity, &inputTextureCallback, &slot->callbackInfo);
+                kTETextureComponentMapIdentity, &inputTextureCallback, callbackInfo);
             if (!created) {
+                delete callbackInfo;
                 slot->state = Impl::InputState::Available;
                 failures.push_back(
                     QStringLiteral("Could not wrap OpenGL texture input %1 for TouchEngine").arg(it.key()));
@@ -971,12 +1263,14 @@ bool OpenGLTouchEngineBackend::afterFrameEnd(TEInstance* instance, QString* erro
         }
     }
 
-    // Input wrapping and SetTextureValue may submit additional interop work. Output-only
-    // frames have already been submitted by the single flush before the unlock batch.
     if (publishInputs)
         d->gl->glFlush();
     if (!failures.isEmpty()) return fail(error, failures.join(QLatin1Char('\n')));
     return true;
+}
+
+void OpenGLTouchEngineBackend::afterFrameStart() {
+    d->paceHybridPresentation();
 }
 
 #else
@@ -988,6 +1282,12 @@ OpenGLTouchEngineBackend::OpenGLTouchEngineBackend()
 }
 
 OpenGLTouchEngineBackend::~OpenGLTouchEngineBackend() = default;
+
+OpenGLNvInteropCapability OpenGLTouchEngineBackend::nvInteropCapability() const {
+    OpenGLNvInteropCapability capability;
+    capability.detail = QStringLiteral("WGL_NV_DX_interop2 is available only on Windows");
+    return capability;
+}
 
 DsTouchEngineTypes::GraphicsApi OpenGLTouchEngineBackend::graphicsApi() const noexcept {
     return DsTouchEngineTypes::GraphicsApi::OpenGL;
@@ -1002,6 +1302,10 @@ TEGraphicsContext* OpenGLTouchEngineBackend::graphicsContext() const noexcept {
 }
 
 bool OpenGLTouchEngineBackend::configureInstance(TEInstance*, QString* error) {
+    return fail(error, QStringLiteral("TouchEngine OpenGL interop requires WGL on Windows"));
+}
+
+bool OpenGLTouchEngineBackend::resetInstance(QString* error) {
     return fail(error, QStringLiteral("TouchEngine OpenGL interop requires WGL on Windows"));
 }
 
@@ -1027,6 +1331,9 @@ void OpenGLTouchEngineBackend::clearTextureOutputs() {
 
 bool OpenGLTouchEngineBackend::afterFrameEnd(TEInstance*, QString* error) {
     return fail(error, QStringLiteral("TouchEngine OpenGL interop requires WGL on Windows"));
+}
+
+void OpenGLTouchEngineBackend::afterFrameStart() {
 }
 
 #endif

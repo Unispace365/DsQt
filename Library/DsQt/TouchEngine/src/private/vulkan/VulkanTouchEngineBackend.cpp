@@ -105,13 +105,15 @@ bool isIdentityComponentMapping(const VkComponentMapping &mapping)
         && identityOr(mapping.a, VK_COMPONENT_SWIZZLE_A);
 }
 
-bool rhiToVkFormat(QRhiTexture *texture, VkFormat *vkFormat)
+bool rhiToVkFormat(QRhiTexture::Format format,
+                   QRhiTexture::Flags flags,
+                   VkFormat *vkFormat)
 {
-    if (!texture || !vkFormat)
+    if (!vkFormat)
         return false;
 
-    const bool srgb = texture->flags().testFlag(QRhiTexture::sRGB);
-    switch (texture->format()) {
+    const bool srgb = flags.testFlag(QRhiTexture::sRGB);
+    switch (format) {
     case QRhiTexture::RGBA8:
         *vkFormat = srgb ? VK_FORMAT_R8G8B8A8_SRGB : VK_FORMAT_R8G8B8A8_UNORM;
         return true;
@@ -361,26 +363,13 @@ struct VulkanTouchEngineBackend::Impl
         VkImage image = VK_NULL_HANDLE;
         VkDeviceMemory memory = VK_NULL_HANDLE;
         std::unique_ptr<QRhiTexture> wrapper;
+        std::unique_ptr<QRhiRenderPassDescriptor> renderPassDescriptor;
+        std::unique_ptr<QRhiTextureRenderTarget> renderTarget;
         QSize size;
         VkFormat vkFormat = VK_FORMAT_UNDEFINED;
         QRhiTexture::Format rhiFormat = QRhiTexture::UnknownFormat;
         QRhiTexture::Flags rhiFlags;
         VkImageLayout layout = VK_IMAGE_LAYOUT_UNDEFINED;
-    };
-
-    struct InputEntry
-    {
-        NativeImage native;
-        TouchObject<TEVulkanTexture> texture;
-        InputUseState use;
-        bool everPublished = false;
-    };
-
-    struct InputLink
-    {
-        QString link;
-        std::vector<std::unique_ptr<InputEntry>> entries;
-        InputEntry *currentPublished = nullptr;
     };
 
     struct HostSignal
@@ -389,6 +378,22 @@ struct VulkanTouchEngineBackend::Impl
         TouchObject<TEVulkanSemaphore> textureTransfer;
         int frameSlot = -1;
         bool reused = false;
+    };
+
+    struct InputEntry
+    {
+        NativeImage native;
+        TouchObject<TEVulkanTexture> texture;
+        InputUseState use;
+        HostSignal transferSignal;
+        bool everPublished = false;
+    };
+
+    struct InputLink
+    {
+        QString link;
+        std::vector<std::unique_ptr<InputEntry>> entries;
+        InputEntry *currentPublished = nullptr;
     };
 
     struct ImportedOutput
@@ -597,6 +602,8 @@ struct VulkanTouchEngineBackend::Impl
 
     void discardNative(NativeImage *native)
     {
+        native->renderTarget.reset();
+        native->renderPassDescriptor.reset();
         native->wrapper.reset();
         if (native->image)
             vkDestroyImage(device, native->image, nullptr);
@@ -1147,31 +1154,39 @@ struct VulkanTouchEngineBackend::Impl
     TextureAcquireResult acquireDiscardedInputFromTouchEngine(TEInstance *instance,
                                                                TETexture *texture,
                                                                NativeImage *native,
+                                                               HostSignal *reusableSignal,
+                                                               QRhiCommandBuffer *commandBuffer,
                                                                QString *error)
     {
-        if (!TEInstanceHasTextureTransfer(instance, texture)) {
+        if (!TEInstanceHasVulkanTextureTransfer(instance, texture)) {
             // TouchEngine may discard a transfer it never consumed. EndUse still proves
             // that the image is no longer in use, and its previous contents are irrelevant
             // because the next host operation overwrites the complete image.
+            if (reusableSignal)
+                retireSignal(reusableSignal);
             native->layout = VK_IMAGE_LAYOUT_UNDEFINED;
             native->wrapper->setNativeLayout(int(VK_IMAGE_LAYOUT_UNDEFINED));
             return TextureAcquireResult::Acquired;
         }
 
+        VkImageLayout oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        VkImageLayout newLayout = VK_IMAGE_LAYOUT_UNDEFINED;
         uint64_t waitValue = 0;
         TouchObject<TESemaphore> transferSemaphore;
-        const TEResult teResult = TEInstanceGetTextureTransfer(
-            instance, texture, transferSemaphore.take(), &waitValue);
+        const TEResult teResult = TEInstanceGetVulkanTextureTransfer(
+            instance, texture, &oldLayout, &newLayout, transferSemaphore.take(), &waitValue);
         if (teResult == TEResultNoMatchingEntity) {
-            // A disposable input transfer may be discarded after HasTextureTransfer()
-            // and before GetTextureTransfer(). EndUse still makes the image safe to
+            // A disposable input transfer may be discarded after the Vulkan transfer
+            // query and before retrieval. EndUse still makes the image safe to
             // overwrite; no previous contents or layout need to be preserved.
+            if (reusableSignal)
+                retireSignal(reusableSignal);
             native->layout = VK_IMAGE_LAYOUT_UNDEFINED;
             native->wrapper->setNativeLayout(int(VK_IMAGE_LAYOUT_UNDEFINED));
             return TextureAcquireResult::Acquired;
         }
         if (teResult != TEResultSuccess) {
-            fail(error, teResultMessage("TEInstanceGetTextureTransfer", teResult));
+            fail(error, teResultMessage("TEInstanceGetVulkanTextureTransfer", teResult));
             return TextureAcquireResult::Error;
         }
         if (!transferSemaphore || TESemaphoreGetType(transferSemaphore) != TESemaphoreTypeVulkan) {
@@ -1181,18 +1196,67 @@ struct VulkanTouchEngineBackend::Impl
             return TextureAcquireResult::Error;
         }
 
-        // The previous input contents are deliberately discarded before Qt overwrites the
-        // pool image. TouchEngine's generic transfer supplies synchronization but no layouts;
-        // wait for its release and reinitialize from UNDEFINED without a queue-family acquire.
-        return submitAcquire(reinterpret_cast<TEVulkanSemaphore *>(transferSemaphore.get()),
+        auto *vulkanSemaphore = reinterpret_cast<TEVulkanSemaphore *>(transferSemaphore.get());
+        if (reusableSignal && reusableSignal->native && reusableSignal->textureTransfer
+            && transferSemaphore.get()
+                == reinterpret_cast<TESemaphore *>(reusableSignal->textureTransfer.get())
+            && TEVulkanSemaphoreGetType(vulkanSemaphore) == VK_SEMAPHORE_TYPE_BINARY) {
+            FrameSlot *slot = beginFrameSlot(error);
+            if (!slot || !commandBuffer)
+                return TextureAcquireResult::Error;
+
+            commandBuffer->beginExternal();
+            const auto *handles = static_cast<const QRhiVulkanCommandBufferNativeHandles *>(
+                commandBuffer->nativeHandles());
+            if (!handles || !handles->commandBuffer) {
+                commandBuffer->endExternal();
+                fail(error, QStringLiteral("Qt did not expose its Vulkan command buffer for a reusable input acquire"));
+                return TextureAcquireResult::Error;
+            }
+
+            VkImageMemoryBarrier barrier = {};
+            barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+            barrier.srcAccessMask = 0;
+            barrier.dstAccessMask = VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT;
+            barrier.oldLayout = oldLayout;
+            barrier.newLayout = newLayout;
+            barrier.srcQueueFamilyIndex = ownershipTransfer ? VK_QUEUE_FAMILY_EXTERNAL
+                                                            : VK_QUEUE_FAMILY_IGNORED;
+            barrier.dstQueueFamilyIndex = ownershipTransfer ? queueFamily
+                                                            : VK_QUEUE_FAMILY_IGNORED;
+            barrier.image = native->image;
+            barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+            barrier.subresourceRange.levelCount = 1;
+            barrier.subresourceRange.layerCount = 1;
+            vkCmdPipelineBarrier(handles->commandBuffer,
+                                 VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+                                 VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+                                 0, 0, nullptr, 0, nullptr, 1, &barrier);
+            commandBuffer->endExternal();
+
+            attachWaitAndSignal(reusableSignal->native);
+            reusableSignal->frameSlot = rhi->currentFrameSlot();
+            reusableSignal->reused = true;
+            native->layout = newLayout;
+            native->wrapper->setNativeLayout(int(native->layout));
+            return TextureAcquireResult::Acquired;
+        }
+
+        if (reusableSignal)
+            retireSignal(reusableSignal);
+
+        // Acquire the exact layouts and queue ownership returned by TouchEngine. The next
+        // QRhi render pass transitions from newLayout to color-attachment layout before
+        // overwriting the complete image.
+        return submitAcquire(vulkanSemaphore,
                              waitValue,
                              native,
-                             VK_IMAGE_LAYOUT_UNDEFINED,
-                             VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                             VK_ACCESS_TRANSFER_WRITE_BIT,
-                             VK_PIPELINE_STAGE_TRANSFER_BIT,
-                             false,
-                             nullptr,
+                             oldLayout,
+                             newLayout,
+                             VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT,
+                             VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+                             true,
+                             commandBuffer,
                              error);
     }
 
@@ -1387,13 +1451,27 @@ struct VulkanTouchEngineBackend::Impl
         if (result != VK_SUCCESS)
             return fail(error, vkResultMessage("vkBindImageMemory for TouchEngine input", result));
 
-        entry->native.wrapper.reset(rhi->newTexture(rhiFormat, size, 1, rhiFlags));
+        const QRhiTexture::Flags targetFlags = rhiFlags | QRhiTexture::RenderTarget;
+        entry->native.wrapper.reset(rhi->newTexture(rhiFormat, size, 1, targetFlags));
         const QRhiTexture::NativeTexture nativeTexture = {
             quint64(entry->native.image), int(VK_IMAGE_LAYOUT_UNDEFINED)};
         if (!entry->native.wrapper || !entry->native.wrapper->createFrom(nativeTexture)) {
             return fail(error,
                         QStringLiteral("QRhiTexture::createFrom failed for exported Vulkan input"));
         }
+        const QRhiTextureRenderTargetDescription targetDescription(
+            QRhiColorAttachment(entry->native.wrapper.get()));
+        entry->native.renderTarget.reset(rhi->newTextureRenderTarget(targetDescription));
+        if (!entry->native.renderTarget)
+            return fail(error, QStringLiteral("QRhi could not create the Vulkan input render target"));
+        entry->native.renderPassDescriptor.reset(
+            entry->native.renderTarget->newCompatibleRenderPassDescriptor());
+        if (!entry->native.renderPassDescriptor)
+            return fail(error, QStringLiteral("QRhi could not create the Vulkan input render pass"));
+        entry->native.renderTarget->setRenderPassDescriptor(
+            entry->native.renderPassDescriptor.get());
+        if (!entry->native.renderTarget->create())
+            return fail(error, QStringLiteral("QRhi could not initialize the Vulkan input render target"));
 
         VkMemoryGetWin32HandleInfoKHR handleInfo = {};
         handleInfo.sType = VK_STRUCTURE_TYPE_MEMORY_GET_WIN32_HANDLE_INFO_KHR;
@@ -1420,7 +1498,7 @@ struct VulkanTouchEngineBackend::Impl
         entry->native.size = size;
         entry->native.vkFormat = format;
         entry->native.rhiFormat = rhiFormat;
-        entry->native.rhiFlags = rhiFlags;
+        entry->native.rhiFlags = targetFlags;
         entry->native.layout = VK_IMAGE_LAYOUT_UNDEFINED;
         return true;
     }
@@ -1675,6 +1753,8 @@ struct VulkanTouchEngineBackend::Impl
             // Releasing createFrom() queues Qt's VkImageView for deferred
             // destruction. Keep the allocation alive for one complete reuse
             // of this frame slot before destroying the VkImage underneath it.
+            native->renderTarget.reset();
+            native->renderPassDescriptor.reset();
             native->wrapper.reset();
             slot->importsAwaitingNativeDestroy.push_back(
                 RetiredImportNative{native->image, native->memory, nullptr});
@@ -1684,6 +1764,8 @@ struct VulkanTouchEngineBackend::Impl
             return true;
         }
 
+        native->renderTarget.reset();
+        native->renderPassDescriptor.reset();
         native->wrapper.reset();
         if (rhi->finish() != QRhi::FrameOpSuccess) {
             return fail(error,
@@ -1732,6 +1814,7 @@ struct VulkanTouchEngineBackend::Impl
         // releasing our final texture reference independent of the entry.
         for (auto &link : inputLinks) {
             for (auto &entry : link.entries) {
+                retireSignal(&entry->transferSignal);
                 if (!entry->texture)
                     continue;
                 const TEResult result = TEVulkanTextureSetCallback(entry->texture,
@@ -1802,11 +1885,20 @@ struct VulkanTouchEngineBackend::Impl
                 pendingNativeSemaphores.push_back(pending.signal.native);
             pending.signal.native = VK_NULL_HANDLE;
         }
+        for (auto &link : inputLinks) {
+            for (auto &entry : link.entries) {
+                if (entry->transferSignal.native)
+                    pendingNativeSemaphores.push_back(entry->transferSignal.native);
+                entry->transferSignal.native = VK_NULL_HANDLE;
+            }
+        }
 
         for (auto &link : inputLinks) {
             for (auto &entry : link.entries) {
                 if (entry->texture)
                     TEVulkanTextureSetCallback(entry->texture, nullptr, nullptr);
+                entry->native.renderTarget.reset();
+                entry->native.renderPassDescriptor.reset();
                 entry->native.wrapper.reset();
             }
         }
@@ -1859,8 +1951,10 @@ struct VulkanTouchEngineBackend::Impl
             pending.texture.reset();
         }
         for (auto &link : inputLinks)
-            for (auto &entry : link.entries)
+            for (auto &entry : link.entries) {
+                entry->transferSignal.textureTransfer.reset();
                 entry->texture.reset();
+            }
         retiredInputs.clear();
         for (auto &imported : importedOutputs)
             releaseImportedState(imported.get());
@@ -1986,14 +2080,8 @@ bool VulkanTouchEngineBackend::prepareTextureInput(TEInstance *instance,
         error->clear();
     if (!m_impl->configured || instance != m_impl->configuredInstance)
         return fail(error, QStringLiteral("TouchEngine Vulkan instance is not configured"));
-    if (!commandBuffer || !source.texture || source.link.isEmpty())
-        return fail(error, QStringLiteral("Texture input requires a link, texture, and command buffer"));
-    if (!source.texture->flags().testFlag(QRhiTexture::UsedAsTransferSource)) {
-        return fail(error,
-                    QStringLiteral("The Qt input texture for '%1' was not created with "
-                                   "QRhiTexture::UsedAsTransferSource")
-                        .arg(source.link));
-    }
+    if (!commandBuffer || !source.render || source.link.isEmpty())
+        return fail(error, QStringLiteral("Texture input requires a link, render source, and command buffer"));
     const auto duplicate = std::find_if(m_impl->pendingInputs.begin(), m_impl->pendingInputs.end(),
                                         [&source](const Impl::PendingInput &pending) {
                                             return pending.link == source.link;
@@ -2002,30 +2090,15 @@ bool VulkanTouchEngineBackend::prepareTextureInput(TEInstance *instance,
         return fail(error, QStringLiteral("Texture input '%1' was prepared twice in one frame")
                                .arg(source.link));
 
-    const QSize sourceSize = source.pixelSize.isValid() ? source.pixelSize
-                                                        : source.texture->pixelSize();
-    QRectF normalized = source.normalizedSourceRect.normalized()
-                            .intersected(QRectF(0.0, 0.0, 1.0, 1.0));
-    if (!sourceSize.isValid() || normalized.isEmpty())
-        return fail(error, QStringLiteral("Texture input '%1' has an empty source rectangle")
-                               .arg(source.link));
-    const int left = std::clamp(qRound(normalized.left() * sourceSize.width()),
-                                0, sourceSize.width());
-    const int top = std::clamp(qRound(normalized.top() * sourceSize.height()),
-                               0, sourceSize.height());
-    const int right = std::clamp(qRound(normalized.right() * sourceSize.width()),
-                                 left, sourceSize.width());
-    const int bottom = std::clamp(qRound(normalized.bottom() * sourceSize.height()),
-                                  top, sourceSize.height());
-    const QSize copySize(right - left, bottom - top);
+    const QSize copySize = source.pixelSize;
     if (!copySize.isValid())
-        return fail(error, QStringLiteral("Texture input '%1' has a zero-sized copy region")
+        return fail(error, QStringLiteral("Texture input '%1' has no usable size")
                                .arg(source.link));
 
     VkFormat vkFormat = VK_FORMAT_UNDEFINED;
-    if (!rhiToVkFormat(source.texture, &vkFormat)) {
+    if (!rhiToVkFormat(source.format, source.flags, &vkFormat)) {
         return fail(error, QStringLiteral("Qt texture format %1 is not supported for Vulkan input")
-                               .arg(int(source.texture->format())));
+                               .arg(int(source.format)));
     }
     if (std::find(m_impl->supportedFormats.begin(), m_impl->supportedFormats.end(), vkFormat)
         == m_impl->supportedFormats.end()) {
@@ -2046,6 +2119,8 @@ bool VulkanTouchEngineBackend::prepareTextureInput(TEInstance *instance,
                     instance,
                     reinterpret_cast<TETexture *>(candidate->texture.get()),
                     &candidate->native,
+                    &candidate->transferSignal,
+                    commandBuffer,
                     &acquireError);
             if (acquireResult == TextureAcquireResult::Acquired) {
                 candidate->use.needsAcquire.store(false, std::memory_order_release);
@@ -2061,6 +2136,7 @@ bool VulkanTouchEngineBackend::prepareTextureInput(TEInstance *instance,
             }
         }
 
+        m_impl->retireSignal(&candidate->transferSignal);
         QString retirementError;
         if (!m_impl->retireInputNative(&candidate->native, &retirementError)) {
             qWarning().noquote()
@@ -2098,10 +2174,12 @@ bool VulkanTouchEngineBackend::prepareTextureInput(TEInstance *instance,
         if (candidate->use.needsAcquire.load(std::memory_order_acquire)) {
             const TextureAcquireResult acquireResult =
                 m_impl->acquireDiscardedInputFromTouchEngine(
-                instance,
-                reinterpret_cast<TETexture *>(candidate->texture.get()),
-                &candidate->native,
-                error);
+                    instance,
+                    reinterpret_cast<TETexture *>(candidate->texture.get()),
+                    &candidate->native,
+                    &candidate->transferSignal,
+                    commandBuffer,
+                    error);
             if (acquireResult == TextureAcquireResult::Error) {
                 // GetVulkanTextureTransfer may already have consumed the only pending
                 // transfer before a later import or queue operation failed. Quarantine
@@ -2172,8 +2250,8 @@ bool VulkanTouchEngineBackend::prepareTextureInput(TEInstance *instance,
         auto candidate = std::make_unique<Impl::InputEntry>();
         candidate->use.available.store(false, std::memory_order_release);
         if (!m_impl->allocateExportedInput(candidate.get(), vkFormat,
-                                           source.texture->format(),
-                                           source.texture->flags() & QRhiTexture::sRGB,
+                                           source.format,
+                                           source.flags & QRhiTexture::sRGB,
                                            copySize, error)) {
             if (evictionCandidate)
                 evictionCandidate->use.available.store(true, std::memory_order_release);
@@ -2189,33 +2267,45 @@ bool VulkanTouchEngineBackend::prepareTextureInput(TEInstance *instance,
         return true;
     }
 
-    Impl::HostSignal signal;
-    if (!m_impl->createHostSignal(&signal, error)) {
+    Impl::HostSignal signal = std::move(entry->transferSignal);
+    const bool signalAlreadyAttached = signal.native && signal.reused;
+    if (!signal.native && !m_impl->createHostSignal(&signal, error)) {
+        entry->use.available.store(true, std::memory_order_release);
+        if (evictionCandidate)
+            evictionCandidate->use.available.store(true, std::memory_order_release);
+        return false;
+    }
+    const auto abandonSignal = [&] {
+        if (signalAlreadyAttached) {
+            m_impl->retireSignal(&signal);
+            return;
+        }
+        signal.textureTransfer.reset();
+        if (signal.native)
+            vkDestroySemaphore(m_impl->device, signal.native, nullptr);
+        signal.native = VK_NULL_HANDLE;
+    };
+
+    if (!source.render(entry->native.wrapper.get(), entry->native.renderTarget.get(),
+                       commandBuffer, error)) {
+        abandonSignal();
         entry->use.available.store(true, std::memory_order_release);
         if (evictionCandidate)
             evictionCandidate->use.available.store(true, std::memory_order_release);
         return false;
     }
 
-    QRhiTextureCopyDescription copy;
-    copy.setSourceTopLeft(QPoint(left, top));
-    copy.setPixelSize(copySize);
-    QRhiResourceUpdateBatch *updates = m_impl->rhi->nextResourceUpdateBatch();
-    updates->copyTexture(entry->native.wrapper.get(), source.texture, copy);
-    commandBuffer->resourceUpdate(updates);
-
     VkImageLayout oldLayout = VkImageLayout(entry->native.wrapper->nativeTexture().layout);
     if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED)
-        oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+        oldLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
     if (!m_impl->recordReleaseBarrier(&entry->native,
                                       oldLayout,
                                       m_impl->inputReleaseLayout,
-                                      VK_ACCESS_TRANSFER_WRITE_BIT,
-                                      VK_PIPELINE_STAGE_TRANSFER_BIT,
+                                      VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+                                      VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
                                       commandBuffer,
                                       error)) {
-        vkDestroySemaphore(m_impl->device, signal.native, nullptr);
-        signal.native = VK_NULL_HANDLE;
+        abandonSignal();
         // No ownership transfer or semaphore publication reached TouchEngine. Qt still
         // owns this pool image, so it is safe to retry it on a later frame.
         entry->use.available.store(true, std::memory_order_release);
@@ -2224,7 +2314,8 @@ bool VulkanTouchEngineBackend::prepareTextureInput(TEInstance *instance,
         return false;
     }
 
-    m_impl->attachSignal(signal.native);
+    if (!signalAlreadyAttached)
+        m_impl->attachSignal(signal.native);
     m_impl->pendingInputs.push_back(Impl::PendingInput{
         source.link, entry, std::move(signal), oldLayout, m_impl->inputReleaseLayout, false});
 
@@ -2549,7 +2640,8 @@ bool VulkanTouchEngineBackend::afterFrameEnd(TEInstance *instance, QString *erro
                 });
             if (link != m_impl->inputLinks.end())
                 link->currentPublished = pending.entry;
-            m_impl->retireSignal(&pending.signal);
+            pending.signal.reused = false;
+            pending.entry->transferSignal = std::move(pending.signal);
             inputIt = m_impl->pendingInputs.erase(inputIt);
         } else {
             // The image has already been released to the external queue family. Do not make

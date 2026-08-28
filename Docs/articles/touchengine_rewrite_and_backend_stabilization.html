@@ -710,15 +710,35 @@
 
                 <h3>OpenGL</h3>
                 <p>
-                    On Windows, TouchEngine can supply a D3D shared texture while Qt uses OpenGL.
-                    The backend converts that source through <code>TEOpenGLContextGetTexture</code>,
-                    locks it, copies it, and later unlocks it.
+                    The initial Windows path used the SDK OpenGL context directly. It was
+                    lifecycle-safe after batching output unlocks, but it remained substantially
+                    slower than the native graphics paths. Timing instrumentation eventually
+                    isolated the dominant cost: <code>wglDXLockObjectsNV</code> could spend roughly
+                    10–15 ms waiting behind Qt's VSync-bound OpenGL context.
                 </p>
                 <p>
-                    The original path flushed and unlocked every output independently. The final
-                    path records all pending unlocks, performs one flush after the frame, unlocks the
-                    batch, and publishes the stable output caches. A cross-frame conversion cache
-                    was tested and removed after a later reload hung.
+                    The final NVIDIA path uses a dedicated <code>D3D11NvInteropBridge</code>. At
+                    startup it verifies <code>WGL_NV_DX_interop2</code>, resolves every required WGL
+                    entry point, and confirms that the current OpenGL renderer and a hardware D3D11
+                    adapter can share resources. TouchEngine then exchanges D3D11 textures while Qt
+                    continues to render with OpenGL. If any capability or adapter check fails, the
+                    backend retains the SDK OpenGL implementation as a compatibility fallback.
+                </p>
+                <p>
+                    Outputs pass through a rotating D3D11 staging pool. The bridge copies the
+                    TouchEngine texture into an older reusable staging resource, returns ownership
+                    to TouchEngine with a fence or keyed mutex, locks only a completed staging slot
+                    for OpenGL access, blits it into a stable link-owned Qt texture, and immediately
+                    unlocks it. The stable Qt texture prevents TouchEngine or staging-pool reuse from
+                    changing which image a QML view displays. Texture inputs use the same verified
+                    D3D11/WGL device relationship in the opposite direction.
+                </p>
+                <p>
+                    A shared offscreen OpenGL context was tested in an attempt to isolate the WGL
+                    lock from Qt presentation. Context switching still serialized with the Qt
+                    context and produced a render-thread warning, so that experiment was removed.
+                    The final bridge performs its short WGL lock, copy, and unlock on Qt's current
+                    render context.
                 </p>
 
                 <h3>Vulkan</h3>
@@ -763,6 +783,24 @@
                     TouchEngine still depends on Qt render-thread opportunities for GPU work and
                     callback draining, but ordinary lateness no longer adds an unnecessary extra
                     interval. <code>requestFrame()</code> remains available for manual operation.
+                </p>
+
+                <h3>Render-loop and OpenGL presentation pacing</h3>
+                <p>
+                    The renderer no longer requests another Qt frame unconditionally. The core
+                    reports whether work is ready immediately or how many milliseconds remain until
+                    the next TouchEngine deadline. Immediate transfers request a frame at once;
+                    scheduled work uses a timer so an idle or slower TouchEngine session does not
+                    keep the Qt scene graph spinning unnecessarily.
+                </p>
+                <p>
+                    On the verified D3D11/NVIDIA OpenGL route, the backend replaces the blocking WGL
+                    swap interval with explicit Windows compositor pacing. The next TouchEngine frame
+                    is started first, and only then does the render thread call
+                    <code>DwmFlush()</code>. TouchEngine can therefore perform GPU work during the
+                    display wait instead of beginning after it. Teardown restores the prior swap
+                    interval. If compositor pacing cannot be enabled, Qt's existing presentation
+                    behavior is left in place.
                 </p>
 
                 <h3>TouchEngine statistics</h3>
@@ -969,27 +1007,41 @@
                     the outputs are too similar, it skips the identity conclusion instead of
                     producing an unreliable result.
                 </p>
+
+                <h3>Large-texture performance mode</h3>
+                <p>
+                    The texture-input executable also provides an opt-in benchmark mode. It creates
+                    a physical-size QML texture, warms up the pipeline, measures Qt and TouchEngine
+                    independently, validates the visual signature before and after measurement, and
+                    records CPU time, GPU time, dropped frames, TouchEngine memory, and estimated
+                    input payload. The final validation used an 11,520 × 2,160 texture on every
+                    backend.
+                </p>
             </section>
 
             <section id="investigation">
                 <h2>Performance investigation process</h2>
                 <ol>
                     <li><strong>Measure Qt and TouchEngine separately.</strong> The F3 overlay showed that Qt could remain at 60 or 90 FPS while TouchEngine declined.</li>
-                    <li><strong>Check display and VSync behavior.</strong> Changing presentation timing did not prevent TouchEngine degradation.</li>
+                    <li><strong>Check display and VSync behavior.</strong> Disabling VSync allowed OpenGL TouchEngine to reach 60 FPS, proving that presentation synchronization was involved, but it left Qt uncapped and was not a complete product solution.</li>
                     <li><strong>Use Release builds.</strong> Release reproduced the problem, ruling out Debug overhead as the primary cause.</li>
                     <li><strong>Compare APIs.</strong> D3D11 remained stable enough to serve as the control.</li>
                     <li><strong>Stress four outputs.</strong> <code>four_out10.tox</code> amplified per-output synchronization and native-pool behavior.</li>
                     <li><strong>Add reload cycles.</strong> This exposed caches that retained objects across instance boundaries.</li>
                     <li><strong>Capture output identity.</strong> Performance measurements alone could not detect Vulkan link swapping.</li>
-                    <li><strong>Retain only lifecycle-safe optimizations.</strong> The unsafe OpenGL cache was removed; D3D12 caches were scoped to one instance; Vulkan semaphore reuse was retained only after its lifecycle could be proven.</li>
+                    <li><strong>Instrument ownership steps.</strong> Separate timings for D3D ownership, WGL locking, copying, flushing, and finalization identified the VSync-coupled WGL lock as the OpenGL bottleneck.</li>
+                    <li><strong>Test context isolation.</strong> A shared offscreen context did not remove synchronization and introduced a Qt warning, so it was removed.</li>
+                    <li><strong>Overlap useful work with presentation.</strong> Starting the next TouchEngine frame before explicitly waiting for the compositor kept both systems near the display rate.</li>
+                    <li><strong>Retain only lifecycle-safe optimizations.</strong> D3D12 caches were scoped to one instance, Vulkan semaphore reuse was retained only after its lifecycle could be proven, and OpenGL copies into stable link-owned textures before immediately releasing staging resources.</li>
                 </ol>
             </section>
 
             <section id="results">
                 <h2>Results and validation</h2>
                 <p>
-                    The values below come from the four-output stress test. They are intended for
-                    backend and lifecycle comparison, not as maximum interactive frame rates.
+                    The values below are the earlier four-output lifecycle baseline that guided the
+                    investigation. They are retained as historical evidence and should not be read
+                    as the performance of the final implementation.
                 </p>
                 <div class="table-wrap">
                     <table>
@@ -1005,18 +1057,41 @@
                     </table>
                 </div>
                 <ul>
-                    <li>Vulkan performs within or above the D3D11 control range in this harness.</li>
-                    <li>Vulkan produced no detected cross-link permutations in the final captures.</li>
-                    <li>D3D12 no longer declines monotonically after every reload.</li>
-                    <li>OpenGL remains slower but stable across reloads.</li>
-                    <li>Every backend completed session-detachment validation.</li>
+                    <li>The baseline reproduced the performance gap and motivated per-stage synchronization timing.</li>
+                    <li>Vulkan identity captures made cross-link texture permutations observable.</li>
+                    <li>Reload cycles exposed resource caches whose lifetime exceeded one TouchEngine instance.</li>
                 </ul>
+
+                <h3>Final 11,520 × 2,160 texture-input validation</h3>
                 <p>
-                    The Release TouchEngine module and real-GPU test built successfully. The
-                    TouchEngine types, session, and QML tests all passed, completing in about
-                    0.70 seconds. NewTouchDemo was rebuilt against the installed module and tested
-                    interactively with Vulkan, 10-bit configuration, <code>four_out10.tox</code>,
-                    and the F3 overlay.
+                    The final Release build ran a one-second warm-up followed by a three-second
+                    measured texture-input round trip. Each backend passed its before-and-after
+                    visual signature checks.
+                </p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>Backend</th><th>TouchEngine FPS</th><th>Qt FPS</th><th>Dropped TE frames</th><th>Input payload</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>D3D11</td><td>57.92</td><td>60.25</td><td>6</td><td>5.37 GiB/s</td></tr>
+                            <tr><td>D3D12</td><td>60.12</td><td>60.12</td><td>0</td><td>5.57 GiB/s</td></tr>
+                            <tr><td>Vulkan</td><td>59.96</td><td>59.96</td><td>0</td><td>5.56 GiB/s</td></tr>
+                            <tr><td>OpenGL/NVIDIA interop</td><td>59.98</td><td>62.64</td><td>0</td><td>5.56 GiB/s</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>
+                    A separate 1,920 × 1,080 OpenGL confirmation measured 60.13 TouchEngine FPS,
+                    59.80 Qt FPS, and zero dropped frames after the experimental offscreen context
+                    and timing diagnostics had been removed.
+                </p>
+                <p>
+                    The final Release module built successfully. The TouchEngine types, session,
+                    and QML tests passed 3/3 in 0.72 seconds. The complete real-GPU lifecycle and
+                    texture-input matrix passed 8/8 across D3D11, D3D12, Vulkan, and OpenGL in
+                    733.82 seconds. The Vulkan multi-output captures produced no cross-link
+                    permutations, and every backend completed session-detachment validation.
                 </p>
             </section>
 
@@ -1044,11 +1119,13 @@
             <section id="remaining">
                 <h2>Remaining work</h2>
 
-                <h3>OpenGL performance</h3>
+                <h3>OpenGL hardware coverage</h3>
                 <p>
-                    OpenGL is stable but remains slower than the native D3D and Vulkan paths on
-                    Windows. Further improvement requires a lifecycle-safe reduction in the
-                    D3D-to-OpenGL conversion cost.
+                    The accelerated Windows OpenGL route depends on NVIDIA's
+                    <code>WGL_NV_DX_interop2</code> extension and a D3D11 adapter that matches the
+                    active OpenGL renderer. Other vendors and configurations use the SDK OpenGL
+                    fallback. Additional hardware coverage should measure that fallback and any
+                    future vendor-neutral interop route separately.
                 </p>
 
                 <h3>HDR color management</h3>
@@ -1082,11 +1159,11 @@
                 </p>
                 <p>
                     That foundation made the later backend corrections possible: D3D12 imports are
-                    reused without retaining obsolete instance pools; OpenGL output synchronization
-                    is batched without an unsafe conversion cache; Vulkan synchronization is
-                    composed with Qt's submission; Vulkan return semaphores are safely reused; and
-                    stable link-owned display textures prevent TouchEngine pool reuse from swapping
-                    outputs.
+                    reused without retaining obsolete instance pools; the verified NVIDIA OpenGL
+                    route stages through D3D11, copies into stable link-owned textures, and overlaps
+                    TouchEngine work with compositor pacing; Vulkan synchronization is composed with
+                    Qt's submission; Vulkan return semaphores are safely reused; and stable
+                    link-owned display textures prevent native pool reuse from swapping outputs.
                 </p>
                 <p>
                     The result is both a replacement public API and a more rigorous graphics,

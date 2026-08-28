@@ -445,6 +445,8 @@ void TouchEngineCore::afterFrameEnd()
         if (m_shared->pendingInputSnapshotIfNoCommands(&pendingInputs)) {
             applyPendingInputs(pendingInputs);
             maybeStartFrame();
+            if (m_inFrame)
+                m_backend->afterFrameStart();
         }
     }
 
@@ -465,6 +467,40 @@ DsTouchEngineTypes::State TouchEngineCore::state() const noexcept
 bool TouchEngineCore::renderLoopNeeded() const noexcept
 {
     return m_shared && m_shared->renderLoopNeeded.load(std::memory_order_acquire);
+}
+
+int TouchEngineCore::nextRenderDelayMilliseconds() const noexcept
+{
+    if (!renderLoopNeeded())
+        return -1;
+
+    // TouchEngine callbacks are noticed by the session's precise event pump,
+    // which wakes every attached view. Spinning Qt frames while the engine is
+    // still rendering only fills the presentation queue and makes synchronous
+    // graphics-interop calls wait behind that queue.
+    if (m_inFrame && !m_transferBlocked)
+        return -1;
+
+    if (m_transferBlocked || m_pendingLoadDeferred)
+        return 0;
+
+    if (m_state != DsTouchEngineTypes::State::Ready)
+        return -1;
+
+    const bool immediateWork = m_requestedFrames > 0 || m_linksDirty
+        || !m_pendingTextureOutputs.isEmpty()
+        || !m_retryTextureOutputs.isEmpty() || !m_dirtyInputs.isEmpty()
+        || m_shared->hasPendingInputCommandsForInstance(m_instanceToken);
+    if (immediateWork)
+        return 0;
+    if (!m_running)
+        return -1;
+
+    const qint64 remainingNanoseconds = m_nextFrameTimeNs - m_clock.nsecsElapsed();
+    if (remainingNanoseconds <= 0)
+        return 0;
+    return static_cast<int>(std::max<qint64>(
+        1, (remainingNanoseconds + 999'999) / 1'000'000));
 }
 
 bool TouchEngineCore::recoveryRequired() const noexcept
@@ -1757,7 +1793,7 @@ void TouchEngineCore::prepareTextureInputs(const QVector<TextureInputSource> &so
         // ordering before this render-thread snapshot was produced.
         setDiagnostic(textureClearDiagnosticKey(source.link), {});
 
-        if (!source.texture) {
+        if (!source.render) {
             // A null entry still represents a configured mapping that the
             // renderer could not use; it has already published the precise
             // source diagnostic. Preserve the last TE value while transient

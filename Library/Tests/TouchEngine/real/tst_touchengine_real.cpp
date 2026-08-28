@@ -11,6 +11,8 @@
 #include <QFileInfo>
 #include <QGuiApplication>
 #include <QImage>
+#include <QMutex>
+#include <QMutexLocker>
 #include <QQuickWindow>
 #include <QSize>
 #include <QTextStream>
@@ -20,6 +22,7 @@
 #include <array>
 #include <algorithm>
 #include <atomic>
+#include <cstdio>
 #include <cmath>
 #include <functional>
 #include <limits>
@@ -66,7 +69,82 @@ enum class ExitCode : int {
     SessionDetachFailure = 15,
     GraphicsApiMismatch = 16,
     OutputIdentityMismatch = 17,
+    NvInteropProbeFailure = 18,
 };
+
+constexpr auto kNvInteropProbePrefix = "Dsqt.TouchEngine NV interop probe:";
+QMutex nvInteropProbeMutex;
+QString nvInteropProbeMessage;
+QtMessageHandler previousMessageHandler = nullptr;
+
+void captureMessage(QtMsgType type, const QMessageLogContext &context, const QString &message)
+{
+    if (message.startsWith(QLatin1String(kNvInteropProbePrefix))) {
+        QMutexLocker lock(&nvInteropProbeMutex);
+        nvInteropProbeMessage = message;
+    }
+
+    if (previousMessageHandler) {
+        previousMessageHandler(type, context, message);
+        return;
+    }
+
+    const QByteArray utf8 = message.toUtf8();
+    std::fprintf(stderr, "%s\n", utf8.constData());
+    std::fflush(stderr);
+}
+
+class MessageCapture final
+{
+public:
+    MessageCapture() { previousMessageHandler = qInstallMessageHandler(captureMessage); }
+    ~MessageCapture() { qInstallMessageHandler(previousMessageHandler); }
+
+    MessageCapture(const MessageCapture &) = delete;
+    MessageCapture &operator=(const MessageCapture &) = delete;
+};
+
+QString capturedNvInteropProbe()
+{
+    QMutexLocker lock(&nvInteropProbeMutex);
+    return nvInteropProbeMessage;
+}
+
+bool validateNvInteropProbe(const QString &message, QString *error)
+{
+    if (message.isEmpty()) {
+        if (error)
+            *error = QStringLiteral("the OpenGL backend did not publish an NV interop capability probe");
+        return false;
+    }
+
+    const QStringList fields = {
+        QStringLiteral("usable="),
+        QStringLiteral("extension="),
+        QStringLiteral("entryPoints="),
+        QStringLiteral("adapterMatch="),
+        QStringLiteral("glRenderer="),
+        QStringLiteral("d3d11Adapter="),
+    };
+    for (const QString &field : fields) {
+        if (!message.contains(field)) {
+            if (error)
+                *error = QStringLiteral("the NV interop probe omitted '%1': %2").arg(field, message);
+            return false;
+        }
+    }
+
+    const bool usable = message.contains(QStringLiteral("usable= yes"));
+    if (usable && (!message.contains(QStringLiteral("extension= yes")) ||
+                   !message.contains(QStringLiteral("entryPoints= yes")) ||
+                   !message.contains(QStringLiteral("adapterMatch= yes")) ||
+                   message.contains(QStringLiteral("d3d11Adapter= <none>")))) {
+        if (error)
+            *error = QStringLiteral("the NV interop probe reported an inconsistent usable result: %1").arg(message);
+        return false;
+    }
+    return true;
+}
 
 enum class WaitFailure {
     None,
@@ -345,6 +423,7 @@ bool outputIdentityIsStable(const std::vector<ColorSignature> &baseline,
 int main(int argc, char **argv)
 {
     QGuiApplication application(argc, argv);
+    MessageCapture messageCapture;
     QCoreApplication::setApplicationName(QStringLiteral("tst_touchengine_real"));
     QCoreApplication::setApplicationVersion(QStringLiteral("1"));
 
@@ -487,6 +566,17 @@ int main(int argc, char **argv)
                             DsTouchEngineTypes::graphicsApiName(*expected),
                             backend);
             return static_cast<int>(ExitCode::GraphicsApiMismatch);
+        }
+
+        if (backend == QLatin1String("opengl") || backend == QLatin1String("gl")) {
+            const QString probe = capturedNvInteropProbe();
+            QString probeError;
+            if (!validateNvInteropProbe(probe, &probeError)) {
+                qCritical().noquote() << description << probeError;
+                return static_cast<int>(ExitCode::NvInteropProbeFailure);
+            }
+            results << description << " " << probe << '\n';
+            results.flush();
         }
 
         const QStringList outputLinks = textureOutputLinks(session->links());

@@ -8,9 +8,12 @@
 #include <QDir>
 #include <QElapsedTimer>
 #include <QEventLoop>
+#include <QFile>
 #include <QFileInfo>
 #include <QGuiApplication>
 #include <QImage>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QPointF>
 #include <QQmlComponent>
 #include <QQmlEngine>
@@ -20,6 +23,7 @@
 #include <QStringList>
 #include <QTextStream>
 #include <QThread>
+#include <QTimer>
 #include <QVariantMap>
 
 #include <algorithm>
@@ -57,8 +61,8 @@ constexpr int   kPresentationSwaps   = 2;
 constexpr int   kColorTolerance      = 48;
 constexpr qreal kPaneGap             = 32.0;
 
-const QSize kInitialTextureSize(320, 240);
-const QSize kResizedTextureSize(517, 293);
+const QSize   kInitialTextureSize(320, 240);
+const QSize   kResizedTextureSize(517, 293);
 constexpr int kInitialPhase  = 0;
 constexpr int kResizedPhase  = 1;
 constexpr int kReboundPhase  = 2;
@@ -84,6 +88,7 @@ enum class ExitCode : int {
     ClearValidationFailure     = 19,
     ReloadLinkFailure          = 20,
     SessionDetachFailure       = 21,
+    BenchmarkReportFailure     = 22,
 };
 
 enum class WaitFailure {
@@ -117,6 +122,59 @@ struct TextureLinks {
     bool complete() const { return !input.isEmpty() && !output.isEmpty(); }
 };
 
+struct BenchmarkOptions {
+    bool   enabled = false;
+    QSize  textureSize;
+    int    warmupMs     = 5'000;
+    int    durationMs   = 20'000;
+    int    previewWidth = 960;
+    double requestedFps = 60.0;
+};
+
+struct BenchmarkStatistics {
+    bool   collecting         = false;
+    qint64 callbackCount      = 0;
+    qint64 frames             = 0;
+    qint64 gpuTimedFrames     = 0;
+    qint64 droppedFrames      = 0;
+    bool   droppedFramesKnown = false;
+    qint64 firstCpuMemoryBytes = 0;
+    qint64 firstGpuMemoryBytes = 0;
+    qint64 lastCpuMemoryBytes  = 0;
+    qint64 lastGpuMemoryBytes  = 0;
+    qint64 peakCpuMemoryBytes = 0;
+    qint64 peakGpuMemoryBytes = 0;
+    double weightedCpuFrameMs = 0.0;
+    double weightedGpuFrameMs = 0.0;
+
+    void sample(const DsTouchEngineSession& session) {
+        if (!collecting) return;
+
+        const qint64 sampleFrames = std::max<qint64>(0, session.statisticsFrames());
+        const qint64 cpuMemory    = session.cpuMemoryBytes();
+        const qint64 gpuMemory    = session.gpuMemoryBytes();
+        if (callbackCount == 0) {
+            firstCpuMemoryBytes = cpuMemory;
+            firstGpuMemoryBytes = gpuMemory;
+        }
+        lastCpuMemoryBytes = cpuMemory;
+        lastGpuMemoryBytes = gpuMemory;
+        ++callbackCount;
+        frames += sampleFrames;
+        weightedCpuFrameMs += session.cpuFrameTimeMs() * static_cast<double>(sampleFrames);
+        if (session.gpuFrameTimeMs() >= 0.0) {
+            weightedGpuFrameMs += session.gpuFrameTimeMs() * static_cast<double>(sampleFrames);
+            gpuTimedFrames += sampleFrames;
+        }
+        if (session.framesDropped() >= 0) {
+            droppedFramesKnown = true;
+            droppedFrames += session.framesDropped();
+        }
+        peakCpuMemoryBytes = std::max(peakCpuMemoryBytes, cpuMemory);
+        peakGpuMemoryBytes = std::max(peakGpuMemoryBytes, gpuMemory);
+    }
+};
+
 enum class SignaturePosition {
     TopLeftInterior,
     TopRightInterior,
@@ -141,11 +199,11 @@ struct SignatureSample {
 
 std::array<SignatureSample, 12> signatureSamples(int phase) {
     static const std::array<QColor, 4> quadrantColors = {
-        QColor(QStringLiteral("#ff0000")), QColor(QStringLiteral("#00ff00")),
-        QColor(QStringLiteral("#0000ff")), QColor(QStringLiteral("#ffff00"))};
+        QColor(QStringLiteral("#ff0000")), QColor(QStringLiteral("#00ff00")), QColor(QStringLiteral("#0000ff")),
+        QColor(QStringLiteral("#ffff00"))};
     static const std::array<QColor, 4> markerColors = {
-        QColor(QStringLiteral("#ffffff")), QColor(QStringLiteral("#000000")),
-        QColor(QStringLiteral("#ff00ff")), QColor(QStringLiteral("#00ffff"))};
+        QColor(QStringLiteral("#ffffff")), QColor(QStringLiteral("#000000")), QColor(QStringLiteral("#ff00ff")),
+        QColor(QStringLiteral("#00ffff"))};
     const auto colorAt = [phase](const auto& colors, int position) -> QColor {
         return colors[static_cast<size_t>((phase + position) % 4)];
     };
@@ -159,14 +217,13 @@ std::array<SignatureSample, 12> signatureSamples(int phase) {
          {"top-right marker", SignaturePosition::TopRightMarker, colorAt(markerColors, 1), false},
          {"bottom-left marker", SignaturePosition::BottomLeftMarker, colorAt(markerColors, 2), false},
          {"bottom-right marker", SignaturePosition::BottomRightMarker, colorAt(markerColors, 3), false},
-         {"top-left marker outside edge", SignaturePosition::TopLeftMarkerOutside,
-          colorAt(quadrantColors, 0), false},
-         {"top-right marker outside edge", SignaturePosition::TopRightMarkerOutside,
-          colorAt(quadrantColors, 1), false},
-         {"bottom-left marker outside edge", SignaturePosition::BottomLeftMarkerOutside,
-          colorAt(quadrantColors, 2), false},
-         {"bottom-right marker outside edge", SignaturePosition::BottomRightMarkerOutside,
-          colorAt(quadrantColors, 3), false}}};
+         {"top-left marker outside edge", SignaturePosition::TopLeftMarkerOutside, colorAt(quadrantColors, 0), false},
+         {"top-right marker outside edge", SignaturePosition::TopRightMarkerOutside, colorAt(quadrantColors, 1), false},
+         {"bottom-left marker outside edge", SignaturePosition::BottomLeftMarkerOutside, colorAt(quadrantColors, 2),
+          false},
+         {"bottom-right marker outside edge", SignaturePosition::BottomRightMarkerOutside, colorAt(quadrantColors, 3),
+          false}}
+    };
 }
 
 template <typename Predicate>
@@ -255,7 +312,56 @@ QString componentErrors(const QQmlComponent& component) {
     return messages.join(QLatin1Char('\n'));
 }
 
+std::optional<BenchmarkOptions> parseBenchmarkOptions(const QCommandLineParser& parser, QString* error) {
+    BenchmarkOptions options;
+    options.enabled = parser.isSet(QStringLiteral("benchmark-size"));
+    if (!options.enabled) return options;
+
+    const QStringList dimensions = parser.value(QStringLiteral("benchmark-size")).toLower().split(QLatin1Char('x'));
+    bool              widthOk    = false;
+    bool              heightOk   = false;
+    const int         width      = dimensions.size() == 2 ? dimensions[0].toInt(&widthOk) : 0;
+    const int         height     = dimensions.size() == 2 ? dimensions[1].toInt(&heightOk) : 0;
+    if (!widthOk || !heightOk || width <= 0 || height <= 0 || width > 16'384 || height > 16'384) {
+        if (error) {
+            *error = QStringLiteral("--benchmark-size must be WIDTHxHEIGHT with each dimension between 1 and 16384");
+        }
+        return std::nullopt;
+    }
+    options.textureSize = QSize(width, height);
+
+    const auto parseSeconds = [&](const QString& optionName, double minimum, double maximum, int* valueMs) {
+        bool         ok      = false;
+        const double seconds = parser.value(optionName).toDouble(&ok);
+        if (!ok || seconds < minimum || seconds > maximum) {
+            if (error) {
+                *error =
+                    QStringLiteral("--%1 must be between %2 and %3 seconds").arg(optionName).arg(minimum).arg(maximum);
+            }
+            return false;
+        }
+        *valueMs = qRound(seconds * 1'000.0);
+        return true;
+    };
+
+    if (!parseSeconds(QStringLiteral("benchmark-warmup"), 0.0, 300.0, &options.warmupMs) ||
+        !parseSeconds(QStringLiteral("benchmark-duration"), 1.0, 600.0, &options.durationMs)) {
+        return std::nullopt;
+    }
+
+    bool previewOk       = false;
+    options.previewWidth = parser.value(QStringLiteral("benchmark-preview-width")).toInt(&previewOk);
+    if (!previewOk || options.previewWidth < 320 || options.previewWidth > 3'840) {
+        if (error) *error = QStringLiteral("--benchmark-preview-width must be between 320 and 3840");
+        return std::nullopt;
+    }
+
+    return options;
+}
+
 void setSceneGeometry(QQuickWindow& window, QQuickItem& source, DsTouchEngineView& output, const QSize& textureSize) {
+    source.setScale(1.0);
+    source.setTransformOrigin(QQuickItem::TopLeft);
     source.setPosition(QPointF(0.0, 0.0));
     source.setSize(QSizeF(textureSize));
     output.setPosition(QPointF(textureSize.width() + kPaneGap, 0.0));
@@ -265,8 +371,34 @@ void setSceneGeometry(QQuickWindow& window, QQuickItem& source, DsTouchEngineVie
     window.update();
 }
 
+void setBenchmarkSceneGeometry(QQuickWindow& window, QQuickItem& source, DsTouchEngineView& output,
+                               const QSize& textureSize, int previewWidth) {
+    const qreal  devicePixelRatio = window.devicePixelRatio();
+    const QSizeF logicalTextureSize(static_cast<qreal>(textureSize.width()) / devicePixelRatio,
+                                    static_cast<qreal>(textureSize.height()) / devicePixelRatio);
+    const qreal  scale = static_cast<qreal>(previewWidth) / logicalTextureSize.width();
+    const QSize  previewSize(previewWidth, std::max(1, qRound(logicalTextureSize.height() * scale)));
+
+    source.setTransformOrigin(QQuickItem::TopLeft);
+    source.setScale(scale);
+    source.setPosition(QPointF(0.0, 0.0));
+    source.setSize(logicalTextureSize);
+    output.setPosition(QPointF(previewSize.width() + kPaneGap, 0.0));
+    output.setSize(QSizeF(previewSize));
+    window.resize(previewSize.width() * 2 + static_cast<int>(kPaneGap), previewSize.height());
+    output.update();
+    window.update();
+
+    qInfo().noquote() << QStringLiteral("Benchmark texture geometry: physical=%1x%2 logical=%3x%4 DPR=%5")
+                             .arg(textureSize.width())
+                             .arg(textureSize.height())
+                             .arg(logicalTextureSize.width(), 0, 'f', 2)
+                             .arg(logicalTextureSize.height(), 0, 'f', 2)
+                             .arg(devicePixelRatio, 0, 'f', 2);
+}
+
 QPointF samplePoint(SignaturePosition position, const QSizeF& size) {
-    constexpr qreal markerCenter = 20.0;
+    constexpr qreal markerCenter      = 20.0;
     constexpr qreal markerOutsideEdge = 36.0;
     switch (position) {
     case SignaturePosition::TopLeftInterior:
@@ -322,7 +454,8 @@ bool colorMatches(const QColor& actual, const QColor& expected) {
 
 bool signatureMatches(const QImage& image, const QQuickWindow& window, const QQuickItem& item, int phase) {
     return std::ranges::all_of(signatureSamples(phase), [&](const SignatureSample& sample) {
-        const std::optional<QColor> actual = sampledColor(image, window, item, samplePoint(sample.position, item.size()));
+        const std::optional<QColor> actual =
+            sampledColor(image, window, item, samplePoint(sample.position, item.size()));
         return actual && colorMatches(*actual, sample.expected);
     });
 }
@@ -352,8 +485,8 @@ bool validateSignature(const QString& stage, const QString& targetName, const QI
     return valid;
 }
 
-int matchingQuadrantCount(const QImage& image, const QQuickWindow& window, const QQuickItem& item,
-                          int phase, QStringList* observations) {
+int matchingQuadrantCount(const QImage& image, const QQuickWindow& window, const QQuickItem& item, int phase,
+                          QStringList* observations) {
     int matches = 0;
     for (const SignatureSample& sample : signatureSamples(phase)) {
         if (!sample.quadrantInterior) continue;
@@ -410,19 +543,19 @@ int waitForRenderedFrames(const QString& description, int frameCount, QQuickWind
 int captureAndValidate(const QString& stage, const QString& backend, const QDir& artifactDirectory,
                        QQuickWindow& window, QQuickItem& source, DsTouchEngineView& output, int phase,
                        DsTouchEngineSession& session, const WindowSignals& windowState) {
-    const QString capturePath = artifactDirectory.filePath(QStringLiteral("touchengine-input-%1-%2-%3x%4.png")
-                                                               .arg(backend, stage)
-                                                               .arg(qRound(source.width()))
-                                                               .arg(qRound(source.height())));
-    QImage        image;
-    QString       error;
-    const WaitResult signature = waitUntil(
-        QStringLiteral("%1: waiting for the exact texture signature").arg(stage), kFrameTimeoutMs, &window,
-        &session, windowState, [&] {
-            error.clear();
-            if (!captureWindow(window, capturePath, &image, &error)) return false;
-            return signatureMatches(image, window, source, phase) && signatureMatches(image, window, output, phase);
-        });
+    const QString    capturePath = artifactDirectory.filePath(QStringLiteral("touchengine-input-%1-%2-%3x%4.png")
+                                                                  .arg(backend, stage)
+                                                                  .arg(qRound(source.width()))
+                                                                  .arg(qRound(source.height())));
+    QImage           image;
+    QString          error;
+    const WaitResult signature = waitUntil(QStringLiteral("%1: waiting for the exact texture signature").arg(stage),
+                                           kFrameTimeoutMs, &window, &session, windowState, [&] {
+                                               error.clear();
+                                               if (!captureWindow(window, capturePath, &image, &error)) return false;
+                                               return signatureMatches(image, window, source, phase) &&
+                                                      signatureMatches(image, window, output, phase);
+                                           });
     if (!signature) {
         if (signature.failure != WaitFailure::Timeout) return reportWaitFailure(signature);
         qCritical().noquote() << signature.detail;
@@ -480,6 +613,219 @@ int captureAndValidateCleared(const QString& backend, const QDir& artifactDirect
     return static_cast<int>(ExitCode::Success);
 }
 
+int captureAndValidateBenchmark(const QString& stage, const QString& backend, const QDir& artifactDirectory,
+                                QQuickWindow& window, QQuickItem& source, DsTouchEngineView& output, int phase,
+                                const QSize& physicalTextureSize, DsTouchEngineSession& session,
+                                const WindowSignals& windowState) {
+    const QString capturePath =
+        artifactDirectory.filePath(QStringLiteral("touchengine-input-performance-%1-%2-%3x%4.png")
+                                       .arg(backend, stage)
+                                       .arg(physicalTextureSize.width())
+                                       .arg(physicalTextureSize.height()));
+    QImage           image;
+    QString          error;
+    const WaitResult signature =
+        waitUntil(QStringLiteral("%1: waiting for large-texture quadrant signature").arg(stage), kFrameTimeoutMs,
+                  &window, &session, windowState, [&] {
+                      error.clear();
+                      if (!captureWindow(window, capturePath, &image, &error)) return false;
+                      return matchingQuadrantCount(image, window, source, phase, nullptr) == 4 &&
+                             matchingQuadrantCount(image, window, output, phase, nullptr) == 4;
+                  });
+    if (!signature) {
+        if (signature.failure != WaitFailure::Timeout) return reportWaitFailure(signature);
+        qCritical().noquote() << signature.detail;
+        if (image.isNull()) {
+            qCritical().noquote() << stage << "capture failed:" << error;
+            return static_cast<int>(ExitCode::CaptureFailure);
+        }
+    }
+
+    QStringList sourceObservations;
+    QStringList outputObservations;
+    const int   sourceMatches = matchingQuadrantCount(image, window, source, phase, &sourceObservations);
+    const int   outputMatches = matchingQuadrantCount(image, window, output, phase, &outputObservations);
+    if (sourceMatches != 4) {
+        qCritical().noquote() << QStringLiteral("%1 source matched %2 of 4 quadrants: %3. Artifact: %4")
+                                     .arg(stage)
+                                     .arg(sourceMatches)
+                                     .arg(sourceObservations.join(QStringLiteral(", ")), capturePath);
+        return static_cast<int>(ExitCode::SourceValidationFailure);
+    }
+    if (outputMatches != 4) {
+        qCritical().noquote() << QStringLiteral("%1 TouchEngine output matched %2 of 4 quadrants: %3. Artifact: %4")
+                                     .arg(stage)
+                                     .arg(outputMatches)
+                                     .arg(outputObservations.join(QStringLiteral(", ")), capturePath);
+        return static_cast<int>(ExitCode::OutputValidationFailure);
+    }
+
+    qInfo().noquote() << stage << "large-texture signature passed; artifact:" << capturePath;
+    return static_cast<int>(ExitCode::Success);
+}
+
+WaitResult exerciseBenchmarkFor(const QString& description, int durationMs, QQuickWindow& window,
+                                DsTouchEngineView& view, DsTouchEngineSession& session,
+                                const WindowSignals& windowState) {
+    QElapsedTimer timer;
+    timer.start();
+    return waitUntil(description, durationMs + kFrameTimeoutMs, &window, &session, windowState, [&] {
+        view.update();
+        return timer.elapsed() >= durationMs;
+    });
+}
+
+int runTextureInputBenchmark(const BenchmarkOptions& options, const QString& backend, const QDir& artifactDirectory,
+                             QQuickWindow& window, QQuickItem& source, DsTouchEngineView& view,
+                             DsTouchEngineSession& session, SessionSignals& sessionState,
+                             const WindowSignals& windowState, const TextureLinks& links) {
+    int result = waitForRenderedFrames(QStringLiteral("large-texture initialization"), kFramesPerValidation, window,
+                                       view, session, sessionState, windowState);
+    if (result != static_cast<int>(ExitCode::Success)) return result;
+    result = captureAndValidateBenchmark(QStringLiteral("before"), backend, artifactDirectory, window, source, view,
+                                         kInitialPhase, options.textureSize, session, windowState);
+    if (result != static_cast<int>(ExitCode::Success)) return result;
+
+    int    animatedPhase = kInitialPhase;
+    QTimer animationTimer;
+    animationTimer.setTimerType(Qt::PreciseTimer);
+    animationTimer.setInterval(std::max(1, qRound(1'000.0 / options.requestedFps)));
+    QObject::connect(&animationTimer, &QTimer::timeout, &window, [&] {
+        animatedPhase = (animatedPhase + 1) % 4;
+        source.setProperty("phase", animatedPhase);
+        source.update();
+        view.update();
+        window.update();
+    });
+    animationTimer.start();
+
+    const quint64 warmupStartFrames = sessionState.completedFrames;
+    WaitResult    waitResult = exerciseBenchmarkFor(QStringLiteral("large-texture warm-up"), options.warmupMs, window,
+                                                    view, session, windowState);
+    if (!waitResult) {
+        animationTimer.stop();
+        return reportWaitFailure(waitResult);
+    }
+    const quint64 warmupFrames = sessionState.completedFrames - warmupStartFrames;
+    qInfo().noquote() << QStringLiteral("Large-texture warm-up completed: %1 frames in %2 seconds")
+                             .arg(warmupFrames)
+                             .arg(options.warmupMs / 1'000.0, 0, 'f', 2);
+
+    BenchmarkStatistics           statistics;
+    const QMetaObject::Connection statisticsConnection = QObject::connect(
+        &session, &DsTouchEngineSession::statisticsChanged, &window, [&] { statistics.sample(session); });
+
+    const quint64 startFrames = sessionState.completedFrames;
+    const int     startSwaps  = windowState.frameSwaps.load(std::memory_order_relaxed);
+    QElapsedTimer measurementTimer;
+    measurementTimer.start();
+    statistics.collecting = true;
+    waitResult = exerciseBenchmarkFor(QStringLiteral("large-texture measurement"), options.durationMs, window, view,
+                                      session, windowState);
+    statistics.collecting           = false;
+    const qint64 elapsedNanoseconds = measurementTimer.nsecsElapsed();
+    QObject::disconnect(statisticsConnection);
+    animationTimer.stop();
+    if (!waitResult) return reportWaitFailure(waitResult);
+
+    const quint64 completedFrames = sessionState.completedFrames - startFrames;
+    const int     presentedFrames = windowState.frameSwaps.load(std::memory_order_relaxed) - startSwaps;
+    const double  elapsedSeconds  = static_cast<double>(elapsedNanoseconds) / 1'000'000'000.0;
+    const double  touchEngineFps  = static_cast<double>(completedFrames) / elapsedSeconds;
+    const double  presentationFps = static_cast<double>(presentedFrames) / elapsedSeconds;
+    const qint64  textureBytes =
+        static_cast<qint64>(options.textureSize.width()) * static_cast<qint64>(options.textureSize.height()) * 4;
+    const double inputPayloadGiBPerSecond = static_cast<double>(textureBytes) * static_cast<double>(completedFrames) /
+                                            elapsedSeconds / static_cast<double>(quint64(1) << 30);
+    const double averageCpuFrameMs =
+        statistics.frames > 0 ? statistics.weightedCpuFrameMs / static_cast<double>(statistics.frames) : -1.0;
+    const double averageGpuFrameMs =
+        statistics.gpuTimedFrames > 0 ? statistics.weightedGpuFrameMs / static_cast<double>(statistics.gpuTimedFrames)
+                                      : -1.0;
+    const qint64 droppedFrames = statistics.droppedFramesKnown ? statistics.droppedFrames : -1;
+
+    source.setProperty("phase", kReloadedPhase);
+    source.update();
+    view.update();
+    window.update();
+    result = waitForRenderedFrames(QStringLiteral("large-texture post-measurement validation"), kFramesPerValidation,
+                                   window, view, session, sessionState, windowState);
+    if (result != static_cast<int>(ExitCode::Success)) return result;
+    result = captureAndValidateBenchmark(QStringLiteral("after"), backend, artifactDirectory, window, source, view,
+                                         kReloadedPhase, options.textureSize, session, windowState);
+    if (result != static_cast<int>(ExitCode::Success)) return result;
+
+    QJsonObject summary;
+    summary.insert(QStringLiteral("backend"), backend);
+    summary.insert(QStringLiteral("textureWidth"), options.textureSize.width());
+    summary.insert(QStringLiteral("textureHeight"), options.textureSize.height());
+    summary.insert(QStringLiteral("textureBytesRgba8"), static_cast<double>(textureBytes));
+    summary.insert(QStringLiteral("requestedFps"), options.requestedFps);
+    summary.insert(QStringLiteral("warmupSeconds"), options.warmupMs / 1'000.0);
+    summary.insert(QStringLiteral("measurementSeconds"), elapsedSeconds);
+    summary.insert(QStringLiteral("touchEngineFrames"), static_cast<double>(completedFrames));
+    summary.insert(QStringLiteral("touchEngineFps"), touchEngineFps);
+    summary.insert(QStringLiteral("qtPresentedFrames"), presentedFrames);
+    summary.insert(QStringLiteral("qtPresentationFps"), presentationFps);
+    summary.insert(QStringLiteral("touchEngineStatisticsFrames"), static_cast<double>(statistics.frames));
+    summary.insert(QStringLiteral("touchEngineDroppedFrames"), static_cast<double>(droppedFrames));
+    summary.insert(QStringLiteral("averageCpuFrameTimeMs"), averageCpuFrameMs);
+    summary.insert(QStringLiteral("averageGpuFrameTimeMs"), averageGpuFrameMs);
+    summary.insert(QStringLiteral("firstTouchEngineCpuMemoryBytes"),
+                   static_cast<double>(statistics.firstCpuMemoryBytes));
+    summary.insert(QStringLiteral("firstTouchEngineGpuMemoryBytes"),
+                   static_cast<double>(statistics.firstGpuMemoryBytes));
+    summary.insert(QStringLiteral("lastTouchEngineCpuMemoryBytes"),
+                   static_cast<double>(statistics.lastCpuMemoryBytes));
+    summary.insert(QStringLiteral("lastTouchEngineGpuMemoryBytes"),
+                   static_cast<double>(statistics.lastGpuMemoryBytes));
+    summary.insert(QStringLiteral("touchEngineCpuMemoryGrowthBytes"),
+                   static_cast<double>(statistics.lastCpuMemoryBytes - statistics.firstCpuMemoryBytes));
+    summary.insert(QStringLiteral("touchEngineGpuMemoryGrowthBytes"),
+                   static_cast<double>(statistics.lastGpuMemoryBytes - statistics.firstGpuMemoryBytes));
+    summary.insert(QStringLiteral("peakTouchEngineCpuMemoryBytes"), static_cast<double>(statistics.peakCpuMemoryBytes));
+    summary.insert(QStringLiteral("peakTouchEngineGpuMemoryBytes"), static_cast<double>(statistics.peakGpuMemoryBytes));
+    summary.insert(QStringLiteral("effectiveInputPayloadGiBPerSecond"), inputPayloadGiBPerSecond);
+
+    const QString reportPath = artifactDirectory.filePath(QStringLiteral("touchengine-input-performance-%1-%2x%3.json")
+                                                              .arg(backend)
+                                                              .arg(options.textureSize.width())
+                                                              .arg(options.textureSize.height()));
+    QFile         reportFile(reportPath);
+    if (!reportFile.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+        qCritical().noquote() << "Could not write benchmark report:" << reportPath << reportFile.errorString();
+        return static_cast<int>(ExitCode::BenchmarkReportFailure);
+    }
+    const QByteArray reportData = QJsonDocument(summary).toJson(QJsonDocument::Indented);
+    if (reportFile.write(reportData) != reportData.size()) {
+        qCritical().noquote() << "Could not complete benchmark report:" << reportPath << reportFile.errorString();
+        return static_cast<int>(ExitCode::BenchmarkReportFailure);
+    }
+    reportFile.close();
+
+    qInfo().noquote() << QStringLiteral("TouchEngine input performance: backend=%1 size=%2x%3 TE=%4 FPS Qt=%5 FPS "
+                                        "CPU=%6 ms GPU=%7 ms dropped=%8 peak-TE-CPU=%9 MiB peak-TE-GPU=%10 MiB "
+                                        "input-payload=%11 GiB/s report=%12")
+                             .arg(backend)
+                             .arg(options.textureSize.width())
+                             .arg(options.textureSize.height())
+                             .arg(touchEngineFps, 0, 'f', 2)
+                             .arg(presentationFps, 0, 'f', 2)
+                             .arg(averageCpuFrameMs, 0, 'f', 3)
+                             .arg(averageGpuFrameMs, 0, 'f', 3)
+                             .arg(droppedFrames)
+                             .arg(static_cast<double>(statistics.peakCpuMemoryBytes) / (1 << 20), 0, 'f', 1)
+                             .arg(static_cast<double>(statistics.peakGpuMemoryBytes) / (1 << 20), 0, 'f', 1)
+                             .arg(inputPayloadGiBPerSecond, 0, 'f', 2)
+                             .arg(reportPath);
+
+    session.clearTextureInput(links.input);
+    session.unload();
+    waitResult = waitUntil(QStringLiteral("large-texture benchmark teardown"), kUnloadTimeoutMs, &window, &session,
+                           windowState, [&] { return session.state() == DsTouchEngineTypes::State::Idle; });
+    return waitResult ? static_cast<int>(ExitCode::Success) : reportWaitFailure(waitResult);
+}
+
 } // namespace
 
 int main(int argc, char** argv) {
@@ -496,8 +842,24 @@ int main(int argc, char** argv) {
     const QCommandLineOption artifactOption({QStringLiteral("a"), QStringLiteral("artifact-dir")},
                                             QStringLiteral("Directory in which captured PNG files are written."),
                                             QStringLiteral("path"));
+    const QCommandLineOption benchmarkSizeOption(
+        QStringLiteral("benchmark-size"), QStringLiteral("Run the opt-in texture-input benchmark at WIDTHxHEIGHT."),
+        QStringLiteral("WIDTHxHEIGHT"));
+    const QCommandLineOption benchmarkWarmupOption(QStringLiteral("benchmark-warmup"),
+                                                   QStringLiteral("Benchmark warm-up duration in seconds."),
+                                                   QStringLiteral("seconds"), QStringLiteral("5"));
+    const QCommandLineOption benchmarkDurationOption(QStringLiteral("benchmark-duration"),
+                                                     QStringLiteral("Benchmark measurement duration in seconds."),
+                                                     QStringLiteral("seconds"), QStringLiteral("20"));
+    const QCommandLineOption benchmarkPreviewWidthOption(QStringLiteral("benchmark-preview-width"),
+                                                         QStringLiteral("Width of each scaled preview pane."),
+                                                         QStringLiteral("pixels"), QStringLiteral("960"));
     parser.addOption(toxOption);
     parser.addOption(artifactOption);
+    parser.addOption(benchmarkSizeOption);
+    parser.addOption(benchmarkWarmupOption);
+    parser.addOption(benchmarkDurationOption);
+    parser.addOption(benchmarkPreviewWidthOption);
 
     if (!parser.parse(QCoreApplication::arguments())) {
         qCritical().noquote() << "Invalid command line:" << parser.errorText();
@@ -516,6 +878,14 @@ int main(int argc, char** argv) {
         qCritical().noquote() << "Both --tox <path> and --artifact-dir <path> are required.";
         return static_cast<int>(ExitCode::InvalidArguments);
     }
+
+    QString                               benchmarkError;
+    const std::optional<BenchmarkOptions> parsedBenchmark = parseBenchmarkOptions(parser, &benchmarkError);
+    if (!parsedBenchmark) {
+        qCritical().noquote() << "Invalid benchmark options:" << benchmarkError;
+        return static_cast<int>(ExitCode::InvalidArguments);
+    }
+    const BenchmarkOptions benchmark = *parsedBenchmark;
 
     const QFileInfo toxFile(QDir::current().absoluteFilePath(parser.value(toxOption)));
     if (!toxFile.exists() || !toxFile.isFile()) {
@@ -569,8 +939,12 @@ int main(int argc, char** argv) {
     }
 
     const QString backend = qEnvironmentVariable("QSG_RHI_BACKEND", "default").toLower();
-    qInfo().noquote() << "Starting TouchEngine texture-input test with QSG_RHI_BACKEND=" << backend
-                      << "tox=" << toxFile.absoluteFilePath();
+    qInfo().noquote()
+        << "Starting TouchEngine texture-input test with QSG_RHI_BACKEND=" << backend
+        << "tox=" << toxFile.absoluteFilePath() << "benchmark="
+        << (benchmark.enabled
+                ? QStringLiteral("%1x%2").arg(benchmark.textureSize.width()).arg(benchmark.textureSize.height())
+                : QStringLiteral("disabled"));
 
     WindowSignals  windowState;
     SessionSignals sessionState;
@@ -598,13 +972,12 @@ int main(int argc, char** argv) {
 
     auto session = std::make_unique<DsTouchEngineSession>();
     session->setComponentPath(toxFile.absoluteFilePath());
+    if (benchmark.enabled) session->setFrameRate(benchmark.requestedFps);
     QObject::connect(session.get(), &DsTouchEngineSession::stateChanged, &application, [&] {
-        qInfo().noquote() << "TouchEngine state:"
-                          << DsTouchEngineTypes::stateName(session->state());
+        qInfo().noquote() << "TouchEngine state:" << DsTouchEngineTypes::stateName(session->state());
     });
     QObject::connect(session.get(), &DsTouchEngineSession::graphicsApiChanged, &application, [&] {
-        qInfo().noquote() << "TouchEngine graphics API:"
-                          << DsTouchEngineTypes::graphicsApiName(session->graphicsApi());
+        qInfo().noquote() << "TouchEngine graphics API:" << DsTouchEngineTypes::graphicsApiName(session->graphicsApi());
     });
     QObject::connect(session.get(), &DsTouchEngineSession::errorStringChanged, &application, [&] {
         if (!session->errorString().isEmpty())
@@ -617,7 +990,11 @@ int main(int argc, char** argv) {
     view->setClearColor(Qt::black);
     view->setSession(session.get());
 
-    setSceneGeometry(window, *source, *view, kInitialTextureSize);
+    if (benchmark.enabled) {
+        setBenchmarkSceneGeometry(window, *source, *view, benchmark.textureSize, benchmark.previewWidth);
+    } else {
+        setSceneGeometry(window, *source, *view, kInitialTextureSize);
+    }
     if (!DsTouchEngineView::configureVulkanInterop(&window)) {
         qCritical().noquote() << "Vulkan interop could not be configured before scene-graph initialization.";
         return static_cast<int>(ExitCode::VulkanConfigurationFailure);
@@ -670,6 +1047,11 @@ int main(int argc, char** argv) {
     view->setOutputLink(links.output);
     session->setTextureInput(links.input, source);
 
+    if (benchmark.enabled) {
+        return runTextureInputBenchmark(benchmark, backend, artifactDirectory, window, *source, *view, *session,
+                                        sessionState, windowState, links);
+    }
+
     int result = waitForRenderedFrames(QStringLiteral("initial round trip"), kFramesPerValidation, window, *view,
                                        *session, sessionState, windowState);
     if (result != static_cast<int>(ExitCode::Success)) return result;
@@ -690,18 +1072,17 @@ int main(int argc, char** argv) {
         // The Vulkan backend intentionally bounds each link's active export pool.
         // Exercise more descriptor generations than that bound so a reusable old
         // size must be retired instead of silently preserving stale input.
-        const std::array<QSize, 4> churnSizes = {
-            QSize(421, 251), QSize(443, 263), QSize(467, 277), QSize(491, 283)};
+        const std::array<QSize, 4> churnSizes = {QSize(421, 251), QSize(443, 263), QSize(467, 277), QSize(491, 283)};
         for (std::size_t i = 0; i < churnSizes.size(); ++i) {
-            const int phase = (kResizedPhase + int(i) + 1) % 4;
+            const int     phase = (kResizedPhase + int(i) + 1) % 4;
             const QString stage = QStringLiteral("pool-resize-%1").arg(i + 1);
             source->setProperty("phase", phase);
             setSceneGeometry(window, *source, *view, churnSizes[i]);
-            result = waitForRenderedFrames(stage, kFramesPerValidation, window, *view, *session,
-                                           sessionState, windowState);
+            result =
+                waitForRenderedFrames(stage, kFramesPerValidation, window, *view, *session, sessionState, windowState);
             if (result != static_cast<int>(ExitCode::Success)) return result;
-            result = captureAndValidate(stage, backend, artifactDirectory, window, *source, *view,
-                                        phase, *session, windowState);
+            result = captureAndValidate(stage, backend, artifactDirectory, window, *source, *view, phase, *session,
+                                        windowState);
             if (result != static_cast<int>(ExitCode::Success)) return result;
         }
     }
@@ -762,8 +1143,8 @@ int main(int argc, char** argv) {
     view->setOutputLink(reloadedLinks.output);
     // Do not rebind here: the successful capture verifies that the session's
     // texture binding survives an explicit unload/load lifecycle.
-    result = waitForRenderedFrames(QStringLiteral("reloaded round trip"), kFramesPerValidation, window, *view,
-                                   *session, sessionState, windowState);
+    result = waitForRenderedFrames(QStringLiteral("reloaded round trip"), kFramesPerValidation, window, *view, *session,
+                                   sessionState, windowState);
     if (result != static_cast<int>(ExitCode::Success)) return result;
     result = captureAndValidate(QStringLiteral("reloaded"), backend, artifactDirectory, window, *source, *view,
                                 kReloadedPhase, *session, windowState);
@@ -802,8 +1183,8 @@ int main(int argc, char** argv) {
         qCritical().noquote() << "Post-destruction capture failed:" << captureError;
         return static_cast<int>(ExitCode::CaptureFailure);
     }
-    if (!validateSignature(QStringLiteral("post-destruction"), QStringLiteral("source"), detachedImage, window,
-                           *source, kReloadedPhase)) {
+    if (!validateSignature(QStringLiteral("post-destruction"), QStringLiteral("source"), detachedImage, window, *source,
+                           kReloadedPhase)) {
         qCritical().noquote() << "Post-destruction source artifact:" << detachedCapture;
         return static_cast<int>(ExitCode::SourceValidationFailure);
     }

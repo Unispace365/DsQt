@@ -10,16 +10,23 @@
 
 #include <TouchEngine/TouchEngine.h>
 
+#include <functional>
 #include <memory>
 
 namespace dsqt::touchengine::detail {
 
 struct TextureInputSource
 {
+    using RenderFunction = std::function<bool(QRhiTexture *target,
+                                              QRhiTextureRenderTarget *renderTarget,
+                                              QRhiCommandBuffer *commandBuffer,
+                                              QString *error)>;
+
     QString link;
-    QRhiTexture *texture = nullptr;
     QSize pixelSize;
-    QRectF normalizedSourceRect = QRectF(0.0, 0.0, 1.0, 1.0);
+    QRhiTexture::Format format = QRhiTexture::RGBA8;
+    QRhiTexture::Flags flags;
+    RenderFunction render;
 };
 
 struct TextureOutput
@@ -58,9 +65,9 @@ public:
         return true;
     }
 
-    // Copies the current Qt Quick source into backend-owned exportable storage.
-    // Publication to TouchEngine happens from afterFrameEnd(), after Qt has
-    // submitted the command buffer containing the copy.
+    // Acquires backend-owned exportable storage and asks the renderer to draw
+    // the current Qt Quick source directly into it. Publication to TouchEngine
+    // happens from afterFrameEnd(), after Qt has submitted that render pass.
     virtual bool prepareTextureInput(TEInstance *instance,
                                      const TextureInputSource &source,
                                      QRhiCommandBuffer *commandBuffer,
@@ -80,6 +87,11 @@ public:
     // QQuickWindow::afterFrameEnd, direct on the render thread. GPU signals,
     // TE texture transfers, and input link publication are finalized here.
     virtual bool afterFrameEnd(TEInstance *instance, QString *error) = 0;
+
+    // Called after the core has started the next TouchEngine frame. Backends
+    // may pace the host render loop here so the engine can work in parallel
+    // with any blocking presentation wait.
+    virtual void afterFrameStart() {}
 };
 
 std::unique_ptr<TouchEngineRhiBackend> createTouchEngineRhiBackend(

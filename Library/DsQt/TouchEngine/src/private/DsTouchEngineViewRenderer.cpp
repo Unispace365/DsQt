@@ -12,6 +12,7 @@
 #include <QSGTexture>
 #include <QSGTextureProvider>
 #include <QStringList>
+#include <QTimer>
 #include <rhi/qshader.h>
 
 #include <array>
@@ -26,9 +27,6 @@ struct TextureInputStaging
 {
     QSGTexture *sourceTexture = nullptr;
     QRhiTexture *sourceRhiTexture = nullptr;
-    QRhiTexture *texture = nullptr;
-    QRhiTextureRenderTarget *renderTarget = nullptr;
-    QRhiRenderPassDescriptor *renderPassDescriptor = nullptr;
     QRhiBuffer *vertexBuffer = nullptr;
     QRhiShaderResourceBindings *shaderResources = nullptr;
     QRhiGraphicsPipeline *pipeline = nullptr;
@@ -117,12 +115,6 @@ void releaseInputResources(TextureInputStaging *staging)
     if (!staging)
         return;
     releaseInputBindings(staging);
-    delete staging->renderTarget;
-    staging->renderTarget = nullptr;
-    delete staging->renderPassDescriptor;
-    staging->renderPassDescriptor = nullptr;
-    delete staging->texture;
-    staging->texture = nullptr;
     delete staging->vertexBuffer;
     staging->vertexBuffer = nullptr;
     staging->pixelSize = {};
@@ -310,8 +302,6 @@ void DsTouchEngineViewRenderer::render(QRhiCommandBuffer *commandBuffer)
     }
     commandBuffer->endPass();
 
-    if ((m_core && m_core->renderLoopNeeded()) || m_textureInputRetryPending)
-        update();
 }
 
 bool DsTouchEngineViewRenderer::ensureStaticResources(QString *error)
@@ -402,11 +392,14 @@ bool DsTouchEngineViewRenderer::ensureInputStaging(TextureInputStaging *staging,
                                                    const QSize &pixelSize,
                                                    const QRectF &sourceRect,
                                                    bool mirrorVertically,
+                                                   QRhiTexture *targetTexture,
+                                                   QRhiTextureRenderTarget *renderTarget,
                                                    QString *error)
 {
-    if (!staging || !source.texture || !sourceTexture || pixelSize.isEmpty()) {
+    if (!staging || !source.texture || !sourceTexture || !targetTexture || !renderTarget
+        || pixelSize.isEmpty()) {
         if (error)
-            *error = QStringLiteral("The QML texture provider is not ready");
+            *error = QStringLiteral("The QML texture provider or backend input target is not ready");
         return false;
     }
 
@@ -421,51 +414,16 @@ bool DsTouchEngineViewRenderer::ensureInputStaging(TextureInputStaging *staging,
         return false;
     }
 
-    constexpr QRhiTexture::Flags stagingFlags =
-        QRhiTexture::RenderTarget | QRhiTexture::UsedAsTransferSource;
-    if (!rhi()->isTextureFormatSupported(QRhiTexture::RGBA8, stagingFlags)) {
+    if (!targetTexture->flags().testFlag(QRhiTexture::RenderTarget)
+        || targetTexture->format() != QRhiTexture::RGBA8
+        || targetTexture->pixelSize() != pixelSize
+        || renderTarget->pixelSize() != pixelSize) {
         if (error)
-            *error = QStringLiteral("The active RHI cannot create an RGBA8 transfer-source render target");
+            *error = QStringLiteral("The backend did not supply a matching renderable RGBA8 input target");
         return false;
     }
 
-    if (staging->pixelSize != pixelSize) {
-        releaseInputResources(staging);
-
-        staging->texture = rhi()->newTexture(QRhiTexture::RGBA8, pixelSize, 1, stagingFlags);
-        if (!staging->texture || !staging->texture->create()) {
-            if (error)
-                *error = QStringLiteral("Could not create the RGBA8 input staging texture");
-            releaseInputResources(staging);
-            return false;
-        }
-        staging->texture->setName(QStringLiteral("DsQt TouchEngine input %1").arg(source.link).toUtf8());
-
-        const QRhiTextureRenderTargetDescription targetDescription(
-            QRhiColorAttachment(staging->texture));
-        staging->renderTarget = rhi()->newTextureRenderTarget(targetDescription);
-        if (!staging->renderTarget) {
-            if (error)
-                *error = QStringLiteral("Could not allocate the input staging render target");
-            releaseInputResources(staging);
-            return false;
-        }
-        staging->renderPassDescriptor =
-            staging->renderTarget->newCompatibleRenderPassDescriptor();
-        if (!staging->renderPassDescriptor) {
-            if (error)
-                *error = QStringLiteral("Could not create the input staging render-pass descriptor");
-            releaseInputResources(staging);
-            return false;
-        }
-        staging->renderTarget->setRenderPassDescriptor(staging->renderPassDescriptor);
-        if (!staging->renderTarget->create()) {
-            if (error)
-                *error = QStringLiteral("Could not create the input staging render target");
-            releaseInputResources(staging);
-            return false;
-        }
-
+    if (!staging->vertexBuffer) {
         staging->vertexBuffer = rhi()->newBuffer(QRhiBuffer::Dynamic,
                                                   QRhiBuffer::VertexBuffer,
                                                   24 * sizeof(float));
@@ -475,9 +433,8 @@ bool DsTouchEngineViewRenderer::ensureInputStaging(TextureInputStaging *staging,
             releaseInputResources(staging);
             return false;
         }
-        staging->pixelSize = pixelSize;
-        staging->vertexUploadPending = true;
     }
+    staging->pixelSize = pixelSize;
 
     const bool sourceChanged = staging->sourceTexture != source.texture.data()
         || staging->sourceRhiTexture != sourceTexture;
@@ -531,7 +488,7 @@ bool DsTouchEngineViewRenderer::ensureInputStaging(TextureInputStaging *staging,
         });
         staging->pipeline->setVertexInputLayout(layout);
         staging->pipeline->setShaderResourceBindings(staging->shaderResources);
-        staging->pipeline->setRenderPassDescriptor(staging->renderPassDescriptor);
+        staging->pipeline->setRenderPassDescriptor(renderTarget->renderPassDescriptor());
         if (!staging->pipeline->create()) {
             if (error)
                 *error = QStringLiteral("Could not create the input staging graphics pipeline");
@@ -549,30 +506,82 @@ bool DsTouchEngineViewRenderer::ensureInputStaging(TextureInputStaging *staging,
     return true;
 }
 
+bool DsTouchEngineViewRenderer::renderTextureInput(TextureInputStaging *staging,
+                                                   QRhiTexture *targetTexture,
+                                                   QRhiTextureRenderTarget *renderTarget,
+                                                   QRhiCommandBuffer *commandBuffer,
+                                                   QString *error)
+{
+    if (!staging || !staging->sourceTexture || !commandBuffer) {
+        if (error)
+            *error = QStringLiteral("The QML texture input is no longer available");
+        return false;
+    }
+
+    QRhiResourceUpdateBatch *updates = rhi()->nextResourceUpdateBatch();
+    if (!m_committedInputTextures.contains(staging->sourceTexture)) {
+        if (auto *dynamicTexture = qobject_cast<QSGDynamicTexture *>(staging->sourceTexture))
+            dynamicTexture->updateTexture();
+        staging->sourceTexture->commitTextureOperations(rhi(), updates);
+        m_committedInputTextures.insert(staging->sourceTexture);
+    }
+
+    QRhiTexture *sourceTexture = staging->sourceTexture->rhiTexture();
+    TextureProviderSource source;
+    source.link = QStringLiteral("input");
+    source.texture = staging->sourceTexture;
+    if (!ensureInputStaging(staging, source, sourceTexture, staging->pixelSize,
+                            staging->sourceRect, staging->mirrorVertically,
+                            targetTexture, renderTarget, error)) {
+        return false;
+    }
+
+    if (m_inputUniformUploadPending) {
+        struct alignas(16) UniformData {
+            float matrix[16];
+            float opacity;
+            float padding[3];
+        } uniforms{};
+        const QMatrix4x4 matrix = rhi()->clipSpaceCorrMatrix();
+        std::memcpy(uniforms.matrix, matrix.constData(), sizeof(uniforms.matrix));
+        uniforms.opacity = 1.0f;
+        updates->updateDynamicBuffer(m_uniformBuffer, 0, sizeof(uniforms), &uniforms);
+        m_inputUniformUploadPending = false;
+    }
+    if (staging->vertexUploadPending) {
+        const auto data = vertices(staging->sourceRect, staging->mirrorVertically);
+        updates->updateDynamicBuffer(staging->vertexBuffer, 0,
+                                     static_cast<quint32>(data.size() * sizeof(float)),
+                                     data.data());
+        staging->vertexUploadPending = false;
+    }
+
+    commandBuffer->resourceUpdate(updates);
+    commandBuffer->beginPass(renderTarget, Qt::transparent, {1.0f, 0});
+    commandBuffer->setGraphicsPipeline(staging->pipeline);
+    commandBuffer->setShaderResources(staging->shaderResources);
+    const QRhiCommandBuffer::VertexInput binding(staging->vertexBuffer, 0);
+    commandBuffer->setVertexInput(0, 1, &binding);
+    commandBuffer->setViewport(QRhiViewport(0, 0,
+                                            static_cast<float>(staging->pixelSize.width()),
+                                            static_cast<float>(staging->pixelSize.height())));
+    commandBuffer->draw(4);
+    commandBuffer->endPass();
+    return true;
+}
+
 QVector<TextureInputSource> DsTouchEngineViewRenderer::stageTextureInputs(
     QRhiCommandBuffer *commandBuffer)
 {
+    Q_UNUSED(commandBuffer)
     m_textureInputRetryPending = false;
+    m_committedInputTextures.clear();
+    m_inputUniformUploadPending = true;
 
     QVector<TextureInputSource> stagedInputs;
     stagedInputs.reserve(m_textureInputs.size());
 
     QSet<QString> currentLinks;
-    QSet<QSGTexture *> committedTextures;
-    QVector<TextureInputStaging *> renderPasses;
-    renderPasses.reserve(m_textureInputs.size());
-
-    QRhiResourceUpdateBatch *updates = rhi()->nextResourceUpdateBatch();
-
-    struct alignas(16) UniformData {
-        float matrix[16];
-        float opacity;
-        float padding[3];
-    } uniforms{};
-    const QMatrix4x4 matrix = rhi()->clipSpaceCorrMatrix();
-    std::memcpy(uniforms.matrix, matrix.constData(), sizeof(uniforms.matrix));
-    uniforms.opacity = 1.0f;
-    updates->updateDynamicBuffer(m_uniformBuffer, 0, sizeof(uniforms), &uniforms);
 
     const QRectF unitRect(0.0, 0.0, 1.0, 1.0);
     for (const TextureProviderSource &source : std::as_const(m_textureInputs)) {
@@ -616,13 +625,6 @@ QVector<TextureInputSource> DsTouchEngineViewRenderer::stageTextureInputs(
             continue;
         }
 
-        if (!committedTextures.contains(source.texture.data())) {
-            if (auto *dynamicTexture = qobject_cast<QSGDynamicTexture *>(source.texture.data()))
-                dynamicTexture->updateTexture();
-            source.texture->commitTextureOperations(rhi(), updates);
-            committedTextures.insert(source.texture.data());
-        }
-
         QRhiTexture *sourceTexture = source.texture->rhiTexture();
         const QRectF providedRect = source.texture->normalizedTextureSubRect();
         const bool finiteRect = std::isfinite(providedRect.x())
@@ -656,10 +658,16 @@ QVector<TextureInputSource> DsTouchEngineViewRenderer::stageTextureInputs(
                 staging = new TextureInputStaging;
                 m_inputStaging.insert(source.link, staging);
             }
-            if (!ensureInputStaging(staging, source, sourceTexture, pixelSize,
-                                    sourceRect, mirrorVertically, &error)) {
-                releaseInputStaging(source.link);
-                staging = nullptr;
+            if (staging->sourceTexture != source.texture.data()) {
+                releaseInputBindings(staging);
+                staging->sourceTexture = source.texture.data();
+            }
+            staging->pixelSize = pixelSize;
+            if (staging->sourceRect != sourceRect
+                || staging->mirrorVertically != mirrorVertically) {
+                staging->sourceRect = sourceRect;
+                staging->mirrorVertically = mirrorVertically;
+                staging->vertexUploadPending = true;
             }
         } else {
             releaseInputStaging(source.link);
@@ -674,19 +682,21 @@ QVector<TextureInputSource> DsTouchEngineViewRenderer::stageTextureInputs(
         }
 
         publishInputError(source.link, {});
-        if (staging->vertexUploadPending) {
-            const auto data = vertices(staging->sourceRect, staging->mirrorVertically);
-            updates->updateDynamicBuffer(staging->vertexBuffer, 0,
-                                         static_cast<quint32>(data.size() * sizeof(float)),
-                                         data.data());
-            staging->vertexUploadPending = false;
-        }
-
-        staged.texture = staging->texture;
         staged.pixelSize = staging->pixelSize;
-        staged.normalizedSourceRect = unitRect;
+        staged.format = QRhiTexture::RGBA8;
+        staged.render = [this, staging, link = source.link](QRhiTexture *targetTexture,
+                                                            QRhiTextureRenderTarget *renderTarget,
+                                                            QRhiCommandBuffer *inputCommandBuffer,
+                                                            QString *renderError) {
+            const bool rendered = renderTextureInput(staging, targetTexture, renderTarget,
+                                                     inputCommandBuffer, renderError);
+            publishInputError(link, rendered
+                                           ? QString{}
+                                           : (renderError ? *renderError
+                                                          : QStringLiteral("Could not render the texture input")));
+            return rendered;
+        };
         stagedInputs.push_back(staged);
-        renderPasses.push_back(staging);
     }
 
     pruneInputStaging(currentLinks);
@@ -694,23 +704,6 @@ QVector<TextureInputSource> DsTouchEngineViewRenderer::stageTextureInputs(
     for (const QString &link : diagnosedLinks) {
         if (!currentLinks.contains(link))
             publishInputError(link, {});
-    }
-
-    // This batch contains provider uploads, input-quad vertices, and the
-    // shared transform. Submit it before any staging pass samples a provider.
-    commandBuffer->resourceUpdate(updates);
-    for (TextureInputStaging *staging : std::as_const(renderPasses)) {
-        commandBuffer->beginPass(staging->renderTarget, Qt::transparent, {1.0f, 0});
-        commandBuffer->setGraphicsPipeline(staging->pipeline);
-        commandBuffer->setShaderResources(staging->shaderResources);
-        const QRhiCommandBuffer::VertexInput binding(staging->vertexBuffer, 0);
-        commandBuffer->setVertexInput(0, 1, &binding);
-        commandBuffer->setViewport(QRhiViewport(
-            0, 0,
-            static_cast<float>(staging->pixelSize.width()),
-            static_cast<float>(staging->pixelSize.height())));
-        commandBuffer->draw(4);
-        commandBuffer->endPass();
     }
 
     return stagedInputs;
@@ -805,11 +798,28 @@ void DsTouchEngineViewRenderer::connectAfterFrameEnd()
                     update();
                     return;
                 }
-                // Transfer failures are only known after submission. A paused
-                // session may not otherwise have scheduled another frame in
-                // render(), so explicitly keep retry processing alive.
-                if (core->renderLoopNeeded())
+                if (m_textureInputRetryPending) {
                     update();
+                    return;
+                }
+
+                const int delayMilliseconds = core->nextRenderDelayMilliseconds();
+                if (delayMilliseconds == 0) {
+                    update();
+                } else if (delayMilliseconds > 0 && m_item) {
+                    const QPointer<DsTouchEngineView> item = m_item;
+                    QMetaObject::invokeMethod(
+                        item,
+                        [item, delayMilliseconds] {
+                            if (!item)
+                                return;
+                            QTimer::singleShot(delayMilliseconds, item, [item] {
+                                if (item)
+                                    item->update();
+                            });
+                        },
+                        Qt::QueuedConnection);
+                }
             }
         },
         Qt::DirectConnection);

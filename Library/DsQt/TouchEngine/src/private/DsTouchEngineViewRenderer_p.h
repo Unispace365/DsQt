@@ -68,6 +68,13 @@ private:
                             const QSize &pixelSize,
                             const QRectF &sourceRect,
                             bool mirrorVertically,
+                            QRhiTexture *targetTexture,
+                            QRhiTextureRenderTarget *renderTarget,
+                            QString *error);
+    bool renderTextureInput(TextureInputStaging *staging,
+                            QRhiTexture *targetTexture,
+                            QRhiTextureRenderTarget *renderTarget,
+                            QRhiCommandBuffer *commandBuffer,
                             QString *error);
     QVector<TextureInputSource> stageTextureInputs(QRhiCommandBuffer *commandBuffer);
     void pruneInputStaging(const QSet<QString> &activeLinks);
@@ -85,6 +92,8 @@ private:
     std::shared_ptr<TouchEngineCore> m_core;
     QVector<TextureProviderSource> m_textureInputs;
     QHash<QString, TextureInputStaging *> m_inputStaging;
+    QSet<QSGTexture *> m_committedInputTextures;
+    bool m_inputUniformUploadPending = true;
     QHash<QString, QString> m_inputErrors;
     QString m_initializationError;
     quint64 m_diagnosticProducerId = 0;

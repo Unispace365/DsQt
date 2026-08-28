@@ -74,6 +74,8 @@ set(_touchengine_sources
     src/private/d3d/D3D11TouchEngineBackend_p.h
     src/private/d3d/D3D12TouchEngineBackend.cpp
     src/private/d3d/D3D12TouchEngineBackend_p.h
+    src/private/opengl/D3D11NvInteropBridge.cpp
+    src/private/opengl/D3D11NvInteropBridge_p.h
     src/private/opengl/OpenGLTouchEngineBackend.cpp
     src/private/opengl/OpenGLTouchEngineBackend_p.h
     src/private/vulkan/VulkanTouchEngineBackend.cpp

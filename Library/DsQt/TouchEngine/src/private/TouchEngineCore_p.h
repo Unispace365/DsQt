@@ -37,6 +37,7 @@ public:
     TextureOutput textureOutput(const QString &link) const;
     DsTouchEngineTypes::State state() const noexcept;
     bool renderLoopNeeded() const noexcept;
+    int nextRenderDelayMilliseconds() const noexcept;
     bool recoveryRequired() const noexcept;
 
 private:
