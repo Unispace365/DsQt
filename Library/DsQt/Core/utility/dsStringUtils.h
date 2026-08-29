@@ -9,10 +9,6 @@
 #include <string>
 #include <vector>
 
-#if defined(DSQT_USE_GLM)
-#include <glm/glm.hpp>
-#endif
-
 namespace dsqt {
 // Format conversions
 std::wstring wstr_from_utf8(const std::string&);
@@ -119,16 +115,6 @@ void to_uppercase(std::string& str);
 void to_uppercase(std::wstring& str);
 
 
-#if defined(DSQT_USE_GLM)
-/// Parses a string into a 3d vector. Example: size="400, 400, 0" the space after the comma is required to read the
-/// second and third token. Defaults parameters to 0 if they don't exist.
-glm::vec3 parseVector(const std::string& s);
-
-/// Parses a string into a 4d vector. Example: size="400, 400, 0" the space after the comma is required to read the
-/// second and third token. Defaults parameters to 0 if they don't exist.
-glm::vec4 parseVector4(const std::string& s);
-#endif
-
 /// Parses a string into a rectangle. Example: size="400, 400, 0, 0", where it's "L, T, W, H" the space after the comma
 /// is required to read the second and third token. Defaults parameters to 0 if they don't exist.
 QRectF parseRect(const std::string& s);
@@ -137,18 +123,6 @@ QRectF parseRect(const std::string& s);
 /// 1080.0"
 ///														X1		Y1		X2		 Y2				   L	  T		 W H
 std::string unparseRect(const QRectF& v);
-
-#if defined(DSQT_USE_GLM)
-/// The inverse of parseVector. For an input of ci::vec2(123.0f, 0.0f) returns "123.0, 0.0"
-std::string unparseVector(const glm::vec2& v);
-
-/// The inverse of parseVector. For an input of ci::vec3(123.0f, 0.0f, 987.6f) returns "123.0, 0.0, 987.6"
-std::string unparseVector(const glm::vec3& v);
-
-/// The inverse of parseVector. For an input of ci::vec4(123.0f, 0.0f, 987.6f, 42.1f) returns "123.0, 0.0, 987.6, 42.1"
-std::string unparseVector(const glm::vec4& v);
-#endif
-
 
 /// Parse true/false from a string.
 bool parseBoolean(const std::string& s);

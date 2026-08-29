@@ -94,6 +94,9 @@ if not exist "%VCPKG_ROOT%\vcpkg.exe" (
 :: --- Pull the latest VCPKG ---
 call :header "Updating VCPKG"
 pushd "%VCPKG_ROOT%"
+set "VCPKG_HEAD_BEFORE="
+set "VCPKG_HEAD_AFTER="
+for /f "delims=" %%H in ('git rev-parse HEAD 2^>nul') do set "VCPKG_HEAD_BEFORE=%%H"
 git fetch -q
 if %errorlevel% neq 0 (
     powershell -NoProfile -Command "Write-Host 'WARNING: git fetch failed for vcpkg - build may fail if baseline is missing.' -ForegroundColor Yellow"
@@ -105,7 +108,27 @@ if %errorlevel% neq 0 (
         powershell -NoProfile -Command "Write-Host 'vcpkg is up to date.' -ForegroundColor Green"
     )
 )
+for /f "delims=" %%H in ('git rev-parse HEAD 2^>nul') do set "VCPKG_HEAD_AFTER=%%H"
 popd
+
+:: --- Re-bootstrap vcpkg.exe when the sources moved ahead of the binary ---
+:: A plain `git pull` can bring in a newer scripts\vcpkg-tools.json than the installed
+:: vcpkg.exe understands, e.g. "document schema version 2 is not supported by this
+:: version of vcpkg", which then cascades into a missing Ninja / CMAKE_MAKE_PROGRAM.
+set "VCPKG_NEEDS_BOOTSTRAP=0"
+if not "!VCPKG_HEAD_AFTER!"=="!VCPKG_HEAD_BEFORE!" set "VCPKG_NEEDS_BOOTSTRAP=1"
+for /f %%S in ('powershell -NoProfile -Command "$t='%VCPKG_ROOT%\scripts\vcpkg-tools.json'; $e='%VCPKG_ROOT%\vcpkg.exe'; if ((Test-Path $t) -and (Test-Path $e) -and ((Get-Item $t).LastWriteTimeUtc -gt (Get-Item $e).LastWriteTimeUtc)) { '1' } else { '0' }"') do set "VCPKG_TOOLS_STALE=%%S"
+if "!VCPKG_TOOLS_STALE!"=="1" set "VCPKG_NEEDS_BOOTSTRAP=1"
+
+if "!VCPKG_NEEDS_BOOTSTRAP!"=="1" (
+    powershell -NoProfile -Command "Write-Host 'vcpkg sources are newer than vcpkg.exe - re-bootstrapping...' -ForegroundColor Yellow"
+    call "%VCPKG_ROOT%\bootstrap-vcpkg.bat" -disableMetrics
+    if !errorlevel! neq 0 (
+        powershell -NoProfile -Command "Write-Host 'bootstrap-vcpkg.bat failed - cannot continue.' -ForegroundColor Red"
+        exit /b 1
+    )
+    powershell -NoProfile -Command "Write-Host 'vcpkg.exe re-bootstrapped.' -ForegroundColor Green"
+)
 
 :: --- Resolve Qt path ---
 if defined QT_PATH (

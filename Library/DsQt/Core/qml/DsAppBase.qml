@@ -7,6 +7,8 @@ import Dsqt.Core
 
 /// \brief main window for DsQt QML applications.
 ApplicationWindow {
+    readonly property var windowProxy: Settings.engine?.engine?.window ?? undefined
+
     id: window
     flags: Qt.Window
     title: `${Application.name} (${Application.version})`
@@ -20,7 +22,7 @@ ApplicationWindow {
             refocusTimer.stop()
         } else {
             console.log("Window is no longer front-most")
-            if(windowProxy.getBool("forceToFront",false) && (flags & Qt.FramelessWindowHint)) {
+            if((windowProxy.forceToFront ?? false) && (flags & Qt.FramelessWindowHint)) {
                 refocusTimer.start()
             } else {
                 refocusTimer.stop()
@@ -30,7 +32,7 @@ ApplicationWindow {
 
     Timer {
         id: refocusTimer
-        interval: windowProxy.getInt("forceToFrontInterval", 2000)
+        interval: windowProxy.forceToFrontInterval ?? 2000
         repeat: true
         onTriggered: WindowHelper.forceToFront(window)
     }
@@ -52,12 +54,12 @@ ApplicationWindow {
     // Encapsulte properties to make them private.
     Item {
         id: _
-        property string mode: windowProxy.getString("mode", "window")            // "window", "display", "desktop"
-        property real margin: windowProxy.getInt("margin", 100)                  // Default to 0.
-        property string displayName : windowProxy.getString("displayName", "")   // If specified, will lookup the display index by name...
-        property int  displayIndex : windowProxy.getInt("displayIndex", 1)       // ...otherwise, will use this index.
-        property int preferredWidth : windowProxy.getInt("width", 0)             //
-        property int preferredHeight : windowProxy.getInt("height", 0)           //
+        property string mode: windowProxy.mode ?? "window"         // "window", "display", "desktop"
+        property real margin: windowProxy.margin ?? 100            // Default to 0.
+        property string displayName: windowProxy.displayName ?? "" // If specified, will lookup the display index by name...
+        property int  displayIndex: windowProxy.displayIndex ?? 0  // ...otherwise, will use this index.
+        property int preferredWidth: windowProxy.width ?? 0        //
+        property int preferredHeight: windowProxy.height ?? 0      //
 
         function getDisplayIndex() : int {
             var screens = Application.screens
@@ -83,13 +85,6 @@ ApplicationWindow {
         onActivated: Ds.engine.quit(false)
     }
 
-    /// Provides access to the window settings.
-    DsSettingsProxy {
-        id: windowProxy
-        target: "engine"
-        prefix: "engine.window"
-    }
-
     function spanDesktop() {
         visible = false
 
@@ -98,7 +93,7 @@ ApplicationWindow {
 
         // Find the origin.
         var screens = Qt.application.screens
-        for(let i=0; i<screens.length; ++i) {
+        for(var i=0; i<screens.length; ++i) {
             x = Math.min(x, screens[i].virtualX)
             y = Math.min(y, screens[i].virtualY)
         }
@@ -146,10 +141,7 @@ ApplicationWindow {
         var availableHeight = screen.height - 2 * _.margin
         var preferredWidth = _.preferredWidth > 0 ? _.preferredWidth : availableWidth
         var preferredHeight = _.preferredHeight > 0 ? _.preferredHeight : availableHeight
-        if(preferredWidth === availableWidth && preferredHeight === availableHeight ) {
-            return spanDisplay()
-        }
-        else if(preferredWidth > availableWidth || preferredHeight > availableHeight ) {
+        if(preferredWidth > availableWidth || preferredHeight > availableHeight ) {
             var preferredAspect = preferredWidth / preferredHeight
             var availableAspect = availableWidth / availableHeight
             if( availableAspect > preferredAspect) {
@@ -187,7 +179,7 @@ ApplicationWindow {
         // Load TouchFilter controls window dynamically from Touch module.
         touchFilterDebugComponent = Qt.createComponent("qrc:/qt/qml/Dsqt/Touch/qml/TouchFilterControlsWindow.qml")
         if (touchFilterDebugComponent.status === Component.Error) {
-            console.warn("DsAppBase: TouchFilter debug disabled:", touchFilterDebugComponent.errorString())
+            console.warn("DsAppBase: Touch module not available - touch filter controls disabled")
             touchFilterDebugComponent = null
         }
 
@@ -248,14 +240,14 @@ ApplicationWindow {
         property var touchFilterDebugWindow: null
         onTouchFilterDebugTriggered: (isChecked) => {
             if (window.touchFilterDebugComponent === null) {
-                console.warn("DsAppBase: TouchFilter debug not available")
+                console.warn("TouchFilter debug not available")
                 windowMenuBar.touchFilterDebugChecked = false
                 return
             }
             if (touchFilterDebugWindow === null) {
                 touchFilterDebugWindow = window.touchFilterDebugComponent.createObject(window, {
-                    touchFilter: window.touchFilterForDebug
-                })
+                                                                                           touchFilter: window.touchFilterForDebug
+                                                                                       })
                 touchFilterDebugWindow.closing.connect(() => { windowMenuBar.touchFilterDebugChecked = false })
             }
             touchFilterDebugWindow.visible = isChecked
@@ -275,23 +267,7 @@ ApplicationWindow {
             contentBrowser.visible = isChecked
         }
 
-        property DsSettingsViewer settingsEngineWindow: null
-        onSettingsEngineTriggered: {
-            if (settingsEngineWindow === null) {
-                settingsEngineWindow = settingsEngineComponent.createObject(window)
-            }
-            settingsEngineWindow.visible = true
-            settingsEngineWindow.raise()
-        }
-
-        property DsSettingsViewer settingsAppWindow: null
-        onSettingsApplicationTriggered: {
-            if (settingsAppWindow === null) {
-                settingsAppWindow = settingsAppComponent.createObject(window)
-            }
-            settingsAppWindow.visible = true
-            settingsAppWindow.raise()
-        }
+        onSettingsTriggered: (isChecked) => { settingsViewer.setVisible(isChecked) }
 
     }
 
@@ -333,20 +309,10 @@ ApplicationWindow {
         }
     }
 
-    Component {
-        id: settingsEngineComponent
-        DsSettingsViewer {
-            settingsName: "engine"
-            title: "Settings Viewer — Engine"
-        }
-    }
-
-    Component {
-        id: settingsAppComponent
-        DsSettingsViewer {
-            settingsName: "app_settings"
-            title: "Settings Viewer — Application"
-        }
+    /// Settings viewer — shows all registered SettingsFile instances as tabs.
+    DsSettingsViewerHelper {
+        id: settingsViewer
+        onVisibleChanged: (isVisible) => { windowMenuBar.settingsChecked = isVisible }
     }
 
     /// Content browser component (loaded dynamically from Bridge module)
