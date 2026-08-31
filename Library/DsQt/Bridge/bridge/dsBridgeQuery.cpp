@@ -441,7 +441,7 @@ void DsBridgeSqlQuery::onPublishContent() {
 
     // Release the guard only now that the result has been published. Doing this any earlier would allow a new
     // background read to start while we are still handing the previous result to the bridge.
-    mIsRunning.testAndSetRelaxed(true, false);
+    mIsRunning.storeRelaxed(false);
 
     // If the database changed while we were busy, run the pipeline again to pick up what we missed. Queued rather
     // than direct so that the current call stack unwinds and the UI gets a chance to breathe first.
