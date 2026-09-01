@@ -504,10 +504,14 @@ static void sortEvents(DatabaseRecordList& events, const QDateTime& localDateTim
         if (sinceStartA == sinceStartB) { // Starting at the same time.
             const auto durationA = durationInSeconds(startA, endA);
             const auto durationB = durationInSeconds(startB, endB);
-            if (durationA == durationB)                // Same duration:
-                return std::bitset<8>(daysA).count() < // Fewer days has higher priority
-                       std::bitset<8>(daysB).count();
-            else                                           // Different duration:
+            if (durationA == durationB) { // Same duration:
+                const auto countA = std::bitset<8>(daysA).count();
+                const auto countB = std::bitset<8>(daysB).count();
+                if (countA != countB) return countA < countB; // Fewer days has higher priority.
+
+                // Fall back to the uid to guarantee a stable, reproducible order.
+                return a.uid() < b.uid();
+            } else                                         // Different duration:
                 return durationA < durationB;              // Shorter duration has higher priority.
         } else if ((sinceStartA < 0) != (sinceStartB < 0)) // Only one has already started.
             return sinceStartA >= 0;                       // A has started, priority over B.
