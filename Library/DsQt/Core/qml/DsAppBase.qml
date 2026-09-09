@@ -261,6 +261,7 @@ ApplicationWindow {
         onContentBrowseToggled: (isChecked) => {
             if (window.contentBrowserComponent === null) {
                 console.warn("Content browser not available")
+                windowMenuBar.contentBrowseChecked = false
                 return
             }
             if(contentBrowser === null) {
