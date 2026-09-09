@@ -26,10 +26,53 @@
         "CMAKE_INSTALL_PREFIX": "$env{USERPROFILE}/Documents/DsQt"
       }
     }
+ ,
+    {
+      "name": "ios-base",
+      "hidden": true,
+      "generator": "Xcode",
+      "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Darwin" },
+      "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+      "cacheVariables": {
+        "VCPKG_CHAINLOAD_TOOLCHAIN_FILE": "$env{QT_IOS_ROOT}/lib/cmake/Qt6/qt.toolchain.cmake",
+        "CMAKE_CONFIGURATION_TYPES": { "type": "STRING", "value": "Debug;Release;RelWithDebInfo" },
+        "DSQT_BUILD_TESTS": { "type": "BOOL", "value": "OFF" },
+        "DSQT_BUILD_TOOLS": { "type": "BOOL", "value": "OFF" }
+      }
+    },
+    {
+      "name": "ios-device",
+      "displayName": "iOS - device (arm64)",
+      "inherits": ["ios-base"],
+      "binaryDir": "${sourceDir}/build/ios-device",
+      "cacheVariables": {
+        "CMAKE_OSX_SYSROOT": "iphoneos",
+        "VCPKG_TARGET_TRIPLET": "arm64-ios",
+        "CMAKE_INSTALL_PREFIX": "$env{HOME}/Documents/DsQt-ios-device"
+      }
+    },
+    {
+      "name": "ios-simulator",
+      "displayName": "iOS - simulator (x86_64)",
+      "inherits": ["ios-base"],
+      "binaryDir": "${sourceDir}/build/ios-simulator",
+      "cacheVariables": {
+        "CMAKE_OSX_SYSROOT": "iphonesimulator",
+        "VCPKG_TARGET_TRIPLET": "x64-ios",
+        "CMAKE_INSTALL_PREFIX": "$env{HOME}/Documents/DsQt-ios-simulator"
+      }
+    }
   ],
   "buildPresets": [
     { "name": "ninja-debug",          "configurePreset": "ninja", "configuration": "Debug" },
     { "name": "ninja-release",        "configurePreset": "ninja", "configuration": "Release" },
-    { "name": "ninja-relwithdebinfo", "configurePreset": "ninja", "configuration": "RelWithDebInfo" }
+    { "name": "ninja-relwithdebinfo", "configurePreset": "ninja", "configuration": "RelWithDebInfo" },
+
+    { "name": "ios-device-debug",             "configurePreset": "ios-device",    "configuration": "Debug" },
+    { "name": "ios-device-release",           "configurePreset": "ios-device",    "configuration": "Release" },
+    { "name": "ios-device-relwithdebinfo",    "configurePreset": "ios-device",    "configuration": "RelWithDebInfo" },
+    { "name": "ios-simulator-debug",          "configurePreset": "ios-simulator", "configuration": "Debug" },
+    { "name": "ios-simulator-release",        "configurePreset": "ios-simulator", "configuration": "Release" },
+    { "name": "ios-simulator-relwithdebinfo", "configurePreset": "ios-simulator", "configuration": "RelWithDebInfo" }
   ]
 }
