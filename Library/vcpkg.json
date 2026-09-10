@@ -9,7 +9,8 @@
       "version>=": "3.4.0"
     },
     {
-      "name": "vulkan"
+      "name": "vulkan",
+      "platform": "windows"
     },
     {
       "name": "spout2",
