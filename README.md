@@ -222,6 +222,7 @@ For detailed documentation, see the articles in [Docs/articles/](Docs/articles/)
 4. [SVG Color Reference](Docs/articles/svg_color_reference.md) - Working with SVG colors
 5. [Installer Guide](Docs/articles/installer_guide.md) - Building Windows installers with Inno Setup
 6. [TouchFilter Guide](Docs/articles/touch_filter.md) - Touch event filtering, jitter smoothing, transient suppression, and debug overlay
+7. [TouchEngine Rewrite and Multi-Backend Stabilization](Docs/articles/touchengine_rewrite_and_backend_stabilization.html) - Architecture, migration, diagnostics, testing, and graphics-backend stabilization
 
 ## Generating documentation
 
