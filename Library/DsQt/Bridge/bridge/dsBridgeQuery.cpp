@@ -4,7 +4,6 @@
 #include "model/dsContentModel.h"
 #include "model/dsResource.h"
 #include "network/dsNodeWatcher.h"
-#include "settings/dsQmlSettingsProxy.h"
 #include "settings/dsSettings.h"
 
 #include "qqmlcontext.h"
@@ -36,16 +35,12 @@ DsBridgeSqlQuery::DsBridgeSqlQuery(DsQmlApplicationEngine* parent)
         mDatabase = QSqlDatabase::addDatabase("QSQLITE");
 
         // Find DB file.
-        DsQmlSettingsProxy engSettings;
-        engSettings.setTarget("engine");
-        engSettings.setPrefix("engine.resource");
-
-        const auto dbFileName = engSettings.getString("resource_db", "").value<QString>();
+        const auto dbFileName = Settings::find<QString>("engine", "engine.resource.resource_db", "");
         if (!dbFileName.isEmpty()) {
             QFileInfo file(DsEnvironment::expandq(dbFileName));
             if (file.isRelative()) {
                 QString resourceLocation =
-                    DsEnvironment::expandq(engSettings.getString("location", "").value<QString>());
+                    DsEnvironment::expandq(Settings::find<QString>("engine", "engine.resource.location", ""));
                 file.setFile(QDir::cleanPath(resourceLocation), dbFileName);
             }
 
@@ -63,13 +58,18 @@ DsBridgeSqlQuery::DsBridgeSqlQuery(DsQmlApplicationEngine* parent)
             if (!mWatcher) mWatcher = new DsBridgeWatcher(file, this);
             connect(mWatcher, &bridge::DsBridgeWatcher::databaseUpdated, this, [this]() { queryDatabase(); });
 
-            // Watch for database updates using UDP message (BridgeSync <= v4.4.0)
-            const auto engine      = DsQmlApplicationEngine::DefEngine();
-            const auto nodeWatcher = engine->getNodeWatcher();
-            if (nodeWatcher) {
-                connect(nodeWatcher, &network::DsNodeWatcher::messageArrived, this,
-                        [this](dsqt::network::Message msg) { queryDatabase(); });
-            }
+            // Note: we deliberately do NOT listen to the UDP notification (DsNodeWatcher::messageArrived) that
+            // BridgeSync <= v4.4.0 used. Newer versions signal an update through both channels, and the auth hash is
+            // split across two UDP datagrams, so a single update arrives as three separate notifications. Since
+            // queryDatabase() now queues a follow-up run for anything received while it is busy, listening to both
+            // channels would guarantee a redundant second pass on every update. The notification file is the
+            // supported mechanism; requires BridgeSync v4.4.0 or newer.
+			// const auto engine      = DsQmlApplicationEngine::DefEngine();
+            // const auto nodeWatcher = engine->getNodeWatcher();
+            // if (nodeWatcher) {
+            //     connect(nodeWatcher, &network::DsNodeWatcher::messageArrived, this,
+            //             [this](dsqt::network::Message msg) { queryDatabase(); });
+            // }
         }
     });
 }
@@ -95,25 +95,21 @@ DsBridgeSqlQuery::~DsBridgeSqlQuery() {
 }
 
 DsBridgeSyncSettings DsBridgeSqlQuery::getBridgeSyncSettings() {
-    DsQmlSettingsProxy engSettings;
-    engSettings.setTarget("engine");
-    engSettings.setPrefix("engine.bridgesync");
-
     DsBridgeSyncSettings settings;
-    settings.server       = engSettings.getString("connection.server", "");
-    settings.authServer   = engSettings.getString("connection.auth_server", "");
-    settings.clientId     = engSettings.getString("connection.client_id", "");
-    settings.clientSecret = engSettings.getString("connection.client_secret", "");
-    settings.directory    = engSettings.getString("connection.directory", "");
-    settings.interval     = engSettings.getInt("connection.interval", 10);
-    settings.verbose      = engSettings.getBool("connection.verbose", false);
-    settings.asyncRecords = engSettings.getBool("connection.asyncRecords", true);
+    settings.server       = Settings::find<QString>("engine", "engine.bridgesync.connection.server", "");
+    settings.authServer   = Settings::find<QString>("engine", "engine.bridgesync.connection.auth_server", "");
+    settings.clientId     = Settings::find<QString>("engine", "engine.bridgesync.connection.client_id", "");
+    settings.clientSecret = Settings::find<QString>("engine", "engine.bridgesync.connection.client_secret", "");
+    settings.directory    = Settings::find<QString>("engine", "engine.bridgesync.connection.directory", "");
+    settings.interval     = Settings::find<int>("engine", "engine.bridgesync.connection.interval", 10);
+    settings.verbose      = Settings::find<bool>("engine", "engine.bridgesync.connection.verbose", false);
+    settings.asyncRecords = Settings::find<bool>("engine", "engine.bridgesync.connection.asyncRecords", true);
 
-    const auto appPath = engSettings.getString("app_path", "%SHARE%/bridgesync/bridge_sync_console.exe").toString();
-    settings.appPath   = DsEnvironment::expandq(appPath);
+    const auto appPath =
+        Settings::find<QString>("engine", "engine.bridgesync.app_path", "%SHARE%/bridgesync/bridge_sync_console.exe");
+    settings.appPath = DsEnvironment::expandq(appPath);
 
-    const auto launchBridgeSync = engSettings.getBool("launch_bridgesync", false);
-    settings.doLaunch           = launchBridgeSync.toBool();
+    settings.doLaunch = Settings::find<bool>("engine", "engine.bridgesync.launch_bridgesync", false);
     return settings;
 }
 
@@ -389,8 +385,6 @@ void DsBridgeSqlQuery::onCleanContent() {
 void DsBridgeSqlQuery::onPublishContent() {
     qCDebug(lgBridgeSyncQueryVerbose) << "Publish content";
 
-    mIsRunning.testAndSetRelaxed(true, false);
-
     Q_ASSERT(QThread::currentThread() == QCoreApplication::instance()->thread());
 
     // Construct or update the content tree.
@@ -435,13 +429,33 @@ void DsBridgeSqlQuery::onPublishContent() {
     bridge.setDatabase(std::move(mContent));
 
     qCDebug(lgBridgeSyncQuery) << "Database sync pipeline complete.";
+
+    // Release the guard only now that the result has been published. Doing this any earlier would allow a new
+    // background read to start while we are still handing the previous result to the bridge.
+    mIsRunning.testAndSetRelaxed(true, false);
+
+    // If the database changed while we were busy, run the pipeline again to pick up what we missed. Queued rather
+    // than direct so that the current call stack unwinds and the UI gets a chance to breathe first.
+    if (mIsPending.fetchAndStoreRelaxed(false)) {
+        qCDebug(lgBridgeSyncQuery) << "Running queued update.";
+        QTimer::singleShot(0, this, &DsBridgeSqlQuery::queryDatabase);
+    }
 }
 
 void DsBridgeSqlQuery::queryDatabase() {
-    // Check if an update is in progress.
+    // Check if an update is in progress. If so, remember that the database changed again while we were busy, and
+    // re-run once the current pipeline has published its result. Without this, the notification would be discarded
+    // and the application would keep serving stale content until some later, unrelated update happened to arrive
+    // while we were idle. Note this coalesces: any number of notifications received during one run result in exactly
+    // one additional run.
     if (!mIsRunning.testAndSetRelaxed(false, true)) {
+        qCDebug(lgBridgeSyncQuery) << "Database changed while an update was in progress. Queueing another update.";
+        mIsPending.storeRelaxed(true);
         return;
     }
+
+    // We are about to read the database, so anything signalled up to this point is covered by this run.
+    mIsPending.storeRelaxed(false);
 
     // Perform update on a background thread.
     QFuture<DatabaseContent> future = QtConcurrent::run([=, this]() { return queryTables(); });
@@ -458,9 +472,6 @@ DatabaseContent DsBridgeSqlQuery::queryTables() {
 
     // Create content instance.
     DatabaseContent content;
-
-    // Get settings.
-    auto appsettings = DsSettings::getSettings("app_settings");
 
     // Make sure the database is opened.
     DatabaseGuard guard(mDatabase);
@@ -493,7 +504,7 @@ DatabaseContent DsBridgeSqlQuery::queryTables() {
                        " INNER JOIN lookup AS l ON l.uid = r.type_uid"                            //
                        " WHERE r.complete = 1 AND r.visible = 1 AND (r.span_end_date IS NULL OR " //
                        " date(r.span_end_date, '+5 day') > date('now'))"                          //
-                       " ORDER BY r.parent_slot ASC, r.rank ASC;");                               //
+                       " ORDER BY r.parent_slot ASC, r.rank ASC, r.uid ASC;");                    //
 
     QString sSelectQuery =                               //
         QStringLiteral("SELECT "                         //
@@ -824,8 +835,7 @@ DatabaseContent DsBridgeSqlQuery::queryTables() {
                                      double(result.value("duration").toFloat()), float(result.value("width").toInt()),
                                      float(result.value("height").toInt()), linkUrl, linkUrl, -1, linkUrl);
 
-                // Assumes app settings are not changed concurrently on another thread.
-                auto webSize = appsettings->getOr<QPointF>("web:default_size", QPointF(1920.f, 1080.f));
+                const auto webSize = Settings::find<QPointF>("app_settings", "web:default_size", QPointF(1920.f, 1080.f));
                 res.setWidth(webSize.x());
                 res.setHeight(webSize.y());
                 res.setType(dsqt::DsResource::WEB_TYPE);
@@ -840,7 +850,7 @@ DatabaseContent DsBridgeSqlQuery::queryTables() {
                     auto res = dsqt::DsResource(
                         previewId, dsqt::DsResource::Id::CMS_TYPE, double(result.value("preview_duration").toFloat()),
                         float(result.value("preview_width").toInt()), float(result.value("preview_height").toInt()),
-                        result.value("filename").toString(), previewUri, -1, cms.getResourcePath() + previewUri);
+                        result.value("filename").toString(), previewUri, -1, cms.getResourcePath() + "/" + previewUri);
                     res.setType(previewType == "FILE_IMAGE" ? dsqt::DsResource::IMAGE_TYPE
                                                             : dsqt::DsResource::VIDEO_TYPE);
 

@@ -255,6 +255,7 @@ class DsBridgeSqlQuery : public QObject {
 
   private:
     QAtomicInt                      mIsRunning = false;
+    QAtomicInt                      mIsPending = false;
     QSqlDatabase                    mDatabase;
     DsBridgeWatcher*                mWatcher = nullptr;
     QFutureWatcher<DatabaseContent> mFutures; // Tracks the async task.

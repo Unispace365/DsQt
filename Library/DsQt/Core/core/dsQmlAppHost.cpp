@@ -8,9 +8,11 @@
 namespace dsqt {
 DsQmlAppHost::DsQmlAppHost(QObject* parent)
     : QObject{parent} {
-    DsSettingsRef settingsEng = DsSettings::getSettings("engine");
-
-    baseUrl.setUrl(settingsEng->getOr("appHost.baseUrl",QString("http://localhost:7800")));
+    // Track engine.appHost.baseUrl: the callback runs once now and again on every reload
+    // or override, so a settings change is picked up without recreating the host.
+    Settings::bind<QString>(
+        "engine", "appHost.baseUrl", this, [this](const QString& url) { baseUrl.setUrl(url); },
+        QStringLiteral("http://localhost:7800"));
     manager = new QNetworkAccessManager(this);
 }
 
