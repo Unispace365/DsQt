@@ -416,7 +416,7 @@ goto :eof
 :: Get current time as integer seconds since midnight -> result var
 :: The 1%%x-100 trick forces decimal parsing (avoids octal on 08, 09)
 :gettime
-for /f "tokens=1-3 delims=:." %%a in ("%TIME: =0%") do set /a %1=(1%%a-100)*3600 + (1%%b-100)*60 + (1%%c-100)
+for /f "tokens=1-3 delims=:.," %%a in ("%TIME: =0%") do set /a %1=(1%%a-100)*3600 + (1%%b-100)*60 + (1%%c-100)
 goto :eof
 
 :: Compute elapsed seconds between two integer timestamps -> result var
