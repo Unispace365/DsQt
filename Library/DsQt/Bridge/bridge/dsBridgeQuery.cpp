@@ -82,7 +82,7 @@ DsBridgeSqlQuery::~DsBridgeSqlQuery() {
         mDatabase.close();
     }
 
-#ifndef Q_OS_WASM
+#if QT_CONFIG(process)
     // Properly stop the BridgeSync process.
     qCInfo(lgBridgeSyncApp) << "Closing BridgeSync";
     stopBridgeSync();
@@ -130,7 +130,7 @@ bool DsBridgeSqlQuery::validateBridgeSyncSettings(const DsBridgeSyncSettings& se
 }
 
 bool DsBridgeSqlQuery::tryLaunchBridgeSync() {
-#ifndef Q_OS_WASM
+#if QT_CONFIG(process)
     qCInfo(lgBridgeSyncApp) << "Launching BridgeSync";
 
     // Check if process is running.
@@ -234,12 +234,16 @@ bool DsBridgeSqlQuery::tryLaunchBridgeSync() {
     mProcessGuard = std::make_unique<BridgeSyncProcessGuard>(mBridgeSyncProcess);
 
     return true;
+#else
+    if (getBridgeSyncSettings().doLaunch) {
+        qCWarning(lgBridgeSyncApp) << "Launching BridgeSync is unavailable on this platform";
+    }
+    return false;
 #endif
-
-    return true;
 }
 
 void DsBridgeSqlQuery::stopBridgeSync() {
+#if QT_CONFIG(process)
     // Disconnect from process events.
     for (const auto& connection : std::as_const(mConnections)) {
         QObject::disconnect(connection);
@@ -248,12 +252,13 @@ void DsBridgeSqlQuery::stopBridgeSync() {
 
     // Make sure our current process is stopped.
     mProcessGuard.reset();
+#endif
 }
 
 // Checks to see if process is started.
 bool DsBridgeSqlQuery::isBridgeSyncRunning() {
-#ifdef Q_OS_WASM
-    return true;
+#if !QT_CONFIG(process)
+    return false;
 #else
     return mBridgeSyncProcess.state() == QProcess::Running;
 #endif
@@ -894,6 +899,7 @@ QString DsBridgeSqlQuery::slugifyKey(QString appKey) {
     return appKey.replace(badRe, "_");
 }
 
+#if QT_CONFIG(process)
 BridgeSyncProcessGuard::BridgeSyncProcessGuard(QProcess& process)
     : mProcess(process) {
 #ifdef Q_OS_WIN
@@ -947,6 +953,8 @@ BridgeSyncProcessGuard::~BridgeSyncProcessGuard() {
     CloseHandle(mJobHandle);
 #endif
 }
+
+#endif
 
 DatabaseGuard::DatabaseGuard(QSqlDatabase& database)
     : mDatabase(database)

@@ -29,8 +29,8 @@ Usage: ./build_and_install.sh [preset] [-test] [-tools] [-no-configure] [-no-ins
                               [-hard-clean] [-rebuild] [-hard-rebuild] [-qt <ver|path>]
                               [-team <id>] [-no-private-reinject]
 
-  preset               : CMake configure preset (default: macos)
-                         one of: macos | ios-device | ios-simulator
+  preset               : CMake configure preset (interactive choice; default: macos)
+                         one of: macos | ios-device | ios-simulator | ios-simulator-intel
   -test                : Enable and run unit tests after the Debug build (macos only)
   -tools               : Build and install ProjectCloner + ClonerSource template (macos only)
   -no-configure        : Skip the CMake configure step (for fast incremental builds)
@@ -90,10 +90,21 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
+if [[ -z "$PRESET" && -t 0 ]]; then
+    printf 'Choose build target:\n  1) macOS\n  2) iOS device (arm64)\n  3) iOS simulator (Apple Silicon)\n  4) iOS simulator (Intel)\n'
+    read -r -p 'Target [1]: ' TARGET_CHOICE || die "No target selected."
+    case "${TARGET_CHOICE:-1}" in
+        1) PRESET=macos ;;
+        2) PRESET=ios-device ;;
+        3) PRESET=ios-simulator ;;
+        4) PRESET=ios-simulator-intel ;;
+        *) die "Invalid target: $TARGET_CHOICE" ;;
+    esac
+fi
 PRESET="${PRESET:-macos}"
 case "$PRESET" in
-    macos|ios-device|ios-simulator) ;;
-    *) die "Unknown preset '$PRESET'. Expected: macos | ios-device | ios-simulator" ;;
+    macos|ios-device|ios-simulator|ios-simulator-intel) ;;
+    *) die "Unknown preset '$PRESET'. Expected: macos | ios-device | ios-simulator | ios-simulator-intel" ;;
 esac
 
 IS_IOS=0
@@ -111,6 +122,16 @@ if (( IS_IOS )); then
 fi
 
 command -v cmake >/dev/null 2>&1 || die "cmake not found on PATH."
+if (( ! IS_IOS )) && ! command -v ninja >/dev/null 2>&1; then
+    for root in "$HOME/Qt" "/opt/Qt" "/Applications/Qt"; do
+        if [[ -x "$root/Tools/Ninja/ninja" ]]; then
+            export PATH="$root/Tools/Ninja:$PATH"
+            break
+        fi
+    done
+    command -v ninja >/dev/null 2>&1 || die "Ninja not found. Install Ninja or add Qt/Tools/Ninja to PATH."
+fi
+
 
 header "Checking Xcode toolchain"
 command -v xcode-select >/dev/null 2>&1 || die "xcode-select not found. Install Xcode from the App Store."
@@ -123,6 +144,9 @@ fi
 info "    Xcode: $XCODE_PATH"
 
 # ------------------------------------------------------------ vcpkg prep ---
+if [[ -z "${VCPKG_ROOT:-}" && -x "$HOME/vcpkg/vcpkg" ]]; then
+    export VCPKG_ROOT="$HOME/vcpkg"
+fi
 [[ -n "${VCPKG_ROOT:-}" ]] || die "VCPKG_ROOT is not set. Please make sure vcpkg is properly installed."
 [[ -x "$VCPKG_ROOT/vcpkg" ]] || die "vcpkg executable not found in VCPKG_ROOT: $VCPKG_ROOT"
 
@@ -175,6 +199,8 @@ if [[ -n "$QT_ARG" ]]; then
     info "    Qt: $QT_PATH"
 fi
 
+# Normalize explicit relative paths before CMake resolves them from a build directory.
+if [[ -n "$QT_PATH" ]]; then QT_PATH="$(cd "$QT_PATH" && pwd)"; fi
 if (( IS_IOS )); then
     if [[ -n "$QT_PATH" ]]; then
         export QT_IOS_ROOT="$QT_PATH"
@@ -183,6 +209,7 @@ if (( IS_IOS )); then
     fi
     [[ -f "$QT_IOS_ROOT/lib/cmake/Qt6/qt.toolchain.cmake" ]] \
         || die "qt.toolchain.cmake not found under QT_IOS_ROOT ($QT_IOS_ROOT). Expected: \$QT_IOS_ROOT/lib/cmake/Qt6/qt.toolchain.cmake"
+    export QT_IOS_ROOT="$(cd "$QT_IOS_ROOT" && pwd)"
     info "    QT_IOS_ROOT: $QT_IOS_ROOT"
 fi
 
@@ -225,7 +252,7 @@ if [[ -n "$QT_PATH" ]] && (( ! IS_IOS )); then
     CONFIGURE_ARGS+=(-DCMAKE_PREFIX_PATH="$QT_PATH" -DQt6_DIR="$QT_PATH/lib/cmake/Qt6")
 fi
 if [[ -n "$TEAM_ID" ]]; then
-    CONFIGURE_ARGS+=(-DCMAKE_XCODE_ATTRIBUTE_DEVELOPMENT_TEAM="$TEAM_ID")
+    CONFIGURE_ARGS+=(-DCMAKE_XCODE_ATTRIBUTE_DEVELOPMENT_TEAM="$TEAM_ID" -DCMAKE_XCODE_ATTRIBUTE_CODE_SIGNING_ALLOWED=YES)
 fi
 
 if (( SKIP_CONFIGURE )); then
@@ -242,21 +269,13 @@ else
 fi
 
 # ----------------------------------------------------------------- build ---
-MARKER="$BUILD_DIR/.build_marker"
-changed_since_marker() {
-    # Any static archive newer than the marker means the build produced something.
-    [[ -n "$(find "$BUILD_DIR" -name '*.a' -newer "$MARKER" -print -quit 2>/dev/null)" ]]
-}
 
 echo
 header "Building Debug"
 mkdir -p "$BUILD_DIR"
-: > "$MARKER"
 t0=$(now)
 cmake --build --preset "$PRESET-debug" || die "Debug build failed."
 BUILD_DEBUG_SECS=$(( $(now) - t0 ))
-DEBUG_NOOP=0
-changed_since_marker || DEBUG_NOOP=1
 
 if (( RUN_TESTS )); then
     echo
@@ -273,20 +292,14 @@ fi
 
 echo
 header "Building Release"
-: > "$MARKER"
 t0=$(now)
 cmake --build --preset "$PRESET-release" || die "Release build failed."
 BUILD_RELEASE_SECS=$(( $(now) - t0 ))
-RELEASE_NOOP=0
-changed_since_marker || RELEASE_NOOP=1
 
 # --------------------------------------------------------------- install ---
 if (( SKIP_INSTALL )); then
     echo
     header "Skipping Install (-no-install)"
-elif (( DEBUG_NOOP && RELEASE_NOOP )); then
-    echo
-    info "No changes detected - skipping install."
 else
     t0=$(now)
     echo

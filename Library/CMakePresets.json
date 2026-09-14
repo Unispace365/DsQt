@@ -48,6 +48,9 @@
       "cacheVariables": {
         "VCPKG_CHAINLOAD_TOOLCHAIN_FILE": "$env{QT_IOS_ROOT}/lib/cmake/Qt6/qt.toolchain.cmake",
         "CMAKE_CONFIGURATION_TYPES": { "type": "STRING", "value": "Debug;Release;RelWithDebInfo" },
+        "CMAKE_SYSTEM_NAME": "iOS",
+        "CMAKE_XCODE_ATTRIBUTE_CODE_SIGNING_ALLOWED": "NO",
+        "VCPKG_OVERLAY_TRIPLETS": "${sourceDir}/cmake/triplets",
         "DSQT_BUILD_TESTS": { "type": "BOOL", "value": "OFF" },
         "DSQT_BUILD_TOOLS": { "type": "BOOL", "value": "OFF" }
       }
@@ -59,19 +62,34 @@
       "binaryDir": "${sourceDir}/build/ios-device",
       "cacheVariables": {
         "CMAKE_OSX_SYSROOT": "iphoneos",
+        "CMAKE_OSX_ARCHITECTURES": "arm64",
         "VCPKG_TARGET_TRIPLET": "arm64-ios",
         "CMAKE_INSTALL_PREFIX": "$env{HOME}/Documents/DsQt-ios-device"
       }
     },
     {
       "name": "ios-simulator",
-      "displayName": "iOS - simulator (x86_64)",
+      "displayName": "iOS - simulator (Apple Silicon arm64)",
       "inherits": ["ios-base"],
       "binaryDir": "${sourceDir}/build/ios-simulator",
       "cacheVariables": {
         "CMAKE_OSX_SYSROOT": "iphonesimulator",
-        "VCPKG_TARGET_TRIPLET": "x64-ios",
+        "CMAKE_OSX_ARCHITECTURES": "arm64",
+        "VCPKG_TARGET_TRIPLET": "arm64-ios-simulator",
         "CMAKE_INSTALL_PREFIX": "$env{HOME}/Documents/DsQt-ios-simulator"
+      }
+    },
+    {
+      "name": "ios-simulator-intel",
+      "displayName": "iOS - simulator (Intel x86_64)",
+      "inherits": [
+        "ios-simulator"
+      ],
+      "binaryDir": "${sourceDir}/build/ios-simulator-intel",
+      "cacheVariables": {
+        "CMAKE_OSX_ARCHITECTURES": "x86_64",
+        "VCPKG_TARGET_TRIPLET": "x64-ios",
+        "CMAKE_INSTALL_PREFIX": "$env{HOME}/Documents/DsQt-ios-simulator-intel"
       }
     }
   ],
@@ -89,6 +107,9 @@
     { "name": "ios-device-relwithdebinfo",    "configurePreset": "ios-device",    "configuration": "RelWithDebInfo" },
     { "name": "ios-simulator-debug",          "configurePreset": "ios-simulator", "configuration": "Debug" },
     { "name": "ios-simulator-release",        "configurePreset": "ios-simulator", "configuration": "Release" },
-    { "name": "ios-simulator-relwithdebinfo", "configurePreset": "ios-simulator", "configuration": "RelWithDebInfo" }
+    { "name": "ios-simulator-relwithdebinfo", "configurePreset": "ios-simulator", "configuration": "RelWithDebInfo" },
+    {"name": "ios-simulator-intel-debug", "configurePreset": "ios-simulator-intel", "configuration": "Debug"},
+    {"name": "ios-simulator-intel-release", "configurePreset": "ios-simulator-intel", "configuration": "Release"},
+    {"name": "ios-simulator-intel-relwithdebinfo", "configurePreset": "ios-simulator-intel", "configuration": "RelWithDebInfo"}
   ]
 }

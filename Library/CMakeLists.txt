@@ -107,9 +107,12 @@ target_link_libraries(Dsqt
     Dsqt::Core
     Dsqt::Bridge
     Dsqt::Waffles
-    Dsqt::TouchEngine
     Dsqt::Touch
 )
+
+if(TARGET Dsqt::TouchEngine)
+    target_link_libraries(Dsqt INTERFACE Dsqt::TouchEngine)
+endif()
 
 if(WIN32 AND TARGET Dsqt::Spout)
     target_link_libraries(Dsqt INTERFACE Dsqt::Spout)
@@ -240,11 +243,13 @@ if(PROJECT_IS_TOP_LEVEL)
         "${QT_QML_OUTPUT_DIRECTORY}/Dsqt/Waffles/Waffles.qmltypes"
         DESTINATION "qml/Dsqt/Waffles"
     )
-    install(FILES
-        "${QT_QML_OUTPUT_DIRECTORY}/Dsqt/TouchEngine/qmldir"
-        "${QT_QML_OUTPUT_DIRECTORY}/Dsqt/TouchEngine/TouchEngine.qmltypes"
-        DESTINATION "qml/Dsqt/TouchEngine"
-    )
+    if(TARGET TouchEngine)
+        install(FILES
+            "${QT_QML_OUTPUT_DIRECTORY}/Dsqt/TouchEngine/qmldir"
+            "${QT_QML_OUTPUT_DIRECTORY}/Dsqt/TouchEngine/TouchEngine.qmltypes"
+            DESTINATION "qml/Dsqt/TouchEngine"
+        )
+    endif()
     install(FILES
         "${QT_QML_OUTPUT_DIRECTORY}/Dsqt/Touch/qmldir"
         "${QT_QML_OUTPUT_DIRECTORY}/Dsqt/Touch/Touch.qmltypes"

@@ -34,6 +34,7 @@ namespace dsqt::bridge {
  * including handling platform-specific behaviors like Job Objects on Windows to kill
  * child processes on exit.
  */
+#if QT_CONFIG(process)
 class BridgeSyncProcessGuard {
   public:
     /**
@@ -54,6 +55,7 @@ class BridgeSyncProcessGuard {
     HANDLE mProcessHandle = nullptr;
 #endif
 };
+#endif
 
 /**
  * @brief A RAII guard class for managing a QSqlDatabase connection.
@@ -260,7 +262,7 @@ class DsBridgeSqlQuery : public QObject {
     QFutureWatcher<DatabaseContent> mFutures; // Tracks the async task.
     DatabaseContent                 mContent;
 
-#ifndef Q_OS_WASM
+#if QT_CONFIG(process)
     QProcess                                mBridgeSyncProcess;
     std::unique_ptr<BridgeSyncProcessGuard> mProcessGuard;
     QList<QMetaObject::Connection>          mConnections;
