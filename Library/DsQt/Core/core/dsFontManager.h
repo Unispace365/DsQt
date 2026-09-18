@@ -7,13 +7,15 @@
 #include <QString>
 #include <QVariantList>
 #include <QVariantMap>
-#include <memory>
 #include <vector>
 
 namespace dsqt {
 
-class DsSettings;
-using DsSettingsRef = std::shared_ptr<DsSettings>;
+/**
+ * @brief Forward declaration of settings classes.
+ */
+class Settings;
+class SettingsFile;
 
 /**
  * @brief The DsFontManager class manages font loading and configuration from TOML settings
@@ -40,7 +42,7 @@ class DsFontManager : public QObject
      * @param settings Shared pointer to DsSettings containing font configuration
      * @param parent Parent QObject
      */
-    explicit DsFontManager(DsSettingsRef settings, QObject *parent = nullptr);
+    explicit DsFontManager(SettingsFile* settings = nullptr, QObject* parent = nullptr);
 
     /**
      * @brief Destructor
@@ -49,10 +51,9 @@ class DsFontManager : public QObject
 
     /**
      * @brief Load all fonts specified in engine.font.paths
-     * @param expandFunc Function to expand path placeholders like %APP%
      * @return Number of successfully loaded fonts
      */
-    int loadFonts(std::function<QString(const QString&)> expandFunc = nullptr);
+    int loadFonts();
 
     /**
      * @brief Create and return a QFont based on engine.font.default settings
@@ -130,7 +131,7 @@ class DsFontManager : public QObject
     QFont::Weight weightIntToEnum(int weight) const;
 
   private:
-    DsSettingsRef m_settings;
+    SettingsFile*         m_settings;
     std::vector<FontPath> m_loadedFonts;
 };
 

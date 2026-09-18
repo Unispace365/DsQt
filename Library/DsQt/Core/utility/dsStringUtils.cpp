@@ -435,29 +435,6 @@ void to_uppercase(std::wstring& str) {
 	std::transform(str.begin(), str.end(), str.begin(), ::toupper);
 }
 
-#if defined(DSQT_USE_GLM)
-glm::vec3 parseVector(const std::string& s) {
-	auto	  tokens = dsqt::split(s, ", ", true);
-	glm::vec3 v;
-	v.x = tokens.size() > 0 ? dsqt::string_to_float(tokens[0]) : 0.0f;
-	v.y = tokens.size() > 1 ? dsqt::string_to_float(tokens[1]) : 0.0f;
-	v.z = tokens.size() > 2 ? dsqt::string_to_float(tokens[2]) : 0.0f;
-
-	return v;
-}
-
-glm::vec4 parseVector4(const std::string& s) {
-	auto	  tokens = dsqt::split(s, ", ", true);
-	glm::vec4 v;
-	v.x = tokens.size() > 0 ? dsqt::string_to_float(tokens[0]) : 0.0f;
-	v.y = tokens.size() > 1 ? dsqt::string_to_float(tokens[1]) : 0.0f;
-	v.z = tokens.size() > 2 ? dsqt::string_to_float(tokens[2]) : 0.0f;
-	v.w = tokens.size() > 3 ? dsqt::string_to_float(tokens[3]) : 0.0f;
-
-	return v;
-}
-#endif
-
 QRectF parseRect(const std::string& s) {
 	auto	  tokens = dsqt::split(s, ", ", true);
 	QRectF	  v;
@@ -477,26 +454,6 @@ std::string unparseRect(const QRectF& v) {
 	ss << v.x() << ", " << v.y() << ", " << v.width() << ", " << v.height();
 	return ss.str();
 }
-
-#if defined(DSQT_USE_GLM)
-std::string unparseVector(const glm::vec2& v) {
-	std::stringstream ss;
-	ss << v.x << ", " << v.y;
-	return ss.str();
-}
-
-std::string unparseVector(const glm::vec3& v) {
-	std::stringstream ss;
-	ss << v.x << ", " << v.y << ", " << v.z;
-	return ss.str();
-}
-
-std::string unparseVector(const glm::vec4& v) {
-	std::stringstream ss;
-	ss << v.x << ", " << v.y << ", " << v.z << ", " << v.w;
-	return ss.str();
-}
-#endif
 
 bool parseBoolean(const std::string& s) {
 	return (s == "true" || s == "TRUE" || s == "yes" || s == "YES" || s == "on" || s == "ON" || s == "1") ? true

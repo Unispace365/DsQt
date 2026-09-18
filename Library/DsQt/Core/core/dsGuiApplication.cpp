@@ -11,7 +11,7 @@
 #include <QSettings>
 #include <QStandardPaths>
 
-DsGuiApplication::DsGuiApplication(int &argc, char **argv):QGuiApplication(argc,argv)
+DsGuiApplication::DsGuiApplication(int &argc, char **argv):QApplication(argc,argv)
 {
     initializeLogging();
 }
