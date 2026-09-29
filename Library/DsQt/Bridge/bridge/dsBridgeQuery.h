@@ -211,6 +211,8 @@ class DsBridgeSqlQuery : public QObject {
     void onPublishContent();
 
   private:
+    friend class DSBridgeQueryTest;
+
     /**
      * @brief Attempts to launch the BridgeSync process if not running.
      * @return True if launched or already running, false on failure.
