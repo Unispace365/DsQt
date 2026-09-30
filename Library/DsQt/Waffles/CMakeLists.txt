@@ -8,6 +8,10 @@ find_package(Qt6 6.9
         Multimedia
         Qml
         Quick
+)
+
+# Qt's WebEngine/Pdf version overrides require a separate component lookup.
+find_package(Qt6 6.9
     OPTIONAL_COMPONENTS
         WebEngineQuick
         Pdf
