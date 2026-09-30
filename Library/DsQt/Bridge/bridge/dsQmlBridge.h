@@ -52,6 +52,23 @@ class DsQmlBridge : public QObject {
             return record;
     }
 
+    /// Returns tag ContentModels for a class UID or its exact CMS app_key, in tag catalog order.
+    /// Class UIDs take precedence over app keys. Unknown or empty keys return an empty list.
+    /// Use on the main thread, after bridgeUpdated; refresh the list on subsequent updates.
+    Q_INVOKABLE QVariantList getTagsForClass(const QString& classGuidOrAppKey) const;
+
+    /// Returns loaded ContentModels carrying the tag, in record order, without duplicates.
+    /// Includes direct assignments and TAGS fields. Use on the main thread after bridgeUpdated.
+    Q_INVOKABLE QVariantList getRecordsWithTag(const QString& tagGuid) const;
+
+    /// Returns loaded ContentModels carrying any tag in the class, in record order.
+    /// Accepts a class UID or exact CMS app_key. Use on the main thread after bridgeUpdated.
+    Q_INVOKABLE QVariantList getRecordsWithTagClass(const QString& classGuidOrAppKey) const;
+
+    /// Returns a record's distinct tag ContentModels in tag catalog order.
+    /// Includes direct assignments and TAGS fields. Use on the main thread after bridgeUpdated.
+    Q_INVOKABLE QVariantList getTagsForRecord(const QString& recordGuid) const;
+
     /**
      * @brief Get uid of platform from app_settings platform.id
      * @return QString uid of platform if found, empty QString otherwise.
