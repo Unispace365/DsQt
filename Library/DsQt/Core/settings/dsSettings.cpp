@@ -461,9 +461,13 @@ QVariant DsSettings::tomlNodeViewToQVariant(const toml::node_view<const toml::no
             toml::date_time dt = optDT.value();
             QDate           qd(dt.date.year, dt.date.month, dt.date.day);
             QTime           qt(dt.time.hour, dt.time.minute, dt.time.second);
+            // fromSecondsAheadOfUtc rather than QTimeZone(int): the int constructor
+            // only exists when Qt is built with a timezone backend, which the
+            // WebAssembly build is not. Both make the same fixed-offset zone.
             QDateTime       qdt(qd, qt,
-                          dt.offset.has_value() ? QTimeZone(dt.offset->minutes * 60)
-                                                      : QTimeZone(QTimeZone::Initialization::LocalTime));
+                          dt.offset.has_value()
+                              ? QTimeZone::fromSecondsAheadOfUtc(dt.offset->minutes * 60)
+                              : QTimeZone(QTimeZone::Initialization::LocalTime));
             return QVariant::fromValue(qdt);
         }
         return QVariant();
