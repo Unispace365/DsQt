@@ -78,6 +78,8 @@ DsViewer {
     // maxHeight] — i.e. honours the same bounds applySizing() does — and stays centred on the
     // viewer's centre point so it doesn't snap to a corner.
     property bool pinchEnabled: false
+    readonly property bool viewerZoomEnabled: root.pinchEnabled && !root.fullscreen
+                                               && (!root.contentInteractive || root.contentLocked)
 
     // --- Enter/exit animation: defaults from the stage, overridable per viewer on creation ---
     enterAnimation:    stage ? stage.viewerEnterAnimation : DsViewer.Anim.Fade
@@ -154,7 +156,8 @@ DsViewer {
     onYChanged: wake()
 
     // When true the content (web page / pdf) ignores input so the viewer can be dragged instead;
-    // the media controls' lock button toggles this. Implemented as an input-swallowing overlay.
+    // the media controls' lock button toggles this. Disable the content subtree as well as
+    // covering it: a MouseArea alone does not block the PDF's touch handlers.
     property bool contentLocked: false
 
     // Bumped (over a few frames, after layout) to force the glass to re-sample its real on-screen
@@ -342,63 +345,6 @@ DsViewer {
             }
         }
     }
-    // --- Pinch / Alt-drag / Alt-wheel zoom handlers (gated on pinchEnabled) ---
-    // All three apply via the same _zoomTo() helper, so the clamp + recentre logic is shared.
-    // PinchHandler covers real multi-touch and trackpad-pinch on platforms that emit it; the
-    // mouse handlers limit to Mouse + Alt modifier so they don't fight normal interaction.
-    PinchHandler {
-        id: pinchZoom
-        enabled: root.pinchEnabled
-        target: null
-        minimumScale: 0.05
-        maximumScale: 20
-        property real baseW: 0
-        property real baseH: 0
-        onActiveChanged: {
-            if (active) { pinchZoom.baseW = root.viewerWidth; pinchZoom.baseH = root.viewerHeight; }
-        }
-        onActiveScaleChanged: {
-            if (!pinchZoom.active) return;
-            root._zoomTo(pinchZoom.baseW * pinchZoom.activeScale,
-                         pinchZoom.baseH * pinchZoom.activeScale);
-        }
-    }
-
-    DragHandler {
-        id: altZoomDrag
-        enabled: root.pinchEnabled
-        target: null
-        acceptedButtons: Qt.LeftButton
-        acceptedDevices: PointerDevice.Mouse
-        acceptedModifiers: Qt.AltModifier
-        grabPermissions: PointerHandler.CanTakeOverFromAnything | PointerHandler.ApprovesTakeOverByAnything
-        property real baseW: 0
-        property real baseH: 0
-        onActiveChanged: {
-            if (active) { altZoomDrag.baseW = root.viewerWidth; altZoomDrag.baseH = root.viewerHeight; }
-        }
-        onActiveTranslationChanged: {
-            if (!altZoomDrag.active) return;
-            // Vertical drag → exponential scale: up = zoom in, down = zoom out.
-            // 200 px of drag ≈ 2× change.
-            const factor = Math.exp(-altZoomDrag.activeTranslation.y / 200 * Math.LN2);
-            root._zoomTo(altZoomDrag.baseW * factor, altZoomDrag.baseH * factor);
-        }
-    }
-
-    WheelHandler {
-        id: altZoomWheel
-        enabled: root.pinchEnabled
-        acceptedDevices: PointerDevice.Mouse
-        acceptedModifiers: Qt.AltModifier
-        onWheel: (event) => {
-            // 1 standard wheel tick (120 angleDelta) ≈ 10% zoom.
-            const factor = Math.pow(1.1, event.angleDelta.y / 120);
-            root._zoomTo(root.viewerWidth * factor, root.viewerHeight * factor);
-            event.accepted = true;
-        }
-    }
-
     // The viewer's captured appearance: its glass panel + media + controls. The stage captures
     // THIS into the slots that viewers above sample, so an upper viewer's glass blurs the lower
     // viewers together with their own glass (compound). childrenRect spans the glass + controls.
@@ -429,10 +375,11 @@ DsViewer {
         // the media/controls so they (e.g. a web viewer or buttons) still get input first.
         //
         // When pinchEnabled is on and the user presses with Alt held, body-drag is suppressed
-        // so the Alt-drag zoom handler (declared at root scope below) gets to run uncontested.
+        // so the Alt-drag zoom handler gets to run uncontested.
         MouseArea {
             id: bodyDrag
             anchors.fill: mediaView
+            enabled: !root.contentLocked
             acceptedButtons: Qt.AllButtons
             property int _pressMods: 0
             drag.target: (root.fullscreen || (root.pinchEnabled && (bodyDrag._pressMods & Qt.AltModifier))) ? null : root
@@ -467,6 +414,7 @@ DsViewer {
             DsMediaViewer {
                 id: viewer
                 anchors.fill: parent
+                enabled: !root.contentLocked
                 media: root.config.media
                 fillMode: root.mediaFillMode
                 autoPlay: true
@@ -533,15 +481,93 @@ DsViewer {
             }
         }
 
-        // Lock overlay: while contentLocked, swallow input over the media so interactive content
-        // (web / pdf) doesn't receive it and the viewer can be dragged instead.
-        MouseArea {
+        // Lock gestures operate on the window; the disabled media subtree cannot compete.
+        Item {
             anchors.fill: mediaView
             visible: root.contentLocked
             enabled: root.contentLocked
-            acceptedButtons: Qt.AllButtons
-            drag.target: root.fullscreen ? null : root
-            onPressed: (mouse) => { if (root.stage) root.stage.selectViewer(root) }
+            MultiPointTouchArea {
+                anchors.fill: parent
+                minimumTouchPoints: 1
+                maximumTouchPoints: 10
+                mouseEnabled: true
+                onPressed: {
+                    if (root.stage) root.stage.selectViewer(root);
+                    root.wake();
+                }
+            }
+            DragHandler {
+                target: root
+                enabled: !root.fullscreen
+                maximumPointCount: 1
+                acceptedModifiers: Qt.NoModifier
+                onActiveChanged: if (active) {
+                    if (root.stage) root.stage.selectViewer(root);
+                    root.wake();
+                }
+            }
+        }
+
+        // Above the lock surface so both touch points reach the window zoom handlers.
+        Item {
+            anchors.fill: mediaView
+            // --- Pinch / Alt-drag / Alt-wheel zoom handlers (gated on pinchEnabled) ---
+            // All three apply via the same _zoomTo() helper, so the clamp + recentre logic is shared.
+            // PinchHandler covers real multi-touch and trackpad-pinch on platforms that emit it; the
+            // mouse handlers limit to Mouse + Alt modifier so they don't fight normal interaction.
+            PinchHandler {
+                id: pinchZoom
+                objectName: "viewerPinch"
+                enabled: root.viewerZoomEnabled
+                target: null
+                minimumScale: 0.05
+                maximumScale: 20
+                property real baseW: 0
+                property real baseH: 0
+                onActiveChanged: {
+                    if (active) { pinchZoom.baseW = root.viewerWidth; pinchZoom.baseH = root.viewerHeight; }
+                }
+                onActiveScaleChanged: {
+                    if (!pinchZoom.active) return;
+                    root._zoomTo(pinchZoom.baseW * pinchZoom.activeScale,
+                                 pinchZoom.baseH * pinchZoom.activeScale);
+                }
+            }
+
+            DragHandler {
+                id: altZoomDrag
+                enabled: root.viewerZoomEnabled
+                target: null
+                acceptedButtons: Qt.LeftButton
+                acceptedDevices: PointerDevice.Mouse
+                acceptedModifiers: Qt.AltModifier
+                grabPermissions: PointerHandler.CanTakeOverFromAnything | PointerHandler.ApprovesTakeOverByAnything
+                property real baseW: 0
+                property real baseH: 0
+                onActiveChanged: {
+                    if (active) { altZoomDrag.baseW = root.viewerWidth; altZoomDrag.baseH = root.viewerHeight; }
+                }
+                onActiveTranslationChanged: {
+                    if (!altZoomDrag.active) return;
+                    // Vertical drag → exponential scale: up = zoom in, down = zoom out.
+                    // 200 px of drag ≈ 2× change.
+                    const factor = Math.exp(-altZoomDrag.activeTranslation.y / 200 * Math.LN2);
+                    root._zoomTo(altZoomDrag.baseW * factor, altZoomDrag.baseH * factor);
+                }
+            }
+
+            WheelHandler {
+                id: altZoomWheel
+                enabled: root.viewerZoomEnabled
+                acceptedDevices: PointerDevice.Mouse
+                acceptedModifiers: Qt.AltModifier
+                onWheel: (event) => {
+                    // 1 standard wheel tick (120 angleDelta) ≈ 10% zoom.
+                    const factor = Math.pow(1.1, event.angleDelta.y / 120);
+                    root._zoomTo(root.viewerWidth * factor, root.viewerHeight * factor);
+                    event.accepted = true;
+                }
+            }
         }
 
         // Solid surface-colour fill shown while the media is loading, so the spinner sits on a

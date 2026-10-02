@@ -13,6 +13,10 @@ Item {
     readonly property int currentPage: pdfView.currentPage
     function goToPage(n) { pdfView.goToPage(Math.max(0, Math.min(n, pdfDoc.pageCount - 1))) }
 
+    // Restore the current page without changing page selection or the outer viewer geometry.
+    function resetView() { pdfView.fitToView(true) }
+    onEnabledChanged: if (!enabled) root.resetView()
+
     // Refit when the viewer is resized (e.g. entering fullscreen).
     onWidthChanged: pdfView.fitToView()
     onHeightChanged: pdfView.fitToView()
@@ -27,14 +31,22 @@ Item {
         clip: true
         document: pdfDoc
         property bool loaded: false
+        leftMargin: Math.max(0, (width - contentWidth) / 2)
+        rightMargin: leftMargin
+        topMargin: Math.max(0, (height - contentHeight) / 2)
+        bottomMargin: topMargin
 
-        function fitToView() {
+        function fitToView(fitPage = false) {
             if (root.width <= 0 || root.height <= 0 || pdfDoc.pageCount <= 0)
                 return
-            if (root.fillMode === Image.PreserveAspectFit)
+            cancelFlick()
+            resetScale()
+            if (fitPage || !root.enabled || root.fillMode === Image.PreserveAspectFit)
                 scaleToPage(root.width, root.height)
             else
                 scaleToWidth(root.width, root.height)
+            contentX = -leftMargin
+            contentY = -topMargin
         }
 
         // status is the rendered-page status; Ready means the document loaded and the page drew.

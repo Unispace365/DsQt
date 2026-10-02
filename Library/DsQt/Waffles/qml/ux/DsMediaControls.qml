@@ -38,7 +38,7 @@ DsControlSet {
     // Figma pill widths per type. Used only in `chrome:true` (windowed) mode; when embedded in
     // the fullscreen controller (`chrome:false`) the pill fills its parent layout width.
     readonly property int _pillWidthForType: (mtype === "video") ? DsTheme.dp(356)
-                                            : (mtype === "pdf")   ? DsTheme.dp(236)
+                                            : (mtype === "pdf")   ? DsTheme.dp(268)
                                             : (mtype === "web")   ? DsTheme.dp(172)
                                             : 0
     // Notify the host (viewer / fullscreen controller) that the user is interacting, so the
@@ -184,6 +184,24 @@ DsControlSet {
                 iconName: mc.media("arrow_right.svg")
                 enabled: mc.item && mc.item.currentPage < mc.item.pageCount - 1
                 onClicked: { mc.poke(); if (mc.item) mc.item.goToPage(mc.item.currentPage + 1) }
+            }
+            DsCtrlIcon {
+                id: pdfReset
+                objectName: "pdfResetControl"
+                Layout.preferredWidth: DsTheme.dp(24); Layout.preferredHeight: DsTheme.dp(24); Layout.alignment: Qt.AlignVCenter
+                iconSize: DsTheme.dp(16)
+                iconName: mc.media("reload.svg")
+                enabled: mc.item && mc.item.pageCount > 0
+                activeFocusOnTab: true
+                Accessible.role: Accessible.Button
+                Accessible.name: qsTr("Reset PDF view")
+                Accessible.onPressAction: pdfReset.clicked()
+                Keys.onReturnPressed: pdfReset.clicked()
+                Keys.onSpacePressed: pdfReset.clicked()
+                HoverHandler { id: resetHover }
+                ToolTip.visible: resetHover.hovered || pdfReset.activeFocus
+                ToolTip.text: qsTr("Reset PDF view")
+                onClicked: { mc.poke(); if (mc.item) mc.item.resetView() }
             }
             DsCtrlIcon {
                 Layout.preferredWidth: DsTheme.dp(24); Layout.preferredHeight: DsTheme.dp(24); Layout.alignment: Qt.AlignVCenter
