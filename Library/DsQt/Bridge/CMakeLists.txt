@@ -2,11 +2,15 @@
 cmake_minimum_required(VERSION 3.29)
 
 find_package(Qt6 6.9
-    REQUIRED COMPONENTS 
+    REQUIRED COMPONENTS
         Concurrent
         Core
+        Gui
+        Multimedia
+        MultimediaWidgets
         Qml
         Sql
+        Widgets
 )
 
 if (NOT TARGET Qt6::Sql)
@@ -24,7 +28,7 @@ qt_add_qml_module(Bridge
     OUTPUT_TARGETS BridgeTargets
     VERSION 1.0
     QML_FILES
-        qml/DsContentBrowser.qml
+        # qml/DsContentBrowser.qml
 
     SOURCES
         bridge/dsQmlBridge.h bridge/dsQmlBridge.cpp
@@ -32,6 +36,9 @@ qt_add_qml_module(Bridge
         bridge/dsBridgeQuery.cpp bridge/dsBridgeQuery.h
         bridge/dsBridgeWatcher.cpp bridge/dsBridgeWatcher.h
         bridge/dsQmlPlaylistControl.cpp bridge/dsQmlPlaylistControl.h
+        bridge/dsContentTreeModel.cpp bridge/dsContentTreeModel.h
+        bridge/dsContentBrowserWidget.cpp bridge/dsContentBrowserWidget.h
+        bridge/dsQmlContentBrowserHelper.cpp bridge/dsQmlContentBrowserHelper.h
         
         model/dsContentModelItemModel.cpp model/dsContentModelItemModel.h
         model/dsQmlEventSchedule.cpp model/dsQmlEventSchedule.h
@@ -41,14 +48,18 @@ qt_add_qml_module(Bridge
 
 set(BridgeTargets ${BridgeTargets} PARENT_SCOPE)
 
-target_link_libraries(Bridge 
-    PUBLIC 
-        
+target_link_libraries(Bridge
+    PUBLIC
+
         Qt6::Concurrent
-        Qt6::Core 
+        Qt6::Core
+        Qt6::Gui
+        Qt6::Multimedia
+        Qt6::MultimediaWidgets
         Qt6::Qml
         Qt6::Sql
-        
+        Qt6::Widgets
+
         Core
         Bridgeplugin
 )

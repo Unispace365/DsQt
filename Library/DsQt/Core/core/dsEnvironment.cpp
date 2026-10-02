@@ -1,4 +1,5 @@
 #include "core/dsEnvironment.h"
+#include "model/dsResource.h"
 #include "settings/dsSettings.h"
 
 #include <QDir>
@@ -7,11 +8,19 @@
 #include <QStandardPaths>
 #include <QString>
 #include <qapplicationstatic.h>
-#include <mutex>
 
 Q_LOGGING_CATEGORY(lgEnv, "core.environment");
 Q_LOGGING_CATEGORY(lgEnvVerbose, "core.environment.verbose");
-/// \defgroup QML QML Elements
+
+// Eagerly initialize DsEnvironment on the main thread right after
+// QCoreApplication is created, before any worker thread can win the
+// std::call_once race in initialize() and end up calling Settings::add()
+// on the wrong thread.
+static void initDsEnvironment() {
+    dsqt::DsEnvironment::initialize();
+}
+Q_COREAPP_STARTUP_FUNCTION(initDsEnvironment)
+
 namespace dsqt {
 
 using namespace Qt::Literals::StringLiterals;
@@ -31,28 +40,41 @@ std::string DsEnvironment::expand(const std::string& path) {
 }
 
 QString DsEnvironment::expandq(QString path) {
-    DsEnvironment::initialize();
-
     auto match = sEnvRe.match(path);
     while (match.hasCaptured(2)) {
         auto variable = match.captured(3).trimmed();
         auto value    = qEnvironmentVariable(variable.toLocal8Bit());
         if (sEnvRe.match(value).hasCaptured(2)) value.clear();
-        //        if(USE_CFG_FILE_OVERRIDE && p.find("%APP%") != std::string::npos){
+
         path  = match.captured(1) + value + match.captured(4);
         match = sEnvRe.match(path);
     }
-    //            std::string tempP = p;
+
     path.replace("%APP%", sAppRootFolder);
-    path.replace("%PP%", sProjectPath);
     path.replace("%LOCAL%", sDocumentsDownstream);
-    path.replace("%CFG_FOLDER%", sConfigFolder);
     path.replace("%DOCUMENTS%", sDocuments);
     path.replace("%SHARED%", sSharedFolder);
-    path.replace("%RES%",sResourceFolder);
 
-           //        return Poco::Path(p).toString();
-    return QDir::cleanPath(path);
+    path.replace("%PP%", sProjectPath);
+    path.replace("%CFG_FOLDER%", sConfigFolder);
+    path.replace("%RES%", sResourceFolder);
+
+    return path.contains('%') ? path : QDir::cleanPath(path);
+}
+
+QStringList DsEnvironment::expandq(const QStringList& paths) {
+    QStringList result;
+
+    for (const QString& raw : paths) {
+        const QString expanded = expandq(raw);
+
+        // Drop paths where a variable was not resolved (token still present)
+        if (expanded.contains('%')) continue;
+
+        if (!result.contains(expanded)) result.append(expanded);
+    }
+
+    return result;
 }
 
 std::string DsEnvironment::contract(const std::string& path) {
@@ -60,14 +82,12 @@ std::string DsEnvironment::contract(const std::string& path) {
 }
 
 QString DsEnvironment::contract(QString path) {
-    DsEnvironment::initialize();
-
     QString p = path;
     //        // This can result in double path separators, so flatten
     p.replace(sAppRootFolder, "%APP%");
     p.replace(sProjectPath, "%PP%");
-    p.replace(sDocumentsDownstream,"%LOCAL%");
-    p.replace(sConfigFolder,"%CFG_FOLDER%");
+    p.replace(sDocumentsDownstream, "%LOCAL%");
+    p.replace(sConfigFolder, "%CFG_FOLDER%");
     p.replace(sDocuments, "%DOCUMENTS%");
     p.replace(sSharedFolder, "%SHARED%");
 
@@ -76,81 +96,98 @@ QString DsEnvironment::contract(QString path) {
 }
 
 bool DsEnvironment::loadEngineSettings() {
+    qCInfo(lgEnv) << "\nLoad Settings >>>>>>>>>>>>>>>>>>>>>>>>";
 
-    auto [settingsFound, settings] = DsSettings::getSettingsOrCreate("engine", nullptr);
+    // Make sure the default settings path is used to find the settings.
+    Settings::instance().setSearchPaths({"%APP%/settings"});
 
-    //temporary load of first level engine.toml
-    auto loaded = settings->loadSettingFile(expand("%APP%/settings/engine.toml"));
-    if (loaded) {
-        //setup the project path (%PP%)
-        std::optional<std::string> projectPath = settings->get<std::string>(std::string("engine.project_path"));
-        if (projectPath.has_value()) {
-            sProjectPath = QString::fromStdString(projectPath.value());
-            qCDebug(lgEnv) << "Project Path:" << sProjectPath;
-        }
+    // Make sure the engine settings are loaded.
+    qCInfo(lgEnv) << "loading main engine.toml";
+    Settings::add("engine");
 
-        //setup config folder path (%CFG_FOLDER%)
-        auto [configFound, config] = DsSettings::getSettingsOrCreate("config", nullptr);
-        config->loadSettingFile(expand("%APP%/settings/configuration.toml"));
-        // boost::replace_all(p, DOCUMENTS, "%DOCUMENTS%");
-        // // This can result in double path separators, so flatten
-        config->loadSettingFile(expand("%LOCAL%/settings/%PP%/configuration.toml"));
-        // return Poco::Path(p).toString();
+    // Setup the project path (%PP%).
+    const auto projectPath = Settings::find<QString>("engine", "engine.project_path");
+    if (!projectPath.isEmpty()) {
+        sProjectPath = projectPath;
+        qCDebug(lgEnv) << "Project Path:" << sProjectPath;
 
-        auto cfgFolder = config->get<std::string>("config_folder");
-        if (cfgFolder.has_value()) {
-            sConfigFolder = QString::fromStdString(cfgFolder.value());
-            qCDebug(lgEnv) << "Config Folder:" << sConfigFolder;
-        }
-
-
-        loadSettings("engine", "engine.toml");
-
-        sResourceFolder = expandq(settings->getOr<QString>("engine.resource.location", ""));
-        return true;
+        // Append to search paths.
+        Settings::instance().setSearchPaths({"%APP%/settings", "%LOCAL%/settings/%PP%"});
     }
-    return false;
+
+    // Setup config folder path (%CFG_FOLDER%).
+    Settings::add("configuration");
+
+    const auto cfgFolder = Settings::find<QString>("configuration", "config_folder");
+    if (!cfgFolder.isEmpty()) {
+        sConfigFolder = cfgFolder;
+        qCDebug(lgEnv) << "Config Folder:" << sConfigFolder;
+
+        // Append to search paths.
+        Settings::instance().setSearchPaths({"%APP%/settings", "%APP%/settings/%CFG_FOLDER%", "%LOCAL%/settings/%PP%",
+                                             "%LOCAL%/settings/%PP%/%CFG_FOLDER%"});
+    }
+
+    sResourceFolder = Settings::find<QString>("engine", "engine.resource.location");
+    if (!sResourceFolder.isEmpty()) {
+        if (sResourceFolder.contains("%USERPROFILE%")) {
+#ifndef _WIN32
+            sResourceFolder.replace("%USERPROFILE%", QDir::homePath());
+            qCInfo(lgEnv)
+                << "Non-windows workaround: Converting \"%USERPROFILE%\" to \"~\" in resources_location...";
+#endif
+        }
+        sResourceFolder = expandq(sResourceFolder);
+        sResourceFolder = QUrl::fromLocalFile(sResourceFolder).toString();
+
+        const auto resourceDb = Settings::find<QString>("engine", "engine.resource.resource_db");
+        DsResource::Id::setupPaths(sResourceFolder, QDir::fromNativeSeparators(resourceDb),
+                                   QDir::fromNativeSeparators(projectPath));
+    }
+
+    qCInfo(lgEnv) << "loading main app_settings.toml";
+    Settings::add("app_settings");
+
+    auto *engineSettings = Settings::instance().settingsFile("engine");
+    if (engineSettings) {
+        const QVariantMap extras = engineSettings->getObj("engine.extra");
+        for (auto it = extras.cbegin(); it != extras.cend(); ++it) {
+            auto *settingsFile = Settings::instance().settingsFile(it.key());
+            if (!settingsFile) {
+                qCDebug(lgEnv) << "Ignoring engine.extra entry for unknown settings file" << it.key();
+                continue;
+            }
+
+            const QStringList extraFiles = it.value().toStringList();
+            qCInfo(lgEnv) << "loading extra settings files for" << it.key() << extraFiles;
+            settingsFile->setExtraFiles(extraFiles);
+        }
+    }
+
+    qCInfo(lgEnv) << ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n";
+
+    return true;
 }
 
-DsSettingsRef DsEnvironment::engineSettings() {
-    auto engineSettingsRef = DsSettings::getSettings("engine");
-    if (!engineSettingsRef) {
-        loadEngineSettings();
-    }
-    return DsSettings::getSettings("engine");
+SettingsFile* DsEnvironment::engineSettings() {
+    if (!Settings::instance().hasSettingsFile("engine")) loadEngineSettings();
+    return Settings::instance().settingsFile("engine");
 }
 
-DsSettingsRef DsEnvironment::loadSettings(const QString& settingsName, const QString& filename,
-                                          const bool lookForOverrides,const bool forceOverrides) {
-    auto [found, setting] = DsSettings::getSettingsOrCreate(settingsName.toStdString(), nullptr);
+SettingsFile* DsEnvironment::appSettings() {
+    if (!Settings::instance().hasSettingsFile("app_settings")) loadEngineSettings();
+    return Settings::instance().settingsFile("app_settings");
+}
 
-    auto loaded = setting->loadSettingFile(expandq("%APP%/settings/" + filename).toStdString());
-    if ((loaded || forceOverrides) && lookForOverrides) {
-        bool success = loaded;
-        if(success){
-            qCDebug(lgEnv) << "Loaded settings file " << filename << " from app folder.";
-        }
-        success = setting->loadSettingFile(expandq("%APP%/settings/%CFG_FOLDER%/" + filename).toStdString());
-        if(success){
-            qCDebug(lgEnv) << "Loaded settings file " << filename << " from app config folder.";
-        }
-        success = setting->loadSettingFile(expandq("%LOCAL%/settings/%PP%/" + filename).toStdString());
-        if(success){
-            qCDebug(lgEnv) << "Loaded settings file " << filename << " from local project folder.";
-        }
-        success = setting->loadSettingFile(expandq("%LOCAL%/settings/%PP%/%CFG_FOLDER%/" + filename).toStdString());
-        if(success){
-            qCDebug(lgEnv) << "Loaded settings file " << filename << " from local project config folder.";
-        }
-    }
-
-    return setting;
+SettingsFile* DsEnvironment::loadSettings(const QString& settingsName, const QString& filename,
+                                          const bool lookForOverrides, const bool forceOverrides) {
+    Settings::add(settingsName, filename);
+    return Settings::instance().settingsFile(settingsName);
 }
 
 void DsEnvironment::initialize() {
     static std::once_flag initFlag;
     std::call_once(initFlag, []() {
-
         // documents
         sDocuments = QStandardPaths::locate(QStandardPaths::HomeLocation, "Documents", QStandardPaths::LocateDirectory);
 
@@ -187,11 +224,40 @@ void DsEnvironment::initialize() {
                 }
             }
         } while (sAppRootFolder.isEmpty() && currentDir.cdUp());
+
+        // // Open these settings files if available. This will kick off the calls to update().
+        // Settings::add("configuration");
+        // Settings::add("engine");
+
+        // // Connect to Settings to listen for changes.
+        // auto app = QCoreApplication::instance();
+        // QObject::connect(&Settings::instance(), &Settings::instancesChanged, app, &DsEnvironment::update);
+        // QObject::connect(&Settings::instance(), &Settings::searchPathsChanged, app, &DsEnvironment::update);
+
+        // update();
     });
 }
 
+void DsEnvironment::update() {
+    // auto pp         = Settings::find<QString>("engine", "engine.project_path", "%PP%");
+    // sProjectPath    = Settings::find<QString>("engine", "engine.project_path", "%PP%");
+    // auto cf         = Settings::find<QString>("configuration", "config_folder", "%CFG_FOLDER%");
+    // sConfigFolder   = Settings::find<QString>("configuration", "config_folder", "%CFG_FOLDER%");
+    // auto rf         = expandq(Settings::find<QString>("engine", "engine.resource.location", ""));
+    // sResourceFolder = expandq(Settings::find<QString>("engine", "engine.resource.location", ""));
+
+    // // Expand environment variables based on available settings.
+    // QStringList paths;
+    // paths.append("%APP%/settings");
+    // paths.append("%APP%/settings/%CFG_FOLDER%");
+    // paths.append("%LOCAL%/settings/%PP%");
+    // paths.append("%LOCAL%/settings/%PP%/%CFG_FOLDER%");
+
+    // QStringList expanded = DsEnvironment::expandq(paths);
+    // Settings::instance().setSearchPaths(expanded);
+}
+
 QString DsEnvironment::getDownstreamDocumentsFolder() {
-    DsEnvironment::initialize();
     return sDocumentsDownstream;
 }
 

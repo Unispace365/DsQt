@@ -1,10 +1,31 @@
 #include <QtTest>
 #include <settings/dsSettings.h>
-#include <core/dsEnvironment.h>
-#include <optional>
+#include <settings/dsSettingsFile.h>
+#include <memory>
 #include <QDebug>
+#include <QDir>
+#include <QFile>
+#include <QTemporaryDir>
 
-// add necessary includes here
+// ---------------------------------------------------------------------------
+// Migrated from the removed dsqt::DsSettings / dsqt::DsSettingsRef API to the
+// dsqt::Settings / dsqt::SettingsFile API introduced by the settings revamp.
+//
+// Behavioural differences that shaped this file:
+//
+//  * get<T>() / find<T>() return T (not std::optional<T>). "Absent" is now
+//    expressed as "equal to the supplied default", so the old has_value()
+//    assertions became value or default comparisons.
+//  * Conversions are performed by QVariant, not by bespoke DsSettings code.
+//    Only conversions QMetaType knows about succeed — notably date/time strings
+//    must be ISO-8601, and a QVariantList never converts to a scalar.
+//  * getWithMeta() is gone. Its nearest equivalent is provenance(), which
+//    reports the source file (or "default" / "override") for a key.
+//  * setDateFormat() / setCustomDateFormat() are gone; there are no
+//    format hooks, so the custom / TextDate / RFC-2822 rows were dropped.
+//  * getSettingsOrCreate() / forgetSettings() are gone; the registry is now
+//    Settings::add() / Settings::forget() / Settings::settingsFile().
+// ---------------------------------------------------------------------------
 
 class DsSettingsTest : public QObject
 {
@@ -19,14 +40,17 @@ class DsSettingsTest : public QObject
     void cleanupTestCase();
     void init();
     void cleanup();
-    void getOrCreateSettings_shouldReturnExisitngSettingsAndTrueWhenSettingsExist();
-    void getOrCreateSettings_shouldReturnNewSettingsAndFalseWhenSettingsDoNotExist();
-    void getSettings_shouldReturnExistingSettingsWhenSettingsExist();
-    void getSettings_shouldReturnEmptingRefWhenSettingsDoNotExist();
+
+    // Registry (replaces getSettingsOrCreate / forgetSettings)
+    void registry_addForgetAndFind();
+    void registry_findShouldReturnTheDefaultForAnUnknownFile();
+
+    void find_shouldReturnTheValueWhenTheKeyExists();
+    void find_shouldReturnTheDefaultWhenTheKeyDoesNotExist();
     void getOr_shouldReturnTheSettingValueWhentheSettingExist();
     void getOr_shoudReturnTheOrValueWhenTheSettingDoesNotExist();
 
-    //Base types (bool,int32,uint32,int64,uint64,float,double,std::string,QString)
+    //Base types (bool,int,int64,float,double,QString)
     void get_bool_shouldReturnExpectedBoolean_data();
     void get_bool_shouldReturnExpectedBoolean();
     void get_integral_shouldReturnExpectedIntegral_data();
@@ -35,41 +59,36 @@ class DsSettingsTest : public QObject
     void get_floatingPoint_shouldReturnExpectedFloatingPoint();
     void get_string_shouldReturnExpectedString_data();
     void get_string_shouldReturnExpectedString();
-
+    void get_string_fromArrayOrTable_shouldNotConvert();
 
     //QColor
-    void get_QColor_from_validString_shouldReturnAValidQColorOptional_data();
-    void get_QColor_from_validString_shouldReturnAValidQColorOptional();
-    void get_QColor_from_Arrays_shouldReturnAValidQColorOptional_data();
-    void get_QColor_from_Arrays_shouldReturnAValidQColorOptional();
-    void get_QColor_from_Tables_shouldReturnAValidQColorOptional_data();
-    void get_QColor_from_Tables_shouldReturnAValidQColorOptional();
+    void get_QColor_from_validString_shouldReturnAValidQColor_data();
+    void get_QColor_from_validString_shouldReturnAValidQColor();
+    void get_QColor_from_Arrays_shouldReturnAValidQColor_data();
+    void get_QColor_from_Arrays_shouldReturnAValidQColor();
+    void get_QColor_from_Tables_shouldReturnAValidQColor_data();
+    void get_QColor_from_Tables_shouldReturnAValidQColor();
 
     //Date & time
-    void get_QTime_from_validString_shouldReturnAValidQTimeOptional_data();
-    void get_QTime_from_validString_shouldReturnAValidQTimeOptional();
-    void get_QDate_from_validString_shouldReturnAValidQDateOptional_data();
-    void get_QDate_from_validString_shouldReturnAValidQDateOptional();
-    void get_QDateTime_from_validString_shouldReturnAValidQDateTimeOptional_data();
-    void get_QDateTime_from_validString_shouldReturnAValidQDateTimeOptional();
-    void get_QTime_from_tomlDateTime_shouldReturnAValidQTimeOptional_data();
-    void get_QTime_from_tomlDateTime_shouldReturnAValidQTimeOptional();
-    void get_QDate_from_tomlDateTime_shouldReturnAValidQDateOptional_data();
-    void get_QDate_from_tomlDateTime_shouldReturnAValidQDateOptional();
-    void get_QDateTime_from_tomlDateTime_shouldReturnAValidQDateTimeOptional_data();
-    void get_QDateTime_from_tomlDateTime_shouldReturnAValidQDateTimeOptional();
+    void get_QTime_from_iso8601String_shouldReturnAValidQTime();
+    void get_QDate_from_iso8601String_shouldReturnAValidQDate();
+    void get_QDateTime_from_iso8601String_shouldReturnAValidQDateTime();
+    void get_dateTime_fromNonIsoStrings_shouldNotConvert();
+    void get_QTime_from_tomlDateTime_shouldReturnAValidQTime_data();
+    void get_QTime_from_tomlDateTime_shouldReturnAValidQTime();
+    void get_QDate_from_tomlDateTime_shouldReturnAValidQDate_data();
+    void get_QDate_from_tomlDateTime_shouldReturnAValidQDate();
+    void get_QDateTime_from_tomlDateTime_shouldReturnAValidQDateTime_data();
+    void get_QDateTime_from_tomlDateTime_shouldReturnAValidQDateTime();
+    void get_dateTime_acrossTomlTypes_shouldOnlyConvertWhereQVariantCan();
 
     //GEOM
-#ifdef DSQT_USE_GLM
-    void get_glmVectors_from_arrays_shouldReturnAValidGlmVectorOptional();
-#endif
-    void get_QVectors_from_arrays_shouldReturnAValidGlmVectorOptional();
-    void get_QPoint_from_arraysandtables_shouldReturnAValidGlmVectorOptional_data();
-    void get_QPoint_from_arraysandtables_shouldReturnAValidGlmVectorOptional();
-    void get_QSize_from_arraysandtables_shouldReturnAValidGlmVectorOptional_data();
-    void get_QSize_from_arraysandtables_shouldReturnAValidGlmVectorOptional();
-    void get_QRect_from_arraysandtables_shouldReturnAValidGlmVectorOptional_data();
-    void get_QRect_from_arraysandtables_shouldReturnAValidGlmVectorOptional();
+    void get_vectors_fromTomlArrays_shouldStayLists();
+    void get_QPoint_from_tables_shouldReturnAValidQPointF();
+    void get_QSize_from_tables_shouldReturnAValidQSizeF();
+    void get_QRect_from_tables_shouldReturnAValidQRectF_data();
+    void get_QRect_from_tables_shouldReturnAValidQRectF();
+    void get_geom_fromUnknownKeySignatures_shouldStayMaps();
 
     //containers
     void get_QVariantList_shouldReturnAValidQVariantList_data();
@@ -80,7 +99,7 @@ class DsSettingsTest : public QObject
     void get_QVariantList_empty();
     void get_QVariantList_allTypes();
     void get_QVariantList_nonexistentKey();
-    void getWithMeta_QVariantList_shouldReturnMetaData();
+    void get_QVariantList_legacyMetaRequiresATypeKey();
 
     void get_QVariantMap_shouldReturnAValidQVariantMap_data();
     void get_QVariantMap_shouldReturnAValidQVariantMap();
@@ -89,14 +108,45 @@ class DsSettingsTest : public QObject
     void get_QVariantMap_empty();
     void get_QVariantMap_allTypes();
     void get_QVariantMap_nonexistentKey();
-    void getWithMeta_QVariantMap_shouldReturnMetaData();
+    void get_QVariantMap_arrayOfTablesStaysAList();
 
-    void get_shouldReturnAnEmptyOptionalWhenTheSettingDoesNotExist();
-    void getWithMeta_shouldReturnAValidTupleWhenTheSettingExists();
+    void get_shouldReturnTheDefaultWhenTheSettingDoesNotExist();
+    void provenance_shouldReportTheSourceOfAKey();
     void read_notable();
+    void settingsFile_shouldStripLegacyMetadata();
+    void settingsFile_shouldUnwrapLegacyArrays();
+    void settingsFile_shouldInterpretLegacyMetadataColors();
+    void settingsFile_shouldNotCollapseArrayOfTablesWithATypeKey();
+    void settingsFile_shouldLoadExtraFilesBetweenBaseFilesAndOverrides();
+    void settingsFile_shouldPruneOverridesThatMatchReloadedFiles();
+    void settingsFile_shouldKeepOverridesSavedOutsideSearchPaths();
+
+    // SettingsFile::bind
+    void bind_shouldCallTheCallbackImmediately();
+    void bind_shouldCallTheCallbackWhenTheValueChanges();
+    void bind_shouldCallTheCallbackForANestedKey();
+    void bind_shouldUseTheDefaultForAnUnknownKey();
+    void bind_shouldCallAMemberFunction();
+    void bind_shouldReplaceTheCallbackWhenReboundOnTheSameKeyAndContext();
+    void bind_shouldStopWhenTheContextIsDestroyed();
+
+    // Settings::bind — registry lookup and deferral
+    void registryBind_shouldResolveImmediatelyWhenTheFileIsRegistered();
+    void registryBind_shouldDeferUntilTheFileIsAdded();
+    void registryBind_deferred_shouldKeepTrackingAfterItResolves();
+    void registryBind_deferred_shouldReplayInCallOrder();
+    void registryBind_deferred_shouldBeDroppedWhenTheContextDies();
+    void registryBind_deferred_shouldNotResolveOnAnUnrelatedFile();
 
   private:
-    dsqt::DsSettingsRef test_settings;
+    // Directory the test data is copied into by the build (see CMakeLists.txt).
+    static QString settingsDir() { return QDir::current().filePath("settings"); }
+
+    std::unique_ptr<dsqt::SettingsFile> test_settings;
+
+    // Search paths the Settings singleton had on entry to the current test,
+    // restored by cleanup(). See the note there.
+    QStringList saved_search_paths;
 };
 
 DsSettingsTest::DsSettingsTest()
@@ -122,81 +172,124 @@ void DsSettingsTest::init()
 {
     QLoggingCategory::setFilterRules("settings.parser*=false\n");
 
-    auto [existed,test] = dsqt::DsSettings::getSettingsOrCreate("test_settings");
-    test_settings = test;
-    if(!existed){
-        //qWarning()<<"test_settings did not already exist";
-    }
-    DsEnv::loadSettings("test_settings","test_settings.toml");
-    //qWarning()<<"running_init";
+    // A standalone SettingsFile (no manager) keeps each test isolated from the
+    // Settings singleton; the registry itself is covered by registry_* below.
+    test_settings = std::make_unique<dsqt::SettingsFile>(nullptr, QStringList{settingsDir()});
+    test_settings->setFileName("test_settings.toml");
+
+    saved_search_paths = dsqt::Settings::instance().searchPaths();
+
+    QVERIFY2(!test_settings->resolvedFilePaths().isEmpty(),
+             qPrintable("test_settings.toml not found under " + settingsDir()));
 }
 
 void DsSettingsTest::cleanup()
 {
-    dsqt::DsSettings::forgetSettings("test_settings");
+    test_settings.reset();
+
+    // The Settings singleton is process-wide, so registry mutations are undone
+    // here rather than at the end of the test that made them: cleanup() still
+    // runs when a test aborts early on a failed QVERIFY, whereas trailing
+    // teardown inside the test body does not.
+    //
+    // Forgetting every registered name is correct while nothing is registered
+    // in initTestCase(). If that changes, snapshot the names in init() and
+    // forget only the ones added since.
+    auto& settings = dsqt::Settings::instance();
+    const auto names = settings.settingsNames();
+    for (const QString& name : names)
+        dsqt::Settings::forget(name);
+    settings.setSearchPaths(saved_search_paths);
 }
 
-//settings creation
-void DsSettingsTest::getOrCreateSettings_shouldReturnExisitngSettingsAndTrueWhenSettingsExist()
+//*****************
+//Registry
+//*****************
+void DsSettingsTest::registry_addForgetAndFind()
 {
-    auto [existed,test] = dsqt::DsSettings::getSettingsOrCreate("test_settings");
-    QVERIFY(existed);
-    QVERIFY(test);
+    auto& settings = dsqt::Settings::instance();
+    settings.setSearchPaths({settingsDir()});
+
+    QVERIFY(!settings.hasSettingsFile("test_settings"));
+
+    dsqt::Settings::add("test_settings"); // loads test_settings.toml from the search paths
+
+    QVERIFY(settings.hasSettingsFile("test_settings"));
+    QVERIFY(settings.settingsNames().contains("test_settings"));
+
+    auto* sf = settings.settingsFile("test_settings");
+    QVERIFY(sf != nullptr);
+    QCOMPARE(sf->find<QString>("no_table"), QStringLiteral("test value"));
+
+    // The static find<T>() goes through the registry by name.
+    QCOMPARE(dsqt::Settings::find<QString>("test_settings", "no_table"),
+             QStringLiteral("test value"));
+
+    dsqt::Settings::forget("test_settings");
+
+    QVERIFY(!settings.hasSettingsFile("test_settings"));
+    QVERIFY(!settings.settingsNames().contains("test_settings"));
 }
 
-void DsSettingsTest::getOrCreateSettings_shouldReturnNewSettingsAndFalseWhenSettingsDoNotExist()
+void DsSettingsTest::registry_findShouldReturnTheDefaultForAnUnknownFile()
 {
-    auto [existed,test] = dsqt::DsSettings::getSettingsOrCreate("new_settings");
-    QVERIFY(!existed);
-    QVERIFY(test);
+    QCOMPARE(dsqt::Settings::find<QString>("no_such_settings", "no_table",
+                                           QStringLiteral("fallback")),
+             QStringLiteral("fallback"));
 }
 
-void DsSettingsTest::getSettings_shouldReturnExistingSettingsWhenSettingsExist(){
-    auto std_string = test_settings->get<std::string>("no_table");
-    QVERIFY2(std_string == "test value","std::string fail");
-
+//*****************
+//Basic lookup
+//*****************
+void DsSettingsTest::find_shouldReturnTheValueWhenTheKeyExists()
+{
+    QCOMPARE(test_settings->get<QString>("no_table"), QStringLiteral("test value"));
 }
 
-void DsSettingsTest::getSettings_shouldReturnEmptingRefWhenSettingsDoNotExist(){
-    auto std_string = test_settings->get<std::string>("not_exist");
-    QVERIFY(std_string.has_value() == false);
+void DsSettingsTest::find_shouldReturnTheDefaultWhenTheKeyDoesNotExist()
+{
+    // No optional any more — an absent key yields the (default-constructed) fallback.
+    QVERIFY(!test_settings->contains("not_exist"));
+    QVERIFY(test_settings->get<QString>("not_exist").isEmpty());
 }
-void DsSettingsTest::getOr_shouldReturnTheSettingValueWhentheSettingExist(){
-    auto std_string = test_settings->getOr<std::string>("no_table","fake");
-    QVERIFY2(std_string != "fake","Or value was returned and it should not have been");
-    QVERIFY2(std_string == "test value","Incorrect value was returned");
+
+void DsSettingsTest::getOr_shouldReturnTheSettingValueWhentheSettingExist()
+{
+    const auto value = test_settings->getOr<QString>("no_table", QStringLiteral("fake"));
+    QVERIFY2(value != QStringLiteral("fake"), "Or value was returned and it should not have been");
+    QCOMPARE(value, QStringLiteral("test value"));
 }
-void DsSettingsTest::getOr_shoudReturnTheOrValueWhenTheSettingDoesNotExist(){
-    auto std_string = test_settings->getOr<std::string>("not_exist","fake");
-    QVERIFY2(std_string == "fake","Incorrect value was returned");
+
+void DsSettingsTest::getOr_shoudReturnTheOrValueWhenTheSettingDoesNotExist()
+{
+    QCOMPARE(test_settings->getOr<QString>("not_exist", QStringLiteral("fake")),
+             QStringLiteral("fake"));
 }
+
 //*****************
 //Base Types
 //*****************
 //int
 void DsSettingsTest::get_integral_shouldReturnExpectedIntegral_data(){
     QTest::addColumn<QString>("key");
-    QTest::addColumn<int64_t>("result");
+    QTest::addColumn<qint64>("result");
 
-    QTest::newRow("int positive")      << "int_positive"     << static_cast<int64_t>( 1024);
-    QTest::newRow("int negative")      << "int_negative"     << static_cast<int64_t>(-1024);
-    QTest::newRow("int from string")   << "int_from_string"  << static_cast<int64_t>( 1024);
-    QTest::newRow("int from float")    << "int_from_float"   << static_cast<int64_t>( 1024);
+    QTest::newRow("int positive")      << "int_positive"     << static_cast<qint64>( 1024);
+    QTest::newRow("int negative")      << "int_negative"     << static_cast<qint64>(-1024);
+    QTest::newRow("int from string")   << "int_from_string"  << static_cast<qint64>( 1024);
+    QTest::newRow("int from float")    << "int_from_float"   << static_cast<qint64>( 1024);
+}
 
-};
 void DsSettingsTest::get_integral_shouldReturnExpectedIntegral(){
     QFETCH(QString, key);
-    QFETCH(int64_t, result);
+    QFETCH(qint64, result);
 
-    auto int32_value = test_settings->get<int>("test.int."+key.toStdString());
-    auto int64_value = test_settings->get<int64_t>("test.int."+key.toStdString());
+    const auto int32_value = test_settings->get<int>("test.int." + key);
+    const auto int64_value = test_settings->get<qint64>("test.int." + key);
 
-    QCOMPARE(int32_value.has_value(),true);
-    QCOMPARE(int64_value.has_value(),true);
-
-    QCOMPARE(int32_value.value(),(int32_t)result);
-    QCOMPARE(int64_value.value(),(int64_t)result);
-};
+    QCOMPARE(int32_value, static_cast<int>(result));
+    QCOMPARE(int64_value, result);
+}
 
 //float
 void DsSettingsTest::get_floatingPoint_shouldReturnExpectedFloatingPoint_data(){
@@ -207,52 +300,64 @@ void DsSettingsTest::get_floatingPoint_shouldReturnExpectedFloatingPoint_data(){
     QTest::newRow("float notation")        << "float_notation"        << 3.43e+10;
     QTest::newRow("float big")             << "float_big"             << 3.43e+64;
     QTest::newRow("float from string")     << "float_from_string"     << 1024.578;
-    QTest::newRow("float from bad string") << "float_from_bad_string" << (double)NAN;
+    // QVariant reports QString as convertible to double, but the conversion of a
+    // non-numeric string fails and yields a value-initialised 0.0 (the old
+    // DsSettings parser produced NaN here).
+    QTest::newRow("float from bad string") << "float_from_bad_string" << 0.0;
     QTest::newRow("float from int")        << "float_from_int"        << 1024.0;
-};
+}
 
 void DsSettingsTest::get_floatingPoint_shouldReturnExpectedFloatingPoint(){
     QFETCH(QString, key);
     QFETCH(double, result);
 
+    const auto float_value  = test_settings->get<float>("test.floating_point." + key);
+    const auto double_value = test_settings->get<double>("test.floating_point." + key);
 
-    auto float_value = test_settings->get<float>("test.floating_point."+key.toStdString());
-    auto double_value = test_settings->get<double>("test.floating_point."+key.toStdString());
-
-    QCOMPARE(float_value.has_value(),true);
-    QCOMPARE(double_value.has_value(),true);
-
-    QCOMPARE(float_value.value(),(float)result);
-    QCOMPARE(double_value.value(),(double)result);
-};
+    QCOMPARE(float_value, static_cast<float>(result));
+    QCOMPARE(double_value, result);
+}
 
 //string
 void DsSettingsTest::get_string_shouldReturnExpectedString_data(){
     QTest::addColumn<QString>("key");
     QTest::addColumn<QString>("result");
 
-    QTest::newRow("string from float")<<"string_from_float"<<"1024.203000";
+    // QVariant's number-to-string conversion uses the shortest round-trip form,
+    // so 1024.203 renders as "1024.203" rather than the old "1024.203000".
+    QTest::newRow("string from float")<<"string_from_float"<<"1024.203";
     QTest::newRow("string from int")<<"string_from_int"<<"1024";
     QTest::newRow("string from bool")<<"string_from_bool"<<"true";
+    // QVariant renders QTime/QDateTime with Qt::ISODateWithMs, so the
+    // millisecond field is always present.
     QTest::newRow("string from date")<<"string_from_date"<<"1979-05-27";
-    QTest::newRow("string from time")<<"string_from_time"<<"07:32:00";
-    QTest::newRow("string from datetime")<<"string_from_datetime"<<"1979-05-27T07:32:00Z";
-    QTest::newRow("string from array")<<"string_from_array"<<R"([ 'this', 'is', 'an', 'array' ])";
-    QTest::newRow("string from table")<<"string_from_table"<<R"({ one = '1', three = '3', two = '2' })";
-};
+    QTest::newRow("string from time")<<"string_from_time"<<"07:32:00.000";
+    QTest::newRow("string from datetime")<<"string_from_datetime"<<"1979-05-27T07:32:00.000Z";
+}
+
 void DsSettingsTest::get_string_shouldReturnExpectedString(){
     QFETCH(QString, key);
     QFETCH(QString, result);
 
-    auto qstring_value = test_settings->get<QString>("test.strings."+key.toStdString());
-    auto string_value = test_settings->get<std::string>("test.strings."+key.toStdString());
+    QCOMPARE(test_settings->get<QString>("test.strings." + key), result);
+}
 
-    QCOMPARE(qstring_value.has_value(),true);
-    QCOMPARE(string_value.has_value(),true);
+void DsSettingsTest::get_string_fromArrayOrTable_shouldNotConvert()
+{
+    // The old parser stringified arrays and tables. QVariant has no such
+    // conversion, so these keys keep their container types.
+    const QVariantList list = test_settings->get<QVariantList>("test.strings.string_from_array");
+    QCOMPARE(list.size(), 4);
+    QCOMPARE(list[0].toString(), QStringLiteral("this"));
+    QCOMPARE(list[3].toString(), QStringLiteral("array"));
+    QVERIFY(test_settings->get<QString>("test.strings.string_from_array").isEmpty());
 
-    QCOMPARE(qstring_value.value(),result);
-    QCOMPARE(string_value.value(),result.toStdString());
-};
+    const QVariantMap map = test_settings->get<QVariantMap>("test.strings.string_from_table");
+    QCOMPARE(map.size(), 3);
+    QCOMPARE(map.value("one").toString(), QStringLiteral("1"));
+    QVERIFY(test_settings->get<QString>("test.strings.string_from_table").isEmpty());
+}
+
 //bool
 void DsSettingsTest::get_bool_shouldReturnExpectedBoolean_data(){
     QTest::addColumn<QString>("key");
@@ -263,36 +368,35 @@ void DsSettingsTest::get_bool_shouldReturnExpectedBoolean_data(){
     QTest::newRow("string false is false")<<"bool_str_false"<<false;
     QTest::newRow("string empty is false")<<"bool_str_empty"<<false;
     QTest::newRow("string foobar is true")<<"bool_str_foobar"<<true;
-};
+}
+
 void DsSettingsTest::get_bool_shouldReturnExpectedBoolean(){
     QFETCH(QString, key);
     QFETCH(bool, result);
 
-    auto test_value = test_settings->get<bool>("test.bool."+key.toStdString());
-    QCOMPARE(test_value.has_value(),true);
-    QCOMPARE(test_value.value(),result);
-};
+    QCOMPARE(test_settings->get<bool>("test.bool." + key), result);
+}
 
 
 //*****************
 //QColor
 //*****************
-void DsSettingsTest::get_QColor_from_validString_shouldReturnAValidQColorOptional_data(){
+void DsSettingsTest::get_QColor_from_validString_shouldReturnAValidQColor_data(){
     QTest::addColumn<QString>("key");
     QTest::addColumn<QColor>("result");
 
     QTest::newRow("hex with alpha")<<"hex"<<QColor(255,238,170,128);
     QTest::newRow("named color")<<"name"<<QColor::fromString("blue");
-};
-void DsSettingsTest::get_QColor_from_validString_shouldReturnAValidQColorOptional(){
+}
+
+void DsSettingsTest::get_QColor_from_validString_shouldReturnAValidQColor(){
     QFETCH(QString, key);
     QFETCH(QColor, result);
 
-    auto test_value = test_settings->get<QColor>("test.color.strings."+key.toStdString());
-    QCOMPARE(test_value.has_value(),true);
-    QCOMPARE(test_value.value(),result);
-};
-void DsSettingsTest::get_QColor_from_Arrays_shouldReturnAValidQColorOptional_data(){
+    QCOMPARE(test_settings->get<QColor>("test.color.strings." + key), result);
+}
+
+void DsSettingsTest::get_QColor_from_Arrays_shouldReturnAValidQColor_data(){
     QTest::addColumn<QString>("key");
     QTest::addColumn<QColor>("result");
 
@@ -319,16 +423,16 @@ void DsSettingsTest::get_QColor_from_Arrays_shouldReturnAValidQColorOptional_dat
     QTest::newRow("int cmyka")<<"int_cmyka"<<QColor::fromCmyk(0,66,252,25,255);
     QTest::newRow("int hsva")<<"int_hsva"<<QColor::fromHsv(44,252,252,255);
     QTest::newRow("int hsla")<<"int_hsla"<<QColor::fromHsl(44,250,128,255);
-};
-void DsSettingsTest::get_QColor_from_Arrays_shouldReturnAValidQColorOptional(){
+}
+
+void DsSettingsTest::get_QColor_from_Arrays_shouldReturnAValidQColor(){
     QFETCH(QString, key);
     QFETCH(QColor, result);
 
-    auto test_value = test_settings->get<QColor>("test.color.arrays."+key.toStdString());
-    QCOMPARE(test_value.has_value(),true);
-    QCOMPARE(test_value.value(),result);
-};
-void DsSettingsTest::get_QColor_from_Tables_shouldReturnAValidQColorOptional_data(){
+    QCOMPARE(test_settings->get<QColor>("test.color.arrays." + key), result);
+}
+
+void DsSettingsTest::get_QColor_from_Tables_shouldReturnAValidQColor_data(){
     QTest::addColumn<QString>("key");
     QTest::addColumn<QColor>("result");
 
@@ -351,92 +455,46 @@ void DsSettingsTest::get_QColor_from_Tables_shouldReturnAValidQColorOptional_dat
     QTest::newRow("int cmyka")<<"int_cmyka"<<QColor::fromCmyk(0,66,252,25,255);
     QTest::newRow("int hsva")<<"int_hsva"<<QColor::fromHsv(44,252,252,255);
     QTest::newRow("int hsla")<<"int_hsla"<<QColor::fromHsl(44,250,128,255);
-};
-void DsSettingsTest::get_QColor_from_Tables_shouldReturnAValidQColorOptional(){
+}
+
+void DsSettingsTest::get_QColor_from_Tables_shouldReturnAValidQColor(){
     QFETCH(QString, key);
     QFETCH(QColor, result);
 
-    auto test_value = test_settings->get<QColor>("test.color.tables."+key.toStdString());
-    QCOMPARE(test_value.has_value(),true);
-    QCOMPARE(test_value.value(),result);
-};
+    QCOMPARE(test_settings->get<QColor>("test.color.tables." + key), result);
+}
 
 //*****************
 //QDate, QTime, QDateTime
 //*****************
-void DsSettingsTest::get_QTime_from_validString_shouldReturnAValidQTimeOptional_data(){
-    QTest::addColumn<QString>("key");
-    QTest::addColumn<QTime>("result");
-    QTest::addColumn<Qt::DateFormat>("format");
-    QTest::addColumn<QString>("format_string");
-
-
-    QTest::newRow("Iso8601")<<"ISO8601_default"<<QTime(17,30,30)<<Qt::DateFormat::ISODateWithMs<<"";
-    QTest::newRow("TextDate")<<"ISO8601_default"<<QTime(17,30,30)<<Qt::DateFormat::TextDate<<"";
-    QTest::newRow("Custom")<<"custom_time"<<QTime(17,30)<<Qt::DateFormat::ISODateWithMs<<"h:map";
-}
-void DsSettingsTest::get_QTime_from_validString_shouldReturnAValidQTimeOptional(){
-    QFETCH(QString, key);
-    QFETCH(QTime, result);
-    QFETCH(Qt::DateFormat,format);
-    QFETCH(QString, format_string);
-
-    test_settings->setDateFormat(format);
-    test_settings->setCustomDateFormat(format_string);
-    auto test_value = test_settings->get<QTime>("test.time.strings."+key.toStdString());
-    QCOMPARE(test_value.has_value(),true);
-    QCOMPARE(test_value.value(),result);
+void DsSettingsTest::get_QTime_from_iso8601String_shouldReturnAValidQTime()
+{
+    QCOMPARE(test_settings->get<QTime>("test.time.strings.ISO8601_default"), QTime(17,30,30));
 }
 
-void DsSettingsTest::get_QDate_from_validString_shouldReturnAValidQDateOptional_data(){
-    QTest::addColumn<QString>("key");
-    QTest::addColumn<QDate>("result");
-    QTest::addColumn<Qt::DateFormat>("format");
-    QTest::addColumn<QString>("format_string");
-
-
-    QTest::newRow("Iso8601")<<"ISO8601_default"<<QDate(2023,1,30)<<Qt::DateFormat::ISODate<<"";
-    QTest::newRow("QT::TextDate")<<"text_date"<<QDate(2023,1,30)<<Qt::DateFormat::TextDate<<"";
-    QTest::newRow("RFC2822")<<"rfc2822"<<QDate(2023,1,30)<<Qt::DateFormat::RFC2822Date<<"";
-    QTest::newRow("Custom")<<"custom_date"<<QDate(2023,8,27)<<Qt::DateFormat::ISODateWithMs<<"M/d/yyyy";
-}
-void DsSettingsTest::get_QDate_from_validString_shouldReturnAValidQDateOptional(){
-    QFETCH(QString, key);
-    QFETCH(QDate, result);
-    QFETCH(Qt::DateFormat,format);
-    QFETCH(QString, format_string);
-
-    test_settings->setDateFormat(format);
-    test_settings->setCustomDateFormat(format_string);
-    auto test_value = test_settings->get<QDate>("test.date.strings."+key.toStdString());
-    QCOMPARE(test_value.has_value(),true);
-    QCOMPARE(test_value.value(),result);
+void DsSettingsTest::get_QDate_from_iso8601String_shouldReturnAValidQDate()
+{
+    QCOMPARE(test_settings->get<QDate>("test.date.strings.ISO8601_default"), QDate(2023,1,30));
 }
 
-void DsSettingsTest::get_QDateTime_from_validString_shouldReturnAValidQDateTimeOptional_data(){
-    QTest::addColumn<QString>("key");
-    QTest::addColumn<QDateTime>("result");
-    QTest::addColumn<Qt::DateFormat>("format");
-    QTest::addColumn<QString>("format_string");
-
-
-    QTest::newRow("Iso8601")<<"ISO8601_default"<<QDateTime(QDate(2023,1,30),QTime(17,30,30))<<Qt::DateFormat::ISODateWithMs<<"";
-    QTest::newRow("Custom")<<"custom_date_time"<<QDateTime(QDate(2023,8,27),QTime(7,30))<<Qt::DateFormat::ISODateWithMs<<"h:map on M/d/yyyy";
-}
-void DsSettingsTest::get_QDateTime_from_validString_shouldReturnAValidQDateTimeOptional(){
-    QFETCH(QString, key);
-    QFETCH(QDateTime, result);
-    QFETCH(Qt::DateFormat,format);
-    QFETCH(QString, format_string);
-
-    test_settings->setDateFormat(format);
-    test_settings->setCustomDateFormat(format_string);
-    auto test_value = test_settings->get<QDateTime>("test.datetime.strings."+key.toStdString());
-    QCOMPARE(test_value.has_value(),true);
-    QCOMPARE(test_value.value(),result);
+void DsSettingsTest::get_QDateTime_from_iso8601String_shouldReturnAValidQDateTime()
+{
+    QCOMPARE(test_settings->get<QDateTime>("test.datetime.strings.ISO8601_default"),
+             QDateTime(QDate(2023,1,30), QTime(17,30,30)));
 }
 
-void DsSettingsTest::get_QTime_from_tomlDateTime_shouldReturnAValidQTimeOptional_data(){
+void DsSettingsTest::get_dateTime_fromNonIsoStrings_shouldNotConvert()
+{
+    // setDateFormat() / setCustomDateFormat() are gone. QVariant parses date and
+    // time strings as ISO-8601 only, so these fixture values no longer convert.
+    QVERIFY(!test_settings->get<QTime>("test.time.strings.custom_time").isValid());
+    QVERIFY(!test_settings->get<QDate>("test.date.strings.text_date").isValid());
+    QVERIFY(!test_settings->get<QDate>("test.date.strings.rfc2822").isValid());
+    QVERIFY(!test_settings->get<QDate>("test.date.strings.custom_date").isValid());
+    QVERIFY(!test_settings->get<QDateTime>("test.datetime.strings.custom_date_time").isValid());
+}
+
+void DsSettingsTest::get_QTime_from_tomlDateTime_shouldReturnAValidQTime_data(){
     QTest::addColumn<QString>("key");
     QTest::addColumn<QTime>("result");
 
@@ -445,23 +503,19 @@ void DsSettingsTest::get_QTime_from_tomlDateTime_shouldReturnAValidQTimeOptional
     QTest::newRow("offset3")<<"odt3"<<QTime(0,32,00,999);
     QTest::newRow("local datetime")<<"ldt1"<<QTime(7,32);
     QTest::newRow("local datetime fract seconds")<<"ldt2"<<QTime(0,32,00,999);
-    QTest::newRow("local date")<<"ld1"<<QTime(0,0);
     QTest::newRow("local time")<<"lt1"<<QTime(7,32);
     QTest::newRow("local time fract seconds")<<"lt2"<<QTime(0,32,00,999);
+    // "local date" (ld1) dropped: QVariant has no QDate -> QTime conversion.
 }
 
-void DsSettingsTest::get_QTime_from_tomlDateTime_shouldReturnAValidQTimeOptional(){
+void DsSettingsTest::get_QTime_from_tomlDateTime_shouldReturnAValidQTime(){
     QFETCH(QString, key);
     QFETCH(QTime, result);
 
-    auto test_value = test_settings->get<QTime>("test.datetimes.toml."+key.toStdString());
-    QCOMPARE(test_value.has_value(),true);
-    //qDebug()<<test_value.value();
-    QCOMPARE(test_value.value(),result);
-
+    QCOMPARE(test_settings->get<QTime>("test.datetimes.toml." + key), result);
 }
 
-void DsSettingsTest::get_QDate_from_tomlDateTime_shouldReturnAValidQDateOptional_data(){
+void DsSettingsTest::get_QDate_from_tomlDateTime_shouldReturnAValidQDate_data(){
     QTest::addColumn<QString>("key");
     QTest::addColumn<QDate>("result");
 
@@ -475,138 +529,124 @@ void DsSettingsTest::get_QDate_from_tomlDateTime_shouldReturnAValidQDateOptional
     QTest::newRow("local time fract seconds")<<"lt2"<<QDate(); //invalid date
 }
 
-void DsSettingsTest::get_QDate_from_tomlDateTime_shouldReturnAValidQDateOptional(){
+void DsSettingsTest::get_QDate_from_tomlDateTime_shouldReturnAValidQDate(){
     QFETCH(QString, key);
     QFETCH(QDate, result);
 
-    auto test_value = test_settings->get<QDate>("test.datetimes.toml."+key.toStdString());
-    QCOMPARE(test_value.has_value(),true);
-    //qDebug()<<test_value.value();
-    QCOMPARE(test_value.value(),result);
+    QCOMPARE(test_settings->get<QDate>("test.datetimes.toml." + key), result);
 }
 
-void DsSettingsTest::get_QDateTime_from_tomlDateTime_shouldReturnAValidQDateTimeOptional_data(){
+void DsSettingsTest::get_QDateTime_from_tomlDateTime_shouldReturnAValidQDateTime_data(){
     QTest::addColumn<QString>("key");
     QTest::addColumn<QDateTime>("result");
 
-    QTest::newRow("offset1")<<"odt1"<<QDateTime(QDate(1979,5,27),QTime(7,32),QTimeZone(0));
-    QTest::newRow("offset2")<<"odt2"<<QDateTime(QDate(1979,5,27),QTime(0,32),QTimeZone(-7*3600));
-    QTest::newRow("offset3")<<"odt3"<<QDateTime(QDate(1979,5,27),QTime(0,32,00,999),QTimeZone(-7*3600));
+    QTest::newRow("offset1")<<"odt1"<<QDateTime(QDate(1979,5,27),QTime(7,32),QTimeZone::utc());
+    QTest::newRow("offset2")<<"odt2"
+                            <<QDateTime(QDate(1979,5,27),QTime(0,32),
+                                        QTimeZone::fromSecondsAheadOfUtc(-7*3600));
+    QTest::newRow("offset3")<<"odt3"
+                            <<QDateTime(QDate(1979,5,27),QTime(0,32,00,999),
+                                        QTimeZone::fromSecondsAheadOfUtc(-7*3600));
     QTest::newRow("local datetime")<<"ldt1"<<QDateTime(QDate(1979,5,27),QTime(7,32));
     QTest::newRow("local datetime fract seconds")<<"ldt2"<<QDateTime(QDate(1979,5,27),QTime(0,32,00,999));
     QTest::newRow("local date")<<"ld1"<<QDateTime(QDate(1979,5,27),QTime(0,0));
-    QTest::newRow("local time")<<"lt1"<<QDateTime(QDate(),QTime(7,32));
-    QTest::newRow("local time fract seconds")<<"lt2"<<QDateTime(QDate(),QTime(0,32,00,999));
+    // "local time" (lt1/lt2) dropped: QVariant has no QTime -> QDateTime conversion.
 }
 
-void DsSettingsTest::get_QDateTime_from_tomlDateTime_shouldReturnAValidQDateTimeOptional(){
+void DsSettingsTest::get_QDateTime_from_tomlDateTime_shouldReturnAValidQDateTime(){
     QFETCH(QString, key);
     QFETCH(QDateTime, result);
 
-    auto test_value = test_settings->get<QDateTime>("test.datetimes.toml."+key.toStdString());
-    QCOMPARE(test_value.has_value(),true);
-    qDebug()<<test_value.value();
-    QCOMPARE(test_value.value(),result);
+    QCOMPARE(test_settings->get<QDateTime>("test.datetimes.toml." + key), result);
+}
+
+void DsSettingsTest::get_dateTime_acrossTomlTypes_shouldOnlyConvertWhereQVariantCan()
+{
+    // QMetaType registers QDateTime->QDate, QDateTime->QTime and QDate->QDateTime,
+    // but nothing from a bare QTime and nothing from QDate to QTime.
+    QVERIFY(!test_settings->get<QTime>("test.datetimes.toml.ld1").isValid());
+    QVERIFY(!test_settings->get<QDateTime>("test.datetimes.toml.lt1").isValid());
 }
 
 //*****************
 //Geometry
 //*****************
-#ifdef DSQT_USE_GLM
-void DsSettingsTest::get_glmVectors_from_arrays_shouldReturnAValidGlmVectorOptional(){
-    auto vec2 = test_settings->get<glm::vec2>("test.geom.vectors.vec2");
-    auto vec3 = test_settings->get<glm::vec3>("test.geom.vectors.vec3");
-    auto vec4 = test_settings->get<glm::vec4>("test.geom.vectors.vec4");
+void DsSettingsTest::get_vectors_fromTomlArrays_shouldStayLists()
+{
+    // Numeric TOML arrays are QVariantLists now — they are not coerced into
+    // QVector2D/3D/4D. Table forms ({x, y}, {x, y, z}, {w, x, y, z}) are the
+    // supported way to express vectors.
+    const QVariantList vec2 = test_settings->get<QVariantList>("test.geom.vectors.vec2");
+    const QVariantList vec3 = test_settings->get<QVariantList>("test.geom.vectors.vec3");
+    const QVariantList vec4 = test_settings->get<QVariantList>("test.geom.vectors.vec4");
 
-    QCOMPARE(vec2.has_value(),true);
-    QCOMPARE(vec3.has_value(),true);
-    QCOMPARE(vec4.has_value(),true);
-    QVERIFY(vec2 = glm::vec2(20,30));
-    QCOMPARE(vec3.value() , glm::vec3(20,30,40));
-    QCOMPARE(vec4.value() , glm::vec4(20,30,40,50));
-}
-#endif
+    QCOMPARE(vec2.size(), 2);
+    QCOMPARE(vec3.size(), 3);
+    QCOMPARE(vec4.size(), 4);
+    QCOMPARE(vec2[0].toInt(), 20);
+    QCOMPARE(vec3[2].toInt(), 40);
+    QCOMPARE(vec4[3].toInt(), 50);
 
-void DsSettingsTest::get_QVectors_from_arrays_shouldReturnAValidGlmVectorOptional(){
-    auto vec2 = test_settings->get<QVector2D>("test.geom.vectors.vec2");
-    auto vec3 = test_settings->get<QVector3D>("test.geom.vectors.vec3");
-    auto vec4 = test_settings->get<QVector4D>("test.geom.vectors.vec4");
-
-    QCOMPARE(vec2.has_value(),true);
-    QCOMPARE(vec3.has_value(),true);
-    QCOMPARE(vec4.has_value(),true);
-    QCOMPARE(vec2.value() , QVector2D(20,30));
-    QCOMPARE(vec3.value() , QVector3D(20,30,40));
-    QCOMPARE(vec4.value() , QVector4D(20,30,40,50));
+    QVERIFY(test_settings->get<QVector2D>("test.geom.vectors.vec2").isNull());
+    QVERIFY(test_settings->get<QVector3D>("test.geom.vectors.vec3").isNull());
 }
 
-void DsSettingsTest::get_QPoint_from_arraysandtables_shouldReturnAValidGlmVectorOptional_data(){
-    QTest::addColumn<QString>("key");
-    QTest::addColumn<QPointF>("result");
-
-    QTest::newRow("array")<<"vectors.vec2"<<QPointF(20,30);
-    QTest::newRow("table (x,y)")<<"elements.x_and_y"<<QPointF(10,20);
-    QTest::newRow("table (x1,y1)")<<"elements.x1_and_y1"<<QPointF(10,20);
-}
-void DsSettingsTest::get_QPoint_from_arraysandtables_shouldReturnAValidGlmVectorOptional(){
-    QFETCH(QString, key);
-    QFETCH(QPointF, result);
-
-    auto test_value = test_settings->get<QPointF>("test.geom."+key.toStdString());
-    QCOMPARE(test_value.has_value(),true);
-    QCOMPARE(test_value.value(),result);
+void DsSettingsTest::get_QPoint_from_tables_shouldReturnAValidQPointF()
+{
+    QCOMPARE(test_settings->get<QPointF>("test.geom.elements.x_and_y"), QPointF(10,20));
 }
 
-void DsSettingsTest::get_QSize_from_arraysandtables_shouldReturnAValidGlmVectorOptional_data(){
-    QTest::addColumn<QString>("key");
-    QTest::addColumn<QSizeF>("result");
-
-    QTest::newRow("array")<<"vectors.vec2"<<QSizeF(20,30);
-    QTest::newRow("table (w,h)")<<"elements.w_and_h"<<QSizeF(40,50);
-}
-void DsSettingsTest::get_QSize_from_arraysandtables_shouldReturnAValidGlmVectorOptional(){
-    QFETCH(QString, key);
-    QFETCH(QSizeF, result);
-
-    auto test_value = test_settings->get<QSizeF>("test.geom."+key.toStdString());
-    QCOMPARE(test_value.has_value(),true);
-    QCOMPARE(test_value.value(),result);
+void DsSettingsTest::get_QSize_from_tables_shouldReturnAValidQSizeF()
+{
+    QCOMPARE(test_settings->get<QSizeF>("test.geom.elements.w_and_h"), QSizeF(40,50));
 }
 
-void DsSettingsTest::get_QRect_from_arraysandtables_shouldReturnAValidGlmVectorOptional_data(){
+void DsSettingsTest::get_QRect_from_tables_shouldReturnAValidQRectF_data()
+{
     QTest::addColumn<QString>("key");
     QTest::addColumn<QRectF>("result");
 
-    QTest::newRow("array")<<"vectors.vec4"<<QRectF(20,30,40,50);
-    QTest::newRow("table (w,h)")<<"elements.w_and_h"<<QRectF(0,0,40,50);
-    QTest::newRow("table (x2,y2)")<<"elements.x2_and_y2"<<QRectF(0,0,40,50);
-    QTest::newRow("table (x,y,w,h)")<<"elements.rect_xywh"<<QRectF(10,20,40,50);
-    QTest::newRow("table (x1,y1,x2,y2)")<<"elements.rect_x1y1x2y2"<<QRectF(10,20,40,50);
+    QTest::newRow("table (x,y,w,h)")<<"test.geom.elements.rect_xywh"<<QRectF(10,20,40,50);
+    QTest::newRow("table (x1,y1,x2,y2)")<<"test.geom.elements.rect_x1y1x2y2"<<QRectF(10,20,40,50);
+    QTest::newRow("example rect 1")<<"example.example_rect_1"<<QRectF(10,5,100,100);
+    QTest::newRow("example rect 3")<<"example.example_rect_3"<<QRectF(10,5,100,100);
+    // Legacy table value + {type="rect"} metadata.
+    QTest::newRow("example rect 4")<<"example.example_rect_4"<<QRectF(10,5,100,100);
 }
-void DsSettingsTest::get_QRect_from_arraysandtables_shouldReturnAValidGlmVectorOptional(){
+
+void DsSettingsTest::get_QRect_from_tables_shouldReturnAValidQRectF()
+{
     QFETCH(QString, key);
     QFETCH(QRectF, result);
 
-    auto test_value = test_settings->get<QRectF>("test.geom."+key.toStdString());
-    QCOMPARE(test_value.has_value(),true);
-    QCOMPARE(test_value.value(),result);
+    QCOMPARE(test_settings->get<QRectF>(key), result);
 }
 
+void DsSettingsTest::get_geom_fromUnknownKeySignatures_shouldStayMaps()
+{
+    // Only the documented key signatures are interpreted; {x1, y1} and {x2, y2}
+    // are not among them, so they stay plain maps.
+    QCOMPARE(test_settings->get<QVariantMap>("test.geom.elements.x1_and_y1").size(), 2);
+    QCOMPARE(test_settings->get<QVariantMap>("test.geom.elements.x2_and_y2").size(), 2);
+    QVERIFY(test_settings->get<QPointF>("test.geom.elements.x1_and_y1").isNull());
+    QVERIFY(test_settings->get<QRectF>("test.geom.elements.x2_and_y2").isNull());
+}
+
+//*****************
+//Containers
+//*****************
 void DsSettingsTest::get_QVariantList_shouldReturnAValidQVariantList_data()
 {
     QTest::addColumn<QString>("key");
     QTest::addColumn<QVariantList>("result");
 
+    // {r=1, g=0, b=0, a=1} is now recognised as a colour key signature and,
+    // because every channel is within 0..1, read on the unit scale.
     QVariantList simple = {
         QVariant(10),
         QVariant("string"),
         QVariant(10.5),
-        QVariantMap({
-            {"r", QVariant(1)},
-            {"g", QVariant(0)},
-            {"b", QVariant(0)},
-            {"a", QVariant(1) }
-        })
+        QVariant::fromValue(QColor::fromRgbF(1.0, 0.0, 0.0, 1.0))
     };
     QVariantList list_of_maps = {
         QVariantMap({
@@ -619,18 +659,7 @@ void DsSettingsTest::get_QVariantList_shouldReturnAValidQVariantList_data()
         }),
     };
 
-    /*
-    QVariantList list_of_tables_value = {
-        QVariantMap({ {"fruit_1" , "apple" } }),
-        QVariantMap({ {"fruit_2" , "banana"} }),
-        QVariantMap({ {"array"   , QVariantList({ 1, 2, 3})} }),
-        QVariantMap({ {"map"     , QVariantMap ({ {"a", 1}, {"b", 2}, {"c", 3}})} }),
-    };
-    */
-
-    //QTest::newRow("value_raw")                << "list"         << simple;
     QTest::newRow("without_meta")    << "list_wo_meta"          << simple;
-    QTest::newRow("w_meta")          << "list_w_meta"           << simple;
     QTest::newRow("of_maps_w_meta")  << "list_of_maps_w_meta"   << list_of_maps;
 }
 
@@ -639,59 +668,48 @@ void DsSettingsTest::get_QVariantList_shouldReturnAValidQVariantList()
     QFETCH(QString, key);
     QFETCH(QVariantList, result);
 
-    auto test_value = test_settings->get<QVariantList>("test.list."+key.toStdString());
-    QCOMPARE(test_value.has_value(),true);
-    QCOMPARE(test_value.value(),result);
+    QCOMPARE(test_settings->get<QVariantList>("test.list." + key), result);
 }
 
 void DsSettingsTest::get_QVariantList_intsOnly()
 {
-    auto result = test_settings->get<QVariantList>("test.list.list_ints_only");
-    QVERIFY(result.has_value());
+    const auto result = test_settings->get<QVariantList>("test.list.list_ints_only");
     QVariantList expected = {
         QVariant(qint64(1)), QVariant(qint64(2)), QVariant(qint64(3)),
         QVariant(qint64(4)), QVariant(qint64(5))
     };
-    QCOMPARE(result.value(), expected);
+    QCOMPARE(result, expected);
 }
 
 void DsSettingsTest::get_QVariantList_stringsOnly()
 {
-    auto result = test_settings->get<QVariantList>("test.list.list_strings_only");
-    QVERIFY(result.has_value());
+    const auto result = test_settings->get<QVariantList>("test.list.list_strings_only");
     QVariantList expected = {
         QVariant("alpha"), QVariant("beta"), QVariant("gamma")
     };
-    QCOMPARE(result.value(), expected);
+    QCOMPARE(result, expected);
 }
 
 void DsSettingsTest::get_QVariantList_nested()
 {
-    auto result = test_settings->get<QVariantList>("test.list.list_nested");
-    QVERIFY(result.has_value());
+    const auto result = test_settings->get<QVariantList>("test.list.list_nested");
     QVariantList inner1 = { QVariant(qint64(1)), QVariant(qint64(2)) };
     QVariantList inner2 = { QVariant(qint64(3)), QVariant(qint64(4)) };
     QVariantList expected = { QVariant(inner1), QVariant(inner2) };
-    QCOMPARE(result.value(), expected);
+    QCOMPARE(result, expected);
 }
 
 void DsSettingsTest::get_QVariantList_empty()
 {
-    // [[]] in TOML = array containing one empty array.
-    // The meta convention extracts element[0] (the inner []) as the value.
-    // Since that converts to an empty QVariantList, the fallback path in
-    // get<QVariantList> reads the raw node [[]] and returns [QVariantList()].
-    auto result = test_settings->get<QVariantList>("test.list.list_empty");
-    QVERIFY(result.has_value());
-    QCOMPARE(result.value().size(), 1);
-    QVERIFY(result.value()[0].toList().isEmpty());
+    // [[]] in TOML = array containing one empty array. A single-element array
+    // whose only element is an array is unwrapped, so this reads as an empty list.
+    QVERIFY(test_settings->contains("test.list.list_empty"));
+    QVERIFY(test_settings->get<QVariantList>("test.list.list_empty").isEmpty());
 }
 
 void DsSettingsTest::get_QVariantList_allTypes()
 {
-    auto result = test_settings->get<QVariantList>("test.list.list_all_types");
-    QVERIFY(result.has_value());
-    auto list = result.value();
+    const auto list = test_settings->get<QVariantList>("test.list.list_all_types");
     QCOMPARE(list.size(), 5);
     QCOMPARE(list[0].toBool(), true);
     QCOMPARE(list[1].toLongLong(), 42LL);
@@ -704,19 +722,26 @@ void DsSettingsTest::get_QVariantList_allTypes()
 
 void DsSettingsTest::get_QVariantList_nonexistentKey()
 {
-    auto result = test_settings->get<QVariantList>("test.list.does_not_exist");
-    QVERIFY(result.has_value());
-    QVERIFY(result.value().isEmpty());
+    QVERIFY(!test_settings->contains("test.list.does_not_exist"));
+    QVERIFY(test_settings->get<QVariantList>("test.list.does_not_exist").isEmpty());
 }
 
-void DsSettingsTest::getWithMeta_QVariantList_shouldReturnMetaData()
+void DsSettingsTest::get_QVariantList_legacyMetaRequiresATypeKey()
 {
-    auto result = test_settings->getWithMeta<QVariantList>("test.list.list_w_meta");
-    QVERIFY(result.has_value());
-    auto [value, meta, path] = result.value();
-    QVERIFY(!value.isEmpty());
-    QVERIFY2(meta != nullptr, "meta should point to a toml::table");
-    QVERIFY(QString::fromStdString(path).endsWith("test_settings.toml"));
+    // The legacy "[value, {meta}]" form is only unwrapped when the metadata
+    // table carries a "type" key. list_w_meta uses "types" (plural), so it is
+    // left as a literal two-element array.
+    const auto raw = test_settings->get<QVariantList>("test.list.list_w_meta");
+    QCOMPARE(raw.size(), 2);
+
+    const QVariantList payload = raw[0].toList();
+    QCOMPARE(payload.size(), 4);
+    QCOMPARE(payload[0].toLongLong(), 10LL);
+    QCOMPARE(payload[1].toString(), QStringLiteral("string"));
+    QCOMPARE(payload[2].toDouble(), 10.5);
+    QCOMPARE(payload[3].value<QColor>(), QColor::fromRgbF(1.0, 0.0, 0.0, 1.0));
+
+    QVERIFY(raw[1].toMap().contains("types"));
 }
 
 void DsSettingsTest::get_QVariantMap_shouldReturnAValidQVariantMap_data()
@@ -730,39 +755,11 @@ void DsSettingsTest::get_QVariantMap_shouldReturnAValidQVariantMap_data()
         {"float",QVariant(10.5)},
         {"obj",QVariantMap({{"a",QVariant("one")}})},
         {"array",QVariantList({QVariant(qint64(1))})},
-        {"date",QVariant(QDateTime(QDate(1979,5,27),QTime(7,32),QTimeZone(0)))}
-    };
-
-    /*
-    std::optional(
-        QMap(
-                ("fruit_1", QVariant(QString, "apple"))
-                ("fruit_2", QVariant(QString, "banana"))
-                ( "array",  QVariant( QVariantList, QList(QVariant(qlonglong, 1), QVariant(qlonglong, 2), QVariant(qlonglong, 3))))
-                ("map"    , QVariant(QVariantMap, QMap(("a", QVariant(qlonglong, 1))("b", QVariant(qlonglong, 2))("c", QVariant(qlonglong, 3)))))
-        )
-    )
-        QDEBUG : DsSettingsTest::get_QVariantList_shouldReturnAValidQVariantList(of_maps_w_meta) Test test.list.
-    */
-
-    // [ QVariantMap( a="first first", b="first second"), QVariantMap( a="second first", b="second second") ]
-    // ...
-    // QList<QVariant> [
-    //   QMap<QString, QVariant>
-    //   ...
-    // ]
-
-    QVariantMap headers_map = {
-        {"fruit_1" , "apple" },
-        {"fruit_2" , "banana"},
-        {"array"   , QVariantList({ 1, 2, 3})},
-        {"map"     , QVariantMap ({ {"a", 1}, {"b", 2}, {"c", 3}})},
+        {"date",QVariant(QDateTime(QDate(1979,5,27),QTime(7,32),QTimeZone::utc()))}
     };
 
     QTest::newRow("inline table")<<"map_a"<<map;
     QTest::newRow("table header")<<"header"<<map;
-    QTest::newRow("table header with meta")<< "header_meta" << headers_map;
-
 }
 
 void DsSettingsTest::get_QVariantMap_shouldReturnAValidQVariantMap()
@@ -770,53 +767,45 @@ void DsSettingsTest::get_QVariantMap_shouldReturnAValidQVariantMap()
     QFETCH(QString, key);
     QFETCH(QVariantMap, result);
 
-    auto test_value = test_settings->get<QVariantMap>("test.maps."+key.toStdString());
-    QCOMPARE(test_value.has_value(),true);
-    QCOMPARE(test_value.value(),result);
+    QCOMPARE(test_settings->get<QVariantMap>("test.maps." + key), result);
 }
 
 void DsSettingsTest::get_QVariantMap_stringsOnly()
 {
-    auto result = test_settings->get<QVariantMap>("test.maps.map_strings_only");
-    QVERIFY(result.has_value());
+    const auto result = test_settings->get<QVariantMap>("test.maps.map_strings_only");
     QVariantMap expected = {
         {"name", QVariant("Alice")},
         {"city", QVariant("NYC")},
         {"role", QVariant("dev")}
     };
-    QCOMPARE(result.value(), expected);
+    QCOMPARE(result, expected);
 }
 
 void DsSettingsTest::get_QVariantMap_nested()
 {
-    auto result = test_settings->get<QVariantMap>("test.maps.map_nested");
-    QVERIFY(result.has_value());
-    auto map = result.value();
+    const auto map = test_settings->get<QVariantMap>("test.maps.map_nested");
     QCOMPARE(map["outer_key"].toString(), QString("outer_val"));
 
     // Verify nested map
     QVERIFY(map["inner"].canConvert<QVariantMap>());
-    auto inner = map["inner"].toMap();
+    const auto inner = map["inner"].toMap();
     QCOMPARE(inner["inner_key"].toString(), QString("inner_val"));
 
     // Verify doubly nested map
     QVERIFY(inner["deep"].canConvert<QVariantMap>());
-    auto deep = inner["deep"].toMap();
+    const auto deep = inner["deep"].toMap();
     QCOMPARE(deep["deepest"].toString(), QString("found"));
 }
 
 void DsSettingsTest::get_QVariantMap_empty()
 {
-    auto result = test_settings->get<QVariantMap>("test.maps.map_empty");
-    QVERIFY(result.has_value());
-    QVERIFY(result.value().isEmpty());
+    QVERIFY(test_settings->contains("test.maps.map_empty"));
+    QVERIFY(test_settings->get<QVariantMap>("test.maps.map_empty").isEmpty());
 }
 
 void DsSettingsTest::get_QVariantMap_allTypes()
 {
-    auto result = test_settings->get<QVariantMap>("test.maps.map_all_types");
-    QVERIFY(result.has_value());
-    auto map = result.value();
+    const auto map = test_settings->get<QVariantMap>("test.maps.map_all_types");
 
     QCOMPARE(map["b"].toBool(), true);
     QCOMPARE(map["i"].toLongLong(), 42LL);
@@ -827,55 +816,547 @@ void DsSettingsTest::get_QVariantMap_allTypes()
     QCOMPARE(map["dt"].toDateTime().date(), QDate(1979, 5, 27));
 
     QVERIFY(map["arr"].canConvert<QVariantList>());
-    auto arr = map["arr"].toList();
-    QCOMPARE(arr.size(), 2);
+    QCOMPARE(map["arr"].toList().size(), 2);
 
     QVERIFY(map["sub"].canConvert<QVariantMap>());
-    auto sub = map["sub"].toMap();
-    QCOMPARE(sub["x"].toLongLong(), 1LL);
+    QCOMPARE(map["sub"].toMap()["x"].toLongLong(), 1LL);
 }
 
 void DsSettingsTest::get_QVariantMap_nonexistentKey()
 {
-    auto result = test_settings->get<QVariantMap>("test.maps.does_not_exist");
-    QVERIFY(result.has_value());
-    QVERIFY(result.value().isEmpty());
+    QVERIFY(!test_settings->contains("test.maps.does_not_exist"));
+    QVERIFY(test_settings->get<QVariantMap>("test.maps.does_not_exist").isEmpty());
 }
 
-void DsSettingsTest::getWithMeta_QVariantMap_shouldReturnMetaData()
+void DsSettingsTest::get_QVariantMap_arrayOfTablesStaysAList()
 {
-    auto result = test_settings->getWithMeta<QVariantMap>("test.maps.header_meta");
-    QVERIFY(result.has_value());
-    auto [value, meta, path] = result.value();
-    QVERIFY(!value.isEmpty());
-    QVERIFY(QString::fromStdString(path).endsWith("test_settings.toml"));
+    // [[test.maps.header_meta]] is a TOML array of tables. The legacy
+    // "[value, {meta}]" unwrap deliberately does not apply when the first
+    // element is itself a table, so both tables are preserved.
+    const auto list = test_settings->get<QVariantList>("test.maps.header_meta");
+    QCOMPARE(list.size(), 2);
+
+    const auto data = list[0].toMap();
+    QCOMPARE(data["fruit_1"].toString(), QStringLiteral("apple"));
+    QCOMPARE(data["fruit_2"].toString(), QStringLiteral("banana"));
+    QCOMPARE(data["array"].toList().size(), 3);
+    QCOMPARE(data["map"].toMap()["b"].toLongLong(), 2LL);
+
+    QCOMPARE(list[1].toMap()["types"].toList().size(), 4);
+
+    // ...and it is therefore not readable as a map.
+    QVERIFY(test_settings->get<QVariantMap>("test.maps.header_meta").isEmpty());
 }
 
-void DsSettingsTest::get_shouldReturnAnEmptyOptionalWhenTheSettingDoesNotExist()
+void DsSettingsTest::get_shouldReturnTheDefaultWhenTheSettingDoesNotExist()
 {
-    const auto result = test_settings->get<QString>("does_not_exist");
-    QCOMPARE(result.has_value(), false);
+    QVERIFY(!test_settings->contains("does_not_exist"));
+    QCOMPARE(test_settings->getOr<QString>("does_not_exist", QStringLiteral("fallback")),
+             QStringLiteral("fallback"));
 }
 
-void DsSettingsTest::getWithMeta_shouldReturnAValidTupleWhenTheSettingExists()
+void DsSettingsTest::provenance_shouldReportTheSourceOfAKey()
 {
-    auto result = test_settings->getWithMeta<QString>("test.meta.meta_example");
-    QCOMPARE( result.has_value(), true );
+    // Replaces getWithMeta(): the metadata table is gone, but the source of a
+    // value is still recoverable.
+    QCOMPARE(test_settings->get<QString>("test.meta.meta_example"),
+             QStringLiteral("string-value"));
+    QVERIFY(test_settings->provenance("test.meta.meta_example").endsWith("test_settings.toml"));
+    QVERIFY(test_settings->provenance("test.list.list_w_meta").endsWith("test_settings.toml"));
 
-    const auto [value, table, path] = result.value();
-    const auto check_table = toml::table{ {"type", "string"} };
+    QVERIFY(test_settings->provenance("does.not.exist").isEmpty());
 
-    QCOMPARE( value, "string-value" );
-    QVERIFY2(table != nullptr, "meta should point to a toml::table" );
-    QVERIFY(*table == check_table );
-    QVERIFY(QString::fromStdString(path).endsWith("test_settings.toml") );
+    test_settings->setDefault<int>("synthetic.default_key", 5);
+    QCOMPARE(test_settings->provenance("synthetic.default_key"), QStringLiteral("default"));
+
+    test_settings->set<int>("test.int.int_positive", 7);
+    QCOMPARE(test_settings->provenance("test.int.int_positive"), QStringLiteral("override"));
+    QCOMPARE(test_settings->get<int>("test.int.int_positive"), 7);
 }
 
 void DsSettingsTest::read_notable()
 {
-    auto val = test_settings->get<std::string>("no_table");
-    QVERIFY(val);
-    QVERIFY(val.value() == "test value");
+    QCOMPARE(test_settings->get<QString>("no_table"), QStringLiteral("test value"));
+}
+
+void DsSettingsTest::settingsFile_shouldStripLegacyMetadata()
+{
+    dsqt::SettingsFile settings(nullptr, {settingsDir()});
+    settings.setFileName("test_settings.toml");
+
+    QCOMPARE(settings.find<QString>("no_table_arrayed"), QString("test value"));
+    QCOMPARE(settings.find<QString>("test.meta.meta_example"), QString("string-value"));
+}
+
+void DsSettingsTest::settingsFile_shouldUnwrapLegacyArrays()
+{
+    dsqt::SettingsFile settings(nullptr, {settingsDir()});
+    settings.setFileName("test_settings.toml");
+
+    const QVariantList list = settings.find<QVariantList>("test.list.list_strings_only");
+    QCOMPARE(list.size(), 3);
+    QCOMPARE(list[0].toString(), QString("alpha"));
+    QCOMPARE(list[1].toString(), QString("beta"));
+    QCOMPARE(list[2].toString(), QString("gamma"));
+}
+
+void DsSettingsTest::settingsFile_shouldInterpretLegacyMetadataColors()
+{
+    dsqt::SettingsFile settings(nullptr, {settingsDir()});
+    settings.setFileName("test_settings.toml");
+
+    QCOMPARE(settings.find<QColor>("test.color.arrays.float_rgb"),
+             QColor::fromRgbF(0.5, 0.0, 0.0, 1.0));
+    QCOMPARE(settings.find<QColor>("test.color.arrays.int_hsv"),
+             QColor::fromHsv(44, 252, 252, 255));
+    QCOMPARE(settings.find<QColor>("test.color.tables.float_rgb"),
+             QColor::fromRgbF(0.5, 0.0, 0.0, 1.0));
+    QCOMPARE(settings.find<QColor>("test.color.tables.int_cmyk"),
+             QColor::fromCmyk(0, 66, 252, 25, 255));
+    QCOMPARE(settings.find<QColor>("example.example_color_1"),
+             QColor::fromRgbF(0.5, 0.5, 0.5, 1.0));
+
+    // Table and array values carrying a bare {type="color"} marker.
+    QCOMPARE(settings.find<QColor>("example.example_color_2"),
+             QColor::fromRgbF(0.5, 0.5, 0.5, 1.0));
+    QCOMPARE(settings.find<QColor>("example.example_color_3"),
+             QColor::fromRgbF(0.5, 0.5, 0.5, 1.0));
+    QCOMPARE(settings.find<QColor>("example.example_color_4"),
+             QColor::fromRgbF(0.5, 0.5, 0.5, 1.0));
+}
+
+static void writeTextFile(const QString &path, const QByteArray &contents)
+{
+    QFile file(path);
+    QVERIFY(file.open(QIODevice::WriteOnly | QIODevice::Text));
+    QCOMPARE(file.write(contents), static_cast<qint64>(contents.size()));
+}
+
+void DsSettingsTest::settingsFile_shouldNotCollapseArrayOfTablesWithATypeKey()
+{
+    // Counterpart to the legacy-metadata tests: a two-entry array of tables must
+    // survive intact even though the second table has a "type" key. Only
+    // type="color" and type="rect" permit a table in the value slot.
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+
+    writeTextFile(QDir(dir.path()).filePath("settings.toml"),
+                  "[[slide]]\n"
+                  "type = \"video\"\n"
+                  "src = \"a.mp4\"\n"
+                  "\n"
+                  "[[slide]]\n"
+                  "type = \"image\"\n"
+                  "src = \"b.png\"\n");
+
+    dsqt::SettingsFile settings(nullptr, {dir.path()});
+    settings.setFileName("settings.toml");
+
+    const QVariantList slides = settings.find<QVariantList>("slide");
+    QCOMPARE(slides.size(), 2);
+    QCOMPARE(slides[0].toMap()["src"].toString(), QStringLiteral("a.mp4"));
+    QCOMPARE(slides[1].toMap()["src"].toString(), QStringLiteral("b.png"));
+}
+
+void DsSettingsTest::settingsFile_shouldLoadExtraFilesBetweenBaseFilesAndOverrides()
+{
+    QTemporaryDir lowDir;
+    QTemporaryDir highDir;
+    QVERIFY(lowDir.isValid());
+    QVERIFY(highDir.isValid());
+
+    writeTextFile(QDir(lowDir.path()).filePath("settings.toml"),
+                  "value = 10\n"
+                  "base_only = 11\n");
+    writeTextFile(QDir(highDir.path()).filePath("settings.toml"),
+                  "value = 20\n");
+    writeTextFile(QDir(lowDir.path()).filePath("extra.toml"),
+                  "value = 30\n"
+                  "extra_only = 31\n");
+    writeTextFile(QDir(highDir.path()).filePath("extra.toml"),
+                  "value = 40\n");
+
+    dsqt::SettingsFile settings(nullptr, {lowDir.path(), highDir.path()});
+    settings.setDefault("value", 5);
+    settings.setFileName("settings.toml");
+    settings.setExtraFiles({"extra.toml"});
+
+    QCOMPARE(settings.find<int>("value"), 40);
+    QCOMPARE(settings.find<int>("base_only"), 11);
+    QCOMPARE(settings.find<int>("extra_only"), 31);
+    QVERIFY(settings.provenance("value").endsWith("extra.toml"));
+
+    settings.setOverride("value", 50);
+    QCOMPARE(settings.find<int>("value"), 50);
+    QCOMPARE(settings.provenance("value"), QStringLiteral("override"));
+}
+
+void DsSettingsTest::settingsFile_shouldPruneOverridesThatMatchReloadedFiles()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+
+    const QString filePath = QDir(dir.path()).filePath("settings.toml");
+    writeTextFile(filePath, "width = 100\n");
+
+    dsqt::SettingsFile settings(nullptr, {dir.path()});
+    settings.setFileName("settings.toml");
+    settings.setOverride("width", 300);
+    settings.setOverride("height", 400);
+
+    QCOMPARE(settings.saveOverridesTo(filePath), QString{});
+    QCOMPARE(settings.overrides().size(), 2);
+
+    settings.reload();
+
+    QVERIFY(settings.overrides().isEmpty());
+    QCOMPARE(settings.find<int>("width"), 300);
+    QCOMPARE(settings.find<int>("height"), 400);
+}
+
+void DsSettingsTest::settingsFile_shouldKeepOverridesSavedOutsideSearchPaths()
+{
+    QTemporaryDir searchDir;
+    QTemporaryDir otherDir;
+    QVERIFY(searchDir.isValid());
+    QVERIFY(otherDir.isValid());
+
+    const QString watchedFilePath = QDir(searchDir.path()).filePath("settings.toml");
+    const QString otherFilePath = QDir(otherDir.path()).filePath("settings.toml");
+    writeTextFile(watchedFilePath, "width = 100\n");
+
+    dsqt::SettingsFile settings(nullptr, {searchDir.path()});
+    settings.setFileName("settings.toml");
+    settings.setOverride("width", 300);
+
+    QCOMPARE(settings.saveOverridesTo(otherFilePath), QString{});
+    settings.reload();
+
+    QCOMPARE(settings.overrides().value("width").toInt(), 300);
+    QCOMPARE(settings.find<int>("width"), 300);
+}
+
+//*****************
+//Bindings
+//*****************
+
+// Bind context for the member-function overload. No Q_OBJECT: bind() only needs a
+// QObject identity to parent its SettingsBinding to, and a lifetime to track.
+class BindTarget : public QObject
+{
+  public:
+    using QObject::QObject;
+
+    void onValue(const QString &value)
+    {
+        ++calls;
+        last = value;
+    }
+
+    int     calls = 0;
+    QString last;
+};
+
+void DsSettingsTest::bind_shouldCallTheCallbackImmediately()
+{
+    QObject context;
+    int     calls = 0;
+    QString seen;
+
+    test_settings->bind<QString>("no_table", &context, [&](const QString &value) {
+        ++calls;
+        seen = value;
+    });
+
+    QCOMPARE(calls, 1);
+    QCOMPARE(seen, QStringLiteral("test value"));
+}
+
+void DsSettingsTest::bind_shouldCallTheCallbackWhenTheValueChanges()
+{
+    QObject context;
+    int     calls = 0;
+    QString seen;
+
+    test_settings->bind<QString>("no_table", &context, [&](const QString &value) {
+        ++calls;
+        seen = value;
+    });
+    QCOMPARE(calls, 1);
+
+    test_settings->setOverride("no_table", QStringLiteral("changed"));
+
+    QCOMPARE(calls, 2);
+    QCOMPARE(seen, QStringLiteral("changed"));
+
+    // Removing the override restores the file value, which is another change.
+    test_settings->resetOverride("no_table");
+
+    QCOMPARE(calls, 3);
+    QCOMPARE(seen, QStringLiteral("test value"));
+}
+
+void DsSettingsTest::bind_shouldCallTheCallbackForANestedKey()
+{
+    QObject context;
+    int     calls = 0;
+    int     seen  = 0;
+
+    // Nested keys bind to the child QQmlPropertyMap, not to the file itself.
+    test_settings->bind<int>("test.int.int_positive", &context, [&](int value) {
+        ++calls;
+        seen = value;
+    });
+
+    QCOMPARE(calls, 1);
+    QCOMPARE(seen, 1024);
+
+    test_settings->setOverride("test.int.int_positive", 2048);
+
+    QCOMPARE(calls, 2);
+    QCOMPARE(seen, 2048);
+}
+
+void DsSettingsTest::bind_shouldUseTheDefaultForAnUnknownKey()
+{
+    QObject context;
+    int     calls = 0;
+    QString seen;
+
+    test_settings->bind<QString>(
+        "no_such_key", &context,
+        [&](const QString &value) {
+            ++calls;
+            seen = value;
+        },
+        QStringLiteral("fallback"));
+
+    QCOMPARE(calls, 1);
+    QCOMPARE(seen, QStringLiteral("fallback"));
+
+    // bind() creates the key path, so the binding is live before the key has a value.
+    test_settings->setOverride("no_such_key", QStringLiteral("now set"));
+
+    QCOMPARE(calls, 2);
+    QCOMPARE(seen, QStringLiteral("now set"));
+}
+
+void DsSettingsTest::bind_shouldCallAMemberFunction()
+{
+    BindTarget target;
+
+    test_settings->bind<QString>("no_table", &target, &BindTarget::onValue);
+
+    QCOMPARE(target.calls, 1);
+    QCOMPARE(target.last, QStringLiteral("test value"));
+
+    test_settings->setOverride("no_table", QStringLiteral("changed"));
+
+    QCOMPARE(target.calls, 2);
+    QCOMPARE(target.last, QStringLiteral("changed"));
+}
+
+void DsSettingsTest::bind_shouldReplaceTheCallbackWhenReboundOnTheSameKeyAndContext()
+{
+    QObject context;
+    int     first  = 0;
+    int     second = 0;
+
+    test_settings->bind<QString>("no_table", &context, [&](const QString &) { ++first; });
+    test_settings->bind<QString>("no_table", &context, [&](const QString &) { ++second; });
+
+    // Each bind() call invokes its own callback once, immediately.
+    QCOMPARE(first, 1);
+    QCOMPARE(second, 1);
+
+    test_settings->setOverride("no_table", QStringLiteral("changed"));
+
+    // Only the most recent callback is still installed.
+    QCOMPARE(first, 1);
+    QCOMPARE(second, 2);
+}
+
+void DsSettingsTest::bind_shouldStopWhenTheContextIsDestroyed()
+{
+    int   calls   = 0;
+    auto *context = new QObject;
+
+    test_settings->bind<QString>("no_table", context, [&](const QString &) { ++calls; });
+    QCOMPARE(calls, 1);
+
+    delete context;
+
+    test_settings->setOverride("no_table", QStringLiteral("changed"));
+
+    QCOMPARE(calls, 1);
+}
+
+void DsSettingsTest::registryBind_shouldResolveImmediatelyWhenTheFileIsRegistered()
+{
+    auto &settings = dsqt::Settings::instance();
+    settings.setSearchPaths({settingsDir()});
+    dsqt::Settings::add("test_settings");
+
+    QObject context;
+    int     calls = 0;
+    QString seen;
+
+    dsqt::Settings::bind<QString>(
+        "test_settings", "no_table", &context,
+        [&](const QString &value) {
+            ++calls;
+            seen = value;
+        },
+        QStringLiteral("fallback"));
+
+    QCOMPARE(calls, 1);
+    QCOMPARE(seen, QStringLiteral("test value"));
+}
+
+void DsSettingsTest::registryBind_shouldDeferUntilTheFileIsAdded()
+{
+    auto &settings = dsqt::Settings::instance();
+    settings.setSearchPaths({settingsDir()});
+    QVERIFY(!settings.hasSettingsFile("test_settings"));
+
+    QObject context;
+    int     calls = 0;
+    QString seen;
+
+    QTest::ignoreMessage(QtWarningMsg,
+                         "Settings::bind: no settings file registered for 'test_settings' - "
+                         "binding 'no_table' is deferred until one is added.");
+    dsqt::Settings::bind<QString>(
+        "test_settings", "no_table", &context,
+        [&](const QString &value) {
+            ++calls;
+            seen = value;
+        },
+        QStringLiteral("fallback"));
+
+    // The immediate call still happens, with the supplied default.
+    QCOMPARE(calls, 1);
+    QCOMPARE(seen, QStringLiteral("fallback"));
+
+    dsqt::Settings::add("test_settings");
+
+    // Replayed against the file as soon as it is registered.
+    QCOMPARE(calls, 2);
+    QCOMPARE(seen, QStringLiteral("test value"));
+}
+
+void DsSettingsTest::registryBind_deferred_shouldKeepTrackingAfterItResolves()
+{
+    auto &settings = dsqt::Settings::instance();
+    settings.setSearchPaths({settingsDir()});
+
+    QObject context;
+    int     calls = 0;
+    QString seen;
+
+    QTest::ignoreMessage(QtWarningMsg,
+                         "Settings::bind: no settings file registered for 'test_settings' - "
+                         "binding 'no_table' is deferred until one is added.");
+    dsqt::Settings::bind<QString>(
+        "test_settings", "no_table", &context,
+        [&](const QString &value) {
+            ++calls;
+            seen = value;
+        },
+        QStringLiteral("fallback"));
+
+    dsqt::Settings::add("test_settings");
+    QCOMPARE(calls, 2);
+
+    // A replayed bind is an ordinary bind: later changes still reach it.
+    settings.settingsFile("test_settings")->setOverride("no_table", QStringLiteral("changed"));
+
+    QCOMPARE(calls, 3);
+    QCOMPARE(seen, QStringLiteral("changed"));
+}
+
+void DsSettingsTest::registryBind_deferred_shouldReplayInCallOrder()
+{
+    auto &settings = dsqt::Settings::instance();
+    settings.setSearchPaths({settingsDir()});
+
+    QObject context;
+    int     first  = 0;
+    int     second = 0;
+
+    QTest::ignoreMessage(QtWarningMsg,
+                         "Settings::bind: no settings file registered for 'test_settings' - "
+                         "binding 'no_table' is deferred until one is added.");
+    dsqt::Settings::bind<QString>("test_settings", "no_table", &context,
+                                  [&](const QString &) { ++first; }, QStringLiteral("fallback"));
+
+    QTest::ignoreMessage(QtWarningMsg,
+                         "Settings::bind: no settings file registered for 'test_settings' - "
+                         "binding 'no_table' is deferred until one is added.");
+    dsqt::Settings::bind<QString>("test_settings", "no_table", &context,
+                                  [&](const QString &) { ++second; }, QStringLiteral("fallback"));
+
+    QCOMPARE(first, 1);
+    QCOMPARE(second, 1);
+
+    dsqt::Settings::add("test_settings");
+
+    // Both are replayed, each with its own immediate call.
+    QCOMPARE(first, 2);
+    QCOMPARE(second, 2);
+
+    settings.settingsFile("test_settings")->setOverride("no_table", QStringLiteral("changed"));
+
+    // Replaying in call order means the later bind is the one left installed,
+    // matching what would have happened had the file been registered all along.
+    QCOMPARE(first, 2);
+    QCOMPARE(second, 3);
+}
+
+void DsSettingsTest::registryBind_deferred_shouldBeDroppedWhenTheContextDies()
+{
+    auto &settings = dsqt::Settings::instance();
+    settings.setSearchPaths({settingsDir()});
+
+    int   calls   = 0;
+    auto *context = new QObject;
+
+    QTest::ignoreMessage(QtWarningMsg,
+                         "Settings::bind: no settings file registered for 'test_settings' - "
+                         "binding 'no_table' is deferred until one is added.");
+    dsqt::Settings::bind<QString>("test_settings", "no_table", context,
+                                  [&](const QString &) { ++calls; }, QStringLiteral("fallback"));
+    QCOMPARE(calls, 1);
+
+    delete context;
+
+    // The parked bind must be skipped rather than dereferenced.
+    dsqt::Settings::add("test_settings");
+
+    QCOMPARE(calls, 1);
+}
+
+void DsSettingsTest::registryBind_deferred_shouldNotResolveOnAnUnrelatedFile()
+{
+    auto &settings = dsqt::Settings::instance();
+    settings.setSearchPaths({settingsDir()});
+
+    QObject context;
+    int     calls = 0;
+
+    QTest::ignoreMessage(QtWarningMsg,
+                         "Settings::bind: no settings file registered for 'test_settings' - "
+                         "binding 'no_table' is deferred until one is added.");
+    dsqt::Settings::bind<QString>("test_settings", "no_table", &context,
+                                  [&](const QString &) { ++calls; }, QStringLiteral("fallback"));
+    QCOMPARE(calls, 1);
+
+    // Registering a different file leaves the bind parked.
+    dsqt::Settings::add("engine");
+    QCOMPARE(calls, 1);
+
+    dsqt::Settings::add("test_settings");
+    QCOMPARE(calls, 2);
 }
 
 QTEST_MAIN(DsSettingsTest)
