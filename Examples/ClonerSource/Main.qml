@@ -1,7 +1,6 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Shapes
-import QtQuick.VirtualKeyboard
 import Dsqt.Core
 import "qml"
 

@@ -98,8 +98,14 @@ QString DsEnvironment::contract(QString path) {
 bool DsEnvironment::loadEngineSettings() {
     qCInfo(lgEnv) << "\nLoad Settings >>>>>>>>>>>>>>>>>>>>>>>>";
 
+#ifdef Q_OS_IOS
+    const QString baseSettings = QStringLiteral(":/settings");
+#else
+    const QString baseSettings = QStringLiteral("%APP%/settings");
+#endif
+    
     // Make sure the default settings path is used to find the settings.
-    Settings::instance().setSearchPaths({"%APP%/settings"});
+    Settings::instance().setSearchPaths({baseSettings});
 
     // Make sure the engine settings are loaded.
     qCInfo(lgEnv) << "loading main engine.toml";
@@ -112,7 +118,7 @@ bool DsEnvironment::loadEngineSettings() {
         qCDebug(lgEnv) << "Project Path:" << sProjectPath;
 
         // Append to search paths.
-        Settings::instance().setSearchPaths({"%APP%/settings", "%LOCAL%/settings/%PP%"});
+        Settings::instance().setSearchPaths({baseSettings, "%LOCAL%/settings/%PP%"});
     }
 
     // Setup config folder path (%CFG_FOLDER%).
@@ -124,8 +130,10 @@ bool DsEnvironment::loadEngineSettings() {
         qCDebug(lgEnv) << "Config Folder:" << sConfigFolder;
 
         // Append to search paths.
-        Settings::instance().setSearchPaths({"%APP%/settings", "%APP%/settings/%CFG_FOLDER%", "%LOCAL%/settings/%PP%",
-                                             "%LOCAL%/settings/%PP%/%CFG_FOLDER%"});
+        Settings::instance().setSearchPaths({baseSettings,
+            baseSettings+ QStringLiteral("/%CFG_FOLDER%"),
+            "%LOCAL%/settings/%PP%",
+            "%LOCAL%/settings/%PP%/%CFG_FOLDER%"});
     }
 
     sResourceFolder = Settings::find<QString>("engine", "engine.resource.location");
@@ -188,12 +196,31 @@ SettingsFile* DsEnvironment::loadSettings(const QString& settingsName, const QSt
 void DsEnvironment::initialize() {
     static std::once_flag initFlag;
     std::call_once(initFlag, []() {
+        
+#ifdef Q_OS_IOS
+    sDocuments = QStandardPaths::writableLocation(
+        QStandardPaths::DocumentsLocation);
+
+    sDocumentsDownstream = QDir(
+        QStandardPaths::writableLocation(
+            QStandardPaths::AppDataLocation)
+    ).filePath(QStringLiteral("downstream"));
+
+    if (!QDir().mkpath(sDocumentsDownstream))
+        qFatal("Cannot create DsQt application data directory");
+#else
         // documents
-        sDocuments = QStandardPaths::locate(QStandardPaths::HomeLocation, "Documents", QStandardPaths::LocateDirectory);
+    sDocuments = QStandardPaths::locate(
+        QStandardPaths::HomeLocation,
+        "Documents",
+        QStandardPaths::LocateDirectory);
 
         // documents/downstream
-        QDir documents(sDocuments);
-        sDocumentsDownstream = QDir::cleanPath(documents.filePath("downstream"));
+    QDir documents(sDocuments);
+    sDocumentsDownstream =
+        QDir::cleanPath(documents.filePath("downstream"));
+#endif
+
 
         // programData/Downstream ifAvailable
         const QStringList dataPaths = QStandardPaths::standardLocations(QStandardPaths::GenericDataLocation);

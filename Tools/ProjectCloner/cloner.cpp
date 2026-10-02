@@ -596,6 +596,7 @@ QByteArray Cloner::generateCMakePresets(const QStringList &versions) const
 
     QJsonObject root;
     root[QStringLiteral("version")] = 6;
+    root[QStringLiteral("include")] = QJsonArray{QStringLiteral("cmake/ApplePresets.json")};
     root[QStringLiteral("configurePresets")] = configurePresets;
     root[QStringLiteral("buildPresets")] = buildPresets;
 

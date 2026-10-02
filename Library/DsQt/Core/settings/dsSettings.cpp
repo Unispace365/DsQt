@@ -18,7 +18,12 @@ namespace dsqt {
 // delivers its signals) is decided by that first call.
 static void createSettingsSingleton()
 {
-    Settings::instance();
+    QMetaObject::invokeMethod(
+        QCoreApplication::instance(),
+        []() {
+            Settings::instance();
+        },
+        Qt::QueuedConnection);
 }
 Q_COREAPP_STARTUP_FUNCTION(createSettingsSingleton)
 

@@ -49,7 +49,13 @@ __declspec(dllexport) int AmdPowerXpressRequestHighPerformance = 1;
 int main(int argc, char *argv[])
 {
     DsGuiApplication::configureGraphics({
+        #ifdef Q_OS_WIN
         .graphicsApi = QSGRendererInterface::Direct3D12,
+#elif defined(Q_OS_MACOS) || defined(Q_OS_IOS)
+        .graphicsApi = QSGRendererInterface::Metal,
+#else
+        .graphicsApi = QSGRendererInterface::Unknown,
+#endif
         .colorDepth = 10,
     });
 
@@ -64,7 +70,9 @@ int main(int argc, char *argv[])
                                      "idle=false\n"
                                      "qt.multimedia.ffmpeg.*=false\n"
                                      );
+#ifndef Q_OS_IOS
     qputenv("QT_IM_MODULE", QByteArray("qtvirtualkeyboard"));
+#endif
     qputenv("QT_ENABLE_HIGHDPI_SCALING", QByteArray("0"));
 
     //QtWebEngineQuick::initialize();

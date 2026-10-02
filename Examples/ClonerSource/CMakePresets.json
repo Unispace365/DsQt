@@ -72,20 +72,29 @@
       "name": "ninja-6.10.0",
       "hidden": true,
       "displayName": "Ninja - Qt 6.10.0",
-      "inherits": ["qt-6.10.0", "ninja-base"],
+      "inherits": [
+        "qt-6.10.0",
+        "ninja-base"
+      ],
       "binaryDir": "${sourceDir}/build/ninja-6.10.0"
     },
     {
       "name": "ninja-6.10.1",
       "hidden": true,
       "displayName": "Ninja - Qt 6.10.1",
-      "inherits": ["qt-6.10.1", "ninja-base"],
+      "inherits": [
+        "qt-6.10.1",
+        "ninja-base"
+      ],
       "binaryDir": "${sourceDir}/build/ninja-6.10.1"
     },
     {
       "name": "ninja-6.10.2",
       "displayName": "Ninja - Qt 6.10.2",
-      "inherits": ["qt-6.10.2", "ninja-base"],
+      "inherits": [
+        "qt-6.10.2",
+        "ninja-base"
+      ],
       "binaryDir": "${sourceDir}/build/ninja-6.10.2"
     }
   ],
@@ -210,5 +219,8 @@
       "configurePreset": "ninja-6.10.2",
       "configuration": "RelWithDebInfo"
     }
+  ],
+  "include": [
+    "cmake/ApplePresets.json"
   ]
 }
