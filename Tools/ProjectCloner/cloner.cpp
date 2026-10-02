@@ -93,7 +93,7 @@ QMap<QString, QString> discoverQtInstallations()
         for (const auto &versionPath : versionDirectories) {
             QDir versionDir(versionPath);
             const auto kitDirectories = versionDir.entryList(QDir::Dirs | QDir::NoDotAndDotDot,
-                                                               QDir::Name);
+                                                               QDir::Name | QDir::Reversed);
             for (const auto &kitDirectory : kitDirectories) {
                 if (msvcKitRe.match(kitDirectory).hasMatch())
                     addQtPrefix(versionDir.filePath(kitDirectory));
