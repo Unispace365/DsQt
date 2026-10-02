@@ -358,12 +358,9 @@ DsViewer {
         anchors.top: parent.top
         anchors.left: parent.left
         anchors.right: parent.right
-        anchors.leftMargin: DsTheme.dp(24)
-        anchors.rightMargin: DsTheme.dp(24)
-        anchors.topMargin: DsTheme.dp(28)
-        height: titleText.height + DsTheme.dp(14) + tabRow.height
+        height: DsTheme.dp(28) + titleText.height + DsTheme.dp(14) + tabRow.height
 
-        // Keep the launcher movable without taking gestures from the docked keyboard.
+        // Include the top and side padding in the drag area, away from keyboard gestures.
         DragHandler {
             target: root
             enabled: !panelDrag.enabled
@@ -371,6 +368,10 @@ DsViewer {
 
         Text {
             id: titleText
+            anchors.top: parent.top
+            anchors.left: parent.left
+            anchors.topMargin: DsTheme.dp(28)
+            anchors.leftMargin: DsTheme.dp(24)
             text: "Content Launcher"
             color: DsTheme.surfaceText
             font.family: "Roboto"
@@ -382,6 +383,7 @@ DsViewer {
         Row {
             id: tabRow
             anchors.top: titleText.bottom
+            anchors.left: titleText.left
             anchors.topMargin: DsTheme.dp(14)
             spacing: DsTheme.dp(14)
             TabPill {
