@@ -8,6 +8,7 @@
 
 #include "qqmlcontext.h"
 
+#include <QFuture>
 #include <QSharedPointer>
 #include <QSqlField>
 #include <QString>
@@ -245,6 +246,7 @@ bool DsBridgeSqlQuery::tryLaunchBridgeSync() {
 }
 
 void DsBridgeSqlQuery::stopBridgeSync() {
+#ifndef Q_OS_WASM
     // Disconnect from process events.
     for (const auto& connection : std::as_const(mConnections)) {
         QObject::disconnect(connection);
@@ -253,6 +255,7 @@ void DsBridgeSqlQuery::stopBridgeSync() {
 
     // Make sure our current process is stopped.
     mProcessGuard.reset();
+#endif
 }
 
 // Checks to see if process is started.
@@ -466,10 +469,32 @@ void DsBridgeSqlQuery::queryDatabase() {
     // We are about to read the database, so anything signalled up to this point is covered by this run.
     mIsPending.storeRelaxed(false);
 
+#if QT_CONFIG(thread)
     // Perform update on a background thread.
     QFuture<DatabaseContent> future = QtConcurrent::run([=, this]() { return queryTables(); });
+#else
+    // No threads to hand it to, so read it here and hand the watcher a future
+    // that is already finished.
+    //
+    // This is not an optimisation, it is the difference between working and not.
+    // QtConcurrent::run puts the task on the global QThreadPool, which starts a
+    // QThread to service it -- and in a build without thread support (Qt for
+    // WebAssembly's single-threaded kit, say) QThread::start() cannot create
+    // one. The runnable is then queued behind a worker that never exists: the
+    // future never finishes, `finished` never fires, and the whole content
+    // pipeline stops before its first step with nothing said about it.
+    //
+    // The read is synchronous here, so it blocks whoever called. That is the
+    // honest cost of having no threads, and queryTables() already expects it --
+    // it says which thread it ran on. The rest of the pipeline is unaffected: it
+    // was always chunked across singleShot timers to stay off the main thread's
+    // back, and it still is.
+    QFuture<DatabaseContent> future = QtFuture::makeReadyValueFuture(queryTables());
+#endif
 
-    // Set the future in the watcher to track completion.
+    // Set the future in the watcher to track completion. A future that is already
+    // finished still reports through the watcher, on the next turn of the event
+    // loop, so onUpdated() is reached the same way either way.
     mFutures.setFuture(future);
 }
 
@@ -1027,6 +1052,7 @@ QString DsBridgeSqlQuery::slugifyKey(QString appKey) {
     return appKey.replace(badRe, "_");
 }
 
+#ifndef Q_OS_WASM
 BridgeSyncProcessGuard::BridgeSyncProcessGuard(QProcess& process)
     : mProcess(process) {
 #ifdef Q_OS_WIN
@@ -1080,6 +1106,7 @@ BridgeSyncProcessGuard::~BridgeSyncProcessGuard() {
     CloseHandle(mJobHandle);
 #endif
 }
+#endif // !Q_OS_WASM
 
 DatabaseGuard::DatabaseGuard(QSqlDatabase& database)
     : mDatabase(database)
