@@ -10,13 +10,10 @@ find_package(Qt6 6.9
         Quick
 )
 
-# Qt's WebEngine/Pdf version overrides require a separate component lookup.
-find_package(Qt6 6.9
-    OPTIONAL_COMPONENTS
-        WebEngineQuick
-        Pdf
-        VirtualKeyboard
-)
+# WebEngine and Pdf can have different versions from the base Qt SDK.
+find_package(Qt6WebEngineQuick 6.9 QUIET)
+find_package(Qt6Pdf 6.9 QUIET)
+find_package(Qt6VirtualKeyboard 6.9 QUIET)
 qt_standard_project_setup(REQUIRES 6.9)
 
 add_library(Waffles)
