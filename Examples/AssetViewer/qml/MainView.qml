@@ -1,5 +1,4 @@
-pragma ComponentBehavior: Bound
-
+// DsClusterView creates its delegates without their original QML context; keep them unbound.
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls
@@ -12,6 +11,10 @@ Item {
     anchors.fill: parent
 
     property int nextSeed: 1
+    readonly property list<Button> quickMenuActions: [
+        addImageButton, addWebButton, addLocalImageButton, addVideoButton,
+        addGlassButton, addPdfButton, addGifButton, glassButton, backgroundButton
+    ]
 
     // Local media sets downloaded into data/ (see data/images/gallery and data/videos).
     property var localImages: ["img1.jpg", "img2.jpg", "img3.jpg", "img4.jpg", "img5.jpg", "img6.jpg"]
@@ -123,6 +126,11 @@ Item {
                         font.pixelSize: 24
                         color: Qt.rgba(DsTheme.surfaceText.r, DsTheme.surfaceText.g, DsTheme.surfaceText.b, 0.6)
                     }
+                    Text {
+                        text: qsTr("Quick menu: five fingers or Shift + left-click. Drag to an item and release, or release in the centre to keep it open.")
+                        font.pixelSize: 24
+                        color: DsTheme.surfaceText
+                    }
                 }
 
                 // --- Toolbar. A Flow wraps the controls onto more rows when space is tight, so
@@ -142,9 +150,10 @@ Item {
                         spacing: 20
 
                         ActionButton {
+                            id: addImageButton
                             text: "Add Image"
                             onClicked: {
-                                let seed = nextSeed++
+                                let seed = mainView.nextSeed++
                                 stage.createViewer({
                                     "model": { "title": "Image " + seed, "media": { "filepath": "https://picsum.photos/seed/" + seed + "/800/600", "type": "image", "width": 800, "height": 600 } },
                                     "matchAspectRatio": true,
@@ -156,6 +165,7 @@ Item {
                         }
 
                         ActionButton {
+                            id: addWebButton
                             text: "Add Web"
                             onClicked: {
                                 stage.createViewer({
@@ -171,6 +181,7 @@ Item {
                         }
 
                         ActionButton {
+                            id: addLocalImageButton
                             text: "Add Local Image"
                             onClicked: {
                                 // Local file via %APP% expansion (resolved to a file:// URL by the viewer).
@@ -186,6 +197,7 @@ Item {
                         }
 
                         ActionButton {
+                            id: addVideoButton
                             text: "Add Network Video"
                             onClicked: {
                                 // Network video (mp4). Local videos work the same way via a %APP% path.
@@ -201,6 +213,7 @@ Item {
                         }
 
                         ActionButton {
+                            id: addGlassButton
                             text: "Add Glass"
                             onClicked: {
                                 // No media + media-region glass on = a pure glass panel to compare to Figma.
@@ -216,6 +229,7 @@ Item {
                         }
 
                         ActionButton {
+                            id: addPdfButton
                             text: "Add PDF"
                             onClicked: {
                                 // Multi-page local PDF (exercises the pdf controls: page nav + lock).
@@ -231,6 +245,7 @@ Item {
                         }
 
                         ActionButton {
+                            id: addGifButton
                             text: "Add GIF"
                             onClicked: {
                                 // Animated local GIF (image type -> AnimatedImage; no media controls).
@@ -249,11 +264,13 @@ Item {
                         Rectangle { width: 2; height: 72; color: DsTheme.stroke; opacity: 0.6 }
 
                         ToggleButton {
+                            id: glassButton
                             text: "Glass"
                             on: stage.glassEnabled
                             onClicked: stage.glassEnabled = !stage.glassEnabled
                         }
                         ToggleButton {
+                            id: backgroundButton
                             text: "Background"
                             on: animBg.animated
                             onClicked: animBg.animated = !animBg.animated
@@ -376,5 +393,92 @@ Item {
                 Item { Layout.fillWidth: true; Layout.fillHeight: true }
             }
         ]
+    }
+
+    // Observe clusters above the stage; ordinary pointer events continue to its controls.
+    DsClusterManager {
+        id: quickMenuInput
+        anchors.fill: parent
+        minClusterTouchCount: 5
+        minClusterSeperation: 300
+        boundingBoxSize: 300
+        triggerTime: 0.1
+        holdOpenOnTouch: true
+    }
+
+    DsClusterView {
+        anchors.fill: parent
+        manager: quickMenuInput
+        menuConfig: ({
+            iconPath: "file:///%APP%/data/images/waffles/quick_menu/",
+            fontFamily: "Roboto",
+            fontSize: 12,
+            actions: mainView.quickMenuActions
+        })
+        menuModel: [
+            { icon: "content.svg", iconText: qsTr("Image") },
+            { icon: "search.svg", iconText: qsTr("Web") },
+            { icon: "asset_browsing.svg", iconText: qsTr("Local image") },
+            { icon: "playlist.svg", iconText: qsTr("Video") },
+            { icon: "whiteboard.svg", iconText: qsTr("Glass panel") },
+            { icon: "content.svg", iconText: qsTr("PDF") },
+            { icon: "forward.svg", iconText: qsTr("GIF") },
+            { icon: "arrange.svg", iconText: qsTr("Glass") },
+            { icon: "ambient.svg", iconText: qsTr("Background") }
+        ]
+        delegate: Item {
+            id: menuHost
+            property list<var> model
+            property var config
+            readonly property DsQuickMenu menu: menuLoader.item as DsQuickMenu
+
+            // Release Canvas2D's render resources before the cluster view detaches this host.
+            Loader {
+                id: menuLoader
+                active: false
+                sourceComponent: DsQuickMenu {
+                    id: quickMenu
+                    objectName: "assetViewerQuickMenu"
+                    onItemSelected: (index, position) => {
+                        const button = quickMenu.config.actions[index]
+                        if (button && button.enabled)
+                            button.clicked()
+                    }
+                }
+                onLoaded: {
+                    menuHost.menu.config = menuHost.config
+                    menuHost.menu.model = menuHost.model
+                }
+            }
+
+            Connections {
+                target: menuHost.menu ? menuHost.menu.DsClusterView : null
+                function onAnimateOffFinished() {
+                    menuLoader.active = false
+                    menuHost.DsClusterView.animateOffFinished()
+                }
+            }
+
+            DsClusterView.onMinimumMetChanged: {
+                if (menuHost.DsClusterView.minimumMet) {
+                    menuLoader.active = false
+                    menuLoader.active = true
+                    if (menuLoader.status === Loader.Ready)
+                        menuHost.menu.DsClusterView.minimumMet = true
+                }
+            }
+            DsClusterView.onUpdated: point => {
+                if (menuHost.menu)
+                    menuHost.menu.updatePoint(menuHost.menu.mapFromItem(menuHost, point))
+            }
+            DsClusterView.onReleased: {
+                if (menuHost.menu)
+                    menuHost.menu.DsClusterView.released()
+            }
+            DsClusterView.onRemoved: {
+                if (menuHost.menu)
+                    menuHost.menu.closeMenu()
+            }
+        }
     }
 }

@@ -5,6 +5,8 @@ configure_file(
     ${CMAKE_CURRENT_BINARY_DIR}/core/dsVersion.h
 )
 
+# DsQuickMenuSegment uses the Qt 6.12 Canvas2D QML technology preview.
+find_package(Qt6 6.12 REQUIRED COMPONENTS CanvasPainter)
 qt_standard_project_setup(REQUIRES 6.9)
 
 add_library(Core)
@@ -29,6 +31,7 @@ qt_add_qml_module(Core
         qml/ui/DsMediaViewer.qml
         qml/ui/DsPlaylistView.qml
         qml/ui/DsQuickMenu.qml
+        qml/ui/DsQuickMenuSegment.qml
 
     SOURCES
         core/dsEnvironment.cpp core/dsEnvironment.h
