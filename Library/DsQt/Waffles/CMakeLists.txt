@@ -56,6 +56,8 @@ qt_add_qml_module(Waffles
         qml/waffles/media_viewer/DsControlSet.qml
         qml/waffles/media_viewer/DsTitledMediaViewer.qml
         qml/waffles/playlist/DsMediaTemplate.qml
+        qml/waffles/playlist/DsCustomLayoutTemplate.qml
+        qml/waffles/playlist/DsCustomLayoutMedia.qml
         qml/waffles/playlist/DsPlaylistViewer.qml
         qml/waffles/playlist/PresentationController.qml
         qml/waffles/menu_launcher/DsContentLauncher.qml

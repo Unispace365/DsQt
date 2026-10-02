@@ -6,6 +6,19 @@ without losing track. Candidate for Jira import later.
 Convention: `- [ ] **Title** (area) — one-line note.`
 Check the box when done; move long-finished items to the bottom or delete.
 
+## Current demo work
+
+- [x] **Custom Layout** — render the CMS's HD and wide-wall frames, positioned media, backgrounds,
+      drag/pinch behavior and hotspot destinations.
+- [x] **Connected demo** — add two custom-layout slides linking the existing interactive playlists.
+- [x] **Slide resume** — return from ambient to the last slide, matching by uid after CMS reordering.
+- [x] **Interaction walkthrough** — automated checks cover layout geometry, presentation/slide/asset links,
+      launcher selection, mouse drag, synthetic two-point touch, whiteboard cleanup and idle return.
+      Live Bridge checks cover both frames, photographic backgrounds and video autoplay/pause/resume.
+      Verification artifacts: `ECPresenter/build/presentation-navigation-check/` (106 assertions passed).
+      Physical touch-display feel and video appearance remain a manual device check; the headless preview
+      renderer is software and does not capture video frames.
+
 ## Features
 
 - [x] **Loop via metadata** (media) — done. `DsTitledMediaViewer` now reads `media.loop` from the

@@ -52,6 +52,11 @@ Item {
     property var _activePlaylist: null
     // The presentation controller bound to the active playlist, or null.
     property var _activePresentationController: null
+    // Templates request destinations; the app resolves them without coupling Waffles to Bridge.
+    signal playlistRequested(var target)
+    signal contentRequested(var target)
+    // Emitted only after successful playback creation, regardless of the navigation source.
+    signal playlistOpened(var item, bool ambient)
 
     property bool menuShown: false
     // Show a small floating button on the stage to summon the launcher when it has been
@@ -650,6 +655,7 @@ Item {
     }
 
     // Open (and play) a playlist full-stage in the `presentation` layer. `props`:
+    //   - playlistItem : source launcher item, retained for current-presentation tracking
     //   - slides  : ordered slide descriptors (DsContentLauncherModel.slidesFor(record))
     //   - ambient : true for auto-advance, false for interactive (advance engine wired next step)
     // Replaces any currently-playing playlist. The stage's playlistTemplateByTypeUid is passed in
@@ -668,8 +674,11 @@ Item {
         wafflesRoot._activePresentationController = null;
 
         let p = {
+            "playlistItem": (props && props.playlistItem) ? props.playlistItem : null,
             "slides":  (props && props.slides) ? props.slides : [],
             "ambient": !!(props && props.ambient),
+            "index": Math.max(0, Math.min((props && props.slides ? props.slides.length : 1) - 1,
+                                          Math.floor(Number(props && props.initialIndex) || 0))),
             "templateByTypeUid": wafflesRoot.playlistTemplateByTypeUid,
             "fadeMs":  wafflesRoot.playlistFadeMs,
             // App-registered custom transitions (per-call override, else the stage-wide map).
@@ -688,7 +697,15 @@ Item {
             wafflesRoot._activePresentationController = oldController;
             return null;
         }
-        if (inst.closeRequested) inst.closeRequested.connect(()=>{ wafflesRoot.closePlaylist(); });
+        if (inst.closeRequested) inst.closeRequested.connect(() => {
+            if (wafflesRoot._activePlaylist === inst) wafflesRoot.closePlaylist();
+        });
+        if (inst.playlistRequested) inst.playlistRequested.connect((target) => {
+            if (wafflesRoot._activePlaylist === inst) wafflesRoot.playlistRequested(target);
+        });
+        if (inst.contentRequested) inst.contentRequested.connect((target) => {
+            if (wafflesRoot._activePlaylist === inst) wafflesRoot.contentRequested(target);
+        });
         wafflesRoot._activePlaylist = inst;
 
         // Show the presentation controller ONLY for interactive playlists (a presentation). Ambient
@@ -708,6 +725,7 @@ Item {
         // fading-in new one, then destroy both once the crossfade has covered them.
         if (oldController) { oldController.shown = false; oldController.destroy(wafflesRoot.playlistFadeMs + 50); }
         if (oldViewer)     { oldViewer.destroy(wafflesRoot.playlistFadeMs + 50); }
+        wafflesRoot.playlistOpened(p.playlistItem, p.ambient);
         return inst;
     }
 

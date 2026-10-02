@@ -29,8 +29,8 @@ import Dsqt.Bridge
 // Data sources (per the conventional "platform + interactive event" pattern):
 //   - The current Platform record's menu-content link field (default appKey: `default_content`).
 //   - The currently-active Interactive Event record's menu-content link field (default: `content`).
-//   - Plus a "Current Playlist" row sourced from the event's interactive-playlist link if active,
-//     otherwise the platform's default.
+//   - A "Current Playlist" row tracking the selected presentation. Before selection, it uses the
+//     event's interactive-playlist link if active, otherwise the platform's default.
 //
 // Schema-configurable: every value specific to a particular schema (field appKeys, event type
 // names, type-uid → kind mapping, thumbnail/title field candidates, per-type field overrides)
@@ -126,13 +126,20 @@ QtObject {
     // Fallback hold time (seconds) when neither slide nor platform specify one. Apps can drive this
     // from a setting (e.g. [waffles.playlist] defaultHoldTime) by assigning it.
     property real   defaultHoldTimeSeconds: 8
+    property string customLayoutTypeUid: "Pj63JiWllbSY"
+    property var customLayoutFrames: [
+        { uid: "t1bv0BSfh7g6", width: 16, height: 9 },
+        { uid: "nDpUGKOMJHUr", width: 80, height: 27 }
+    ]
 
     // -----------------------------------------------------------------------------------------
     // Outputs (UI binds to these).
     // -----------------------------------------------------------------------------------------
 
     // The CURRENT (interactive) PLAYLIST row, or null.
+    property var defaultPlaylist: null
     property var currentPlaylist: null
+    property string _selectedPlaylistUid: ""
     // The CURRENT AMBIENT (attract-loop) playlist row, or null. Used by the app to auto-start the
     // attract loop on boot and return to it on idle.
     property var currentAmbientPlaylist: null
@@ -266,6 +273,47 @@ QtObject {
         return [];
     }
 
+    // Resolve launcher items, raw records, or LINK uid values through one navigation API.
+    function itemFor(target) {
+        if (!target) return null;
+        let record = target.record || (target.uid ? target : null);
+        if (!record) {
+            const uids = adapter._uidsFromField(target);
+            if (uids.length) record = DsBridge.getRecordById(uids[0]);
+        }
+        return adapter._itemFor(record);
+    }
+
+    function playlistFor(target) {
+        const item = adapter.itemFor(target);
+        return item && item.uid && item.kind === "playlist" ? item : null;
+    }
+
+    // A destination can be a playlist, a particular slide, or a library asset.
+    function navigationFor(target) {
+        const item = adapter.itemFor(target);
+        if (!item || !item.uid) return null;
+        if (item.kind === "playlist") return { playlist: item, slideUid: "" };
+        const parents = adapter._uidsFromField(item.record.parent_uid);
+        for (const uid of parents) {
+            const playlist = adapter.playlistFor(uid);
+            if (!playlist) continue;
+            const slides = adapter._resolveChildren(playlist.record);
+            if (slides.some(slide => slide.uid === item.uid))
+                return { playlist: playlist, slideUid: item.uid };
+        }
+        return { item: item };
+    }
+
+    // Called after a presentation successfully opens. Ambient leaves this return destination intact.
+    function selectPlaylist(target) {
+        const item = adapter.playlistFor(target);
+        if (!item) return;
+        adapter._selectedPlaylistUid = item.uid;
+        adapter.currentPlaylist = item;
+        adapter._runSearch();
+    }
+
     // --- Playlist slides (Phase 0) ---
     // Resolve a playlist record into an ordered list of slide descriptors the playlist viewer
     // consumes. Each slide reuses the launcher item shape (so templates can read `media`/`thumbnail`
@@ -292,10 +340,52 @@ QtObject {
                 "holdTime":          adapter._holdTimeFor(rec),
                 "disableTransition": !!(rec && rec[adapter.disableTransitionField]),
                 "transition":        (rec && rec[adapter.transitionField]) ? ("" + rec[adapter.transitionField]) : "",
-                "record":            rec
+                "record":            rec,
+                "layout":            adapter.layoutFor(rec)
             });
         }
         return out;
+    }
+
+    // Bridge exposes COMPOSITE_AREA values on each media child as <frame uid>_x/y/w/h.
+    function layoutFor(record) {
+        if (!record || (record.type_uid !== adapter.customLayoutTypeUid
+                        && record.type_name !== "Custom Layout Template")) return null;
+        const children = adapter._resolveChildren(record);
+        const frames = [];
+        for (const frame of adapter.customLayoutFrames) {
+            const items = [];
+            for (const child of children) {
+                const rec = child.record;
+                const x = Number(rec[frame.uid + "_x"]);
+                const y = Number(rec[frame.uid + "_y"]);
+                const w = Number(rec[frame.uid + "_w"]);
+                const h = Number(rec[frame.uid + "_h"]);
+                if (!child.media || !isFinite(x) || !isFinite(y)
+                    || !isFinite(w) || !isFinite(h) || w <= 0 || h <= 0) continue;
+                const hotspots = [];
+                for (const spot of adapter._resolveChildren(rec)) {
+                    const area = spot.record;
+                    const destination = adapter._uidsFromField(area.destination)[0];
+                    const sx = Number(area.hotspot_x), sy = Number(area.hotspot_y);
+                    const sw = Number(area.hotspot_w), sh = Number(area.hotspot_h);
+                    if (destination && isFinite(sx) && isFinite(sy)
+                        && isFinite(sw) && isFinite(sh) && sw > 0 && sh > 0)
+                        hotspots.push({ uid: spot.uid, title: spot.title, target: destination,
+                                        x: sx, y: sy, w: sw, h: sh });
+                }
+                items.push({ uid: child.uid, title: child.title, media: child.media,
+                             x: x, y: y, w: w, h: h, hotspots: hotspots,
+                             touchEvents: rec.touch_events !== false,
+                             autoplay: rec.autoplay !== false, loop: !!rec.loop,
+                             volume: isFinite(Number(rec.volume)) ? Math.max(0, Math.min(100, Number(rec.volume))) / 100 : 0.5,
+                             pageNumber: Math.max(1, Number(rec.page_number) || 1) });
+            }
+            if (items.length) frames.push({ uid: frame.uid, width: frame.width, height: frame.height, items: items });
+        }
+        return { frames: frames, background: record.background_media || null,
+                 headline: record.headline || "", subHeadline: record.sub_headline || "",
+                 tagline: record.tagline || "" };
     }
 
     // Resolve a slide's ambient auto-advance hold time (seconds): the slide's own field, else the
@@ -507,7 +597,12 @@ QtObject {
             .concat(adapter._resolveLinks(platform, platContent))
             .concat(adapter._resolveLinks(eventRec, evtContent));
 
-        adapter.currentPlaylist = cp;
+        adapter.defaultPlaylist = cp;
+        // Bridge refreshes recreate records. Keep the user's presentation by stable uid,
+        // refreshing its title/record handle; fall back only if that playlist was removed.
+        const selected = adapter.playlistFor(adapter._selectedPlaylistUid);
+        if (!selected) adapter._selectedPlaylistUid = "";
+        adapter.currentPlaylist = selected || cp;
         adapter.currentAmbientPlaylist = ap;
         adapter.library = lib;
 

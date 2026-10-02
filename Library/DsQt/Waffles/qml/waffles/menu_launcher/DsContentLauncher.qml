@@ -363,6 +363,12 @@ DsViewer {
         anchors.topMargin: DsTheme.dp(28)
         height: titleText.height + DsTheme.dp(14) + tabRow.height
 
+        // Keep the launcher movable without taking gestures from the docked keyboard.
+        DragHandler {
+            target: root
+            enabled: !panelDrag.enabled
+        }
+
         Text {
             id: titleText
             text: "Content Launcher"
@@ -401,10 +407,11 @@ DsViewer {
     //     gutters, around the close button) → the launcher itself drags.
     // Disabled while the docked keyboard is up: this root handler would otherwise steal the
     // press-hold-drag the virtual keyboard uses to pick alternate (long-press) keys, moving the
-    // launcher instead of selecting the character.
+    // launcher instead of selecting the character. The header handler stays available.
     DragHandler {
+        id: panelDrag
         target: root
-        enabled: !(keyboardLoader.item && keyboardLoader.item.panelActive)
+        enabled: !(keyboardLoader.status === Loader.Ready && keyboardLoader.item && keyboardLoader.item.panelActive)
     }
 
     // --- Body: Loader between Content and Search panes. ----------------------------------------
@@ -525,7 +532,12 @@ DsViewer {
                 Layout.fillWidth: true
                 item: root.model ? root.model.currentPlaylist : null
                 selected: false
-                onActivated: if (root.model && root.model.currentPlaylist) root.model.enter(root.model.currentPlaylist)
+                onActivated: {
+                    const item = root.model ? root.model.currentPlaylist : null;
+                    if (!item) return;
+                    if (item.hasChildren) root.model.enter(item);
+                    else root.openRequested(item);
+                }
             }
 
             // CONTENT LIBRARY header (root only).
@@ -566,11 +578,13 @@ DsViewer {
                 }
 
                 ScrollBar.vertical: ScrollBar {
-                    width: 4
+                    width: DsTheme.dp(6)
+                    padding: 0
                     policy: ScrollBar.AsNeeded
+                    visible: size < 1.0
                     contentItem: Rectangle {
-                        implicitWidth: 4
-                        radius: 2
+                        implicitWidth: DsTheme.dp(6)
+                        radius: width / 2
                         color: DsTheme.track
                     }
                     background: null
@@ -651,11 +665,13 @@ DsViewer {
                     }
 
                     ScrollBar.vertical: ScrollBar {
-                        width: 4
+                        width: DsTheme.dp(6)
+                        padding: 0
                         policy: ScrollBar.AsNeeded
+                        visible: size < 1.0
                         contentItem: Rectangle {
-                            implicitWidth: 4
-                            radius: 2
+                            implicitWidth: DsTheme.dp(6)
+                            radius: width / 2
                             color: DsTheme.track
                         }
                         background: null

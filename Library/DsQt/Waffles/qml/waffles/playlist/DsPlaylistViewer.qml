@@ -25,6 +25,7 @@ Item {
     // Ordered slide descriptors (from DsContentLauncherModel.slidesFor):
     //   { uid, title, kind, typeUid, media, thumbnail, holdTime, disableTransition, transition, record }
     property var slides: []
+    property var playlistItem: null
     // ambient = auto-advance on a timer; interactive = manual next/prev.
     property bool ambient: false
     // Pauses ambient auto-advance (toggled by the presentation controller's play/pause).
@@ -45,6 +46,9 @@ Item {
     readonly property var currentSlide: pv._slideAt(pv.index)
 
     signal closeRequested()
+    // A slide template may emit playlistRequested(item, record, or uid) for a presentation link.
+    signal playlistRequested(var target)
+    signal contentRequested(var target)
     focus: true
 
     // --- Enter/exit crossfade (the WHOLE viewer's opacity, independent of the per-slide
@@ -85,6 +89,7 @@ Item {
     property Item _front: slotA
     property Item _back:  slotB
     property bool _transitioning: false
+    property bool _initialized: false
 
     component Slot: Item {
         id: slot
@@ -93,12 +98,25 @@ Item {
         property var slideData: null
         property bool slotActive: false
         Loader {
+            id: templateLoader
             anchors.fill: parent
             sourceComponent: slot.slideData ? pv._templateFor(slot.slideData) : null
             onLoaded: {
                 if (!item) return;
                 item.slide = Qt.binding(() => slot.slideData);
                 if ("active" in item) item.active = Qt.binding(() => pv.visible && slot.slotActive);
+            }
+        }
+        Connections {
+            target: templateLoader.status === Loader.Ready ? templateLoader.item : null
+            ignoreUnknownSignals: true
+            function onContentRequested(target) {
+                if (slot.slotActive && pv.visible && !pv._dismissing)
+                    pv.contentRequested(target);
+            }
+            function onPlaylistRequested(target) {
+                if (slot.slotActive && pv.visible && !pv._dismissing)
+                    pv.playlistRequested(target);
             }
         }
     }
@@ -121,6 +139,7 @@ Item {
         pv._front.slotActive = true;
         pv._front.opacity = 1; pv._front.x = 0; pv._front.z = 0;
         pv._back.opacity = 0;  pv._back.slotActive = false; pv._back.z = 1;
+        pv._initialized = true;
         pv.forceActiveFocus();
         pv._restartAdvance();
         pv.opacity = 1;                // fade the whole viewer in
@@ -129,7 +148,7 @@ Item {
     // Advance to slides[index]. NOTE: read the slide via _slideAt(pv.index) directly, NOT via the
     // derived `currentSlide` binding — inside onIndexChanged that binding can still hold the previous
     // value (handler runs before the binding re-evaluates), which made every advance lag one slide.
-    onIndexChanged: pv._advanceTo()
+    onIndexChanged: if (pv._initialized) pv._advanceTo()
 
     function _advanceTo() {
         const slide = pv._slideAt(pv.index);
