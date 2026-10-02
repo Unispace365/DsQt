@@ -17,6 +17,25 @@ Item {
     // launcher above the fullscreen scrim, or to a custom layer added via addLayer() (deferred).
     property string launcherLayer: "modal1"
     property Component viewer: Component { TitledMediaViewer {} }
+    // Replace the whiteboard component or its controls while keeping the drawing API.
+    property Component whiteboard: Component { Whiteboard { shown: false } }
+    readonly property DsWhiteboard activeWhiteboard: whiteboardLoader.item as DsWhiteboard
+    readonly property bool whiteboardShown: activeWhiteboard ? activeWhiteboard.shown : false
+
+    function openWhiteboard() {
+        if (!wafflesRoot.whiteboard) return null;
+        whiteboardLoader.active = true;
+        if (whiteboardLoader.status !== Loader.Ready || !wafflesRoot.activeWhiteboard) return null;
+        wafflesRoot.floatingKeyboardShown = false;
+        wafflesRoot.activeWhiteboard.shown = true;
+        return wafflesRoot.activeWhiteboard;
+    }
+    function closeWhiteboard(reset = false) {
+        if (!wafflesRoot.activeWhiteboard) return;
+        if (reset) wafflesRoot.activeWhiteboard.clear();
+        wafflesRoot.activeWhiteboard.close();
+    }
+
     // Per-type fullscreen controllers (shown while a viewer of that type is fullscreen).
     property Component fullscreenController: Component { FullscreenController {} }
     property Component presentationController: Component { PresentationController {} }
@@ -288,6 +307,15 @@ Item {
                 }
             }
         }
+    }
+
+    // Keep the board alive on close so its drawing survives reopening.
+    Loader {
+        id: whiteboardLoader
+        anchors.fill: parent
+        z: 100
+        active: false
+        sourceComponent: wafflesRoot.whiteboard
     }
 
     // Floating "open launcher" button. Visible when the launcher exists, exposes a `shown`
@@ -701,6 +729,7 @@ Item {
     // every media viewer, dismisses the floating keyboard, and hides the launcher. Leaves the
     // `presentation` layer alone — the ambient playlist lives there; the caller plays/keeps it.
     function clearForeground() {
+        wafflesRoot.closeWhiteboard(true);
         if (wafflesRoot._fullscreenViewer)
             wafflesRoot.setFullscreen(wafflesRoot._fullscreenViewer, false);
         // Snapshot first — closeViewer() mutates viewerLayer.children as it destroys.

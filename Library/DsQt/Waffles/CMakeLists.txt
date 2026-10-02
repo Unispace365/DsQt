@@ -1,20 +1,21 @@
 
 cmake_minimum_required(VERSION 3.29)
 
-find_package(Qt6 6.9
+find_package(Qt6 6.12
     REQUIRED COMPONENTS
         Core
         Gui
         Multimedia
         Qml
         Quick
+        CanvasPainter
 )
 
 # WebEngine and Pdf can have different versions from the base Qt SDK.
 find_package(Qt6WebEngineQuick 6.9 QUIET)
 find_package(Qt6Pdf 6.9 QUIET)
 find_package(Qt6VirtualKeyboard 6.9 QUIET)
-qt_standard_project_setup(REQUIRES 6.9)
+qt_standard_project_setup(REQUIRES 6.12)
 
 add_library(Waffles)
 add_library(Dsqt::Waffles ALIAS Waffles)
@@ -26,6 +27,9 @@ qt_add_qml_module(Waffles
     URI Dsqt.Waffles
     VERSION 1.0
     OUTPUT_TARGETS WafflesTargets
+    SOURCES
+        whiteboard/dsWhiteboardCanvas.h
+        whiteboard/dsWhiteboardCanvas.cpp
     QML_FILES
 
         qml/ux/BottomOuterControls.qml
@@ -40,6 +44,9 @@ qt_add_qml_module(Waffles
         qml/ux/LeftOuterControls.qml
         qml/ux/RightOuterControls.qml
         qml/ux/TitledMediaViewer.qml
+        qml/ux/Whiteboard.qml
+        qml/ux/WhiteboardControls.qml
+        qml/waffles/whiteboard/DsWhiteboard.qml
         qml/ux/TopOuterControls.qml
         qml/waffles/DsController.qml
         qml/waffles/DsGlassBackground.qml
@@ -60,6 +67,15 @@ qt_add_qml_module(Waffles
         qml/ui/DsPdfViewer.qml
 
     RESOURCES
+        data/images/waffles/whiteboard/pen.svg
+        data/images/waffles/whiteboard/highlighter.svg
+        data/images/waffles/whiteboard/eraser.svg
+        data/images/waffles/whiteboard/background.svg
+        data/images/waffles/whiteboard/undo.svg
+        data/images/waffles/whiteboard/redo.svg
+        data/images/waffles/whiteboard/save.svg
+        data/images/waffles/whiteboard/close.svg
+
         # Bundled Roboto variable font (SIL OFL 1.1 — see data/fonts/Roboto/OFL.txt). Loaded by
         # DsTheme via a FontLoader so any app using Dsqt.Waffles automatically gets "Roboto"
         # available in QFontDatabase, regardless of whether the app bundles its own fonts.
@@ -88,6 +104,7 @@ target_link_libraries(Waffles PUBLIC
     Qt6::Gui 
     Qt6::Qml 
     Qt6::Multimedia
+    Qt6::CanvasPainter
     $<TARGET_NAME_IF_EXISTS:Qt6::WebEngineQuick>
     $<TARGET_NAME_IF_EXISTS:Qt6::Pdf>
     $<TARGET_NAME_IF_EXISTS:Qt6::VirtualKeyboard>
@@ -99,7 +116,7 @@ target_include_directories(Waffles
         # During build: use source-tree headers
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
         # Subdirectories needed for Qt's metatype system to find headers
-        #$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/core>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/whiteboard>
         
         # After installation: use installed location
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
