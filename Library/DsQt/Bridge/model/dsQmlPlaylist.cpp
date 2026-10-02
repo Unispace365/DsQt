@@ -1,7 +1,6 @@
 #include "model/dsQmlPlaylist.h"
 
 #include "core/dsEnvironment.h"
-#include "core/dsQmlApplicationEngine.h"
 #include "bridge/dsQmlBridge.h"
 #include <QFileInfo>
 #include <QQmlContext>
@@ -104,11 +103,8 @@ void DsQmlPlaylist::updateNow() {
     // Obtain mode.
     auto mode = m_modes.value(m_mode).toMap();
 
-    // Obtain engine pointer.
-    auto engine = DsQmlApplicationEngine::DefEngine();
-
     // Obtain platform playlist from engine.
-    auto platformUid = engine->getAppSettings()->getOr<QString>("platform.id", "");
+    auto platformUid = Settings::find<QString>("app_settings", "platform.id", "");
     auto platform    = model::ContentModel::find(platformUid);
     if (!platform) return;
 

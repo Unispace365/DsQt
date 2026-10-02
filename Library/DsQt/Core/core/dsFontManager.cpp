@@ -1,5 +1,7 @@
-#include "dsFontManager.h"
-#include "dsSettings.h"
+#include "core/dsFontManager.h"
+#include "core/dsEnvironment.h"
+#include "settings/dsSettingsFile.h"
+
 #include <QGuiApplication>
 #include <QDebug>
 #include <QFile>
@@ -7,13 +9,12 @@
 
 namespace dsqt {
 
-DsFontManager::DsFontManager(DsSettingsRef settings, QObject *parent)
+DsFontManager::DsFontManager(SettingsFile* settings, QObject* parent)
     : QObject(parent)
-    , m_settings(settings)
-{
+    , m_settings(settings) {
 }
 
-int DsFontManager::loadFonts(std::function<QString(const QString&)> expandFunc)
+int DsFontManager::loadFonts()
 {
     if (!m_settings) {
         qWarning() << "DsFontManager::loadFonts: No settings object provided";
@@ -39,8 +40,8 @@ int DsFontManager::loadFonts(std::function<QString(const QString&)> expandFunc)
             continue;
         }
 
-        // Expand path placeholders if expand function is provided
-        QString expandedPath = expandFunc ? expandFunc(path) : path;
+        // Expand path placeholders.
+        QString expandedPath = DsEnvironment::expandq(path);
 
         // Check if file exists
         if (!QFile::exists(expandedPath)) {
@@ -83,17 +84,18 @@ int DsFontManager::loadFonts(std::function<QString(const QString&)> expandFunc)
 
 QFont DsFontManager::createDefaultFont()
 {
+    QFont font;
+
     if (!m_settings) {
         qWarning() << "DsFontManager::createDefaultFont: No settings object provided";
-        return QFont();
+        return font;
     }
 
     auto map = m_settings->get<QVariantMap>("engine.font.default");
-    if(!map.has_value()) {
+    if(map.isEmpty()) {
         qWarning() << "DsFontManager::createDefaultFont: No default font found";
-        return QFont();
+        return font;
     }
-    QFont font;
 
     // Font family settings
     QString family = m_settings->getOr<QString>("engine.font.default.family", "");

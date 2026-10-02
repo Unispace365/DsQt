@@ -219,6 +219,8 @@ class DsBridgeSqlQuery : public QObject {
     void onPublishContent();
 
   private:
+    friend class DSBridgeQueryTest;
+
     /**
      * @brief Attempts to launch the BridgeSync process if not running.
      * @return True if launched or already running, false on failure.
@@ -263,6 +265,7 @@ class DsBridgeSqlQuery : public QObject {
 
   private:
     QAtomicInt                      mIsRunning = false;
+    QAtomicInt                      mIsPending = false;
     QSqlDatabase                    mDatabase;
     DsBridgeWatcher*                mWatcher = nullptr;
     QFutureWatcher<DatabaseContent> mFutures; // Tracks the async task.

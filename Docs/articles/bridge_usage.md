@@ -57,6 +57,10 @@ Item {
 | `getPlatformUid()` | Returns the UID string of the current platform. |
 | `getPlatformUids()` | Returns a list of all platform UIDs. |
 | `getRecordById(uid)` | Returns the `ContentModel` with the given UID, or `null`. |
+| `getTagsForClass(classGuidOrAppKey)` | Returns tag `ContentModel` objects for the specified tag class. |
+| `getRecordsWithTag(tagGuid)` | Returns loaded records carrying the specified tag. |
+| `getRecordsWithTagClass(classGuidOrAppKey)` | Returns loaded records carrying any tag from the specified class. |
+| `getTagsForRecord(recordGuid)` | Returns the tags assigned to the specified loaded record. |
 
 The current platform is determined by the `platform.id` key in `app_settings`. This must match a platform UID in the database before `getPlatformRecord()` will return a result.
 
@@ -83,6 +87,53 @@ Every record also provides these built-in properties:
 | `children` | list | Child `ContentModel` records, in rank order. |
 | `parent_uid` | list of strings | UIDs of the record's parent(s). |
 | `rank` | int | Sort order within the parent slot. |
+
+# Looking Up Tags and Tagged Records
+
+Tag classes can be identified by their GUID (stored as `tag_class_uid`) or their exact CMS
+`app_key`. For example, use `"topic-class"` if that is the CMS key, even though generated record
+properties use the normalized prefix `topic_class`. Matching is case-sensitive; a class GUID takes
+precedence if it also matches another class's app key.
+
+```qml
+const tags = DsBridge.getTagsForClass("topic-class")
+const taggedRecords = DsBridge.getRecordsWithTag("<tag-guid>")
+const topicRecords = DsBridge.getRecordsWithTagClass("topic-class")
+const recordTags = DsBridge.getTagsForRecord("<record-guid>")
+
+for (const tag of tags)
+    console.log(tag.uid, tag.label, tag.tag_class_uid)
+```
+
+All four methods return lists of `ContentModel` objects. Empty or unknown identifiers return an
+empty list. A single tag can also be retrieved with `DsBridge.getRecordById(tagGuid)`.
+
+Associations include both record-level assignments from `record_tags` and selections in `TAGS`
+fields. Repeated assignments, multiple matching fields, and multiple tags in the same class do not
+duplicate results. Record results follow Bridge's loaded record order; tag results follow tag
+catalog order (currently tag UID order). Only records loaded by Bridge are included, so existing
+visibility, completeness, and date filters still apply. The methods do not search tag-like text in
+ordinary fields or infer inherited tags.
+
+Call these methods from QML or the main thread after `bridgeUpdated`. The returned list is a
+snapshot of membership: call the method again on each update to reflect added or removed tags and
+records. For example:
+
+```qml
+Item {
+    id: root
+    property var topicRecords: []
+
+    Component.onCompleted: root.topicRecords = DsBridge.getRecordsWithTagClass("topic-class")
+
+    Connections {
+        target: DsBridge
+        function onBridgeUpdated() {
+            root.topicRecords = DsBridge.getRecordsWithTagClass("topic-class")
+        }
+    }
+}
+```
 
 # Getting the Platform Record
 

@@ -7,11 +7,12 @@ goto :script_start
 echo[
 echo Usage: build_and_install.bat [preset] [-test] [-tools] [-no-configure] [-no-install] [-clean]
 echo                              [-hard-clean] [-rebuild] [-hard-rebuild] [-qt ^<ver^|path^>]
-echo                              [-no-private-reinject]
+echo                              [-no-private-reinject] [-fresh]
 echo[
 echo   preset              : CMake configure preset name ^(default: ninja^)
 echo   -test               : Enable and run unit tests after the Debug build
 echo   -tools              : Build and install ProjectCloner + ClonerSource template
+echo   -fresh / --fresh    : Reset the CMake cache before configuring, keeping build outputs
 echo   -no-configure       : Skip the CMake configure step ^(for fast incremental builds^)
 echo   -no-install         : Skip the install steps entirely
 echo   -clean              : Run cmake --build clean targets and exit
@@ -28,13 +29,18 @@ if defined PRINT_HELP (
 
 :script_start
 
+REM vcvarsall can replace VCPKG_ROOT with Visual Studio's bundled vcpkg.
+REM Preserve the dependency installation selected by the caller.
+set "DSQT_REQUESTED_VCPKG_ROOT=%VCPKG_ROOT%"
 REM Set up the MSVC developer environment if not already active
 call :setup_msvc
 if errorlevel 1 exit /b 1
+if defined DSQT_REQUESTED_VCPKG_ROOT set "VCPKG_ROOT=%DSQT_REQUESTED_VCPKG_ROOT%"
 
 set PRESET=ninja
 set RUN_TESTS=0
 set SKIP_CONFIGURE=0
+set FRESH_CONFIGURE=0
 set SKIP_INSTALL=0
 set DO_CLEAN=0
 set DO_HARD_CLEAN=0
@@ -48,6 +54,9 @@ set NO_PRIVATE_REINJECT=0
 :: Parse arguments — accept preset and flags in any order
 :parse_args
 if "%~1"=="" goto :args_done
+if /i "%~1"=="-fresh"         (set FRESH_CONFIGURE=1& shift & goto :parse_args)
+if /i "%~1"=="--fresh"        (set FRESH_CONFIGURE=1& shift & goto :parse_args)
+if /i "%~1"=="/fresh"         (set FRESH_CONFIGURE=1& shift & goto :parse_args)
 if /i "%~1"=="-test"          (set RUN_TESTS=1& shift & goto :parse_args)
 if /i "%~1"=="/test"          (set RUN_TESTS=1& shift & goto :parse_args)
 if /i "%~1"=="-tools"         (set BUILD_TOOLS=1& shift & goto :parse_args)
@@ -81,6 +90,11 @@ if !PRINT_HELP!==1 (
     goto :usage
 )
 
+if !FRESH_CONFIGURE!==1 if !SKIP_CONFIGURE!==1 (
+    echo ERROR: --fresh cannot be combined with -no-configure.
+    exit /b 2
+)
+
 :: --- Check if VCPKG is installed ---
 if not defined VCPKG_ROOT (
     powershell -NoProfile -Command "Write-Host 'VCPKG_ROOT is not set. Please make sure VCPKG is properly installed.' -ForegroundColor Red"
@@ -91,9 +105,19 @@ if not exist "%VCPKG_ROOT%\vcpkg.exe" (
     exit /b 1
 )
 
+git -C "%VCPKG_ROOT%" rev-parse --git-dir >nul 2>&1
+if errorlevel 1 (
+    echo WARNING: vcpkg's Git checkout is unavailable or not trusted by Git; skipping its update.
+    echo          Run git -C "%VCPKG_ROOT%" status to see the reason.
+    goto :after_vcpkg_update
+)
+
 :: --- Pull the latest VCPKG ---
 call :header "Updating VCPKG"
 pushd "%VCPKG_ROOT%"
+set "VCPKG_HEAD_BEFORE="
+set "VCPKG_HEAD_AFTER="
+for /f "delims=" %%H in ('git rev-parse HEAD 2^>nul') do set "VCPKG_HEAD_BEFORE=%%H"
 git fetch -q
 if %errorlevel% neq 0 (
     powershell -NoProfile -Command "Write-Host 'WARNING: git fetch failed for vcpkg - build may fail if baseline is missing.' -ForegroundColor Yellow"
@@ -105,7 +129,29 @@ if %errorlevel% neq 0 (
         powershell -NoProfile -Command "Write-Host 'vcpkg is up to date.' -ForegroundColor Green"
     )
 )
+for /f "delims=" %%H in ('git rev-parse HEAD 2^>nul') do set "VCPKG_HEAD_AFTER=%%H"
 popd
+
+:: --- Re-bootstrap vcpkg.exe when the sources moved ahead of the binary ---
+:: A plain `git pull` can bring in a newer scripts\vcpkg-tools.json than the installed
+:: vcpkg.exe understands, e.g. "document schema version 2 is not supported by this
+:: version of vcpkg", which then cascades into a missing Ninja / CMAKE_MAKE_PROGRAM.
+set "VCPKG_NEEDS_BOOTSTRAP=0"
+if not "!VCPKG_HEAD_AFTER!"=="!VCPKG_HEAD_BEFORE!" set "VCPKG_NEEDS_BOOTSTRAP=1"
+for /f %%S in ('powershell -NoProfile -Command "$t='%VCPKG_ROOT%\scripts\vcpkg-tools.json'; $e='%VCPKG_ROOT%\vcpkg.exe'; if ((Test-Path $t) -and (Test-Path $e) -and ((Get-Item $t).LastWriteTimeUtc -gt (Get-Item $e).LastWriteTimeUtc)) { '1' } else { '0' }"') do set "VCPKG_TOOLS_STALE=%%S"
+if "!VCPKG_TOOLS_STALE!"=="1" set "VCPKG_NEEDS_BOOTSTRAP=1"
+
+if "!VCPKG_NEEDS_BOOTSTRAP!"=="1" (
+    powershell -NoProfile -Command "Write-Host 'vcpkg sources are newer than vcpkg.exe - re-bootstrapping...' -ForegroundColor Yellow"
+    call "%VCPKG_ROOT%\bootstrap-vcpkg.bat" -disableMetrics
+    if !errorlevel! neq 0 (
+        powershell -NoProfile -Command "Write-Host 'bootstrap-vcpkg.bat failed - cannot continue.' -ForegroundColor Red"
+        exit /b 1
+    )
+    powershell -NoProfile -Command "Write-Host 'vcpkg.exe re-bootstrapped.' -ForegroundColor Green"
+)
+
+:after_vcpkg_update
 
 :: --- Resolve Qt path ---
 if defined QT_PATH (
@@ -161,6 +207,7 @@ if !DO_CLEAN!==1 (
 
 :: Build the cmake configure command
 set CMAKE_CONFIGURE=cmake --preset %PRESET%
+if !FRESH_CONFIGURE!==1 set "CMAKE_CONFIGURE=!CMAKE_CONFIGURE! --fresh"
 if %RUN_TESTS%==1 (
     set CMAKE_CONFIGURE=%CMAKE_CONFIGURE% -DDSQT_BUILD_TESTS=ON
 )
@@ -185,9 +232,10 @@ if %SKIP_CONFIGURE%==1 (
     if %NO_PRIVATE_REINJECT%==1 powershell -NoProfile -Command "Write-Host '    Private reinject: DISABLED' -ForegroundColor Yellow"
     call :gettime CONFIGURE_START
     %CMAKE_CONFIGURE%
-    if %errorlevel% neq 0 (
+    if !errorlevel! neq 0 (
+        set "CONFIGURE_EXIT=!errorlevel!"
         powershell -NoProfile -Command "Write-Host 'Configuration failed.' -ForegroundColor Red"
-        exit /b %errorlevel%
+        exit /b !CONFIGURE_EXIT!
     )
     call :gettime CONFIGURE_END
 )
@@ -393,7 +441,7 @@ goto :eof
 :: Get current time as integer seconds since midnight -> result var
 :: The 1%%x-100 trick forces decimal parsing (avoids octal on 08, 09)
 :gettime
-for /f "tokens=1-3 delims=:." %%a in ("%TIME: =0%") do set /a %1=(1%%a-100)*3600 + (1%%b-100)*60 + (1%%c-100)
+for /f "tokens=1-3 delims=:.," %%a in ("%TIME: =0%") do set /a %1=(1%%a-100)*3600 + (1%%b-100)*60 + (1%%c-100)
 goto :eof
 
 :: Compute elapsed seconds between two integer timestamps -> result var

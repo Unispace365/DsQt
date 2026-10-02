@@ -3,7 +3,7 @@
 #define DSGUIAPPLICATION_H
 
 #include <optional>
-#include <QGuiApplication>
+#include <QApplication>
 #include <QSurfaceFormat>
 #include <QSGRendererInterface>
 #include <QString>
@@ -25,7 +25,7 @@ struct DsGraphicsConfig {
     int swapInterval = 1;
 };
 
-class DsGuiApplication : public QGuiApplication
+class DsGuiApplication : public QApplication
 {
   public:
     DsGuiApplication(int &argc, char **argv);

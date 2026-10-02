@@ -1,29 +1,8 @@
 cmake_minimum_required(VERSION 3.29)
 
-option(DSQT_WITH_TOML "Enable tomlplusplus support" ON)
-option(DSQT_WITH_GLM "Enable GML math library support" OFF)
-
-if(DSQT_WITH_TOML)
-find_package(tomlplusplus CONFIG REQUIRED)
-endif()
-
-
-
-if(DSQT_WITH_GLM)
-    find_package(glm CONFIG REQUIRED)
-endif()
-
 configure_file(
     ${CMAKE_CURRENT_SOURCE_DIR}/core/dsVersion.h.in
     ${CMAKE_CURRENT_BINARY_DIR}/core/dsVersion.h
-)
-
-find_package(Qt6 6.9
-    REQUIRED COMPONENTS
-        Core
-        Gui
-        Qml
-        Quick
 )
 
 qt_standard_project_setup(REQUIRES 6.9)
@@ -46,7 +25,6 @@ qt_add_qml_module(Core
         qml/DsShortcut.qml
         qml/DsScaleLoader.qml
         qml/DsTextFileViewer.qml
-        qml/DsSettingsViewer.qml
         qml/ui/DsAnimateOnOffItem.qml
         qml/ui/DsMediaViewer.qml
         qml/ui/DsPlaylistView.qml
@@ -66,21 +44,17 @@ qt_add_qml_module(Core
         core/dsQmlTextMeasurer.h
         core/dsReloadUrlInterceptor.h core/dsReloadUrlInterceptor.cpp
         model/dsContentModel.cpp model/dsContentModel.h
-        model/dsSettingsTreeModel.cpp model/dsSettingsTreeModel.h
         model/dsQmlTextFileModel.cpp model/dsQmlTextFileModel.h
         model/dsResource.cpp model/dsResource.h
         model/qJsonModel.cpp model/qJsonModel.h
         network/dsNodeWatcher.cpp network/dsNodeWatcher.h
-        settings/dsOverloaded.h
-        settings/dsQmlSettingsProxy.cpp settings/dsQmlSettingsProxy.h
         settings/dsSettings.cpp settings/dsSettings.h
-        settings/dsSettingsBase.cpp
-        settings/dsSettingsCollections.cpp
-        settings/dsSettingsDateTime.cpp
-        settings/dsSettingsGeomCommon.cpp
-        settings/dsSettingsGeomGlm.cpp
-        settings/dsSettingsGeomQt.cpp
-        settings/dsSettingsQColor.cpp
+        settings/dsSettingsFile.cpp settings/dsSettingsFile.h
+        settings/dsSettingsTreeModel.cpp settings/dsSettingsTreeModel.h
+        settings/dsSettingsUtils.h
+        settings/dsSettingsViewerWidget.cpp settings/dsSettingsViewerWidget.h
+        settings/dsQmlSettingsProxy.cpp settings/dsQmlSettingsProxy.h
+        settings/dsQmlSettingsViewerHelper.cpp settings/dsQmlSettingsViewerHelper.h
         ui/dsQmlClock.h ui/dsQmlClock.cpp
         ui/dsQmlClusterManager.h ui/dsQmlClusterManager.cpp
         ui/dsQmlClusterView.h ui/dsQmlClusterView.cpp
@@ -111,6 +85,7 @@ target_link_libraries(Core PUBLIC
     Qt6::Quick 
     Qt6::Gui 
     Qt6::Qml 
+    Qt6::Widgets
     Coreplugin
     $<$<PLATFORM_ID:Windows>:user32> # For WindowHelper
 )
@@ -132,21 +107,7 @@ target_include_directories(Core
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
 
-if(DSQT_WITH_TOML)
-    # tomlplusplus::tomlplusplus (from find_package(tomlplusplus CONFIG)) already
-    # propagates its own include directories and compile definitions via its
-    # INTERFACE target — we don't need to add them manually here. The old
-    # `${tomlplusplus_SOURCE_DIR}` reference only worked with FetchContent and
-    # silently became a no-op after switching to find_package, which meant
-    # downstream consumers lost the toml++ wiring entirely.
-    target_link_libraries(Core PUBLIC tomlplusplus::tomlplusplus)
-    target_compile_definitions(Core PUBLIC DSQT_USE_TOML)
-endif()
-
-if(DSQT_WITH_GLM)
-    target_link_libraries(Core PUBLIC glm::glm)
-    target_compile_definitions(Core PUBLIC DSQT_USE_GLM GLM_ENABLE_EXPERIMENTAL)
-endif()
+target_link_libraries(Core PRIVATE tomlplusplus::tomlplusplus)
 
 # ----------------------------------------------------------------------
 # Installation rules (headers only - target install is in main CMakeLists.txt)
