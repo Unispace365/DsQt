@@ -43,6 +43,10 @@ endif()
 # Vulkan (optional — enables Vulkan backend for Spout texture import)
 # ----------------------------------------------------------------------
 find_package(Vulkan QUIET)
+set(DSQT_SPOUT_VULKAN_ENABLED FALSE PARENT_SCOPE)
+if(Vulkan_FOUND)
+    set(DSQT_SPOUT_VULKAN_ENABLED TRUE PARENT_SCOPE)
+endif()
 
 # ----------------------------------------------------------------------
 # Spout module target
