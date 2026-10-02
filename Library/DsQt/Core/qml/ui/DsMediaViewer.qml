@@ -16,7 +16,7 @@ Item {
     // The source resolved to a loadable URL: network URLs (http/https) pass through, while local
     // and %VAR%-prefixed paths are expanded into proper file URLs. This is what the actual media
     // elements load, so both local and network images/videos work.
-    readonly property url resolvedSource: source !== "" ? Ds.env.expandUrl(source) : ""
+    readonly property url resolvedSource: mediaType !== "capture" && source !== "" ? Ds.env.expandUrl(source) : ""
     // The currently loaded content item (video/web/pdf/image element); lets controls drive it.
     readonly property var mediaItem: contentLoader.item
     // Resolved media kind ("video" | "image" | "web" | "pdf" | "vector" | ""), from the explicit
@@ -25,6 +25,7 @@ Item {
         let ct = contentType.toLowerCase().trim()
         if (!ct) ct = (media && media.type) ? String(media.type).toLowerCase() : ""
         if (ct === "video" || ct === "video stream") return "video"
+        if (ct === "capture") return "capture"
         if (ct === "image" || ct === "image sequence") return "image"
         if (ct === "vector" || ct === "vector sequence") return "vector"
         if (ct === "web" || ct === "youtube") return "web"
@@ -77,6 +78,7 @@ Item {
 
     // Lazy-loaded components from Dsqt.Waffles (resolved at runtime)
     property Component _videoComponent: null
+    property Component _captureComponent: null
     property Component _webComponent: null
     property Component _pdfComponent: null
 
@@ -140,7 +142,9 @@ Item {
             ctype = media && media.type ? media.type : "";
         }
 
-        if(ctype === "video" || ctype === "video stream" ) {
+        if(ctype === "capture") {
+            return _lazyLoad("_captureComponent", "DsCaptureViewer");
+        } else if(ctype === "video" || ctype === "video stream" ) {
             return _lazyLoad("_videoComponent", "DsVideoViewer");
         } else if(ctype === "image") {
             return isCropped ? imageComponent : animatedImageComponent;
@@ -193,6 +197,7 @@ Item {
         Component.onCompleted: sourceComponent = root.getComponentForContent()
         onLoaded: {
             if (item) {
+                if ('captureMedia' in item) item.captureMedia = Qt.binding(() => root.media || ({}))
                 if ('source' in item) item.source = Qt.binding(() => root.resolvedSource)
                 if ('fillMode' in item) item.fillMode = Qt.binding(() => root.fillMode)
                 if ('loops' in item) item.loops = Qt.binding(() => root.loops)

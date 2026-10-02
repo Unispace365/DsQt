@@ -28,6 +28,10 @@ qt_add_qml_module(Waffles
     VERSION 1.0
     OUTPUT_TARGETS WafflesTargets
     SOURCES
+        capture/dsCaptureSource.h
+        capture/dsCaptureSource.cpp
+        capture/dsCaptureSession.h
+        capture/dsCaptureSession.cpp
         whiteboard/dsWhiteboardCanvas.h
         whiteboard/dsWhiteboardCanvas.cpp
     QML_FILES
@@ -65,6 +69,7 @@ qt_add_qml_module(Waffles
         qml/waffles/menu_launcher/DsTestLauncher.qml
 
         qml/ui/DsVideoViewer.qml
+        qml/ui/DsCaptureViewer.qml
         qml/ui/DsWebViewer.qml
         qml/ui/DsPdfViewer.qml
 
@@ -119,6 +124,7 @@ target_include_directories(Waffles
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
         # Subdirectories needed for Qt's metatype system to find headers
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/whiteboard>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/capture>
         
         # After installation: use installed location
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>

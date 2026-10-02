@@ -150,6 +150,7 @@ if(DSQT_BUILD_TESTS)
     add_subdirectory(Tests/Logging)
     add_subdirectory(Tests/BridgeTest)
     add_subdirectory(Tests/Whiteboard)
+    add_subdirectory(Tests/Capture)
 endif()
 
 # ----------------------------------------------------------------------
