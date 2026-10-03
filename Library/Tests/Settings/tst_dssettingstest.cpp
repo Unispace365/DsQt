@@ -1,6 +1,7 @@
 #include <QtTest>
 #include <settings/dsSettings.h>
 #include <settings/dsSettingsFile.h>
+#include <settings/dsQmlSettingsProxy.h>
 #include <memory>
 #include <QDebug>
 #include <QDir>
@@ -47,6 +48,11 @@ class DsSettingsTest : public QObject
 
     void find_shouldReturnTheValueWhenTheKeyExists();
     void find_shouldReturnTheDefaultWhenTheKeyDoesNotExist();
+    void find_variant_shouldPreserveTheStoredValue_data();
+    void find_variant_shouldPreserveTheStoredValue();
+    void find_variant_shouldPreserveDefaults();
+    void qmlProxy_shouldReadTypedValues();
+    void qmlProxy_shouldPreserveDefaults();
     void getOr_shouldReturnTheSettingValueWhentheSettingExist();
     void getOr_shoudReturnTheOrValueWhenTheSettingDoesNotExist();
 
@@ -251,6 +257,99 @@ void DsSettingsTest::find_shouldReturnTheDefaultWhenTheKeyDoesNotExist()
     // No optional any more — an absent key yields the (default-constructed) fallback.
     QVERIFY(!test_settings->contains("not_exist"));
     QVERIFY(test_settings->get<QString>("not_exist").isEmpty());
+}
+
+void DsSettingsTest::find_variant_shouldPreserveTheStoredValue_data()
+{
+    QTest::addColumn<QVariant>("stored");
+    QTest::newRow("string") << QVariant(QStringLiteral("redhat"));
+    QTest::newRow("empty string") << QVariant(QStringLiteral(""));
+    QTest::newRow("false") << QVariant(false);
+    QTest::newRow("zero") << QVariant(0);
+    QTest::newRow("integer64") << QVariant::fromValue(qint64(1) << 40);
+    QTest::newRow("double") << QVariant(1.25);
+    QTest::newRow("color") << QVariant::fromValue(QColor("#441f7e"));
+    QTest::newRow("date") << QVariant(QDate(2026, 10, 3));
+    QTest::newRow("list") << QVariant(QVariantList{1, QStringLiteral("two")});
+    QTest::newRow("empty list") << QVariant(QVariantList{});
+    QTest::newRow("map") << QVariant(QVariantMap{{"style", QStringLiteral("redhat")}});
+    QTest::newRow("empty map") << QVariant(QVariantMap{});
+}
+
+void DsSettingsTest::find_variant_shouldPreserveTheStoredValue()
+{
+    QFETCH(QVariant, stored);
+    auto& settings = dsqt::Settings::instance();
+    settings.setSearchPaths({settingsDir()});
+    dsqt::Settings::add("test_settings");
+    auto* file = settings.settingsFile("test_settings");
+    QVERIFY(file != nullptr);
+    file->setOverride("variant.value", stored);
+
+    const QVariant fallback = QStringLiteral("fallback");
+    const QVariant actual = file->find<QVariant>("variant.value", fallback);
+    QCOMPARE(actual.metaType(), stored.metaType());
+    QCOMPARE(actual, stored);
+    QCOMPARE(file->get<QVariant>("variant.value"), stored);
+    QCOMPARE(file->getOr<QVariant>("variant.value", fallback), stored);
+    QCOMPARE(dsqt::Settings::find<QVariant>("test_settings", "variant.value", fallback), stored);
+    // Also exercise data loaded from TOML, rather than only runtime overrides.
+    QCOMPARE(file->get<QVariant>("no_table"), QVariant(QStringLiteral("test value")));
+}
+
+void DsSettingsTest::find_variant_shouldPreserveDefaults()
+{
+    const QVariant fallback = QVariantMap{{"fallback", true}};
+    QVERIFY(!test_settings->find<QVariant>("not_exist").isValid());
+    QCOMPARE(test_settings->find<QVariant>("not_exist", fallback), fallback);
+    QCOMPARE(test_settings->getOr<QVariant>("not_exist", fallback), fallback);
+    QCOMPARE(dsqt::Settings::find<QVariant>("no_such_settings", "key", fallback), fallback);
+
+    auto& settings = dsqt::Settings::instance();
+    settings.setSearchPaths({settingsDir()});
+    dsqt::Settings::add("test_settings");
+    QCOMPARE(dsqt::Settings::find<QVariant>("test_settings", "not_exist", fallback), fallback);
+}
+
+void DsSettingsTest::qmlProxy_shouldReadTypedValues()
+{
+    auto& settings = dsqt::Settings::instance();
+    settings.setSearchPaths({settingsDir()});
+    dsqt::DsQmlSettingsProxy proxy;
+    proxy.setTarget("test_settings");
+    auto* file = settings.settingsFile("test_settings");
+    QVERIFY(file != nullptr);
+    file->setOverride("waffles.keyboard.style", QStringLiteral("redhat"));
+    proxy.setPrefix("waffles.keyboard");
+    QCOMPARE(proxy.getString("style", "waffles"), QVariant(QStringLiteral("redhat")));
+    file->setOverride("waffles.keyboard.style", QStringLiteral(""));
+    QCOMPARE(proxy.getString("style", "waffles"), QVariant(QStringLiteral("")));
+    file->setOverride("waffles.keyboard.enabled", false);
+    QCOMPARE(proxy.getBool("enabled", true), QVariant(false));
+    file->setOverride("waffles.keyboard.size", 0);
+    QCOMPARE(proxy.getInt("size", 42), QVariant(0));
+
+    proxy.setPrefix("test.int");
+    QCOMPARE(proxy.getInt("int_from_string", -1), QVariant(1024));
+    proxy.setPrefix("test.color.strings");
+    QCOMPARE(proxy.getColor("name", QColor(Qt::red)), QVariant::fromValue(QColor(Qt::blue)));
+    proxy.setPrefix("");
+    QCOMPARE(proxy.getString("no_table"), QVariant(QStringLiteral("test value")));
+}
+
+void DsSettingsTest::qmlProxy_shouldPreserveDefaults()
+{
+    const QVariant fallback = QStringLiteral("fallback");
+    dsqt::DsQmlSettingsProxy proxy;
+    QCOMPARE(proxy.getString("no_table", fallback), fallback);
+    auto& settings = dsqt::Settings::instance();
+    settings.setSearchPaths({settingsDir()});
+    proxy.setTarget("test_settings");
+    QCOMPARE(proxy.getString("not_exist", fallback), fallback);
+    QVERIFY(!proxy.getString("not_exist").isValid());
+    // Arrays and tables must not become scalar strings or numbers.
+    QCOMPARE(proxy.getString("test.strings.string_from_array", fallback), fallback);
+    QCOMPARE(proxy.getInt("test.strings.string_from_table", fallback), fallback);
 }
 
 void DsSettingsTest::getOr_shouldReturnTheSettingValueWhentheSettingExist()
