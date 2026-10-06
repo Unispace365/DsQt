@@ -14,6 +14,8 @@ CMS backend for rapid prototyping and developemnt.
 Documentation is compiled by Doxygen and can be found here:
 <https://unispace365.github.io/DsQt/>
 
+- [DsMultiEffect: alpha masking, edge fades, rounded corners, and adding effects](Docs/articles/multieffect.md)
+
 ## Getting Started
 
 > This version of DsQt has been built and is targeted at Windows. We hope to have Linux and Apple builds.
