@@ -63,7 +63,7 @@ find_package(Qt6 6.9 REQUIRED COMPONENTS Core Quick QuickControls2 Multimedia Gu
 qt_standard_project_setup(REQUIRES 6.9)
 
 # Find Dsqt from installed package (CMAKE_PREFIX_PATH set via CMakePresets.json)
-find_package(Dsqt REQUIRED COMPONENTS Core Bridge Waffles OPTIONAL_COMPONENTS TouchEngine Spout)
+find_package(Dsqt REQUIRED COMPONENTS Core Bridge Waffles Qsys OPTIONAL_COMPONENTS TouchEngine Spout)
 
 message("DSQT is at ${Dsqt_DIR}")
 
@@ -161,7 +161,7 @@ target_include_directories(${DS_EXE_NAME} PRIVATE
 )
 
 # Provide DSQT_HAS_<MODULE> compile definitions for optional plugin imports
-foreach(_comp Core Bridge Waffles TouchEngine Spout)
+foreach(_comp Core Bridge Waffles TouchEngine Spout Qsys)
     if(Dsqt_${_comp}_FOUND)
         target_compile_definitions(${DS_EXE_NAME} PRIVATE DSQT_HAS_${_comp})
     endif()
@@ -175,6 +175,7 @@ target_link_libraries(${DS_EXE_NAME}
         $<$<BOOL:${Dsqt_TouchEngine_FOUND}>:Dsqt::TouchEngine>
         Dsqt::Waffles
         $<$<BOOL:${Dsqt_Spout_FOUND}>:Dsqt::Spout>
+        Dsqt::Qsys
 
         Qt6::Concurrent
         Qt6::Core
