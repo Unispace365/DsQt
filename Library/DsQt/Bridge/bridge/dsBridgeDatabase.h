@@ -175,6 +175,7 @@ class DatabaseContent {
     friend class DatabaseIterator;
     friend class DatabaseTree;
     friend class DsBridgeSqlQuery;
+    friend struct DatabaseContentTestAccess; // Lets unit tests fill the database directly.
 
     /// Links all records to their parents and all parents to their children.
     void buildTree() {

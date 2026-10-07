@@ -105,6 +105,7 @@ if ($junitFiles) {
     # Generate a self-contained HTML report from all JUnit XML files
     $totalTests = 0
     $totalFailures = 0
+    $totalXFail = 0
     $totalTime = 0.0
     $sections = ""
 
@@ -114,6 +115,7 @@ if ($junitFiles) {
             $suiteName = $suite.name
             $suiteTests = 0
             $suiteFailures = 0
+            $suiteXFail = 0
             $suiteTime = 0.0
             $rows = ""
 
@@ -129,7 +131,14 @@ if ($junitFiles) {
                     $totalFailures++
                     $suiteFailures++
                     $status = "<span style='color:#e74c3c;font-weight:bold'>FAIL</span>"
-                    $msg = [System.Web.HttpUtility]::HtmlEncode($failure.message) -replace "`n","<br>"
+                    $msg = [System.Net.WebUtility]::HtmlEncode($failure.message) -replace "`n","<br>"
+                }
+                elseif ($tc.SelectSingleNode("system-out")) {
+                    # QtTest writes the QEXPECT_FAIL comment to <system-out>; a known bug, not a pass.
+                    $totalXFail++
+                    $suiteXFail++
+                    $status = "<span style='color:#f39c12;font-weight:bold'>XFAIL</span>"
+                    $msg = [System.Net.WebUtility]::HtmlEncode($tc.SelectSingleNode("system-out").InnerText.Trim())
                 }
                 else {
                     $status = "<span style='color:#2ecc71;font-weight:bold'>PASS</span>"
@@ -138,12 +147,13 @@ if ($junitFiles) {
                 $rows += "<tr><td>$name</td><td>$status</td><td>${time}s</td><td style='font-size:0.85em'>$msg</td></tr>`n"
             }
 
-            $suitePassed = $suiteTests - $suiteFailures
+            $suitePassed = $suiteTests - $suiteFailures - $suiteXFail
+            $suiteXFailText = if ($suiteXFail -gt 0) { ", $suiteXFail expected failures" } else { "" }
             $suiteIcon = if ($suiteFailures -eq 0) { "<span style='color:#2ecc71'>&#x2714;</span>" } else { "<span style='color:#e74c3c'>&#x2718;</span>" }
             $openAttr = if ($suiteFailures -gt 0) { " open" } else { " open" }
             $sections += @"
 <details class="suite"$openAttr>
-  <summary>$suiteIcon $suiteName <span class="suite-stats">$suitePassed / $suiteTests passed &mdash; $([math]::Round($suiteTime, 3))s</span></summary>
+  <summary>$suiteIcon $suiteName <span class="suite-stats">$suitePassed / $suiteTests passed$suiteXFailText &mdash; $([math]::Round($suiteTime, 3))s</span></summary>
   <table>
   <tr><th>Test</th><th>Status</th><th>Time</th><th>Details</th></tr>
   $rows
@@ -154,7 +164,8 @@ if ($junitFiles) {
         }
     }
 
-    $passed = $totalTests - $totalFailures
+    $passed = $totalTests - $totalFailures - $totalXFail
+    $xfailText = if ($totalXFail -gt 0) { " &mdash; <span style='color:#f39c12'>$totalXFail expected failures (known bugs)</span>" } else { "" }
     $summaryColor = if ($totalFailures -eq 0) { "#2ecc71" } else { "#e74c3c" }
 
     $html = @"
@@ -186,7 +197,7 @@ if ($junitFiles) {
 <h1>DsQt Test Report</h1>
 <div class="summary">
   <span class="count">$passed / $totalTests passed</span>
-  &mdash; $totalFailures failures &mdash; $([math]::Round($totalTime, 2))s total
+  &mdash; $totalFailures failures$xfailText &mdash; $([math]::Round($totalTime, 2))s total
 </div>
 $sections
 <p style="color:#666;margin-top:2em;font-size:0.85em">

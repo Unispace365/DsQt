@@ -95,6 +95,25 @@
         "ninja-base"
       ],
       "binaryDir": "${sourceDir}/build/ninja-6.11.1"
+    },
+    {
+      "name": "qt-6.12.0",
+      "hidden": true,
+      "inherits": "vcpkg-base",
+      "cacheVariables": {
+        "CMAKE_PREFIX_PATH": "C:/Qt/6.12.0/msvc2022_64",
+        "CMAKE_INSTALL_PREFIX": "$env{USERPROFILE}/Documents/DsQt",
+        "VCPKG_TARGET_TRIPLET": "x64-windows-qt6-12-0"
+      }
+    },
+    {
+      "name": "ninja-6.12.0",
+      "displayName": "Ninja - Qt 6.12.0",
+      "inherits": [
+        "qt-6.12.0",
+        "ninja-base"
+      ],
+      "binaryDir": "${sourceDir}/build/ninja-6.12.0"
     }
   ],
   "buildPresets": [
@@ -171,6 +190,21 @@
     {
       "name": "ninja-6.11.1-relwithdebinfo",
       "configurePreset": "ninja-6.11.1",
+      "configuration": "RelWithDebInfo"
+    },
+    {
+      "name": "ninja-6.12.0-debug",
+      "configurePreset": "ninja-6.12.0",
+      "configuration": "Debug"
+    },
+    {
+      "name": "ninja-6.12.0-release",
+      "configurePreset": "ninja-6.12.0",
+      "configuration": "Release"
+    },
+    {
+      "name": "ninja-6.12.0-relwithdebinfo",
+      "configurePreset": "ninja-6.12.0",
       "configuration": "RelWithDebInfo"
     }
   ]

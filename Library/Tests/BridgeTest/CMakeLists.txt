@@ -1,96 +1,50 @@
 cmake_minimum_required(VERSION 3.29)
-include(FetchContent)
 
-#project info
-set(DS_APP_NAME bridgeQuery)
-set(DS_EXE_NAME test_${DS_APP_NAME})
-set(DS_APP_VERSION "1.0.0.0")
-set(DS_PROJECT_NAME "Bridge Query")
-set(DS_PROJECT_DESC "Bridge Query")
+# Unit tests for the generic Bridge types in dsBridgeDatabase.h: DatabaseRecord, DatabaseResource,
+# DatabaseContent, DatabaseTree and the event helpers. They do not use a database or any project schema; records are
+# built by hand, with the same value types that DsBridgeSqlQuery produces for each CMS field type.
+#
+# Enabled by -DDSQT_BUILD_TESTS=ON (see Library/CMakeLists.txt and run-tests.ps1).
+# Some tests are marked with QEXPECT_FAIL: they document known bugs and will report "XPASS" once the bug is fixed.
 
-#project(${DS_APP_NAME} VERSION 0.1 LANGUAGES CXX)
+project(test_ds_bridge VERSION 0.1 LANGUAGES CXX)
 
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_INSTALL_PREFIX "${CMAKE_BINARY_DIR}/DEPLOY/")
-set(QT_QML_GENERATE_QMLLS_INI ON)
-set(DS_QT_DLLS_SUBDIR ON CACHE BOOL "Set to ON to copy the Qt dlls to a subdirectory of the install directory. Default is ON.")
-find_package(Qt6 6.9 REQUIRED COMPONENTS Quick Gui ShaderTools Core Sql Test)
+set(CMAKE_AUTOMOC ON)
+
+find_package(Qt6 6.9 REQUIRED COMPONENTS Core Test)
 qt_standard_project_setup(REQUIRES 6.9)
-
-
-
 
 enable_testing()
 
+# One executable per test class, so that every test gets its own result file.
+function(add_bridge_test NAME)
+    qt_add_executable(${NAME}
+        ${NAME}.cpp
+        testHelpers.h
+    )
 
-qt_add_executable(${DS_EXE_NAME}
-    tst_dsbridgequerytest.cpp
-)
+    target_link_libraries(${NAME} PRIVATE
+        Dsqt::Bridge Qt6::Test
+    )
 
-add_test(NAME ${DS_EXE_NAME} COMMAND ${DS_EXE_NAME})
+    # Console output is required for test runners (ctest, CI)
+    set_target_properties(${NAME} PROPERTIES
+        WIN32_EXECUTABLE FALSE
+    )
 
-#get the settings to show up in the IDE
-message("adding test settings target")
-file(GLOB_RECURSE TEST_SETTINGS LIST_DIRECTORIES false ${CMAKE_CURRENT_SOURCE_DIR}/settings/*)
-#LIST(APPEND DS_SETTINGS qt.conf)
-#LIST(APPEND DS_SETTINGS .qmlls.ini)
-add_custom_target(test-settings SOURCES ${TEST_SETTINGS})
+    # Register with ctest, and write JUnit XML for CI reporting.
+    add_test(NAME ${NAME} COMMAND ${NAME}
+        -o "${CMAKE_CURRENT_BINARY_DIR}/${NAME}.xml,junitxml"
+        -o -,txt
+    )
+    set_tests_properties(${NAME} PROPERTIES
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+    )
+endfunction()
 
-file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/settings)
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/settings/test_settings.toml ${CMAKE_BINARY_DIR}/settings COPYONLY)
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/settings/engine.toml ${CMAKE_BINARY_DIR}/settings COPYONLY)
-
-# Qt for iOS sets MACOSX_BUNDLE_GUI_IDENTIFIER automatically since Qt 6.1.
-# If you are developing for iOS or macOS you should consider setting an
-# explicit, fixed bundle identifier manually though.
-set_target_properties(${DS_EXE_NAME} PROPERTIES
-#    MACOSX_BUNDLE_GUI_IDENTIFIER com.example.${DS_EXE_NAME}
-    MACOSX_BUNDLE_BUNDLE_VERSION ${PROJECT_VERSION}
-    MACOSX_BUNDLE_SHORT_VERSION_STRING ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}
-    MACOSX_BUNDLE TRUE
-    WIN32_EXECUTABLE TRUE
-)
-
-##Fetch toml++
-FetchContent_Declare(
-    tomlplusplus
-    GIT_REPOSITORY https://github.com/marzer/tomlplusplus.git
-    GIT_TAG        v3.4.0
-    #PREFIX ${CMAKE_DIR_LOCATION}/_deps
-)
-FetchContent_GetProperties(tomlplusplus)
-FetchContent_MakeAvailable(tomlplusplus)
-
-FetchContent_Declare(
-    qtimgui
-    GIT_REPOSITORY https://github.com/alpqr/qrhiimgui2.git
-    GIT_TAG        94c99a8f141469169421d17b64007793988c4009
-    #PREFIX ${CMAKE_DIR_LOCATION}/_deps
-)
-FetchContent_GetProperties(qtimgui)
-FetchContent_MakeAvailable(qtimgui)
-
-target_include_directories(${DS_EXE_NAME} PRIVATE ${Dsqt_INCLUDES} Qt6::ShaderToolsPrivate)
-
-##connect qrhiimgui
-set(imgui_base ${qtimgui_SOURCE_DIR}/imgui)
-set(imgui_target ${DS_EXE_NAME})
-include(${imgui_base}/imgui.cmakeinc)
-include(${imgui_base}/imguiquick.cmakeinc)
-
-##connect toml++
-target_include_directories(${DS_EXE_NAME} PUBLIC ${tomlplusplus_SOURCE_DIR}/include)
-
-target_include_directories(${DS_EXE_NAME} PUBLIC ${tomlplusplus_SOURCE_DIR}/include)
-
-target_link_libraries(${DS_EXE_NAME}
-    PRIVATE Qt6::Quick Dsqt Dsqtplugin Dsqtplugin_init Dsqt_resources_1 Dsqt_resources_2 Dsqt_resources_3 Qt6::Sql Qt6::GuiPrivate Qt6::Gui Qt6::ShaderTools Qt6::ShaderToolsPrivate Qt6::Test
-)
-
-target_include_directories(${DS_EXE_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} "../." ${imgui_base})
-
-include(GNUInstallDirs)
-
-
-
-
+add_bridge_test(tst_databaseresource)
+add_bridge_test(tst_databaserecord)
+add_bridge_test(tst_databasecontent)
+add_bridge_test(tst_databaseevents)
