@@ -52,6 +52,7 @@ Documentation is compiled by Doxygen and can be found here:
                 * Qt Quick 3d
                 * Qt Quick Effect Maker
                 * Qt WebChannel
+                * Qt WebSockets
                 * (Everything else you can get just to be safe)
     * Qt Creator (check all boxes)
 5. Depending on what you selected this can take a while to download (hours sometimes).
@@ -222,6 +223,7 @@ For detailed documentation, see the articles in [Docs/articles/](Docs/articles/)
 4. [SVG Color Reference](Docs/articles/svg_color_reference.md) - Working with SVG colors
 5. [Installer Guide](Docs/articles/installer_guide.md) - Building Windows installers with Inno Setup
 6. [TouchFilter Guide](Docs/articles/touch_filter.md) - Touch event filtering, jitter smoothing, transient suppression, and debug overlay
+7. [Q-Sys Integration](Docs/articles/qsys_usage.md) - Engine settings, QML/C++ updates, and commands through the Elevate plugin
 
 ## Generating documentation
 

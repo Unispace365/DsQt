@@ -34,6 +34,9 @@ Q_IMPORT_QML_PLUGIN(Dsqt_WafflesPlugin)
 #ifdef DSQT_HAS_Spout
 Q_IMPORT_QML_PLUGIN(Dsqt_SpoutPlugin)
 #endif
+#ifdef DSQT_HAS_Qsys
+Q_IMPORT_QML_PLUGIN(Dsqt_QsysPlugin)
+#endif
 
 //activate high performance graphics on windows laptops with dual graphics cards
 #ifdef Q_OS_WIN
