@@ -38,6 +38,15 @@ DsViewer {
 
     // The bridge-agnostic data adapter (see contract above).
     property var model: null
+    property var searchFilters: root.model && root.model.searchFilters !== undefined
+        ? root.model.searchFilters : [
+            { label: qsTr("All") },
+            { label: qsTr("Images"), kinds: ["image"] },
+            { label: qsTr("Video"), kinds: ["video"] },
+            { label: qsTr("PDF"), kinds: ["pdf"] },
+            { label: qsTr("Web"), kinds: ["weblink"] },
+            { label: qsTr("Folders"), kinds: ["folder", "playlist"] }
+        ]
 
     // Emitted when a leaf (non-folder/non-playlist) row is tapped.
     signal openRequested(var item)
@@ -202,8 +211,11 @@ DsViewer {
         id: chip
         property string label
         property var kinds: []
+        property var typeUids: []
         property var targetModel: null
-        readonly property bool active: chip.targetModel ? root._kindsEqual(chip.targetModel.searchKinds, chip.kinds) : false
+        readonly property bool active: chip.targetModel
+            ? root._kindsEqual(chip.targetModel.searchKinds, chip.kinds)
+              && root._kindsEqual(chip.targetModel.searchTypeUids || [], chip.typeUids) : false
         implicitHeight: DsTheme.dp(32)
         implicitWidth: chipText.implicitWidth + DsTheme.dp(28)
         radius: DsTheme.dp(16)
@@ -218,7 +230,14 @@ DsViewer {
             font.family: "Roboto"
             font.pixelSize: DsTheme.dp(13)
         }
-        TapHandler { onTapped: if (chip.targetModel) chip.targetModel.searchKinds = chip.kinds }
+        TapHandler {
+            onTapped: {
+                if (!chip.targetModel) return;
+                if (typeof chip.targetModel.setSearchFilter === "function")
+                    chip.targetModel.setSearchFilter({ kinds: chip.kinds, typeUids: chip.typeUids });
+                else chip.targetModel.searchKinds = chip.kinds;
+            }
+        }
     }
 
     // A single launcher row — 34px leading slot (thumbnail or kind-icon), title, trailing icon.
@@ -517,6 +536,7 @@ DsViewer {
             // CURRENT PLAYLIST header (root only, when there is a playlist).
             Text {
                 visible: root.model && root.model.atRoot && root.model.currentPlaylist
+                         && root.model.currentPlaylist.launcherVisible !== false
                 text: "CURRENT PLAYLIST"
                 color: Qt.rgba(DsTheme.surfaceText.r, DsTheme.surfaceText.g, DsTheme.surfaceText.b, 0.55)
                 font.family: "Roboto"
@@ -531,6 +551,7 @@ DsViewer {
             // The current-playlist row (root only).
             LauncherRow {
                 visible: root.model && root.model.atRoot && root.model.currentPlaylist
+                         && root.model.currentPlaylist.launcherVisible !== false
                 Layout.fillWidth: true
                 item: root.model ? root.model.currentPlaylist : null
                 selected: false
@@ -610,12 +631,16 @@ DsViewer {
                 Layout.bottomMargin: DsTheme.dp(12)
                 spacing: DsTheme.dp(8)
 
-                FilterChip { label: "All";     kinds: [];                     targetModel: root.model }
-                FilterChip { label: "Images";  kinds: ["image"];              targetModel: root.model }
-                FilterChip { label: "Video";   kinds: ["video"];              targetModel: root.model }
-                FilterChip { label: "PDF";     kinds: ["pdf"];                targetModel: root.model }
-                FilterChip { label: "Web";     kinds: ["weblink"];            targetModel: root.model }
-                FilterChip { label: "Folders"; kinds: ["folder", "playlist"]; targetModel: root.model }
+                Repeater {
+                    model: root.searchFilters
+                    delegate: FilterChip {
+                        required property var modelData
+                        label: modelData.label || ""
+                        kinds: modelData.kinds || []
+                        typeUids: modelData.typeUids || []
+                        targetModel: root.model
+                    }
+                }
             }
 
             // Results, with prompt / no-results empty states.
@@ -632,7 +657,8 @@ DsViewer {
                     text: {
                         if (!root.model) return "";
                         const hasQuery  = ("" + root.model.searchQuery).trim().length > 0;
-                        const hasFilter = (root.model.searchKinds || []).length > 0;
+                        const hasFilter = (root.model.searchKinds || []).length > 0
+                                       || (root.model.searchTypeUids || []).length > 0;
                         return (!hasQuery && !hasFilter) ? "Type to search the content library"
                                                          : "No matching content";
                     }

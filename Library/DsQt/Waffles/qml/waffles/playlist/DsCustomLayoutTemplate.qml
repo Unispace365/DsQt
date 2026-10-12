@@ -7,8 +7,8 @@ Item {
     id: root
     property var slide: null
     property bool active: true
-    // Override to pin a particular CMS frame; otherwise choose the closest authored aspect ratio.
-    property string frameUid: ""
+    // Explicit application frame selection is strict. Empty selects the closest authored aspect.
+    property string frameUid: root.layout ? root.layout.frameUid || "" : ""
     readonly property var layout: slide ? slide.layout : null
     readonly property var frames: layout && layout.frames ? layout.frames : []
     readonly property var frame: {
@@ -19,14 +19,27 @@ Item {
             const delta = Math.abs(Math.log(aspect / (candidate.width / candidate.height)));
             if (delta < distance) { best = candidate; distance = delta; }
         }
-        return best;
+        return root.frameUid ? null : best;
     }
+    readonly property bool missingFrame: !!root.layout && !!root.frameUid && !root.frame
+    property string _reportedMissingFrame: ""
+    function _reportMissingFrame() {
+        const key = root.missingFrame ? ((root.slide ? root.slide.uid : "") + ":" + root.frameUid) : "";
+        if (key && key !== root._reportedMissingFrame)
+            console.warn("[DsCustomLayoutTemplate] No authored content for frame", root.frameUid,
+                         "on slide", root.slide ? root.slide.uid : "");
+        root._reportedMissingFrame = key;
+    }
+    onMissingFrameChanged: Qt.callLater(root._reportMissingFrame)
+    onFrameUidChanged: Qt.callLater(root._reportMissingFrame)
+    onSlideChanged: Qt.callLater(root._reportMissingFrame)
     readonly property bool hasBackground: !!(layout && layout.background && layout.background.filepath)
     signal contentRequested(var target)
 
     Item {
         id: canvas
         objectName: "customLayoutCanvas"
+        visible: !root.missingFrame
         anchors.centerIn: parent
         width: root.frame ? Math.min(root.width, root.height * root.frame.width / root.frame.height) : root.width
         height: root.frame ? width * root.frame.height / root.frame.width : root.height

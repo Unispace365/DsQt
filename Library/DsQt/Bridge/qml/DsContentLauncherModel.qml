@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import Dsqt.Core
 import Dsqt.Bridge
 
 // Content Launcher data adapter — reads the running bridge and produces the generic item shape
@@ -17,7 +18,7 @@ import Dsqt.Bridge
 //     records? Useful for consumers like a presentation viewer that wants to walk the children
 //     once an item is opened.
 //   - `hasChildren` is a *UX hint* — should the launcher drill into this item on tap, or open
-//     it via `openRequested`? Derived purely from `kind` being in `drillableKinds`.
+//     it via `openRequested`? Per-type tapAction wins, otherwise use `drillableKinds`.
 // So a Presentation (record has children → openable in a presentation viewer) is `kind` =
 // `"presentation"` (not in drillableKinds) → tap opens, no drill. An empty folder is still
 // drillable. A Bridge "Assets" container that holds media → map to `"folder"` (default does
@@ -34,26 +35,79 @@ import Dsqt.Bridge
 //
 // Schema-configurable: every value specific to a particular schema (field appKeys, event type
 // names, type-uid → kind mapping, thumbnail/title field candidates, per-type field overrides)
-// is exposed as a writable property. To use this adapter against a different schema, override
-// just the properties — no JS/imperative code required.
+// is exposed as a writable property with defaults from app_settings.waffles.content.
+// Apps can configure waffles_content.toml or override properties directly in QML.
 QtObject {
     id: adapter
+
+    // App-owned schema configuration. Explicit QML assignments still override these bindings.
+    property DsSettingsProxy _settings: DsSettingsProxy { target: "app_settings"; prefix: "waffles" }
+    property int _settingsRevision: 0
+    property var contentConfig: {
+        adapter._settingsRevision;
+        return adapter._settings.getObj("content", {});
+    }
+    property Connections _settingsConnection: Connections {
+        target: Settings.app_settings || null
+        function onSettingsRebuilt() { ++adapter._settingsRevision; }
+    }
+    property var typeDefinitions: adapter.contentConfig.types || ({})
+    property string unknownTypePolicy: adapter.contentConfig.unknownTypePolicy || "show"
+    property string frameUid: (adapter.contentConfig.layout || {}).frameUid || ""
+    property var templateDefinitions: adapter.contentConfig.templates !== undefined
+        ? adapter.contentConfig.templates
+        : ({ [adapter.customLayoutTypeUid]: { renderer: "customLayout", frames: adapter.customLayoutFrames } })
+    property var searchFilters: (adapter.contentConfig.launcher || {}).filters || [
+        { label: qsTr("All") },
+        { label: qsTr("Images"), kinds: ["image"] },
+        { label: qsTr("Video"), kinds: ["video"] },
+        { label: qsTr("PDF"), kinds: ["pdf"] },
+        { label: qsTr("Web"), kinds: ["weblink"] },
+        { label: qsTr("Folders"), kinds: ["folder", "playlist"] }
+    ]
+
+    function _config(section, key, fallback) {
+        const values = section ? adapter.contentConfig[section] : adapter.contentConfig;
+        return values && values[key] !== undefined ? values[key] : fallback;
+    }
+
+    // The app provides Components by renderer name; settings contain no executable QML paths.
+    function templateComponents(renderers) {
+        const result = {};
+        for (const uid of Object.keys(adapter.templateDefinitions)) {
+            const name = adapter.templateDefinitions[uid].renderer;
+            if (renderers[name]) result[uid] = renderers[name];
+            else console.warn("[DsContentLauncherModel] Unregistered renderer", name, "for type", uid);
+        }
+        return result;
+    }
+
+    property bool _complete: false
+    function _requestRebuild() {
+        if (adapter._complete) Qt.callLater(adapter.rebuild);
+    }
+    onContentConfigChanged: adapter._requestRebuild()
+    onTypeDefinitionsChanged: adapter._requestRebuild()
+    onTypeKindByUidChanged: adapter._requestRebuild()
+    onTypeKindByNameChanged: adapter._requestRebuild()
+    onDrillableKindsChanged: adapter._requestRebuild()
+    onUnknownTypePolicyChanged: adapter._requestRebuild()
 
     // -----------------------------------------------------------------------------------------
     // Schema configuration — override these per app/schema. Defaults match schema-downstreamdemo.
     // -----------------------------------------------------------------------------------------
 
     // Field appKeys on the platform record.
-    property string platformContentField:  "default_content"
-    property string platformPlaylistField: "default_interactive_playlist"
+    property string platformContentField: adapter._config("platform", "contentField", "default_content")
+    property string platformPlaylistField: adapter._config("platform", "interactivePlaylistField", "default_interactive_playlist")
     // The platform's default AMBIENT (attract-loop) playlist link field.
-    property string platformAmbientPlaylistField: "default_ambient_playlist"
+    property string platformAmbientPlaylistField: adapter._config("platform", "ambientPlaylistField", "default_ambient_playlist")
 
     // Field appKeys on the interactive event record.
-    property string eventContentField:  "content"
-    property string eventPlaylistField: "interactive_playlist"
+    property string eventContentField: adapter._config("events", "contentField", "content")
+    property string eventPlaylistField: adapter._config("events", "interactivePlaylistField", "interactive_playlist")
     // The event's AMBIENT playlist link field.
-    property string eventAmbientPlaylistField: "ambient_playlist"
+    property string eventAmbientPlaylistField: adapter._config("events", "ambientPlaylistField", "ambient_playlist")
 
     // Optional per-type appKey overrides — used only when multiple event types (or platform
     // types) in the same schema carry the menu-content trait under DIFFERENT appKeys. Keyed by
@@ -67,22 +121,29 @@ QtObject {
     //   eventFieldOverrides: ({
     //       "Touch Module Event": { contentField: "module_content", playlistField: "module_playlist" }
     //   })
-    property var eventFieldOverrides:    ({})
-    property var platformFieldOverrides: ({})
+    property var eventFieldOverrides: adapter._config("events", "fieldOverrides", {})
+    property var platformFieldOverrides: adapter._config("platform", "fieldOverrides", {})
 
     // Event type names (matched against record.type_name) that carry the menu-content trait, in
     // priority order. The first one whose DsEventSchedule has a `current` event wins.
-    property var interactiveEventTypes: ["Connect Wall Event", "Explore Room Event"]
+    property var interactiveEventTypes: adapter._config("events", "typeNames", ["Connect Wall Event", "Explore Room Event"])
 
     // type_uid → kind. Most specific source — checked first because uids are stable.
-    property var typeKindByUid: ({
-        "JfDgLbj9vxT8": "media",
-        "4fysJWac8KpK": "folder",      // demo "Assets" is a container of media → drillable
-        "YhPdk0XdFnRD": "folder",
-        "Q1zLmsTO9Ux9": "folder",
-        "bweKU2WOurPH": "playlist",
-        "TybD4YgiVHB3": "playlist"
-    })
+    property var typeKindByUid: {
+        const kinds = {
+            "JfDgLbj9vxT8": "media",
+            "4fysJWac8KpK": "folder", // demo Assets is a container of media
+            "YhPdk0XdFnRD": "folder",
+            "Q1zLmsTO9Ux9": "folder",
+            "bweKU2WOurPH": "playlist",
+            "TybD4YgiVHB3": "playlist"
+        };
+        for (const uid of Object.keys(adapter.typeDefinitions)) {
+            const kind = adapter.typeDefinitions[uid].kind;
+            if (kind) kinds[uid] = kind;
+        }
+        return kinds;
+    }
     // type_name → kind. Fallback when type_uid isn't mapped — useful when the type names happen
     // to be portable across schemas (e.g. "Media" / "Folder") but the uids aren't.
     property var typeKindByName: ({
@@ -95,20 +156,20 @@ QtObject {
     })
 
     // Which kinds the launcher should drill into on tap (chevron shown). Anything not listed
-    // here is openable (tap → openRequested), even if its record actually has children. This is
+    // here is openable (tap → openRequested), unless the type sets its own tapAction. This is
     // how a Presentation (`kind: "presentation"`) stays openable despite having slide children:
     // give it a custom kind and don't list that kind here.
-    property var drillableKinds: ["folder", "playlist"]
+    property var drillableKinds: adapter._config("", "drillableKinds", ["folder", "playlist"])
 
     // The "media descriptor" field appKey on Media records — a hash with `.type` (image/video/pdf/
     // weblink) and `.filepath`. It refines `kind` for the `media` bucket and provides the primary
     // thumbnail.
-    property string mediaField: "media"
+    property string mediaField: adapter._config("", "mediaField", "media")
     // Fallback thumbnail field appKeys, checked in order, for records that don't have a primary
     // media descriptor (e.g. folders, playlists with a cover image).
-    property var thumbnailFields: ["thumbnail", "image", "icon", "preview", "header_image", "main_media"]
+    property var thumbnailFields: adapter._config("", "thumbnailFields", ["thumbnail", "image", "icon", "preview", "header_image", "main_media"])
     // Title field appKeys, checked in order. The first non-empty wins; falls back to "(untitled)".
-    property var titleFields: ["record_name", "headline", "title"]
+    property var titleFields: adapter._config("", "titleFields", ["record_name", "headline", "title"])
 
     // --- Playlist / slide config (Phase 0: presentations + ambient playlists) ---
     // A playlist record's slides are its child template records (resolved via _resolveChildren).
@@ -116,16 +177,16 @@ QtObject {
     // `ambientHoldTimeField` → else the platform's → else `defaultHoldTimeSeconds`. The schema
     // carries `ambient_hold_time` via a reusable "Hold Time / Transition" trait, so the same appKey
     // works on a slide and (if the trait is applied) the platform.
-    property string ambientHoldTimeField:  "ambient_hold_time"
+    property string ambientHoldTimeField: adapter._config("playback", "holdTimeField", "ambient_hold_time")
     // Per-slide "skip the transition" flag appKey (CHECKBOX). Read by the playlist viewer.
-    property string disableTransitionField: "disable_transition"
+    property string disableTransitionField: adapter._config("playback", "disableTransitionField", "disable_transition")
     // Per-slide transition NAME appKey (e.g. "fade" / "slideLeft" / a custom name). Empty/absent →
     // the playlist's default transition. (No transition-type field exists in the demo schema yet —
     // this resolves to "" until one is added; disable_transition still gives a per-slide "none".)
-    property string transitionField: "transition"
+    property string transitionField: adapter._config("playback", "transitionField", "transition")
     // Fallback hold time (seconds) when neither slide nor platform specify one. Apps can drive this
     // from a setting (e.g. [waffles.playlist] defaultHoldTime) by assigning it.
-    property real   defaultHoldTimeSeconds: 8
+    property real defaultHoldTimeSeconds: adapter._config("playback", "defaultHoldTimeSeconds", 8)
     property string customLayoutTypeUid: "Pj63JiWllbSY"
     property var customLayoutFrames: [
         { uid: "t1bv0BSfh7g6", width: 16, height: 9 },
@@ -171,6 +232,7 @@ QtObject {
     // no text lists everything of that kind.
     property string searchQuery: ""
     property var    searchKinds: []
+    property var    searchTypeUids: []
     property var    searchResults: []
 
     // -----------------------------------------------------------------------------------------
@@ -182,6 +244,7 @@ QtObject {
         if (!rec) return null;
         const typeUid  = rec.type_uid  || "";
         const typeName = rec.type_name || "";
+        const definition = adapter.typeDefinitions[typeUid] || {};
         let kind = adapter.typeKindByUid[typeUid] || adapter.typeKindByName[typeName] || "unknown";
 
         // Refine "media" kind from the media descriptor's subtype (image/video/pdf/weblink) when
@@ -189,7 +252,7 @@ QtObject {
         // the item so consumers can size to the real aspect ratio (and honour crop, etc.).
         let thumb = "";
         let mediaOut = null;
-        const mediaDescriptor = rec[adapter.mediaField];
+        const mediaDescriptor = rec[definition.mediaField || adapter.mediaField];
         if (mediaDescriptor && typeof mediaDescriptor === "object") {
             mediaOut = mediaDescriptor;
             if (mediaDescriptor.filepath) thumb = mediaDescriptor.filepath;
@@ -209,7 +272,7 @@ QtObject {
         }
         // Fall back to a header/preview-style thumbnail field if no media descriptor.
         if (!thumb) {
-            const fields = adapter.thumbnailFields || [];
+            const fields = definition.thumbnailFields || adapter.thumbnailFields || [];
             for (let i = 0; i < fields.length; ++i) {
                 const v = rec[fields[i]];
                 if (v && typeof v === "object" && v.filepath) { thumb = v.filepath; break; }
@@ -218,7 +281,7 @@ QtObject {
 
         // Title from the first non-empty configured field.
         let title = "";
-        const tfields = adapter.titleFields || [];
+        const tfields = definition.titleFields || adapter.titleFields || [];
         for (let i = 0; i < tfields.length; ++i) {
             const v = rec[tfields[i]];
             if (v) { title = "" + v; break; }
@@ -230,11 +293,19 @@ QtObject {
         const recordHasChildren =
             (rec.children && rec.children.length > 0) ||
             (rec.child_uid && rec.child_uid.length > 0);
-        const hasChildren = (adapter.drillableKinds || []).indexOf(kind) !== -1;
+        const hasChildren = definition.tapAction
+            ? definition.tapAction === "browse"
+            : (adapter.drillableKinds || []).indexOf(kind) !== -1;
+        const registered = Object.prototype.hasOwnProperty.call(adapter.typeDefinitions, typeUid);
         return {
             "uid":               rec.uid || "",
             "title":             title,
             "kind":              kind,
+            "typeUid":           typeUid,
+            "playlistMode":      definition.playlistMode ||
+                ((typeUid === "TybD4YgiVHB3" || typeName === "Ambient Playlist") ? "ambient" : "interactive"),
+            "launcherVisible":   definition.launcherVisible !== false &&
+                (adapter.unknownTypePolicy !== "hide" || registered),
             "thumbnail":         thumb,
             "media":             mediaOut,
             "hasChildren":       hasChildren,
@@ -321,8 +392,7 @@ QtObject {
     //   - typeUid  : the slide's template type_uid → maps to a QML template component (registry)
     //   - holdTime : resolved ambient auto-advance time in seconds (slide → platform → default)
     //   - disableTransition : per-slide flag to skip the transition
-    // Order follows _resolveChildren (the bridge's child order). NOTE: the playlist slots declare
-    // `reverseOrdering: true` — if slides come out reversed on device, reverse here.
+    // Order follows _resolveChildren (the bridge's child order).
     function slidesFor(playlistRecord) {
         if (!playlistRecord) return [];
         const kids = adapter._resolveChildren(playlistRecord);
@@ -349,11 +419,20 @@ QtObject {
 
     // Bridge exposes COMPOSITE_AREA values on each media child as <frame uid>_x/y/w/h.
     function layoutFor(record) {
-        if (!record || (record.type_uid !== adapter.customLayoutTypeUid
-                        && record.type_name !== "Custom Layout Template")) return null;
+        if (!record) return null;
+        const definition = adapter.templateDefinitions[record.type_uid];
+        if (definition ? definition.renderer !== "customLayout"
+                       : (adapter.contentConfig.templates !== undefined ||
+                          (record.type_uid !== adapter.customLayoutTypeUid && record.type_name !== "Custom Layout Template")))
+            return null;
+        const configuredFrames = definition && definition.frames ? definition.frames : adapter.customLayoutFrames;
         const children = adapter._resolveChildren(record);
         const frames = [];
-        for (const frame of adapter.customLayoutFrames) {
+        for (const frame of configuredFrames) {
+            if (!frame.uid || !(frame.width > 0) || !(frame.height > 0)) {
+                console.warn("[DsContentLauncherModel] Invalid layout frame", frame.uid);
+                continue;
+            }
             const items = [];
             for (const child of children) {
                 const rec = child.record;
@@ -383,7 +462,7 @@ QtObject {
             }
             if (items.length) frames.push({ uid: frame.uid, width: frame.width, height: frame.height, items: items });
         }
-        return { frames: frames, background: record.background_media || null,
+        return { frames: frames, frameUid: adapter.frameUid, background: record.background_media || null,
                  headline: record.headline || "", subHeadline: record.sub_headline || "",
                  tagline: record.tagline || "" };
     }
@@ -486,7 +565,7 @@ QtObject {
     // updates displayedItems. No-op for leaf items.
     function enter(item) {
         if (!item || !item.hasChildren) return;
-        const kids = adapter._resolveChildren(item.record);
+        const kids = adapter._launcherItems(adapter._resolveChildren(item.record));
         adapter._navStack = adapter._navStack.concat([{ item: item, children: kids }]);
         adapter.displayedItems = kids;
     }
@@ -501,6 +580,15 @@ QtObject {
     }
 
     // --- Search ---
+    function _launcherItems(items) {
+        return items.filter(item => item.launcherVisible !== false);
+    }
+
+    function setSearchFilter(filter) {
+        adapter.searchKinds = filter.kinds || [];
+        adapter.searchTypeUids = filter.typeUids || [];
+    }
+
     // Recursively collect items under `item` (inclusive) whose title matches `q` (already
     // lower-cased; "" = match all) and whose kind passes `kinds` (empty = all). `visited` guards
     // against link cycles. Descends into any record that actually carries children.
@@ -512,7 +600,8 @@ QtObject {
         }
         const titleOk = !q || (("" + item.title).toLowerCase().indexOf(q) !== -1);
         const kindOk  = (kinds.length === 0) || (kinds.indexOf(item.kind) !== -1);
-        if (titleOk && kindOk) out.push(item);
+        const typeOk = adapter.searchTypeUids.length === 0 || adapter.searchTypeUids.indexOf(item.typeUid) !== -1;
+        if (titleOk && kindOk && typeOk && item.launcherVisible !== false) out.push(item);
         if (item.recordHasChildren) {
             const kids = adapter._resolveChildren(item.record);
             for (let i = 0; i < kids.length; ++i)
@@ -524,12 +613,12 @@ QtObject {
     function _runSearch() {
         const q = ("" + adapter.searchQuery).trim().toLowerCase();
         const kinds = adapter.searchKinds || [];
-        if (!q && kinds.length === 0) { adapter.searchResults = []; return; }
+        if (!q && kinds.length === 0 && adapter.searchTypeUids.length === 0) { adapter.searchResults = []; return; }
         const out = [];
         const visited = ({});
         const roots = [];
         if (adapter.currentPlaylist) roots.push(adapter.currentPlaylist);
-        for (let i = 0; i < adapter.library.length; ++i) roots.push(adapter.library[i]);
+        for (let i = 0; i < adapter._libraryItems.length; ++i) roots.push(adapter._libraryItems[i]);
         for (let i = 0; i < roots.length; ++i)
             adapter._collectMatches(roots[i], q, kinds, visited, out);
         adapter.searchResults = out;
@@ -537,6 +626,7 @@ QtObject {
 
     onSearchQueryChanged: adapter._runSearch()
     onSearchKindsChanged:  adapter._runSearch()
+    onSearchTypeUidsChanged: adapter._runSearch()
 
     // --- Schedules: one per configured interactive event type. Built once, kept in sync. ---
     property var _scheduleByTypeName: ({})
@@ -562,13 +652,15 @@ QtObject {
 
     // Reconfigure schedules + rebuild when the interactive-event types list is changed.
     onInteractiveEventTypesChanged: {
+        if (!adapter._complete) return;
         adapter._ensureSchedules();
-        adapter.rebuild();
+        adapter._requestRebuild();
     }
 
     property Component _scheduleComponent: Component { DsEventSchedule { } }
 
     // --- Rebuild ---
+    property var _libraryItems: []
     function rebuild() {
         // Remember where the user was so we can replay the breadcrumb against the freshly
         // rebuilt tree. Records can get recreated by a bridge sync, so we replay by uid
@@ -604,20 +696,21 @@ QtObject {
         if (!selected) adapter._selectedPlaylistUid = "";
         adapter.currentPlaylist = selected || cp;
         adapter.currentAmbientPlaylist = ap;
-        adapter.library = lib;
+        adapter._libraryItems = lib;
+        adapter.library = adapter._launcherItems(lib);
 
         // Replay the saved navigation path by uid. Stop at the first missing level — the
         // user falls back to the deepest ancestor that still exists (potentially root).
         const newStack = [];
-        let displayed = lib;
+        let displayed = adapter.library;
         for (let i = 0; i < savedPath.length; ++i) {
             const uid = savedPath[i];
             let found = null;
             for (let j = 0; j < displayed.length; ++j) {
                 if (displayed[j].uid === uid) { found = displayed[j]; break; }
             }
-            if (!found) break;
-            const kids = adapter._resolveChildren(found.record);
+            if (!found || !found.hasChildren) break;
+            const kids = adapter._launcherItems(adapter._resolveChildren(found.record));
             newStack.push({ item: found, children: kids });
             displayed = kids;
         }
@@ -727,6 +820,7 @@ QtObject {
     }
 
     Component.onCompleted: {
+        adapter._complete = true;
         adapter._ensureSchedules();
         // First rebuild — content may not be ready yet; signals will retrigger.
         adapter.rebuild();
