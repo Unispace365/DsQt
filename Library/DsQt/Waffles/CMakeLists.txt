@@ -12,9 +12,15 @@ find_package(Qt6 6.12
 )
 
 # WebEngine and Pdf can have different versions from the base Qt SDK.
-find_package(Qt6WebEngineQuick 6.9 QUIET)
-find_package(Qt6Pdf 6.9 QUIET)
-find_package(Qt6VirtualKeyboard 6.9 QUIET)
+# Record the built feature set for installed consumers, which must link the same modules.
+foreach(_feature WebEngineQuick PdfQuick VirtualKeyboard)
+    find_package(Qt6${_feature} 6.9 QUIET HINTS "${Qt6_DIR}/../Qt6${_feature}")
+    if(TARGET Qt6::${_feature})
+        set(DSQT_WAFFLES_HAS_${_feature} TRUE PARENT_SCOPE)
+    else()
+        set(DSQT_WAFFLES_HAS_${_feature} FALSE PARENT_SCOPE)
+    endif()
+endforeach()
 qt_standard_project_setup(REQUIRES 6.12)
 
 add_library(Waffles)
@@ -131,7 +137,7 @@ target_link_libraries(Waffles PUBLIC
     Qt6::Multimedia
     Qt6::CanvasPainter
     $<TARGET_NAME_IF_EXISTS:Qt6::WebEngineQuick>
-    $<TARGET_NAME_IF_EXISTS:Qt6::Pdf>
+    $<TARGET_NAME_IF_EXISTS:Qt6::PdfQuick>
     $<TARGET_NAME_IF_EXISTS:Qt6::VirtualKeyboard>
     Wafflesplugin
 )

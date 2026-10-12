@@ -1,6 +1,8 @@
 #include <QQmlApplicationEngine>
 #include <QQuickStyle>
-// #include <QtWebEngineQuick/QtWebEngineQuick>  // Uncomment if QtWebEngineQuick::initialize() is needed
+#ifdef DSQT_HAS_WEBENGINE
+#include <QtWebEngineQuick/QtWebEngineQuick>
+#endif
 #include <QIcon>
 #include <QtQml/qqmlextensionplugin.h>
 #include <dsBridgeQuery.h>
@@ -19,6 +21,9 @@
 #endif
 
 // Import statically linked Dsqt QML plugins
+#ifdef DSQT_HAS_Touch
+Q_IMPORT_QML_PLUGIN(Dsqt_TouchPlugin)
+#endif
 #ifdef DSQT_HAS_Core
 Q_IMPORT_QML_PLUGIN(Dsqt_CorePlugin)
 #endif
@@ -70,7 +75,9 @@ int main(int argc, char *argv[])
     qputenv("QT_IM_MODULE", QByteArray("qtvirtualkeyboard"));
     qputenv("QT_ENABLE_HIGHDPI_SCALING", QByteArray("0"));
 
-    //QtWebEngineQuick::initialize();
+#ifdef DSQT_HAS_WEBENGINE
+    QtWebEngineQuick::initialize();
+#endif
 
     DsGuiApplication app(argc, argv);
 

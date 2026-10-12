@@ -147,7 +147,7 @@ the references use `QT_IM_MODULE=qtvirtualkeyboard` and
 
 The reference graphics configurations differ: AssetViewer initializes WebEngine
 and uses D3D11/8-bit color; the current local ECPresenter uses D3D12/10-bit color
-and leaves WebEngine initialization commented out. Treat graphics/backend choice
+and initializes WebEngine when the installed DsQt package includes it. Treat graphics/backend choice
 as an application integration decision. Validate web rendering and color on the
 chosen combination; do not assume the ECPresenter entry point proves web support.
 
@@ -350,10 +350,12 @@ Search is over loaded menu content and its descendants, not an unrestricted
 search of every CMS record. The [content-launcher tour](waffles-tour/content-launcher.html)
 details the model contract and schema overrides.
 
-**Current configuration mismatch in the ECPresenter reference:**
-`engine.extra.engine` lists `bridgesync.toml`, but the reviewed checkout contains
-`settings/bridgesyc.toml`. Make the configured filename and deployed file agree;
-this documentation update does not rename the application configuration.
+ECPresenter and ProjectCloner both supply `settings/bridgesync.toml`, loaded by
+`engine.extra.engine`. The template keeps Bridge connection settings in that
+file and launch policy in `engine.toml`. Configure the server, sync directory,
+resource database, and platform ID together. If the expected platform is absent,
+correct the configuration or connect to the correct Bridge; do not modify the
+schema or author duplicate platform content to accommodate the mismatch.
 
 ## 5. Register templates and handle hotspots
 
@@ -380,7 +382,7 @@ can still assign `playlistTemplateByTypeUid` directly.
 The Bridge adapter builds layout frames and normalized media rectangles.
 `DsCustomLayoutTemplate` uses `[waffles.content.layout].frameUid`, carried in
 the adapter's layout descriptor. A specified ID must have authored content on
-the slide: a missing frame logs a warning and hides the layout canvas, without
+the slide: a missing frame logs a warning and displays “Layout unavailable,” without
 silently substituting a different frame. An empty ID selects the authored frame
 closest to the stage aspect ratio. An explicit QML `frameUid` assignment can
 override the descriptor. The application still resolves hotspot destinations.
@@ -565,6 +567,67 @@ application launcher and quick-menu assets still resolve under `%APP%`.
 
 ## 9. Verify the integrated application
 
+### Content state and recovery
+
+Core's `DsMediaViewer` exposes `loadState` (`empty`, `loading`, `ready`, or
+`error`), `loading`, `errorString`, `mediaLoaded()`, `mediaFailed(detail)`, and
+`retry()`. Retry recreates the backend at the same URL, allowing a missing file
+to load after synchronization completes. It does not start Bridge Sync or
+change the source record. Diagnostic details go to the log.
+
+Waffles' `DsContentState` supplies the themed loading/empty/error treatment used
+by media windows and built-in slide templates. It follows the
+[missing-content design](https://www.figma.com/design/fjxsTDEKzJ7Xs50BQyptGE/White-Label-Waffles-DD?node-id=47-1217)
+using the bundled document icon, Waffles typography, and a retry action. A custom
+renderer can place `DsContentState { anchors.fill: parent; viewer: mediaViewer }`
+over its Core media viewer. Leave navigation and relevant hotspots available.
+
+Application resolvers must handle missing destinations. Call
+`stage.showContentError(qsTr("Content unavailable"), qsTr("Please choose another item."))`
+when a link cannot be resolved. ECPresenter also handles empty presentations and
+removed linked slides; a failed request leaves the current presentation running.
+The launcher distinguishes loading content, an empty library, and an empty
+folder; the folder state offers Go back. A missing explicit layout frame never
+silently selects another frame.
+
+### Installed file check
+
+After building and installing the app, run the read-only
+[deployment validator](../Tools/ValidateWafflesDeployment.ps1):
+
+```powershell
+& C:\dev\DsQt\Tools\ValidateWafflesDeployment.ps1 `
+  -BuildDirectory C:\dev\ECPresenter\build\ninja-multi-6.12 `
+  -DeployBin C:\dev\ECPresenter\build\ninja-multi-6.12\DEPLOY\Release\bin `
+  -Configuration Release
+```
+
+Use your own build/deployment paths. `-Features Web,Pdf,Keyboard,Touch` is the
+default; list only features required by that application. `-AssetGroups` names
+the app's icon directories (defaults: `quick_menu,content_launcher,window`). Legacy
+`qml/ux` window controls still use app-provided icons; other window controls bundle
+their icons in Waffles. The script
+checks deployed Qt versions and x64 binaries against the CMake cache, Canvas2D,
+media backends, optional modules, MSVC runtime availability, source/deployed
+icons, and standard settings filenames. It warns about missing extra settings
+hooks and developer environment overrides. It does not parse every TOML override,
+verify static plugin registration, or contact Bridge.
+
+The template and ECPresenter link/import `Dsqt.Touch` when available so the
+Core shell's optional touch-debug controls resolve. This is separate from
+TouchEngine and does not activate touch filtering. The installed DsQt package
+exports its WebEngine/PDF/Virtual Keyboard feature dependencies; consumer entry
+points initialize WebEngine conditionally before constructing the application.
+
+Prepare a matching runtime before launching: use the build's Qt version,
+compiler, x64 architecture and Debug/Release configuration; verify DLLs and QML
+imports, and set any child-process PATH in the same invocation as the launch.
+For installed acceptance, remove developer QML/plugin overrides and use the
+deployed files. Debug additionally requires the matching non-redistributable
+compiler runtime. Do not change the machine-wide PATH.
+
+### Application and device acceptance
+
 | Check | Expected evidence |
 | --- | --- |
 | Build and deployment | Library and app use the same SDK/configuration; run from the installed package, with Canvas2D and optional feature imports present. |
@@ -596,8 +659,8 @@ performance. Record software checks and physical-device acceptance separately.
 | Settings seem ignored | File is merged into `app_settings`; property reads use the right prefix; the setting is actually wired in code. |
 | Web viewer is unavailable or blank | WebEngine module, initialization, deployed resources, and chosen graphics backend have been validated together. |
 
-Additional template families, general missing-content/load-error screens,
-application-schema adoption, and device acceptance remain delivery work.
+Additional template families and the proposed new schema demonstration app are
+on hold. Application-schema adoption and device acceptance remain delivery work.
 Consult the reconciled [backlog](waffles-backlog.md) for ownership and status. Use the
 [Source Tour](waffles-tour/index.html) for deeper component details and the
 [installer guide](articles/installer_guide.md) for packaging.

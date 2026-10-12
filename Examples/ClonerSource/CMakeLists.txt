@@ -63,7 +63,7 @@ find_package(Qt6 6.12 REQUIRED COMPONENTS Core Quick QuickControls2 Multimedia G
 qt_standard_project_setup(REQUIRES 6.12)
 
 # Find Dsqt from installed package (CMAKE_PREFIX_PATH set via CMakePresets.json)
-find_package(Dsqt REQUIRED COMPONENTS Core Bridge Waffles Qsys OPTIONAL_COMPONENTS TouchEngine Spout)
+find_package(Dsqt REQUIRED COMPONENTS Core Bridge Waffles Qsys OPTIONAL_COMPONENTS TouchEngine Spout Touch)
 
 message("DSQT is at ${Dsqt_DIR}")
 
@@ -95,6 +95,12 @@ set_source_files_properties(Fnt.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
 message(STATUS "DSQT_INSTALL_PREFIX: ${DSQT_INSTALL_PREFIX}")
 message(STATUS "DSQT_QML_IMPORT_PATH: ${DSQT_QML_IMPORT_PATH}")
 
+# The Core app shell loads the optional touch-debug controls dynamically.
+set(_dsqt_optional_qml_dependencies "")
+if(Dsqt_Touch_FOUND)
+    list(APPEND _dsqt_optional_qml_dependencies Dsqt.Touch)
+endif()
+
 qt_add_qml_module(${DS_EXE_NAME}
     URI ${DS_APP_NAME}
     VERSION 1.0
@@ -110,6 +116,7 @@ qt_add_qml_module(${DS_EXE_NAME}
         Dsqt.Core
         Dsqt.Bridge
         Dsqt.Waffles
+        ${_dsqt_optional_qml_dependencies}
         QtQuick
         #RESOURCES cmake/app.rc.in
 )
@@ -161,7 +168,7 @@ target_include_directories(${DS_EXE_NAME} PRIVATE
 )
 
 # Provide DSQT_HAS_<MODULE> compile definitions for optional plugin imports
-foreach(_comp Core Bridge Waffles TouchEngine Spout Qsys)
+foreach(_comp Core Bridge Waffles TouchEngine Spout Qsys Touch)
     if(Dsqt_${_comp}_FOUND)
         target_compile_definitions(${DS_EXE_NAME} PRIVATE DSQT_HAS_${_comp})
     endif()
@@ -174,6 +181,7 @@ target_link_libraries(${DS_EXE_NAME}
         Dsqt::Bridge
         $<$<BOOL:${Dsqt_TouchEngine_FOUND}>:Dsqt::TouchEngine>
         Dsqt::Waffles
+        $<$<BOOL:${Dsqt_Touch_FOUND}>:Dsqt::Touch>
         $<$<BOOL:${Dsqt_Spout_FOUND}>:Dsqt::Spout>
         Dsqt::Qsys
 
@@ -190,6 +198,10 @@ target_link_libraries(${DS_EXE_NAME}
         tomlplusplus::tomlplusplus
         glm::glm
 )
+
+if(DSQT_WAFFLES_HAS_WEBENGINE)
+    target_compile_definitions(${DS_EXE_NAME} PRIVATE DSQT_HAS_WEBENGINE)
+endif()
 
 message("HEADERS ${Dsqt_INCLUDES}")
 include(GNUInstallDirs)

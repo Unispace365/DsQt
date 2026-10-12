@@ -17,8 +17,10 @@ device acceptance. See the [overview](waffles-overview.md) and
 | Custom layouts and hotspots | Bridge resolves frame/media/link data; Waffles renders positions, backgrounds, gestures, and hotspot signals. Explicit frame selection is strict; an empty setting enables aspect matching. |
 | Quick menu | Core: Qt 6.12 Canvas2D circular rendering, reveal/selection animation, highlighting, selection signals, and timed closing. Application code supplies activation and actions. |
 | Whiteboard | Waffles: Canvas Painter drawing, multi-touch pen/highlighter/eraser, colors/sizes, history, clear, backgrounds, and PNG export. |
-| Shared assets | Waffles bundles Roboto, media controls, whiteboard controls, and all 14 standard window-control SVGs. Application menu/launcher assets still need deployment. |
+| Shared assets | Waffles bundles Roboto, media controls, whiteboard controls, and all 14 standard window-control SVGs. Deploy app menu/launcher assets and the window icons still used by legacy `qml/ux` wrappers. |
 | Build and exports | Qt 6.12 requirements, CI module selection, Cloner template presets, and direct Bridge adapter import are aligned. Current main is merged and TouchEngine is enabled. |
+| Content state and recovery | Core provides media load/error status and retry. Waffles supplies the Figma-based `DsContentState` in media windows and slide templates, visible missing-frame feedback, and launcher loading/empty-folder states. |
+| Deployment checks | The installed package exports its optional feature dependencies and capture include path. ProjectCloner/ECPresenter import optional Touch controls and initialize WebEngine. `Tools/ValidateWafflesDeployment.ps1` checks installed runtime files, settings names, and app SVG assets. |
 
 ## Completed ECPresenter integration
 
@@ -32,6 +34,8 @@ ProjectCloner or existing DsQt applications. Its integration includes:
 - Five-touch/right-click quick-menu activation and nine application actions.
 - Whiteboard opening and idle/ambient cleanup; normal Close retains the drawing.
 - Direct import of the exported Bridge adapter, with no copied adapter source.
+- Visible feedback for unresolved links, removed linked slides, and empty presentations.
+- `settings/bridgesync.toml` matches the filename in the engine settings list.
 
 Earlier integration checks are recorded in
 `ECPresenter/build/presentation-navigation-check/` (106 assertions). They cover
@@ -43,10 +47,10 @@ Those records are historical evidence, not fresh acceptance of the current branc
 | Task | Owner | Completion evidence |
 | --- | --- | --- |
 | Adopt the reusable schema | Application/schema maintainers | Preserved IDs/content, native Bridge validation, synchronized representative records, and matching application mappings; see the schema task below. |
-| Content and load-error feedback | DsQt components / application | Visible unavailable-media and empty-content states, unresolved-destination feedback, and usable recovery paths. |
-| Additional slide templates | DsQt Waffles / application | Implement required Gallery, Carousel, Cards, Agenda, or Collection renderers and register them. Schema types alone do not provide renderers. |
-| Bridge Sync settings filename | ECPresenter | Resolve `engine.toml` referring to `bridgesync.toml` while the tracked file is `bridgesyc.toml`; verify the deployed setting. |
-| Application deployment | Application | Ship menu/launcher assets and feature dependencies; verify installed startup, database/platform selection, and delayed/missing content. |
+| Additional slide templates — on hold (item 5) | DsQt Waffles / application | Implement required Gallery, Carousel, Cards, Agenda, or Collection renderers and register them when resumed. Schema types alone do not provide renderers. |
+| New schema demonstration app — on hold (item 3) | Application/schema maintainers | When resumed, create with ProjectCloner and demonstrate Waffles plus application-specific schema features. |
+| Target environment configuration (item 2) | Application | Correct the server, resource/cache paths and platform ID. If the expected platform is absent, configuration is wrong or the app is connected to the wrong Bridge; do not change the schema to fit that mismatch. |
+| Installed application acceptance | Application | Run the deployment validator and startup checks with deployed imports; then confirm the intended Bridge/platform/cache and live synchronized content. |
 | Touchscreen and Figma acceptance | Application / design | Validate physical hit sizes, five-touch gestures, simultaneous drawing, menu motion, GPU/video appearance, web/keyboard focus, fullscreen, capture inputs, and repeated idle cleanup. |
 | Hosted CI | DsQt | Run updated workflows on the branch. A local build does not establish a successful hosted run. The publishing workflow remains opt-in. |
 
@@ -133,20 +137,26 @@ and the [ownership overview](waffles-overview.md#bridge-schema-ownership).
 | Check | Current local result |
 | --- | --- |
 | DsQt Debug and Release builds/install, Qt 6.12, TouchEngine enabled | Passed. Installed into the configured local DsQt prefix. |
-| Library runtime tests | All eight CTest suites passed in both Debug and Release. The playlist suite passed all 25 cases, including media/GIF pause, resume, autoplay, navigation, hotspots, ambient timing, and bundled icons. |
+| Library runtime tests | All nine CTest suites passed in Debug and Release. Final focused checks passed 19 content-state cases (including actual WebEngine failure and simulated missing capture input) and 25 playlist cases. No physical capture device was opened by the content-state tests. |
 | Schema static checks against current DsQt | Passed: 13 types, four traits, 11 assets. |
 | Schema regression suite | Passed: 35 tests. |
-| Fresh ProjectCloner consumer | Generated with the actual ProjectCloner backend; Debug build/install passed against the installed package with TouchEngine enabled. A Waffles smoke view instantiated the exported Bridge adapter, stage, and whiteboard and exited successfully. |
-| ECPresenter | Debug and Release build/install passed. Deployed Debug startup loaded cached media without QML component-load errors. This does not establish live Bridge/schema acceptance. |
+| ProjectCloner | Earlier fresh-consumer generation and Waffles smoke passed using the actual backend. For this follow-up, the updated ClonerSource template built/installed in an isolated Debug build and passed deployed file checks, including Touch and all 58 menu/launcher/window SVGs. The template's Bridge defaults still require application-specific configuration. |
+| ECPresenter | Debug and Release build/install, deployed file checks, and ten-second startup smoke checks passed in fresh `WAFFLES_REVIEW` directories using deployed Qt/QML files. No missing Touch-module warning or component-load error was reported. The selected platform is absent from the current cache; live content acceptance remains configuration work. |
+| Content feedback appearance | The rendered `DsContentState` snapshot was inspected against the Figma missing-content treatment. Full application/Figma and physical-display acceptance remain separate. |
 | Hosted CI, native Bridge migration, physical touchscreen acceptance | Not run. |
 
-Build/test logs are local artifacts under `Library/build/ninja/`; consumer logs
-are under `Library/build/ClonerWafflesSmoke/` and ECPresenter's
-`build/ninja-multi-6.12/`. The fresh consumer had no content database, and
-ECPresenter's configured platform ID was absent from its cached database. Both
-reported the optional Touch input-filter module unavailable; this is separate
-from TouchEngine. Validate the application's platform mapping and required
-input modules during deployment acceptance.
+Build/test logs are local artifacts under `Library/build/ninja/`; the new
+content-state suite writes `Tests/ContentState/contentstate-results.xml` and
+`missing-content.png` there. Template logs are under `Library/build/` and its
+deployment is `Library/build/ClonerTemplateCheck/DEPLOY/Debug/`. ECPresenter logs
+and fresh deployments are under `build/ninja-multi-6.12/` (`WAFFLES_REVIEW/`).
+
+The earlier missing Touch-module deployment warning is resolved; Touch remains
+separate from TouchEngine. ECPresenter's configured platform `UgDKTSLVVvv2` is
+absent from its current cache. Correct the configuration or Bridge environment
+before live content acceptance. Both app/template settings lists also retain
+the legacy `content_settings.toml` and `menu.toml` hooks without local files;
+the validator reports these as warnings for deployment-specific review.
 
 The local Release build initially hit an assertion in Visual Studio's bundled
 Ninja 1.13.2; switching the local build to Qt's Ninja 1.12.1 completed both

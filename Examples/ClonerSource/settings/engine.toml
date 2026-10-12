@@ -61,16 +61,6 @@ resource_db = "db.sqlite"
 app_path = "c:/downstream/bridgesync/bridge_sync_console.exe"
 launch_bridgesync = true
 
-[engine.bridgesync.connection]
-server = "http://api.waffles.localhost"
-#server = "https://app.hpi1.dev.bridge.downstream.com"
-#auth_server = "https://hpi1-api-userpool.auth.us-east-2.amazoncognito.com"
-#client_id = ""
-#client_secret= ""
-directory="%LOCAL%/dsdemo/"
-interval = 5
-verbose = true
-
 [engine.logging]
 rules=[[
     "*.verbose=false", #turn off all verbose

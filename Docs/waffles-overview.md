@@ -123,15 +123,28 @@ new work. The [backlog](waffles-backlog.md) records completed work separately
 from open delivery requirements.
 
 `DsContentLauncherModel` is exported by `Dsqt.Bridge`; applications import it
-directly. Standard window-control icons are bundled with Waffles. Presentation
+directly. Standard window-control icons are bundled with Waffles; legacy `qml/ux`
+wrappers still use deployed app window icons. Presentation
 pause suspends video and animated-image playback and the ambient slide timer,
 while manual navigation and custom-layout hotspots remain available.
 
-Remaining library work includes additional slide templates and clearer
-content/load-error states. Application work includes unresolved-destination
-feedback, deployment, and adoption of the reusable schema in the application's
-existing schema with validated mappings and preserved content. Application
-quick-menu and launcher assets still need deployment.
+Core's media viewer now reports loading, empty, ready, and failed states. Waffles
+presents those states consistently in media windows and slide layouts, with a
+retry action for failed loads. The launcher explains empty folders, and missing
+layout frames are visible. ECPresenter reports unavailable links and empty
+presentations while preserving the existing presentation.
+
+ECPresenter and ProjectCloner now use the same `bridgesync.toml` filename as
+their settings lists. Their build configuration imports the optional Touch
+controls and initializes WebEngine when available in the installed library.
+The deployment validator checks the selected Qt kit, runtime modules, settings
+files, and application icons. Target Bridge/platform selection is configuration
+work: a platform missing from the selected database indicates a configuration
+mismatch or the wrong Bridge environment, not a reason to change the schema.
+
+Additional slide templates and the proposed new application demonstrating a
+combined schema are on hold. Native schema adoption, hosted CI, and physical
+device acceptance remain open. See the backlog for validation results.
 
 Existing behavior-test records do not establish final Figma fidelity or hardware
 acceptance. Test the whole application on the intended touchscreen, including
