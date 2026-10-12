@@ -4,6 +4,10 @@ The whiteboard belongs to the `Dsqt.Waffles` module. Applications can use the
 default toolbar, replace it, or supply several control sets without reimplementing
 drawing, history, or export.
 
+For the surrounding application setup and lifecycle, see the
+[Waffles overview](../waffles-overview.md) and
+[implementation guide](../waffles-implementation-guide.md).
+
 ## Components and dependencies
 
 - `DsWhiteboardCanvas` is the C++ drawing engine ported from ContentLauncher.

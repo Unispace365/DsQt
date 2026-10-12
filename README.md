@@ -14,6 +14,11 @@ CMS backend for rapid prototyping and developemnt.
 Documentation is compiled by Doxygen and can be found here:
 <https://unispace365.github.io/DsQt/>
 
+For Waffles applications, start with the [Waffles overview](Docs/waffles-overview.md)
+and [consolidated implementation guide](Docs/waffles-implementation-guide.md).
+The [Source Tour](Docs/waffles-tour/index.html) covers individual components;
+open its HTML locally for the styled walkthrough.
+
 ## Getting Started
 
 > This version of DsQt has been built and is targeted at Windows. We hope to have Linux and Apple builds.
@@ -26,7 +31,12 @@ Documentation is compiled by Doxygen and can be found here:
 2. Install it!
         - Make sure to select C++ development and ensure you have the latest windows SDK and visual studio updates!
 
-#### Install Qt 6.10
+#### Install a Qt 6.12 SDK for this branch
+
+The current Core and Waffles modules require Qt 6.12, including Qt Canvas Painter
+and the `QtCanvas2D` QML module. Older Qt versions in historical presets and
+templates must be overridden before building this branch. Use the same Qt SDK,
+architecture, and build configuration for DsQt and its consuming application.
 
 1. Create a Qt.io account if you don't have one. <https://login.qt.io/register>
 2. Go to <https://www.qt.io/download-qt-installer-oss> and download Qt for x64
@@ -35,15 +45,16 @@ Documentation is compiled by Doxygen and can be found here:
 
     * Extensions:
         * Qt PDF:
-            * Qt 6.10.1:
+            * A package compatible with the selected Qt 6.12 SDK:
                 * MSVC 2022 x64
         * Qt WebEngine:
-            * Qt 6.10.1:
+            * A package compatible with the selected Qt 6.12 SDK:
                 * MSVC 2022 x64
     * Qt:
-        * Qt 6.10.1:
+        * Qt 6.12:
             * MSVC 2022 64-bit
             * Additional Libraries:
+                * Qt Canvas Painter (including QtCanvas2D)
                 * Qt Multimedia
                 * Qt Image Formats
                 * Qt Language Server
@@ -113,20 +124,20 @@ you get compatible package versions.
 **Preferred (command-line):**
 
 1. `cd Library`
-2. *(First time, optional)* If your Qt is **not** installed under `C:\Qt\`, copy
-   `CMakeUserPresets.example.json` → `CMakeUserPresets.json` and edit the Qt path inside.
-   If Qt is in `C:\Qt\` the build auto-discovers the latest version — no config needed.
-3. Run `build_and_install.bat` — configures, builds Debug + Release, and installs to
+2. Choose an installed Qt 6.12 SDK. If using `CMakeUserPresets.example.json`, replace
+   its historical Qt version/path examples with your SDK in `CMakeUserPresets.json`.
+3. Run `build_and_install.bat -qt "C:\Qt\6.12.0\msvc2022_64"` (substitute your SDK path)
+   — configures, builds Debug + Release, and installs to
    `%USERPROFILE%\Documents\DsQt`
-4. To target a specific Qt version: `build_and_install.bat -qt 6.10.2`
-5. To also build and install ProjectCloner + ClonerSource: `build_and_install.bat -tools`
+4. For a standard `C:\Qt\<version>\msvc2022_64` installation, `-qt 6.12.0` is shorthand.
+5. Add `-tools` to also build and install ProjectCloner + ClonerSource.
 
 **Alternative (Qt Creator):**
 
 1. Open Qt Creator
 2. File > Open File or Project, navigate to `DsQt/Library/CMakeLists.txt`
 3. Qt Creator will detect the CMakePresets.json — select the `ninja` preset (or a
-   version-pinned preset from your `CMakeUserPresets.json`)
+   version-pinned preset from your `CMakeUserPresets.json`) and ensure it resolves Qt 6.12.
 4. Click Configure Project, then Build > Install
 
 #### Build and Run ProjectCloner
@@ -134,7 +145,7 @@ you get compatible package versions.
 **Preferred (command-line):**
 
 1. `cd Library`
-2. Run `build_and_install.bat -tools` — this builds and installs ProjectCloner and
+2. Run `build_and_install.bat -qt "C:\Qt\6.12.0\msvc2022_64" -tools` with your SDK path — this builds and installs ProjectCloner and
    copies the ClonerSource template to `%USERPROFILE%\Documents\DsQt\Tools\`
 3. Run: `%USERPROFILE%\Documents\DsQt\Tools\ProjectCloner\bin\appProjectCloner.exe`
 
@@ -148,9 +159,16 @@ you get compatible package versions.
 
 ## Creating a New Project
 
-### Using ProjectCloner (Recommended)
+Always create a new DsQt application with **ProjectCloner**. AssetViewer and
+ECPresenter are reference implementations for integration patterns. If you are
+adding Waffles to an existing DsQt application, follow the
+[existing-project path](#adding-waffles-to-an-existing-dsqt-project).
 
-1. Run `appProjectCloner.exe` from `DsQt\Tools\deploy\ProjectCloner\bin\`
+### Using ProjectCloner
+
+1. [Build and install ProjectCloner](#build-and-run-projectcloner), then run
+   `%USERPROFILE%\Documents\DsQt\Tools\ProjectCloner\bin\appProjectCloner.exe`
+   for the default installation prefix.
 2. Select destination folder
 3. Enter project name (alphanumeric and underscores only)
 4. Click "Clone"
@@ -168,11 +186,14 @@ The tool creates a complete project from the ClonerSource template with:
 **Command-line (CMake presets):**
 
 1. `cd <your-project>`
-2. Configure Debug: `cmake --preset ninja-6.10.2-debug`
-3. Configure Release: `cmake --preset ninja-6.10.2-release`
-4. Build: `cmake --build --preset ninja-6.10.2-debug` (or `-release`, `-relwithdebinfo`)
-5. Install: `cmake --build --preset ninja-6.10.2-release --target install`
-6. Run from: `build/ninja-6.10.2/DEPLOY/bin/`
+2. Run `cmake --list-presets` and `cmake --list-presets=build` to inspect the generated presets.
+3. Add a local Qt 6.12 preset if the template still lists older SDKs. Set its
+   `CMAKE_PREFIX_PATH` to your Qt SDK and installed DsQt package; see the guide below.
+4. Configure with `cmake --preset <configure-preset>` and build with
+   `cmake --build --preset <build-preset>`, substituting actual preset names.
+5. Install with `cmake --install <build-directory> --config Release` (or Debug).
+6. Run from the installed `bin` directory reported by CMake. Its location depends
+   on the application's install rules and build configuration.
 
 To see all available presets: `cmake --list-presets`
 
@@ -183,12 +204,11 @@ If your Qt is not installed under `C:\Qt\` or you need a different preset, see t
 
 1. Open Qt Creator
 2. File > Open File or Project, navigate to your project's `CMakeLists.txt`
-3. Select the `ninja-6.10.2` preset (or a version-pinned preset from your
-   `CMakeUserPresets.json`) and click Configure Project
+3. Select a preset configured for your Qt 6.12 SDK and installed DsQt package,
+   then click Configure Project.
 4. Go to **Projects** > **Deploy Settings** and click **Add Deploy Step** > **CMake install**
-5. Go to **Projects** > **Run Settings** and set the **Executable** to
-   `build/ninja-6.10.2/DEPLOY/bin/<your-exe>.exe` and the **Working directory** to the
-   same `DEPLOY/bin/` directory
+5. Go to **Projects** > **Run Settings** and set the **Executable** to the installed
+   application and the **Working directory** to its containing `bin` directory.
 6. Build the project (Ctrl+B), then use **Build > Deploy** to install
 
 > **Note:** The **Always deploy before running** checkbox in **Edit > Preferences > Build & Run**
@@ -212,6 +232,18 @@ DsQt projects include an Inno Setup-based installer system. After building your 
 For full details on adding installer support to an existing project, customizing flags,
 and DSAppHost configuration, see the [Installer Guide](Docs/articles/installer_guide.md).
 
+## Adding Waffles to an Existing DsQt Project
+
+Integrate Waffles directly into the existing application. Check its Qt/DsQt
+compatibility, add missing module links and QML plugin imports, and connect the
+stage to its existing content and application services. Merge the required
+settings and assets into its deployment, and verify its existing workflows
+alongside the added features.
+
+Follow the [Waffles implementation guide](Docs/waffles-implementation-guide.md)
+for the full integration steps. AssetViewer and ECPresenter provide reference
+patterns for both existing projects and new projects created with ProjectCloner.
+
 ## Getting to know DsQt
 
 For detailed documentation, see the articles in [Docs/articles/](Docs/articles/):
@@ -222,6 +254,9 @@ For detailed documentation, see the articles in [Docs/articles/](Docs/articles/)
 4. [SVG Color Reference](Docs/articles/svg_color_reference.md) - Working with SVG colors
 5. [Installer Guide](Docs/articles/installer_guide.md) - Building Windows installers with Inno Setup
 6. [TouchFilter Guide](Docs/articles/touch_filter.md) - Touch event filtering, jitter smoothing, transient suppression, and debug overlay
+7. [Waffles Overview](Docs/waffles-overview.md) - Components, capabilities, and the DsQt/application boundary
+8. [Waffles Implementation Guide](Docs/waffles-implementation-guide.md) - Build, content routing, presentations, quick menu, whiteboard, settings, and validation
+9. [Waffles Whiteboard](Docs/articles/whiteboard.md) - Drawing API, controls, lifecycle, and PNG export
 
 ## Generating documentation
 

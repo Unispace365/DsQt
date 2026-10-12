@@ -1,12 +1,21 @@
 # Waffles backlog
 
-Running list of smaller / deferred items so we can keep pushing major functionality
+Running list of needed / deferred items so we can keep pushing major functionality
 without losing track. Candidate for Jira import later.
 
 Convention: `- [ ] **Title** (area) — one-line note.`
 Check the box when done; move long-finished items to the bottom or delete.
 
 ## Current demo work
+
+- [x] **Application content settings** (Bridge / Waffles / application) — add
+      `waffles_content.toml` to `app_settings`; configure multiple type IDs,
+      per-type media/title/thumbnail fields, browse/open actions, launcher visibility,
+      search filters by kind or type, playlist modes, timing fields and renderer mappings.
+      ProjectCloner supplies a starter; ECPresenter uses its own schema configuration.
+- [x] **Application frame selection** (custom layouts) — `waffles.content.layout.frameUid`
+      selects a specific authored frame. Missing selected-frame content reports a warning
+      and hides the layout canvas. An empty ID retains automatic aspect selection.
 
 - [x] **Custom Layout** — render the CMS's HD and wide-wall frames, positioned media, backgrounds,
       drag/pinch behavior and hotspot destinations.
@@ -18,6 +27,62 @@ Check the box when done; move long-finished items to the bottom or delete.
       Verification artifacts: `ECPresenter/build/presentation-navigation-check/` (106 assertions passed).
       Physical touch-display feel and video appearance remain a manual device check; the headless preview
       renderer is software and does not capture video frames.
+
+## Bridge schema integration
+
+- [ ] **Define, package, and integrate the Waffles Bridge schema** (schema / Bridge / application)
+      — establish the reusable content definitions Waffles needs, provide a versioned schema
+      package, and integrate it into the current application schema.
+
+The current reference application, ECPresenter, uses
+[schema-downstreamdemo](https://github.com/Unispace365/schema-downstreamdemo).
+The [DsQt adapter](../Library/DsQt/Bridge/qml/DsContentLauncherModel.qml) defaults to
+that schema's field keys, type IDs, event names, and custom-layout frame IDs.
+This task applies to applications using Bridge content.
+
+**Package status, October 9, 2026:** the version 0.1.0 development candidate is
+published in the private
+[schema-waffles-dsqt repository](https://github.com/Unispace365/schema-waffles-dsqt)
+on `main`, starting at commit
+[`9e2aead`](https://github.com/Unispace365/schema-waffles-dsqt/commit/9e2aeadf6d5a40897a4269d28244d4409253865c).
+The checkout is at `C:\dev\schema-waffles-dsqt`. Its root contains the canonical
+schema, Blueprint export, manifest, contract, adoption guide, and icons. The
+package has 13 types and four traits; 28 regression tests and static checks
+against the DsQt source pass. The source `schema-waffles` repository remains
+separate. Application migration, native Bridge schema/content validation, and
+device acceptance remain open.
+
+| Deliverable | Scope |
+| --- | --- |
+| Schema contract | Inventory the types, traits (reusable field groups), field keys, value types, defaults, relationships, child ordering, and identifiers consumed by implemented Waffles features. Mark each as required for a feature, optional, or unsupported/planned. Cover media and folders, ambient/interactive playlists and slides, platform/event links, timing/transitions, custom-layout frames, and hotspots. Record configurable adapter mappings and fixed field assumptions separately. |
+| Reusable package and repository | Published in the private `schema-waffles-dsqt` repository, including referenced traits/assets, import/export instructions, source revisions, compatibility mappings, and independent validation/comparison tools. Assign an individual maintainer and complete native validation before treating it as a deployment-ready dependency. |
+| Current application integration | Compare the package with ECPresenter's `schema-downstreamdemo` schema; merge missing definitions and resolve differences while preserving existing content and relationships. Extend the relevant platform/event types with required traits or fields. Record any ID remapping and update the adapter, custom-layout frame configuration, and QML template registry accordingly. Configure the target Bridge environment and author representative content. |
+| Validation and adoption guide | Verify CMS authoring through Bridge Sync to the running application. Document schema preparation for new applications created by ProjectCloner and integration into existing application schemas. Include sample content and the checks needed when upgrading the shared package. |
+
+The package adds the optional `transition` selector, which still needs to be
+merged into the application's schema. A read-only comparison found that the
+older root `schema-waffles` definitions reuse two frame IDs with different
+aspect ratios from current DsQt; the package follows current DsQt/demo geometry.
+ECPresenter's `schema-downstreamdemo` frames match, but its remaining definition
+differences still need review. Bridge Blueprint can regenerate IDs without
+remapping every dependent reference, so integration must preserve IDs or migrate
+all references explicitly. Additional schema types must be distinguished from
+slide templates actually implemented in DsQt.
+
+**Completion evidence:**
+
+- A versioned package and contract are linked from the implementation guide,
+  with an identified maintainer and compatible DsQt version.
+- Both a fresh target schema and an existing application schema can adopt the
+  selected features with valid references and explicit application mappings.
+- ECPresenter demonstrates configured platform/event content, launcher browsing,
+  media, ambient/interactive playlists, custom layouts, and hotspot navigation
+  using the integrated schema; timing/transition behavior matches the contract.
+- Existing application content and workflows remain valid after integration,
+  and the schema changes, migration steps, and software/device checks are recorded.
+
+See [schema preparation in the implementation guide](waffles-implementation-guide.md#prepare-the-application-schema)
+and the [ownership overview](waffles-overview.md#bridge-schema-ownership).
 
 ## Features
 

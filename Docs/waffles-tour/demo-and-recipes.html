@@ -25,8 +25,16 @@
 
   <main class="content"><div class="col">
     <h1>6 · Demo &amp; recipes</h1>
-    <p class="lede">The AssetViewer example is the reference integration. Read it once end-to-end, then
-      use the recipes below for the things you'll actually do.</p>
+    <p class="lede">AssetViewer provides reference patterns for integrating Waffles. Use the
+      walkthrough and recipes below for the features your application needs.</p>
+    <p>For a complete application workflow, use the
+      <a href="../waffles-implementation-guide.md">consolidated implementation guide</a>.
+      Always create new applications with <strong>ProjectCloner</strong>. When adding Waffles to an
+      existing DsQt application, integrate it into that project. AssetViewer and ECPresenter are
+      reference implementations for both paths.</p>
+    <p>
+      AssetViewer demonstrates local/sample media; ECPresenter adds Bridge routing, quick-menu
+      actions, presentation resume, and idle cleanup. These behaviors belong to the application.</p>
 
     <h2>How AssetViewer is wired</h2>
     <div class="files">
@@ -50,8 +58,10 @@ dsqt::DsQmlApplicationEngine engine;
 engine.loadFromModule(<span class="s">"AssetViewer"</span>, <span class="s">"Main"</span>);  <span class="c">// app.mainView from settings</span></code></pre>
     <div class="callout gotcha">
       <span class="tag">8-bit + D3D11</span>
-      <p>Use <strong>8-bit</strong> colour — 10-bit shifts the tonal/glass colours. And WebEngine's GPU
-      compositing needs D3D11/Metal/OpenGL — <strong>not Vulkan</strong> — or the web viewer renders broken.</p>
+      <p>AssetViewer explicitly uses <strong>D3D11 and 8-bit color</strong> and initializes
+      WebEngine. The local ECPresenter entry point currently uses D3D12/10-bit and leaves
+      WebEngine initialization commented out. Validate web rendering and color with the chosen
+      SDK/backend combination; copying one entry point does not establish support for every feature.</p>
     </div>
 
     <h3>Main.qml — the 4K fit-view</h3>
@@ -161,10 +171,12 @@ DsTheme.accent = <span class="s">"#22C38A"</span>;   <span class="c">// new bran
 
     <div class="callout tip">
       <span class="tag">Still open in the codebase</span>
-      <p>A couple of intentionally-unfinished spots you may meet: the web controls' <strong>keyboard</strong>
-      button is a stub (on-screen keyboard TODO), and metadata-driven <strong>auto-loop</strong>
-      (<code>media.loop</code> → loop on open) isn't wired yet (the loop <em>toggle</em> and hold-last-frame are).
-      The <code>menu_launcher/</code> radial menu is also a work in progress.</p>
+      <p>On-screen keyboards, metadata looping, whiteboarding, and the Canvas2D quick menu are
+      implemented. The circular menu lives in <code>Dsqt.Core</code>; application code supplies
+      actions. Remaining work includes interactive-slide media pause, settings connections,
+      general error screens, and complete window-icon bundling. Follow the
+      <a href="../waffles-implementation-guide.md">implementation guide</a> for the current
+      integration boundaries and validation checklist.</p>
     </div>
 
     <div class="pager">

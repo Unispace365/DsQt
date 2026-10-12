@@ -213,6 +213,12 @@ locales = [[<span class="s">"en_US"</span>, <span class="s">"es_ES"</span>, <spa
     </div>
 
     <h2>Wiring it up</h2>
+    <p>The example below shows the basic selection connection. The current ECPresenter integration
+      routes launcher selections and stage navigation signals through the same application handler,
+      using <code>navigationFor()</code>, <code>playlistFor()</code>, and <code>slidesFor()</code>.
+      It also supplies <code>playlistItem</code>/<code>initialIndex</code> and normalizes web-link
+      media types. Follow the <a href="../waffles-implementation-guide.md">implementation guide</a>
+      for hotspot destinations, resume behavior, settings, and startup/idle policy.</p>
     <p>Give the launcher an adapter and translate <code>openRequested</code> into the right action — open a
       media viewer, or open &amp; play a playlist:</p>
 <pre><code><span class="k">DsContentLauncherModel</span> { <span class="p">id</span>: launcherModel; <span class="p">drillableKinds</span>: [<span class="s">"folder"</span>] }  <span class="c">// playlists open, not drill</span>

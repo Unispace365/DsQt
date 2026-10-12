@@ -55,29 +55,36 @@ stage.<span class="p">createViewer</span>({
     <span class="s">"stage"</span>: stage
 });</code></pre>
 
-    <h2>The three layers</h2>
-    <p>Inside the stage, three sibling <code>Item</code>s stack up. Order matters:</p>
+    <h2>The six named layers</h2>
+    <p>Use <code>getLayer(name)</code> to access the built-in layers. Their order is:</p>
     <table>
-      <tr><th>Layer (id)</th><th>What it holds</th><th>Why</th></tr>
-      <tr><td><code>glassSlotHolder</code></td><td>the live composite "slots"</td><td>must be in the render tree so its live <code>ShaderEffectSource</code>s keep updating; sits at the very back, hidden behind the backdrop</td></tr>
-      <tr><td><code>backdrop</code></td><td><code>backgroundContent</code> (alias)</td><td>your app content; this is the bottom of the glass stack — the deepest viewer samples it directly</td></tr>
-      <tr><td><code>topLayer</code> (z:1)</td><td>viewers, launcher, fullscreen scrim</td><td>kept above any backdrop content; its <code>onChildrenChanged</code> rebuilds the glass chain</td></tr>
+      <tr><th>Layer name</th><th>z</th><th>What it holds</th></tr>
+      <tr><td><code>background</code></td><td>0</td><td>Application content supplied through <code>backgroundContent</code>; the bottom of the glass stack.</td></tr>
+      <tr><td><code>presentation</code></td><td>1</td><td>The active full-stage playlist.</td></tr>
+      <tr><td><code>viewer</code> (id <code>viewerLayer</code>)</td><td>2</td><td>Ordinary floating media windows.</td></tr>
+      <tr><td><code>modal1</code></td><td>3</td><td>The launcher by default, plus the interactive presentation controller.</td></tr>
+      <tr><td><code>modal2</code></td><td>4</td><td>Fullscreen scrim, fullscreen viewer, and its controller.</td></tr>
+      <tr><td><code>modal3</code></td><td>5</td><td>Floating keyboard and overlays that must remain above fullscreen.</td></tr>
     </table>
+    <p><code>glassSlotHolder</code> maintains backing textures outside this named-layer registry.
+      The whiteboard is a separate retained overlay at z:100. Set <code>launcherLayer</code> or
+      a viewer's creation-time <code>layer</code> field to choose a built-in layer; arbitrary
+      <code>addLayer()</code> support remains future work.</p>
     <div class="callout concept">
       <span class="tag">backgroundContent is an alias</span>
-      <p><code>property alias backgroundContent: backdrop.data</code> — assigning to it parents your items
-      into the <code>backdrop</code> layer, where they're both <em>shown</em> and <em>captured into the glass</em>.</p>
+      <p><code>property alias backgroundContent: background.data</code> — assigning to it parents your items
+      into the <code>background</code> layer, where they're both <em>shown</em> and <em>captured into the glass</em>.</p>
     </div>
 
     <h2>The viewer lifecycle</h2>
-    <p>Viewers are created from a <code>Component</code> the stage holds, and parented into <code>topLayer</code>.
+    <p>Viewers are created from a <code>Component</code> the stage holds, and parented into <code>viewerLayer</code> by default.
       The default viewer type is the demo skin <code>TitledMediaViewer</code> (a <code>ux/</code> file):</p>
 <pre><code><span class="p">property Component</span> viewer: <span class="k">Component</span> { <span class="k">TitledMediaViewer</span> {} }
 
 <span class="k">function</span> <span class="p">createViewer</span>(viewerProps) { … <span class="p">completeViewer</span>(viewerProps) … }
 
 <span class="k">function</span> <span class="p">completeViewer</span>(viewerProps) {
-    <span class="k">let</span> v = viewer.<span class="p">createObject</span>(topLayer, viewerProps);
+    <span class="k">let</span> v = viewer.<span class="p">createObject</span>(resolvedLayer, propsWithoutLayer);
     <span class="k">if</span> (!(<span class="s">"x"</span> <span class="k">in</span> viewerProps) &amp;&amp; !(<span class="s">"y"</span> <span class="k">in</span> viewerProps))
         <span class="p">centerViewer</span>(v);                         <span class="c">// open centred unless positioned</span>
     v.<span class="p">closeRequested</span>.connect(() =&gt; closeViewer(v));
@@ -102,12 +109,12 @@ stage.<span class="p">createViewer</span>({
 <pre><code><span class="k">function</span> <span class="p">selectViewer</span>(v) {
     <span class="k">if</span> (v === _selectedViewer) <span class="k">return</span>;
     _selectedViewer = v;
-    <span class="k">for</span> (…topLayer.children…)  child.selected = (child === v);
+    <span class="k">for</span> (…viewerLayer.children…)  child.selected = (child === v);
     <span class="k">if</span> (v) v.z = ++_topZ;        <span class="c">// incrementing z keeps the newest on top</span>
     <span class="p">rebuildGlass</span>();              <span class="c">// re-order the glass chain to match</span>
 }</code></pre>
-    <p>Tapping empty space calls <code>selectViewer(null)</code> (deselect all). Dragging a viewer also
-      selects+raises it. A <code>TapHandler</code> on the stage drives this.</p>
+    <p>Call <code>selectViewer(null)</code> to deselect. Viewer interaction can select and raise it;
+      applications may add their own empty-space interaction policy.</p>
 
     <h2>Closing</h2>
 <pre><code><span class="k">function</span> <span class="p">closeViewer</span>(v) {
@@ -115,7 +122,7 @@ stage.<span class="p">createViewer</span>({
     <span class="k">if</span> (_selectedViewer === v) _selectedViewer = null;
     v.<span class="p">playExit</span>(() =&gt; v.destroy());   <span class="c">// animate out, then destroy</span>
 }</code></pre>
-    <p>Destroying the viewer fires <code>topLayer.onChildrenChanged → rebuildGlass()</code>, which rewires
+    <p>Destroying the viewer fires its layer's <code>onChildrenChanged → rebuildGlass()</code>, which rewires
       the remaining viewers' glass.</p>
 
     <h2>Fullscreen orchestration</h2>
@@ -144,6 +151,11 @@ stage.<span class="p">createViewer</span>({
       <a href="glass-and-theming.html">Glass</a> pages.</p>
 
     <h2>Settings the stage reads</h2>
+    <p>Application integration also uses <code>openViewer()</code>, <code>openPlaylist()</code>,
+      <code>openWhiteboard()</code>, and <code>clearForeground()</code>. The application handles
+      navigation signals and decides startup, resume, and idle behavior. See the
+      <a href="../waffles-implementation-guide.md">implementation guide</a> and
+      <a href="../articles/whiteboard.md">whiteboard reference</a>.</p>
     <p>The stage pulls its defaults from the merged <code>app_settings</code> collection, under the
       <code>waffles</code> prefix (see <a href="glass-and-theming.html">theming &amp; settings</a>):</p>
 <pre><code><span class="k">DsSettingsProxy</span> { <span class="p">id</span>: appSettings; <span class="p">target</span>: <span class="s">"app_settings"</span>; <span class="p">prefix</span>: <span class="s">"waffles"</span> }

@@ -68,7 +68,8 @@ stage.<span class="p">closePlaylist</span>();</code></pre>
   holdTime,           <span class="c">// seconds: slide → platform → defaultHoldTimeSeconds</span>
   disableTransition,  <span class="c">// bool — skip this slide's transition (cut)</span>
   transition,         <span class="c">// string — per-slide transition name (see below)</span>
-  record }            <span class="c">// the raw bridge record, for template-specific fields</span></code></pre>
+  record,             <span class="c">// the raw bridge record, for template-specific fields</span>
+  layout }            <span class="c">// authored frames/media/hotspots for custom layouts</span></code></pre>
 
     <h2>Templates — which QML renders a slide</h2>
     <p>Each slide is rendered by a template chosen from the slide's <code>typeUid</code>. Register your
@@ -90,10 +91,20 @@ stage.<span class="p">closePlaylist</span>();</code></pre>
 }</code></pre>
 
     <h2>The presentation controller</h2>
+    <p><strong>Custom layouts and navigation:</strong> <code>DsCustomLayoutTemplate</code> is implemented.
+      Register it using the actual schema type UID in <code>playlistTemplateByTypeUid</code>.
+      Templates can emit <code>contentRequested(target)</code> or <code>playlistRequested(target)</code>;
+      the stage forwards them and the application resolves the destination. Use
+      <code>playlistItem</code> and <code>initialIndex</code> in <code>openPlaylist()</code> for selected
+      presentation tracking and a requested/resumed slide. See the
+      <a href="../waffles-implementation-guide.md">implementation guide</a> for the complete flow.</p>
     <p>Interactive playlists get a <code>PresentationController</code> — a movable, collapsible bar
       (prev · play/pause · <code>i / N</code> · next · close), mirroring the fullscreen controller's
       tab+bar UX. Ambient playlists get none. Play/pause toggles the viewer's <code>paused</code> flag;
       close fires <code>closeRequested</code> → <code>closePlaylist()</code>.</p>
+    <p><strong>Current limitation:</strong> <code>paused</code> gates ambient auto-advance but is not
+      included in the template <code>active</code> binding. The interactive controller's pause button
+      does not yet pause media inside the slide.</p>
     <div class="diagram">┌──┐  ┌───────────────────────────────────┐
 │◧ │  │  ◀    ⏸    3 / 8    ▶    ✕         │   drag the tab or bar; tab collapses it
 └──┘  └───────────────────────────────────┘</div>
