@@ -1,32 +1,76 @@
 # Waffles backlog
 
-Running list of needed / deferred items so we can keep pushing major functionality
-without losing track. Candidate for Jira import later.
+Reconciled against DsQt `af/waffle-glass` and the local ECPresenter integration on
+October 12, 2026. Completed code is distinct from application integration and
+device acceptance. See the [overview](waffles-overview.md) and
+[implementation guide](waffles-implementation-guide.md).
 
-Convention: `- [ ] **Title** (area) — one-line note.`
-Check the box when done; move long-finished items to the bottom or delete.
+## Completed framework work
 
-## Current demo work
+| Capability | Owner and implementation |
+| --- | --- |
+| Stage and media windows | DsQt Waffles: named layers, draggable/resizable viewers, fullscreen lifecycle, media controls, and cross-layer glass. |
+| Content launcher | Waffles supplies browsing, breadcrumbs, loaded-tree search, filters, and keyboard UI. Bridge supplies the exported `DsContentLauncherModel`. |
+| Configurable content contract | Bridge reads multiple type IDs, fields, browse/open policies, filters, playlist roles, timing, and renderer mappings from `waffles_content.toml` in `app_settings`. ProjectCloner supplies starter settings. |
+| Presentations | Waffles: `DsPlaylistViewer`, ambient timing, manual navigation, cut/fade/slide transitions, component registry, and `PresentationController`. |
+| Pause | Built-in templates pause video and animated images, including custom-layout backgrounds. Navigation and hotspots remain active; resume honors autoplay. Custom renderers implement the `paused` contract. |
+| Custom layouts and hotspots | Bridge resolves frame/media/link data; Waffles renders positions, backgrounds, gestures, and hotspot signals. Explicit frame selection is strict; an empty setting enables aspect matching. |
+| Quick menu | Core: Qt 6.12 Canvas2D circular rendering, reveal/selection animation, highlighting, selection signals, and timed closing. Application code supplies activation and actions. |
+| Whiteboard | Waffles: Canvas Painter drawing, multi-touch pen/highlighter/eraser, colors/sizes, history, clear, backgrounds, and PNG export. |
+| Shared assets | Waffles bundles Roboto, media controls, whiteboard controls, and all 14 standard window-control SVGs. Application menu/launcher assets still need deployment. |
+| Build and exports | Qt 6.12 requirements, CI module selection, Cloner template presets, and direct Bridge adapter import are aligned. Current main is merged and TouchEngine is enabled. |
 
-- [x] **Application content settings** (Bridge / Waffles / application) — add
-      `waffles_content.toml` to `app_settings`; configure multiple type IDs,
-      per-type media/title/thumbnail fields, browse/open actions, launcher visibility,
-      search filters by kind or type, playlist modes, timing fields and renderer mappings.
-      ProjectCloner supplies a starter; ECPresenter uses its own schema configuration.
-- [x] **Application frame selection** (custom layouts) — `waffles.content.layout.frameUid`
-      selects a specific authored frame. Missing selected-frame content reports a warning
-      and hides the layout canvas. An empty ID retains automatic aspect selection.
+## Completed ECPresenter integration
 
-- [x] **Custom Layout** — render the CMS's HD and wide-wall frames, positioned media, backgrounds,
-      drag/pinch behavior and hotspot destinations.
-- [x] **Connected demo** — add two custom-layout slides linking the existing interactive playlists.
-- [x] **Slide resume** — return from ambient to the last slide, matching by uid after CMS reordering.
-- [x] **Interaction walkthrough** — automated checks cover layout geometry, presentation/slide/asset links,
-      launcher selection, mouse drag, synthetic two-point touch, whiteboard cleanup and idle return.
-      Live Bridge checks cover both frames, photographic backgrounds and video autoplay/pause/resume.
-      Verification artifacts: `ECPresenter/build/presentation-navigation-check/` (106 assertions passed).
-      Physical touch-display feel and video appearance remain a manual device check; the headless preview
-      renderer is software and does not capture video frames.
+ECPresenter owns application policy and is a reference for projects created by
+ProjectCloner or existing DsQt applications. Its integration includes:
+
+- Platform/content configuration, launcher requests, and destination routing.
+- Startup ambient playback, idle return, and interactive presentation resume by
+  slide UID after content reordering.
+- Media/custom-layout renderer registration and explicit application frame selection.
+- Five-touch/right-click quick-menu activation and nine application actions.
+- Whiteboard opening and idle/ambient cleanup; normal Close retains the drawing.
+- Direct import of the exported Bridge adapter, with no copied adapter source.
+
+Earlier integration checks are recorded in
+`ECPresenter/build/presentation-navigation-check/` (106 assertions). They cover
+geometry, links, launcher selection, pointer input, cleanup, and idle return.
+Those records are historical evidence, not fresh acceptance of the current branch.
+
+## Open delivery work
+
+| Task | Owner | Completion evidence |
+| --- | --- | --- |
+| Adopt the reusable schema | Application/schema maintainers | Preserved IDs/content, native Bridge validation, synchronized representative records, and matching application mappings; see the schema task below. |
+| Content and load-error feedback | DsQt components / application | Visible unavailable-media and empty-content states, unresolved-destination feedback, and usable recovery paths. |
+| Additional slide templates | DsQt Waffles / application | Implement required Gallery, Carousel, Cards, Agenda, or Collection renderers and register them. Schema types alone do not provide renderers. |
+| Bridge Sync settings filename | ECPresenter | Resolve `engine.toml` referring to `bridgesync.toml` while the tracked file is `bridgesyc.toml`; verify the deployed setting. |
+| Application deployment | Application | Ship menu/launcher assets and feature dependencies; verify installed startup, database/platform selection, and delayed/missing content. |
+| Touchscreen and Figma acceptance | Application / design | Validate physical hit sizes, five-touch gestures, simultaneous drawing, menu motion, GPU/video appearance, web/keyboard focus, fullscreen, capture inputs, and repeated idle cleanup. |
+| Hosted CI | DsQt | Run updated workflows on the branch. A local build does not establish a successful hosted run. The publishing workflow remains opt-in. |
+
+## Design and optional follow-ups
+
+- **Fullscreen control sizing:** verify the common 459 × 99 frame, 444 × 99 bar,
+  30 × 30 collapse tab, 20 px bar radius, 24 px buttons, and 16 px glyphs against
+  [image controls](https://www.figma.com/design/fjxsTDEKzJ7Xs50BQyptGE/White-Label-Waffles-DD?node-id=83-3593&m=dev)
+  and [video controls](https://www.figma.com/design/fjxsTDEKzJ7Xs50BQyptGE/White-Label-Waffles-DD?node-id=83-3594&m=dev).
+- **Inline control-pill widths:** design decision remains open for fullscreen
+  `chrome:false` controls, which fill their row. Standalone targets are video
+  356 × 37, PDF 236 × 36 (locked 250 × 36), and web 172 × 36. See
+  [PDF controls](https://www.figma.com/design/fjxsTDEKzJ7Xs50BQyptGE/White-Label-Waffles-DD?node-id=83-2888&m=dev)
+  and [web controls](https://www.figma.com/design/fjxsTDEKzJ7Xs50BQyptGE/White-Label-Waffles-DD?node-id=83-2974&m=dev).
+- **Quick-menu acceptance:** compare current Canvas2D behavior with
+  [the required UX](https://www.figma.com/design/fjxsTDEKzJ7Xs50BQyptGE/White-Label-Waffles-DD?node-id=454-1302&m=dev)
+  on the target display. Final motion/fidelity sign-off remains open.
+- **Glass performance:** profile stacked viewers before deciding whether a C++
+  capture/compositing implementation is warranted.
+- **Source Tour maintenance:** align historical recipes with the consolidated
+  guide, especially exported adapter imports, the `paused` template contract,
+  and settings-driven browse/open behavior.
+- **TouchEngine rewrite:** [PR #49](https://github.com/Unispace365/DsQt/pull/49)
+  remains separate. This branch restores the current main implementation.
 
 ## Bridge schema integration
 
@@ -40,14 +84,14 @@ The [DsQt adapter](../Library/DsQt/Bridge/qml/DsContentLauncherModel.qml) defaul
 that schema's field keys, type IDs, event names, and custom-layout frame IDs.
 This task applies to applications using Bridge content.
 
-**Package status, October 9, 2026:** the version 0.1.0 development candidate is
+**Package status, October 12, 2026:** the version 0.1.0 development candidate is
 published in the private
 [schema-waffles-dsqt repository](https://github.com/Unispace365/schema-waffles-dsqt)
-on `main`, starting at commit
+on `main`, with local validation/settings updates at `a517890`. The published package starts at commit
 [`9e2aead`](https://github.com/Unispace365/schema-waffles-dsqt/commit/9e2aeadf6d5a40897a4269d28244d4409253865c).
 The checkout is at `C:\dev\schema-waffles-dsqt`. Its root contains the canonical
 schema, Blueprint export, manifest, contract, adoption guide, and icons. The
-package has 13 types and four traits; 28 regression tests and static checks
+package has 13 types and four traits; 35 regression tests and static checks
 against the DsQt source pass. The source `schema-waffles` repository remains
 separate. Application migration, native Bridge schema/content validation, and
 device acceptance remain open.
@@ -84,165 +128,27 @@ slide templates actually implemented in DsQt.
 See [schema preparation in the implementation guide](waffles-implementation-guide.md#prepare-the-application-schema)
 and the [ownership overview](waffles-overview.md#bridge-schema-ownership).
 
-## Features
+## Validation record
 
-- [x] **Loop via metadata** (media) — done. `DsTitledMediaViewer` now reads `media.loop` from the
-      bridge media descriptor and sets `DsMediaViewer.loops = MediaPlayer.Infinite` when truthy
-      (else 0 = play once + KeepLastFrame). Finishes FS Phase 4.
-- [x] **On-screen keyboard** (controls/web) — done (Phase 2c). `DsVirtualKeyboard` wraps Qt
-      Virtual Keyboard's `InputPanel` and applies the bundled dark **`waffles`** style (in
-      `Dsqt.Core`'s `keyboard.qrc`; selected via `QT_VIRTUALKEYBOARD_STYLE=waffles` per app +
-      `qrc:/keyboard` added to the QML import path by `DsQmlApplicationEngine`). The launcher
-      docks one above its close button in search mode; the web controls' keyboard button toggles a
-      `DsFloatingKeyboard` (draggable, on the stage's `modal3`) via
-      `DsWaffleStage.floatingKeyboardShown`. Multilingual locales come from
-      `[waffles.keyboard] locales` (default Latin set; globe key cycles them). Only one InputPanel
-      is active at a time (the docked panel gates off while the floating one is shown). Verify on
-      device: web-input focus routing + whether the 1400 px floating keyboard feels right on 4K.
-- [ ] **Presentation playlists + presentation controller** (feature — greenfield) — NOT a
-      "per-type fullscreen controller" (the old framing here was wrong; the
-      `// (could vary by v.viewerType later)` comment in `_showController` conflated two
-      different things). The **fullscreen controller** and the **presentation controller** have
-      distinct UX and lifecycles:
-    - **Fullscreen controller** — appears when a *media* viewer enters **fullscreen**; bound to
-      fullscreen state (show on enter, hide on exit). This is what exists today.
-    - **Presentation controller** — can be shown any time a **presentation** is *active*. A
-      presentation is **not media**: it has **no fullscreen state** — it's either playing or not.
-      So its trigger is "presentation active/playing", independent of `setFullscreen`.
+| Check | Current local result |
+| --- | --- |
+| DsQt Debug and Release builds/install, Qt 6.12, TouchEngine enabled | Passed. Installed into the configured local DsQt prefix. |
+| Library runtime tests | All eight CTest suites passed in both Debug and Release. The playlist suite passed all 25 cases, including media/GIF pause, resume, autoplay, navigation, hotspots, ambient timing, and bundled icons. |
+| Schema static checks against current DsQt | Passed: 13 types, four traits, 11 assets. |
+| Schema regression suite | Passed: 35 tests. |
+| Fresh ProjectCloner consumer | Generated with the actual ProjectCloner backend; Debug build/install passed against the installed package with TouchEngine enabled. A Waffles smoke view instantiated the exported Bridge adapter, stage, and whiteboard and exited successfully. |
+| ECPresenter | Debug and Release build/install passed. Deployed Debug startup loaded cached media without QML component-load errors. This does not establish live Bridge/schema acceptance. |
+| Hosted CI, native Bridge migration, physical touchscreen acceptance | Not run. |
 
-      **Terminology / data model** — a "presentation" is an **interactive playlist**. There are
-      two playlist kinds, differing in how slides advance:
-    - **Interactive playlist (= presentation)** — stays on each slide until explicitly advanced:
-      by a link/hotspot in the slide, or a prev/next command (keyboard, the presentation
-      controller, etc.).
-    - **Ambient playlist** — auto-advances on a timer. Timer resolution order: the **slide's**
-      duration → if 0/undefined, the **platform's** → if 0/undefined, a **setting** → else a
-      default of X seconds.
+Build/test logs are local artifacts under `Library/build/ninja/`; consumer logs
+are under `Library/build/ClonerWafflesSmoke/` and ECPresenter's
+`build/ninja-multi-6.12/`. The fresh consumer had no content database, and
+ECPresenter's configured platform ID was absent from its cached database. Both
+reported the optional Touch input-filter module unavailable; this is separate
+from TouchEngine. Validate the application's platform mapping and required
+input modules during deployment acceptance.
 
-      **Current state (greenfield):** `PresentationController.qml` does NOT exist (the stage's
-      `Qt.createComponent("PresentationController.qml")` is a dangling stub); there is a reserved
-      but empty `presentation` layer (z=1); no presentation viewer exists; and `kind:
-      "presentation"` isn't openable yet (the apps' `_toViewerProps` only maps image/video/pdf/
-      weblink). Building it means: a presentation viewer (walks slide children; play/active
-      state; interactive vs ambient advance, with the ambient timer-resolution chain above), a
-      presentation controller shown while active (play/pause, prev/next, slide index — NOT the
-      media transport), and the app mapping to open `kind: "presentation"`. `_showController`
-      stays fullscreen-only; the presentation controller needs its own active-state trigger.
-
-      **Boot behavior (to build):** on app launch the stage should auto-start the platform's
-      **default ambient playlist** as the attract loop (the platform carries
-      `default_interactive_playlist` — seen resolving to "Test Presentation" — and a default
-      ambient; per-platform "Default ambient / default interactive / default menu"). Ambient plays
-      automatically; the default interactive presentation is the initial interactive content,
-      surfaced when the user engages. Idle return-to-ambient (after `engine.idle_timeout`) is a
-      related follow-on. Make auto-start configurable (a setting to disable for dev).
-
-      Progress: Phase 0 built `DsPlaylistViewer` (advance engine: ambient timer + interactive
-      next/prev + loop), `DsMediaTemplate`, `DsWaffleStage.openPlaylist()`, and the
-      `PresentationController` (play/pause, prev/next, slide index, close). Launcher opens playlists
-      (open-and-play). Remaining: the boot auto-start above, idle return-to-ambient, more slide
-      templates (Gallery/Carousel/Cards/Agenda/Collections/Custom Layout — new EC-Presenter schema
-      types), slide transitions, and interactive hotspots/links.
-- [x] **Glass on non-media viewers** (glass) — done. `DsContentLauncher` now renders glass via a
-      `glassContext` consumed by its panel's `DsGlassBackground`; the `FullscreenController` does
-      the same via `DsController.glassContext`. Both sample the cross-layer slot chain so their
-      blur shows everything below in the layer stack. Any future non-media viewer can adopt the
-      same pattern by exposing a glass-context QtObject.
-
-## Polish / UX
-
-- [x] **Resize the fullscreen controller to the Figma spec** (fullscreen/UX) — done. Frame is now
-      459 × 99 (bar 444 × 99 + tab 30 × 30 overlap), title 16 px Roboto Thin (weight 100), bar
-      corner radius 20, tab corner radius 8, icon buttons 24 × 24 with 16 px icons. The full
-      Figma spec captured below stays for reference + the per-type pill specs (those still
-      apply to `DsMediaControls` windowed and remain to-do).
-      `Library/DsQt/Waffles/qml/ux/FullscreenController.qml`. Figma:
-      [Image 83:3593](https://www.figma.com/design/fjxsTDEKzJ7Xs50BQyptGE/White-Label-Waffles-DD?node-id=83-3593&m=dev),
-      [Video 83:3594](https://www.figma.com/design/fjxsTDEKzJ7Xs50BQyptGE/White-Label-Waffles-DD?node-id=83-3594&m=dev).
-
-      Controller frame — **ALL types (image/video/pdf/web) are the SAME size**; the controls just fill the
-      bottom row, so height does not change per type:
-    - Frame **459 × 99** (W × H).
-    - Bar: corner radius **20**, backdrop blur **10px**, Tonal-10 (#2E3439) border, tonal-0 @ 80% fill.
-      Bar starts ~3.27% (~15px) in from the left so the collapse tab overlaps its left edge.
-    - Collapse tab: **~30 × 30** square (Figma shows `aspect 50/50` = a 1:1 ratio, NOT 50px; actual width
-      ≈ 6.54% of 459 ≈ 30px), radius **8**, Tonal-10 fill, drop shadow 0/4/4 rgba(0,0,0,.25); positioned
-      left:0, top:34px → tab centre sits on the bar's left edge.
-    - Title: **16px**, Helvetica Neue Thin → Roboto, white; top row, left-padded ~10% (~47px) to clear the tab.
-    - Window buttons + media controls sit on the bottom row, laid out inline (not a nested pill).
-    - Current values to replace: `barWidth 1400`, `barHeight 160`, `tabSize 56`, title `font.pixelSize 30`,
-      radii from `DsTheme.glassRadius` (12). NOTE controller radius (20) and tab radius (8) are NOT `glassRadius`.
-      (16px title / ~30px tab on a 4K touch UI reads small — worth a sanity-check on device.)
-
-      Per-type control specs (the windowed `DsMediaControls` pills, bottom-inner; same controls are reused
-      inline in the controller's bottom row). Each pill: own glass, radius **20**, blur **10px**, Tonal-10
-      border; icon buttons **16 × 16**:
-    - **Video** ([83:2785](https://www.figma.com/design/fjxsTDEKzJ7Xs50BQyptGE/White-Label-Waffles-DD?node-id=83-2785&m=dev))
-      — **356 × 37**: play/pause, scrubber (track Tonal-30 #5D6166, fill white, ellipse handle), loop
-      (accent #00ADF7 when active), volume icon + volume slider.
-    - **PDF** ([83:2888](https://www.figma.com/design/fjxsTDEKzJ7Xs50BQyptGE/White-Label-Waffles-DD?node-id=83-2888&m=dev))
-      — **236 × 36** (e.g. "1/6"); locked variant **250 × 36** (e.g. "02/89"): page label (12px Helvetica
-      Neue Regular, +0.6px tracking), back, page slider (track white @ 25%, fill white), forward, lock/locked.
-    - **Web** ([83:2974](https://www.figma.com/design/fjxsTDEKzJ7Xs50BQyptGE/White-Label-Waffles-DD?node-id=83-2974&m=dev))
-      — **172 × 36**: keyboard, back, forward, refresh, lock/locked.
-
-## Tech debt / cleanup
-
-- [ ] **Bundle window icons in Waffles too** (waffles/assets) — `DsMediaControls.media()` now
-      pulls glyphs from `qrc:/qt/qml/Dsqt/Waffles/data/images/waffles/media/...` (shipped with
-      the module). Same treatment still owed to `DsMediaControls.win()` and
-      `FullscreenController.windowIcon()`, both of which expand `%APP%/data/images/waffles/
-      window/...` from app-side. ECPresenter and AssetViewer happen to ship that folder so
-      things work today; a brand-new Waffles consumer would have missing icons. Same recipe as
-      Roboto + the media set: copy `close / collapse / controller_collapse|expand / fullscreen
-      / lock / locked` (+ `_pressed` variants) into `Library/DsQt/Waffles/data/images/waffles/
-      window/`, list in `RESOURCES`, switch the helpers to `qrc:/...` paths.
-- [ ] **Per-type DsMediaControls pill widths follow Figma in chrome:false too?** (decide)
-      Today `pill.width = mc.width` when embedded in the FS controller (fills the row); the
-      Figma's video/pdf/web pills (356/236/172) are only enforced in standalone chrome:true mode.
-      The FS-controller inline row works fine filled, but it isn't a literal Figma match.
-
-
-
-- [x] **`modalLayer` for scrim + fullscreen** (stage/architecture) — done. Superseded by the
-      named-layer refactor: `DsWaffleStage` now has six layers (background / presentation /
-      viewer / modal1 / modal2 / modal3). Launcher lives in `modal1` (configurable via
-      `launcherLayer`); scrim + fullscreen viewer + `FullscreenController` live in `modal2`,
-      with `setFullscreen` reparenting the viewer into `modal2` on enter and back to its
-      original layer on exit. Glass chain is now cross-layer.
-- [x] **Stale TEMP comment** (cleanup) — done. Removed the misleading
-      `// TEMP: media hidden to inspect the glass background` annotation.
-- [x] **Rename ECPresenter installer scripts** (ECPresenter/cleanup) — done. Deleted stale
-      `ClonerSource.iss` / `ClonerSource_dev.iss` from both `ECPresenter/install/` and
-      `Examples/AssetViewer/install/` (both had been copied from the ClonerSource template).
-      `apphost.json` and `make_installer.bat` regenerate from `cmake/*.in` per project at
-      configure time and were already project-named correctly; no template changes needed.
-
-## Performance
-
-- [ ] **C++ hybrid glass capture/compositing** (glass/perf) — replace the pure-QML live slot
-      chain with a C++ implementation for performance. Watch the cost with several stacked
-      viewers; that's the motivation.
-
-## Docs
-
-- [ ] **Tour: explain drillable vs openable in the launcher** (docs) — the launcher item shape
-      now carries both `hasChildren` (UX hint: chevron + drill-on-tap, driven by
-      `drillableKinds`) and `recordHasChildren` (data fact: bridge record actually has children,
-      used by openable container viewers like presentations). Worth a short paragraph in the
-      glass-and-theming tour page (or a new launcher tour page) once the search/keyboard work
-      lands. Default `drillableKinds = ["folder", "playlist"]`; map "Presentation" / other
-      always-open container types to a kind outside that list (e.g. `"presentation"`).
-
-
-- [x] **`blurMultiplier` glass token** (theme) — done. `glassBlurMultiplier` (default 0.0) added
-      to `DsTheme` + `[waffles.theme]` settings, plumbed through `DsWaffleStage` →
-      `DsTitledMediaViewer` / `DsContentLauncher` / `DsController` glass contexts and into
-      `DsGlassBackground`'s `MultiEffect`. Bump above 0 to extend blur radius beyond
-      `glassBlurMax` without raising texture-lookup cost.
-
----
-
-## Done
-
-_(move completed items here, or delete)_
+The local Release build initially hit an assertion in Visual Studio's bundled
+Ninja 1.13.2; switching the local build to Qt's Ninja 1.12.1 completed both
+configurations. Hosted CI has not yet verified its own toolchain. Deployment
+and hardware acceptance remain required even when automated behavior tests pass.

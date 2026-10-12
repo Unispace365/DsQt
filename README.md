@@ -11,7 +11,10 @@ CMS backend for rapid prototyping and developemnt.
 
 ## Documentation
 
-Documentation is compiled by Doxygen and can be found here:
+Use the [documentation index](Docs/README.md) to find setup, Waffles, Bridge,
+settings, deployment, and module guides.
+
+The generated Doxygen reference is published here:
 <https://unispace365.github.io/DsQt/>
 
 For Waffles applications, start with the [Waffles overview](Docs/waffles-overview.md)
@@ -188,8 +191,9 @@ The tool creates a complete project from the ClonerSource template with:
 
 1. `cd <your-project>`
 2. Run `cmake --list-presets` and `cmake --list-presets=build` to inspect the generated presets.
-3. Add a local Qt 6.12 preset if the template still lists older SDKs. Set its
-   `CMAKE_PREFIX_PATH` to your Qt SDK and installed DsQt package; see the guide below.
+3. Select Qt 6.12 in ProjectCloner. The template supplies `ninja-6.12.0` and
+   `vs2022-6.12.0` presets; adjust `CMAKE_PREFIX_PATH` in a local preset if your
+   SDK or installed DsQt package uses a different location.
 4. Configure with `cmake --preset <configure-preset>` and build with
    `cmake --build --preset <build-preset>`, substituting actual preset names.
 5. Install with `cmake --install <build-directory> --config Release` (or Debug).

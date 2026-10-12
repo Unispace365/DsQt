@@ -5,11 +5,11 @@ Waffles components into an application. It distinguishes **DsQt library work**
 from **application work**, using AssetViewer and ECPresenter as references.
 Read the [overview](waffles-overview.md) first for terminology and responsibilities.
 
-The source baseline is DsQt `acc40efd` plus the local ECPresenter integration
-reviewed on October 9, 2026. ECPresenter's published baseline may not contain
-`PresenterActions.qml`, `PresenterQuickMenu.qml`, or the current build presets.
-The guide documents existing behavior and calls out unfinished connections; it
-does not claim a fresh build or hardware acceptance run.
+This guide follows the `af/waffle-glass` working branch and the locally committed
+ECPresenter integration, reviewed October 12, 2026. Rebuild and install the
+updated DsQt package before rebuilding a consumer. See the
+[backlog validation record](waffles-backlog.md#validation-record) for completed
+checks and remaining application/device acceptance.
 
 ## 1. Start with ProjectCloner or an existing DsQt project
 
@@ -32,9 +32,9 @@ There are two integration paths:
 3. Work in the generated project. ProjectCloner uses
    [ClonerSource](../Examples/ClonerSource/) to create its build files, entry
    point, QML structure, settings, and sample assets.
-4. Check the generated presets and module configuration using section 2. If the
-   template lists older Qt SDKs, add a local preset for the required Qt 6.12 SDK
-   and installed DsQt package before building.
+4. Select Qt 6.12 in ProjectCloner and check the generated presets using section 2.
+   The template also provides `ninja-6.12.0` and `vs2022-6.12.0` presets. Use a
+   local preset when the SDK or installed DsQt package is in a different location.
 5. Integrate the stage and the features needed by the application using the
    remaining sections of this guide.
 
@@ -328,11 +328,11 @@ replace native schema/content or runtime acceptance checks.
 5. Route launcher requests and the stage's `contentRequested(target)` and
    `playlistRequested(target)` signals through one destination handler.
 
-The current Bridge package installs `DsContentLauncherModel.qml` as source but
-does not export it as a module type. ECPresenter's CMake bundles that installed
-source into its application module. Follow that pattern until it is exported;
-after updating DsQt, rebuild/install the library and reconfigure/rebuild the
-application so it picks up the updated adapter and Waffles components.
+`DsContentLauncherModel` is an exported QML type in `Dsqt.Bridge`. Link
+`Dsqt::Bridge`, declare the `Dsqt.Bridge` QML dependency, and use
+`import Dsqt.Bridge`. Remove any application-side copy of the adapter and its
+CMake `configure_file` workaround when upgrading; ECPresenter now uses the
+module directly. Rebuild/install DsQt and reconfigure/rebuild the application.
 
 | Adapter operation | Result and application action |
 | --- | --- |
@@ -385,8 +385,11 @@ silently substituting a different frame. An empty ID selects the authored frame
 closest to the stage aspect ratio. An explicit QML `frameUid` assignment can
 override the descriptor. The application still resolves hotspot destinations.
 
-A custom template receives a `slide` property and may expose an `active` boolean.
-Gate video playback and other ongoing work on `active`. Templates can emit
+A custom template receives `slide` and may expose separate `active` and `paused`
+booleans. Play time-based content only while `active && !paused`, honoring its
+autoplay setting. Suspend playback with pause/resume, preserving the current
+position; do not use `active = false` to implement pause, because active also
+gates input. Templates can emit
 `contentRequested(target)` or `playlistRequested(target)`; the playlist viewer
 forwards requests only from the active slot to the stage.
 
@@ -395,9 +398,14 @@ The current Waffles path uses the QML component registry. ECPresenter's older
 Do not assume adding a URL to that table registers a Waffles template.
 
 Ambient playlists advance automatically; interactive playlists wait for user
-navigation. The current `paused` flag controls ambient advancement but is not
-propagated into template `active`, so the interactive controller's pause button
-does not yet stop slide media. See [playlists and transitions](waffles-tour/playlists.html).
+navigation. The controller's `paused` flag stops ambient advancement and is
+forwarded to both loaded slide templates. The built-in media and custom-layout
+templates pause video and animated images, including layout backgrounds.
+Manual navigation, drag/pinch, and hotspots remain available. A slide entered
+while paused stays paused. Resume honors autoplay and starts a fresh ambient
+hold interval. Web-page scripts and external capture feeds are not controlled
+by this media transport contract. Custom templates must implement their own
+`paused` behavior. See [playlists and transitions](waffles-tour/playlists.html).
 
 ## 6. Add quick-menu actions and whiteboarding
 
@@ -552,7 +560,8 @@ does not replace this connection.
 
 Use [theming and settings](waffles-tour/glass-and-theming.html) for detailed
 values. Deploy the application's required icons and fonts as well as the QML
-modules; some window, launcher, and quick-menu assets still resolve under `%APP%`.
+modules. Standard media/window controls and Roboto are bundled with DsQt;
+application launcher and quick-menu assets still resolve under `%APP%`.
 
 ## 9. Verify the integrated application
 
@@ -563,7 +572,7 @@ modules; some window, launcher, and quick-menu assets still resolve under `%APP%
 | Bridge schema integration, when used | Required definitions are deployed; authored records synchronize with the expected keys, types, frame IDs, and links; existing content remains valid and application mappings match the integrated schema. |
 | Content startup | Correct platform/database; nonempty content where expected; startup with missing or delayed content behaves visibly. |
 | Navigation | Folder drill-down, search, asset opening, presentation changes, and hotspot links all resolve correctly. |
-| Presentations | Interactive navigation, ambient timing, template registration, slide resume after switching, and content reorder/removal behavior. |
+| Presentations | Interactive navigation and hotspots while paused, media pause/resume without position reset, ambient timing, template registration, slide resume after switching, and content reorder/removal behavior. |
 | Touch and menus | Five-touch/right-click activation, disabled actions, coordinate mapping, close timing, and physical target sizes on the actual display. |
 | Whiteboard | Concurrent strokes, history, close/reopen, PNG save failure/success, transparent export, and idle reset. |
 | Media and focus | Video/audio, PDF page/reset/lock, web input, keyboard focus, fullscreen, and capture-device disconnect/retry where used. |
@@ -588,8 +597,7 @@ performance. Record software checks and physical-device acceptance separately.
 | Web viewer is unavailable or blank | WebEngine module, initialization, deployed resources, and chosen graphics backend have been validated together. |
 
 Additional template families, general missing-content/load-error screens,
-interactive-media pause propagation, and complete window-icon bundling remain
-delivery work. Consult the [backlog](waffles-backlog.md) alongside source: it still
-contains historical entries that lag the implementation. Use the
+application-schema adoption, and device acceptance remain delivery work.
+Consult the reconciled [backlog](waffles-backlog.md) for ownership and status. Use the
 [Source Tour](waffles-tour/index.html) for deeper component details and the
 [installer guide](articles/installer_guide.md) for packaging.
