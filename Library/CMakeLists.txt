@@ -76,6 +76,8 @@ find_package(Qt6 6.9
         Qml
         Quick
         Widgets
+        Network
+        WebSockets
 )
 
 find_package(tomlplusplus CONFIG REQUIRED)
@@ -91,9 +93,10 @@ endif()
 add_subdirectory("Dsqt/Core")
 add_subdirectory("Dsqt/Bridge")
 add_subdirectory("Dsqt/Waffles")
-# add_subdirectory("Dsqt/TouchEngine")
+add_subdirectory("Dsqt/TouchEngine")
 add_subdirectory("Dsqt/Spout")
 add_subdirectory("Dsqt/Touch")
+add_subdirectory("Dsqt/Qsys")
 
 add_library(Dsqt INTERFACE)
 add_library(Dsqt::Dsqt ALIAS Dsqt)
@@ -107,7 +110,9 @@ target_link_libraries(Dsqt
     Dsqt::Core
     Dsqt::Bridge
     Dsqt::Waffles
+    Dsqt::TouchEngine
     Dsqt::Touch
+    Dsqt::Qsys
 )
 
 if(WIN32 AND TARGET Dsqt::Spout)
@@ -151,6 +156,7 @@ if(DSQT_BUILD_TESTS)
     add_subdirectory(Tests/BridgeTest)
     add_subdirectory(Tests/Whiteboard)
     add_subdirectory(Tests/Capture)
+    add_subdirectory(Tests/Qsys)
 endif()
 
 # ----------------------------------------------------------------------
@@ -183,8 +189,12 @@ if(PROJECT_IS_TOP_LEVEL)
         Bridgeplugin
         Waffles
         Wafflesplugin
+        TouchEngine
+        TouchEngineplugin
         Touch
         Touchplugin
+        Qsys
+        Qsysplugin
 
         # Where to put the different kinds of files
         # Install into config-specific subdirectories so Debug and Release
@@ -230,15 +240,22 @@ if(PROJECT_IS_TOP_LEVEL)
         "${QT_QML_OUTPUT_DIRECTORY}/Dsqt/Waffles/Waffles.qmltypes"
         DESTINATION "qml/Dsqt/Waffles"
     )
-    # install(FILES
-    #     "${QT_QML_OUTPUT_DIRECTORY}/Dsqt/TouchEngine/qmldir"
-    #     "${QT_QML_OUTPUT_DIRECTORY}/Dsqt/TouchEngine/TouchEngine.qmltypes"
-    #     DESTINATION "qml/Dsqt/TouchEngine"
-    # )
+    install(FILES
+        "${QT_QML_OUTPUT_DIRECTORY}/Dsqt/TouchEngine/qmldir"
+        "${QT_QML_OUTPUT_DIRECTORY}/Dsqt/TouchEngine/TouchEngine.qmltypes"
+        DESTINATION "qml/Dsqt/TouchEngine"
+    )
     install(FILES
         "${QT_QML_OUTPUT_DIRECTORY}/Dsqt/Touch/qmldir"
         "${QT_QML_OUTPUT_DIRECTORY}/Dsqt/Touch/Touch.qmltypes"
         DESTINATION "qml/Dsqt/Touch"
+    )
+
+    # Q-Sys QML module metadata
+    install(FILES
+        "${QT_QML_OUTPUT_DIRECTORY}/Dsqt/Qsys/qmldir"
+        "${QT_QML_OUTPUT_DIRECTORY}/Dsqt/Qsys/Qsys.qmltypes"
+        DESTINATION "qml/Dsqt/Qsys"
     )
 
     # Spout QML module metadata (Windows only)
@@ -267,11 +284,11 @@ if(PROJECT_IS_TOP_LEVEL)
         OPTIONAL
         FILES_MATCHING PATTERN "*.qml"
     )
-    # install(DIRECTORY "${QT_QML_OUTPUT_DIRECTORY}/Dsqt/TouchEngine/qml"
-    #     DESTINATION "qml/Dsqt/TouchEngine"
-    #     OPTIONAL
-    #     FILES_MATCHING PATTERN "*.qml"
-    # )
+    install(DIRECTORY "${QT_QML_OUTPUT_DIRECTORY}/Dsqt/TouchEngine/qml"
+        DESTINATION "qml/Dsqt/TouchEngine"
+        OPTIONAL
+        FILES_MATCHING PATTERN "*.qml"
+    )
     install(DIRECTORY "${QT_QML_OUTPUT_DIRECTORY}/Dsqt/Touch/qml"
         DESTINATION "qml/Dsqt/Touch"
         OPTIONAL

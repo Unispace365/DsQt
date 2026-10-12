@@ -27,12 +27,19 @@ Q_DECLARE_LOGGING_CATEGORY(lgBridgeSyncAppVerbose)
 Q_DECLARE_LOGGING_CATEGORY(lgBridgeSyncQueryVerbose)
 namespace dsqt::bridge {
 
+#ifndef Q_OS_WASM
 /**
  * @brief A guard class to manage the lifecycle of a QProcess for BridgeSync.
  *
  * This class ensures that the associated QProcess is properly started and terminated,
  * including handling platform-specific behaviors like Job Objects on Windows to kill
  * child processes on exit.
+ *
+ * @note Left out of WebAssembly builds. Qt for WebAssembly disables the `process`
+ * feature, so QProcess there is a stub with a deleted constructor -- there is no
+ * child process for this to guard. The members that use it are guarded the same
+ * way; a browser tab cannot launch BridgeSync, so it reads a database someone
+ * else has filled.
  */
 class BridgeSyncProcessGuard {
   public:
@@ -54,6 +61,7 @@ class BridgeSyncProcessGuard {
     HANDLE mProcessHandle = nullptr;
 #endif
 };
+#endif // !Q_OS_WASM
 
 /**
  * @brief A RAII guard class for managing a QSqlDatabase connection.

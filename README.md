@@ -63,6 +63,7 @@ architecture, and build configuration for DsQt and its consuming application.
                 * Qt Quick 3d
                 * Qt Quick Effect Maker
                 * Qt WebChannel
+                * Qt WebSockets
                 * (Everything else you can get just to be safe)
     * Qt Creator (check all boxes)
 5. Depending on what you selected this can take a while to download (hours sometimes).
@@ -257,6 +258,7 @@ For detailed documentation, see the articles in [Docs/articles/](Docs/articles/)
 7. [Waffles Overview](Docs/waffles-overview.md) - Components, capabilities, and the DsQt/application boundary
 8. [Waffles Implementation Guide](Docs/waffles-implementation-guide.md) - Build, content routing, presentations, quick menu, whiteboard, settings, and validation
 9. [Waffles Whiteboard](Docs/articles/whiteboard.md) - Drawing API, controls, lifecycle, and PNG export
+10. [Q-Sys Integration](Docs/articles/qsys_usage.md) - Engine settings, QML/C++ updates, and commands through the Elevate plugin
 
 ## Generating documentation
 
