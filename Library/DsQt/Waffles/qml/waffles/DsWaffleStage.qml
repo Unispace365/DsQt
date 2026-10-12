@@ -448,6 +448,7 @@ Item {
     }
 
     function createMenu() {
+        if (!launcher) return;
         if (launcher.status == Component.Ready)
             completeMenu()
         else
@@ -455,6 +456,7 @@ Item {
     }
 
     function completeMenu() {
+        if (!launcher) return;
         if(launcher.status == Component.Ready) {
             // Parented into the launcher's configured layer (default "modal1"). Glass is wired
             // through the cross-layer chain built by rebuildGlass.
@@ -652,6 +654,15 @@ Item {
 
     function openViewer(viewerProps: var){
         createViewer(viewerProps);
+    }
+
+    // Applications resolve destinations; the stage only presents their failure message.
+    function showContentError(title, message) {
+        openViewer({
+            model: { title: title, errorTitle: title, errorMessage: message },
+            viewerWidth: DsTheme.dp(550), viewerHeight: DsTheme.dp(350),
+            matchAspectRatio: false
+        });
     }
 
     // Open (and play) a playlist full-stage in the `presentation` layer. `props`:

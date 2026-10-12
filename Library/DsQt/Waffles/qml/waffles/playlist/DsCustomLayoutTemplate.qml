@@ -53,6 +53,13 @@ Item {
     readonly property bool hasBackground: !!(layout && layout.background && layout.background.filepath)
     signal contentRequested(var target)
 
+    DsContentState {
+        anchors.fill: parent
+        visible: root.missingFrame
+        title: qsTr("Layout unavailable")
+        message: qsTr("This content has no layout for this display.")
+    }
+
     Item {
         id: canvas
         objectName: "customLayoutCanvas"
@@ -73,6 +80,11 @@ Item {
             loops: -1
             onMediaItemChanged: Qt.callLater(root._syncPlayback)
             onMediaLoaded: root._syncPlayback()
+        }
+        DsContentState {
+            anchors.fill: parent
+            viewer: background
+            visible: root.hasBackground && contentState !== "ready"
         }
         Binding {
             target: background.videoItem

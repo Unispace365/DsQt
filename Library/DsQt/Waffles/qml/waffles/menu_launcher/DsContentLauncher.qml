@@ -587,6 +587,20 @@ DsViewer {
                 model: root.model ? root.model.displayedItems : []
                 boundsBehavior: Flickable.StopAtBounds
 
+                DsContentState {
+                    anchors.fill: parent
+                    visible: list.count === 0
+                    contentState: root.model && (root.model.ready === undefined || root.model.ready)
+                        ? "empty" : "loading"
+                    title: contentState === "loading" ? qsTr("Loading content")
+                        : root.model && !root.model.atRoot ? qsTr("Empty folder") : qsTr("No content available")
+                    message: contentState === "loading" ? qsTr("Please wait while content becomes available.")
+                        : root.model && !root.model.atRoot ? qsTr("There is no content in this folder. Go back to choose something else.")
+                        : qsTr("There is no content in the library for this display.")
+                    actionText: root.model && !root.model.atRoot ? qsTr("Go back") : ""
+                    onActionRequested: if (root.model) root.model.back()
+                }
+
                 delegate: LauncherRow {
                     id: rowItem
                     required property var modelData

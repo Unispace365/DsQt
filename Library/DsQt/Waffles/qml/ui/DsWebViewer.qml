@@ -18,10 +18,11 @@ WebEngineView {
     backgroundColor: DsTheme.surface
 
     signal mediaLoaded()
+    signal mediaFailed(string detail)
 
     onLoadingChanged: (loadingInfo) => {
         if (loadingInfo.status === WebEngineView.LoadFailedStatus)
-            console.log("WebView loading error: " + loadingInfo.errorString)
+            root.mediaFailed(loadingInfo.errorString)
         else if (loadingInfo.status === WebEngineView.LoadSucceededStatus)
             root.mediaLoaded()
     }

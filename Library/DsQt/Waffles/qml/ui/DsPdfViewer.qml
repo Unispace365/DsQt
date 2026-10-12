@@ -7,6 +7,7 @@ Item {
     property int fillMode: Image.PreserveAspectCrop
     property int page: 1
     signal mediaLoaded()
+    signal mediaFailed(string detail)
 
     // Page-navigation API consumed by the media controls. currentPage is 0-based.
     readonly property int pageCount: pdfDoc.pageCount
@@ -21,7 +22,14 @@ Item {
     onWidthChanged: pdfView.fitToView()
     onHeightChanged: pdfView.fitToView()
 
-    PdfDocument { id: pdfDoc; source: root.source }
+    PdfDocument {
+        id: pdfDoc
+        source: root.source
+        onStatusChanged: (status) => {
+            if (status === PdfDocument.Error) root.mediaFailed(pdfDoc.error);
+            if (status === PdfDocument.Loading) pdfView.loaded = false;
+        }
+    }
 
     // Single-page, self-contained view (centres + fits the page); avoids the continuous
     // multi-page TableView layout that rendered the page outside the viewer.
@@ -51,6 +59,7 @@ Item {
 
         // status is the rendered-page status; Ready means the document loaded and the page drew.
         onStatusChanged: {
+            if (status === Image.Error) root.mediaFailed(qsTr("This page could not be displayed."));
             if (status === Image.Ready && !loaded) {
                 loaded = true
                 if (root.page > 1)

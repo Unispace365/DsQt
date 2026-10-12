@@ -44,13 +44,17 @@ Item {
     // playbackState/volume/loops + play/pause/seek), otherwise null. Lets controls drive playback.
     readonly property bool isVideo: contentLoader.item ? ("playbackState" in contentLoader.item) : false
     readonly property var videoItem: isVideo ? contentLoader.item : null
-    // True while the current media is still loading; drives a loading indicator in the viewer.
-    // Set when a source is assigned, cleared when the media reports it has finished loading.
-    property bool loading: false
+    // A backend-neutral status contract. Presentation and recovery controls belong to the host.
+    readonly property string loadState: _loadState // empty | loading | ready | error
+    readonly property bool loading: loadState === "loading"
+    readonly property string errorString: _errorString
+    property string _loadState: "empty"
+    property string _errorString: ""
+    property bool _acceptStatus: false
     // Preferred fill mode.
     property int fillMode: Image.PreserveAspectCrop
     // Preferred loop mode.
-    property int loops: 0
+    property int loops: 1
     // auto play time based media
     property bool autoPlay: true
     // pdf page number
@@ -96,19 +100,53 @@ Item {
         return root[prop]
     }
 
-    onSourceChanged: {
-        contentLoader.sourceComponent = root.getComponentForContent();
+    onMediaChanged: _scheduleReload()
+    onResolvedSourceChanged: _scheduleReload()
+    onContentTypeChanged: _scheduleReload()
+    onIsCroppedChanged: _scheduleReload()
+    Component.onCompleted: _scheduleReload()
+
+    function _scheduleReload() {
+        // Coalesce dependent bindings and ignore signals from the outgoing backend.
+        _acceptStatus = false;
+        Qt.callLater(root._reload);
     }
-    onContentTypeChanged: {
-        contentLoader.sourceComponent = root.getComponentForContent();
+
+    function retry() { _scheduleReload(); }
+
+    function _reload() {
+        contentLoader.sourceComponent = null;
+        _errorString = "";
+        _loadState = "empty";
+        if (!source && mediaType !== "capture") return;
+        _loadState = "loading";
+        _acceptStatus = true;
+        const component = getComponentForContent();
+        if (!component) {
+            _failed(qsTr("This type of content is not available in this application."));
+            return;
+        }
+        contentLoader.sourceComponent = component;
     }
-    // Show the loading indicator whenever a (non-empty) source is assigned; clear it when the
-    // loaded media emits mediaLoaded (images on full progress, video on buffered, web on success).
-    onResolvedSourceChanged: loading = (String(resolvedSource).length > 0)
-    onMediaLoaded: loading = false
+
+    function _ready() {
+        if (!_acceptStatus || _loadState === "ready") return;
+        _errorString = "";
+        _loadState = "ready";
+        mediaLoaded();
+    }
+
+    function _failed(detail) {
+        if (!_acceptStatus) return;
+        _errorString = detail || qsTr("The content could not be loaded.");
+        _loadState = "error";
+        console.warn("DsMediaViewer:", source, _errorString);
+        mediaFailed(_errorString);
+    }
 
     //SIGNALS
     signal mediaLoaded()
+    signal mediaFailed(string detail)
     signal videoFinished()
 
     // TODO add additional signals for image load, video start, etc.
@@ -185,26 +223,33 @@ Item {
         return item.height
     }
 
-    // Loader to dynamically load the appropriate component.
-    // NB: sourceComponent is set imperatively (initial set here + onSourceChanged/onContentTypeChanged
-    // above), NOT via a declarative binding. A binding would loop: getComponentForContent() →
-    // _lazyLoad() WRITES root._videoComponent / _webComponent / _pdfComponent, which the binding
-    // also READS, so each evaluation invalidates itself ("Binding loop detected for sourceComponent").
+    // Assign imperatively: lazy component caching would cause a sourceComponent binding loop.
     Loader {
         id: contentLoader
         anchors.fill: parent
         asynchronous: true
-        Component.onCompleted: sourceComponent = root.getComponentForContent()
+        onStatusChanged: if (status === Loader.Error) root._failed(qsTr("The viewer could not be opened."))
         onLoaded: {
             if (item) {
+                // Connect before assigning a source: local assets may finish synchronously.
+                const backend = item;
+                if ('mediaLoaded' in item) item.mediaLoaded.connect(() => {
+                    if (contentLoader.item === backend) root._ready();
+                })
+                if ('mediaFailed' in item) item.mediaFailed.connect(detail => {
+                    if (contentLoader.item === backend) root._failed(detail);
+                })
+                if ('videoFinished' in item) item.videoFinished.connect(() => {
+                    if (contentLoader.item === backend) root.videoFinished();
+                })
                 if ('captureMedia' in item) item.captureMedia = Qt.binding(() => root.media || ({}))
-                if ('source' in item) item.source = Qt.binding(() => root.resolvedSource)
                 if ('fillMode' in item) item.fillMode = Qt.binding(() => root.fillMode)
                 if ('loops' in item) item.loops = Qt.binding(() => root.loops)
                 if ('autoPlay' in item) item.autoPlay = Qt.binding(() => root.autoPlay)
                 if ('page' in item) item.page = Qt.binding(() => root.page)
-                if ('mediaLoaded' in item) item.mediaLoaded.connect(root.mediaLoaded)
-                if ('videoFinished' in item) item.videoFinished.connect(root.videoFinished)
+                if ('source' in item) item.source = Qt.binding(() => root.resolvedSource)
+                if ('errorString' in item && item.errorString) root._failed(item.errorString)
+                else if ('ready' in item && item.ready) root._ready()
             }
         }
     }
@@ -274,18 +319,8 @@ Item {
             sourceClipRect: root.cropOverlay ? undefined : Qt.rect(root.cropX * root.mediaWidth, root.cropY * root.mediaHeight, root.cropW * root.mediaWidth, root.cropH * root.mediaHeight)
 
             onStatusChanged: {
-                if (status === Image.Error) {
-                    console.log("Image loading error")
-                }
-            }
-
-            property bool loading: true
-            onProgressChanged: {
-                if (loading && image.progress >= 1) {
-                    loading = false
-                    root.mediaLoaded()
-                    console.log("Image loaded: ", image.source)
-                }
+                if (status === Image.Ready) root._ready()
+                else if (status === Image.Error) root._failed(qsTr("The image could not be loaded."))
             }
 
             readonly property real renderedOffsetX: (width - renderedWidth) / 2
@@ -309,19 +344,9 @@ Item {
             visible: !root.isCropped
 
             onStatusChanged: {
-                if (status === AnimatedImage.Error) {
-                    console.log("AnimatedImage loading error")
-                }
+                if (status === AnimatedImage.Ready) root._ready()
+                else if (status === AnimatedImage.Error) root._failed(qsTr("The image could not be loaded."))
                 playing = (status == AnimatedImage.Ready) && root.autoPlay
-            }
-
-            property bool loading: true
-            onProgressChanged: {
-                if (loading && animatedImage.progress >= 1) {
-                    loading = false
-                    root.mediaLoaded()
-                    console.log("AnimatedImage loaded: ", animatedImage.source)
-                }
             }
 
             readonly property real renderedOffsetX: (width - renderedWidth) / 2
@@ -341,14 +366,9 @@ Item {
             source: root.resolvedSource
             fillMode: root.fillMode === Image.PreserveAspectFit ? VectorImage.PreserveAspectFit : root.fillMode === Image.PreserveAspectCrop ? VectorImage.PreserveAspectCrop : undefined
 
-            property bool loading: true
-            Component.onCompleted: {
-                if (status === VectorImage.Ready) {
-                    if(loading){
-                        loading = false
-                        root.mediaLoaded()
-                    }
-                }
+            onStatusChanged: {
+                if (status === VectorImage.Ready) root._ready()
+                else if (status === VectorImage.Error) root._failed(qsTr("The illustration could not be loaded."))
             }
 
             readonly property real renderedOffsetX: (width - renderedWidth) / 2

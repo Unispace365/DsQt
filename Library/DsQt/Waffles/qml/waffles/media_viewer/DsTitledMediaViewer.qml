@@ -419,9 +419,9 @@ DsViewer {
                 fillMode: root.mediaFillMode
                 autoPlay: true
                 // Honour `media.loop` from the bridge media descriptor: when truthy, loop
-                // forever; otherwise leave at 0 (DsMediaViewer's default — play once, with the
+                // forever; otherwise play once (including Qt 6.12 AnimatedImage, with the
                 // viewer's KeepLastFrame policy holding the final frame on stop).
-                loops: (root.config.media && root.config.media.loop) ? MediaPlayer.Infinite : 0
+                loops: (root.config.media && root.config.media.loop) ? MediaPlayer.Infinite : 1
                 visible: true
             }
         }
@@ -570,53 +570,20 @@ DsViewer {
             }
         }
 
-        // Solid surface-colour fill shown while the media is loading, so the spinner sits on a
-        // solid background rather than the glass / empty (or flashing) media region.
-        Rectangle {
+        DsContentState {
             anchors.fill: mediaView
-            color: DsTheme.surface
-            z: 0
-            visible: root.mediaViewer ? root.mediaViewer.loading : false
+            viewer: root.mediaViewer
+            contentState: root.model && root.model.errorMessage ? "error"
+                : viewer ? viewer.loadState : "empty"
+            title: root.model && root.model.errorTitle ? root.model.errorTitle
+                : contentState === "loading" ? qsTr("Loading content") : qsTr("Missing content")
+            message: root.model && root.model.errorMessage ? root.model.errorMessage
+                : contentState === "loading" ? qsTr("Please wait…")
+                : contentState === "empty" ? qsTr("There is no content to display here.")
+                : qsTr("Sorry! We couldn’t load this piece of media. Please try again.")
+            actionText: root.model && root.model.errorMessage ? ""
+                : contentState === "error" ? qsTr("Try again") : ""
         }
-
-        // Loading indicator: a themed (accent) rotating arc shown while the media is still
-        // loading (web pages, network images/videos). Cleared when the media reports it loaded.
-        Item {
-            id: loadingSpinner
-            width: DsTheme.dp(48)
-            height: DsTheme.dp(48)
-            z: 1
-            anchors.centerIn: mediaView
-            visible: root.mediaViewer ? root.mediaViewer.loading : false
-
-            Canvas {
-                id: spinnerCanvas
-                anchors.fill: parent
-                Component.onCompleted: requestPaint()
-                onPaint: {
-                    let ctx = getContext("2d");
-                    ctx.reset();
-                    let c = width / 2;
-                    let r = c - 4;
-                    ctx.lineWidth = 4;
-                    ctx.lineCap = "round";
-                    ctx.strokeStyle = DsTheme.accent;
-                    ctx.beginPath();
-                    ctx.arc(c, c, r, 0, Math.PI * 1.5);
-                    ctx.stroke();
-                }
-            }
-
-            RotationAnimator {
-                target: spinnerCanvas
-                from: 0
-                to: 360
-                duration: 900
-                loops: Animation.Infinite
-                running: loadingSpinner.visible
-            }
-        }
-
         //holders for the controlSets.
         Item {
             id:topOuter

@@ -19,7 +19,9 @@ Item {
     implicitWidth: capture.frameSize.width > 0 ? capture.frameSize.width : 1920
     implicitHeight: capture.frameSize.height > 0 ? capture.frameSize.height : 1080
     signal mediaLoaded()
+    signal mediaFailed(string detail)
     onReadyChanged: if (ready) mediaLoaded()
+    onErrorStringChanged: if (errorString) mediaFailed(errorString)
 
     DsCaptureSource {
         id: capture

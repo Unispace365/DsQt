@@ -5,17 +5,30 @@ Video {
     id: root
     property bool loading: true
     signal mediaLoaded()
+    signal mediaFailed(string detail)
     signal videoFinished()
+
+    onSourceChanged: loading = String(source).length > 0
+    onErrorOccurred: (error, errorString) => {
+        loading = false;
+        mediaFailed(errorString);
+    }
+    // A paused or non-autoplay video can load without filling its playback buffer.
+    function reportLoaded() {
+        if (loading && error === MediaPlayer.NoError) {
+            loading = false;
+            mediaLoaded();
+        }
+    }
+    onHasVideoChanged: if (hasVideo) reportLoaded()
+    onHasAudioChanged: if (hasAudio) reportLoaded()
 
     // Hold the last frame when playback ends (instead of clearing to black). Looping is driven
     // separately via `loops` (set to MediaPlayer.Infinite by the controller / media metadata).
     endOfStreamPolicy: VideoOutput.KeepLastFrame
 
     onBufferProgressChanged: {
-        if (loading && bufferProgress >= 1) {
-            loading = false
-            mediaLoaded()
-        }
+        if (bufferProgress >= 1) reportLoaded()
     }
     onStopped: videoFinished()
 

@@ -53,6 +53,7 @@ qt_add_qml_module(Waffles
         qml/waffles/whiteboard/DsWhiteboard.qml
         qml/ux/TopOuterControls.qml
         qml/waffles/DsController.qml
+        qml/waffles/DsContentState.qml
         qml/waffles/DsGlassBackground.qml
         qml/waffles/DsTheme.qml
         qml/waffles/DsViewer.qml
@@ -74,6 +75,7 @@ qt_add_qml_module(Waffles
         qml/ui/DsPdfViewer.qml
 
     RESOURCES
+        data/images/waffles/missing_content.svg
         # Window controls are bundled for every consuming application.
         data/images/waffles/window/close.svg
         data/images/waffles/window/close_pressed.svg

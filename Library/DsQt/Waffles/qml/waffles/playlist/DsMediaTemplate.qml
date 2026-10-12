@@ -60,4 +60,5 @@ Item {
         loops: (tmpl._rec && tmpl._rec.loop) ? MediaPlayer.Infinite : 1
         page: (tmpl._rec && tmpl._rec.page_number) ? tmpl._rec.page_number : 1
     }
+    DsContentState { anchors.fill: parent; viewer: mv }
 }

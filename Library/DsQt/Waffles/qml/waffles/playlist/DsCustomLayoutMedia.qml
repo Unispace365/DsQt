@@ -11,9 +11,9 @@ Item {
     readonly property bool _playbackEnabled: root.active && !root.paused && !!root.item.autoplay
 
     function _syncPlayback() {
-        const player = viewer.mediaItem;
+        const player = mediaView.mediaItem;
         if (!player) return;
-        if (viewer.videoItem) {
+        if (mediaView.videoItem) {
             if (root._playbackEnabled) player.play();
             else player.pause();
         } else if ("playing" in player && "paused" in player) {
@@ -39,7 +39,7 @@ Item {
     objectName: item ? "customMedia:" + item.uid : "customMedia"
 
     DsMediaViewer {
-        id: viewer
+        id: mediaView
         objectName: "viewer"
         anchors.fill: parent
         media: root.media
@@ -50,11 +50,12 @@ Item {
         onMediaItemChanged: Qt.callLater(root._syncPlayback)
         onMediaLoaded: root._syncPlayback()
     }
+    DsContentState { anchors.fill: parent; viewer: mediaView }
     Binding {
-        target: viewer.videoItem
+        target: mediaView.videoItem
         property: "volume"
         value: root.item.volume === undefined ? 0.5 : root.item.volume
-        when: viewer.videoItem !== null
+        when: mediaView.videoItem !== null
     }
 
     DragHandler {
