@@ -30,10 +30,9 @@ DsControlSet {
     // while hidden). In the fullscreen bar its opacity is forced to 1 and the whole bar fades.
     visible: hasControls && opacity > 0
 
-    // Media icons are bundled in the Waffles QRC (CMakeLists RESOURCES) so any consumer gets
-    // them for free. Window icons still come from the app's data/ for now (see backlog).
+    // Media and window icons are bundled in the Waffles QRC for every consumer.
     function media(n) { return "qrc:/qt/qml/Dsqt/Waffles/data/images/waffles/media/" + n }
-    function win(n)   { return "file:///%APP%/data/images/waffles/window/" + n }
+    function win(n)   { return "qrc:/qt/qml/Dsqt/Waffles/data/images/waffles/window/" + n }
 
     // Figma pill widths per type. Used only in `chrome:true` (windowed) mode; when embedded in
     // the fullscreen controller (`chrome:false`) the pill fills its parent layout width.

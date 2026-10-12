@@ -74,6 +74,22 @@ qt_add_qml_module(Waffles
         qml/ui/DsPdfViewer.qml
 
     RESOURCES
+        # Window controls are bundled for every consuming application.
+        data/images/waffles/window/close.svg
+        data/images/waffles/window/close_pressed.svg
+        data/images/waffles/window/collapse.svg
+        data/images/waffles/window/collapse_pressed.svg
+        data/images/waffles/window/controller_collapse.svg
+        data/images/waffles/window/controller_collapse_pressed.svg
+        data/images/waffles/window/controller_expand.svg
+        data/images/waffles/window/controller_expand_pressed.svg
+        data/images/waffles/window/fullscreen.svg
+        data/images/waffles/window/fullscreen_pressed.svg
+        data/images/waffles/window/lock.svg
+        data/images/waffles/window/lock_pressed.svg
+        data/images/waffles/window/locked.svg
+        data/images/waffles/window/locked_pressed.svg
+
         data/images/waffles/whiteboard/pen.svg
         data/images/waffles/whiteboard/highlighter.svg
         data/images/waffles/whiteboard/eraser.svg

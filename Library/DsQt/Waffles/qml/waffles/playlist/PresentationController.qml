@@ -56,7 +56,7 @@ Item {
     }
 
     function media(n) { return "qrc:/qt/qml/Dsqt/Waffles/data/images/waffles/media/" + n }
-    function win(n)   { return Ds.env.expandUrl("file:///%APP%/data/images/waffles/window/" + n) }
+    function win(n)   { return "qrc:/qt/qml/Dsqt/Waffles/data/images/waffles/window/" + n }
 
     component IconBtn: Item {
         id: ib

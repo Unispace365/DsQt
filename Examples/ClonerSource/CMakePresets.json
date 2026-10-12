@@ -23,11 +23,11 @@
       }
     },
     {
-      "name": "qt-6.10.2",
+      "name": "qt-6.12.0",
       "hidden": true,
       "inherits": "vcpkg-base",
       "cacheVariables": {
-        "CMAKE_PREFIX_PATH": "C:/Qt/6.10.2/msvc2022_64;$env{USERPROFILE}/Documents/DsQt"
+        "CMAKE_PREFIX_PATH": "C:/Qt/6.12.0/msvc2022_64;$env{USERPROFILE}/Documents/DsQt"
       }
     },
     {
@@ -49,13 +49,13 @@
       "binaryDir": "${sourceDir}/build/vs2022-6.10.1"
     },
     {
-      "name": "vs2022-6.10.2",
+      "name": "vs2022-6.12.0",
       "hidden": true,
-      "displayName": "VS2022 x64 - Qt 6.10.2",
-      "inherits": "qt-6.10.2",
+      "displayName": "VS2022 x64 - Qt 6.12.0",
+      "inherits": "qt-6.12.0",
       "generator": "Visual Studio 17 2022",
       "architecture": "x64",
-      "binaryDir": "${sourceDir}/build/vs2022-6.10.2"
+      "binaryDir": "${sourceDir}/build/vs2022-6.12.0"
     },
     {
       "name": "ninja-base",
@@ -83,10 +83,10 @@
       "binaryDir": "${sourceDir}/build/ninja-6.10.1"
     },
     {
-      "name": "ninja-6.10.2",
-      "displayName": "Ninja - Qt 6.10.2",
-      "inherits": ["qt-6.10.2", "ninja-base"],
-      "binaryDir": "${sourceDir}/build/ninja-6.10.2"
+      "name": "ninja-6.12.0",
+      "displayName": "Ninja - Qt 6.12.0",
+      "inherits": ["qt-6.12.0", "ninja-base"],
+      "binaryDir": "${sourceDir}/build/ninja-6.12.0"
     }
   ],
   "buildPresets": [
@@ -133,21 +133,21 @@
       "configuration": "RelWithDebInfo"
     },
     {
-      "name": "vs2022-6.10.2-debug",
+      "name": "vs2022-6.12.0-debug",
       "displayName": "Debug",
-      "configurePreset": "vs2022-6.10.2",
+      "configurePreset": "vs2022-6.12.0",
       "configuration": "Debug"
     },
     {
-      "name": "vs2022-6.10.2-release",
+      "name": "vs2022-6.12.0-release",
       "displayName": "Release",
-      "configurePreset": "vs2022-6.10.2",
+      "configurePreset": "vs2022-6.12.0",
       "configuration": "Release"
     },
     {
-      "name": "vs2022-6.10.2-relwithdebinfo",
+      "name": "vs2022-6.12.0-relwithdebinfo",
       "displayName": "RelWithDebInfo",
-      "configurePreset": "vs2022-6.10.2",
+      "configurePreset": "vs2022-6.12.0",
       "configuration": "RelWithDebInfo"
     },
     {
@@ -193,21 +193,21 @@
       "configuration": "RelWithDebInfo"
     },
     {
-      "name": "ninja-6.10.2-debug",
+      "name": "ninja-6.12.0-debug",
       "displayName": "Debug",
-      "configurePreset": "ninja-6.10.2",
+      "configurePreset": "ninja-6.12.0",
       "configuration": "Debug"
     },
     {
-      "name": "ninja-6.10.2-release",
+      "name": "ninja-6.12.0-release",
       "displayName": "Release",
-      "configurePreset": "ninja-6.10.2",
+      "configurePreset": "ninja-6.12.0",
       "configuration": "Release"
     },
     {
-      "name": "ninja-6.10.2-relwithdebinfo",
+      "name": "ninja-6.12.0-relwithdebinfo",
       "displayName": "RelWithDebInfo",
-      "configurePreset": "ninja-6.10.2",
+      "configurePreset": "ninja-6.12.0",
       "configuration": "RelWithDebInfo"
     }
   ]

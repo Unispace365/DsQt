@@ -7,7 +7,7 @@ configure_file(
 
 # DsQuickMenuSegment uses the Qt 6.12 Canvas2D QML technology preview.
 find_package(Qt6 6.12 REQUIRED COMPONENTS CanvasPainter)
-qt_standard_project_setup(REQUIRES 6.9)
+qt_standard_project_setup(REQUIRES 6.12)
 
 add_library(Core)
 add_library(Dsqt::Core ALIAS Core)

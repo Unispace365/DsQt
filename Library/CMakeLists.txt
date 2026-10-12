@@ -8,9 +8,7 @@ string(STRIP "${DSQT_VERSION_STRING}" DSQT_VERSION_STRING)
 
 project(Dsqt VERSION ${DSQT_VERSION_STRING} LANGUAGES CXX)
 
-set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
-set(CMAKE_AUTOUIC ON)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -68,7 +66,7 @@ if(WIN32 AND NOT Qt6_DIR)
 endif()
 # ---------------------------------------------------------------------------------
 
-find_package(Qt6 6.9
+find_package(Qt6 6.12
     REQUIRED COMPONENTS
         Core
         Concurrent
@@ -78,7 +76,14 @@ find_package(Qt6 6.9
         Widgets
         Network
         WebSockets
+        CanvasPainter
+        Multimedia
+        MultimediaWidgets
+        Sql
+        QuickControls2
 )
+
+qt_standard_project_setup(REQUIRES 6.12)
 
 find_package(tomlplusplus CONFIG REQUIRED)
 
@@ -87,8 +92,6 @@ if(DSQT_BUILD_TESTS)
     enable_testing()
     find_package(Qt6 REQUIRED COMPONENTS Test)
 endif()
-
-#qt_standard_project_setup(REQUIRES 6.9)
 
 add_subdirectory("Dsqt/Core")
 add_subdirectory("Dsqt/Bridge")

@@ -59,8 +59,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_INSTALL_PREFIX "${CMAKE_BINARY_DIR}/DEPLOY")
 set(QT_FORCE_CMP0156_TO_VALUE NEW)
 set(QT_QML_GENERATE_QMLLS_INI ON)
-find_package(Qt6 6.9 REQUIRED COMPONENTS Core Quick QuickControls2 Multimedia Gui GuiPrivate ShaderTools Concurrent Sql)
-qt_standard_project_setup(REQUIRES 6.9)
+find_package(Qt6 6.12 REQUIRED COMPONENTS Core Quick QuickControls2 Multimedia Gui GuiPrivate ShaderTools Concurrent Sql)
+qt_standard_project_setup(REQUIRES 6.12)
 
 # Find Dsqt from installed package (CMAKE_PREFIX_PATH set via CMakePresets.json)
 find_package(Dsqt REQUIRED COMPONENTS Core Bridge Waffles Qsys OPTIONAL_COMPONENTS TouchEngine Spout)
@@ -107,9 +107,9 @@ qt_add_qml_module(${DS_EXE_NAME}
 
     IMPORT_PATH "${DSQT_QML_IMPORT_PATH}"
     DEPENDENCIES
-        Dsqt::Core
-        Dsqt::Bridge
-        Dsqt::Waffles
+        Dsqt.Core
+        Dsqt.Bridge
+        Dsqt.Waffles
         QtQuick
         #RESOURCES cmake/app.rc.in
 )

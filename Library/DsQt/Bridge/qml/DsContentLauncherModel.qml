@@ -43,8 +43,9 @@ QtObject {
     // App-owned schema configuration. Explicit QML assignments still override these bindings.
     property DsSettingsProxy _settings: DsSettingsProxy { target: "app_settings"; prefix: "waffles" }
     property int _settingsRevision: 0
-    property var contentConfig: {
-        adapter._settingsRevision;
+    // Pass the revision as an argument so the QML compiler retains the binding dependency.
+    property var contentConfig: adapter._readContentConfig(adapter._settingsRevision)
+    function _readContentConfig(revision) {
         return adapter._settings.getObj("content", {});
     }
     property Connections _settingsConnection: Connections {

@@ -6,6 +6,7 @@ on:
       - 'Library/**'
       - 'Tools/ProjectCloner/**'
       - 'Examples/ClonerSource/**'
+      - '.github/workflows/build-library.yml'
 
 permissions:
   contents: write
@@ -20,6 +21,8 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v4
+      with:
+        lfs: true
 
     - name: Read version
       id: version
@@ -39,9 +42,9 @@ jobs:
     - name: Setup Qt
       uses: jurplel/install-qt-action@v4
       with:
-        version: '6.10.*'
+        version: '6.12.0'
         arch: win64_msvc2022_64
-        modules: 'qtshadertools qtmultimedia qtwebsockets'
+        modules: 'qtcanvaspainter qtshadertools qtmultimedia qtwebsockets qtvirtualkeyboard'
 
     - name: Setup vcpkg
       uses: lukka/run-vcpkg@v11
@@ -78,8 +81,30 @@ jobs:
       run: cmake --build Library/build/ci --config Debug
 
     - name: Run Tests
-      shell: cmd
-      run: ctest --test-dir Library/build/ci --build-config Debug --output-on-failure --output-junit test-results.xml
+      shell: pwsh
+      run: |
+        $ErrorActionPreference = 'Stop'
+        $cache = Get-Content Library/build/ci/CMakeCache.txt -Raw
+        if ($cache -notmatch '(?m)^Qt6_DIR:[^=]+=(.+)$') { throw 'Qt kit missing from CMake cache' }
+        $qt = (Resolve-Path (Join-Path $Matches[1].Trim() '../../..')).Path
+        $crt = @(Get-ChildItem "$env:VCToolsRedistDir/debug_nonredist/x64/Microsoft.VC*.DebugCRT" -Directory)
+        if ($crt.Count -ne 1) { throw 'Cannot identify the configured compiler Debug runtime' }
+        $crtDir = $crt[0].FullName
+        $thirdParty = (Resolve-Path Library/build/ci/vcpkg_installed/x64-windows/debug/bin).Path
+        foreach ($file in @("$qt/bin/Qt6Cored.dll", "$qt/bin/Qt6Quickd.dll",
+                            "$qt/bin/Qt6Multimediad.dll", "$crtDir/msvcp140d.dll",
+                            "$crtDir/vcruntime140d.dll", "$thirdParty/tomlplusplus-3.dll",
+                            "$qt/plugins/platforms/qwindowsd.dll", "$qt/plugins/imageformats/qsvgd.dll",
+                            "$qt/qml/QtCanvas2D/qmldir", "$qt/qml/QtMultimedia/qmldir")) {
+          if (!(Test-Path $file)) { throw "Missing runtime dependency: $file" }
+        }
+        $env:PATH = "$qt/bin;$crtDir;$thirdParty;" + $env:PATH
+        $env:QT_PLUGIN_PATH = "$qt/plugins"
+        $env:QT_QPA_PLATFORM_PLUGIN_PATH = "$qt/plugins/platforms"
+        $env:QML_IMPORT_PATH = "$pwd/Library/build/ci/qml;$qt/qml"
+        Remove-Item Env:QML2_IMPORT_PATH -ErrorAction SilentlyContinue
+        ctest --test-dir Library/build/ci --build-config Debug --output-on-failure --output-junit test-results.xml
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
     - name: Upload Test Results
       if: always()
@@ -93,7 +118,7 @@ jobs:
       uses: dorny/test-reporter@v1
       with:
         name: Qt Unit Tests
-        path: Library/build/ci/Tests/**/test_*.xml
+        path: Library/build/ci/test-results.xml
         reporter: java-junit
 
     - name: Install Release

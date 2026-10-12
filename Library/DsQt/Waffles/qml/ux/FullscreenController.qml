@@ -46,7 +46,7 @@ DsController {
         }
     }
 
-    function windowIcon(n) { return Ds.env.expandUrl("file:///%APP%/data/images/waffles/window/" + n) }
+    function windowIcon(n) { return "qrc:/qt/qml/Dsqt/Waffles/data/images/waffles/window/" + n }
 
     // Centred, colourised vector icon with a click area. Sized for the compact 99-px-tall bar.
     component IconBtn: Item {

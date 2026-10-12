@@ -29,8 +29,8 @@ private:
     }
 
     void createModel(const QVariantMap &properties = {}) {
-        QQmlComponent component(engine.get(), QUrl::fromLocalFile(source(
-            "/Library/DsQt/Bridge/qml/DsContentLauncherModel.qml")));
+        QQmlComponent component(engine.get());
+        component.loadFromModule("Dsqt.Bridge", "DsContentLauncherModel");
         if (component.isError()) {
             QTest::qFail(qPrintable(component.errorString()), __FILE__, __LINE__);
             return;
