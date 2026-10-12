@@ -28,7 +28,7 @@ Item {
     property var playlistItem: null
     // ambient = auto-advance on a timer; interactive = manual next/prev.
     property bool ambient: false
-    // Pauses ambient auto-advance (toggled by the presentation controller's play/pause).
+    // Pauses slide media and ambient auto-advance; navigation and hotspots remain available.
     property bool paused: false
     // typeUid → Component map for slide templates (app-supplied; uids are schema-specific).
     property var templateByTypeUid: ({})
@@ -104,7 +104,8 @@ Item {
             onLoaded: {
                 if (!item) return;
                 item.slide = Qt.binding(() => slot.slideData);
-                if ("active" in item) item.active = Qt.binding(() => pv.visible && slot.slotActive);
+                if ("active" in item) item.active = Qt.binding(() => pv.visible && slot.slotActive && !pv._dismissing);
+                if ("paused" in item) item.paused = Qt.binding(() => pv.paused);
             }
         }
         Connections {

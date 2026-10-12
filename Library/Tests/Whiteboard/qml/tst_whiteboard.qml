@@ -72,6 +72,7 @@ Item {
             const board = createTemporaryObject(component, root);
             verify(!!board, "Component exists");
             if (board.controls.length) tryCompare(board.controls[0], "opacity", 1);
+            root.Window.window.update();
             verify(waitForRendering(board));
             return board;
         }

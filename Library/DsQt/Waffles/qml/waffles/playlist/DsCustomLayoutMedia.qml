@@ -7,6 +7,23 @@ Item {
     id: root
     required property var item
     property bool active: true
+    property bool paused: false
+    readonly property bool _playbackEnabled: root.active && !root.paused && !!root.item.autoplay
+
+    function _syncPlayback() {
+        const player = viewer.mediaItem;
+        if (!player) return;
+        if (viewer.videoItem) {
+            if (root._playbackEnabled) player.play();
+            else player.pause();
+        } else if ("playing" in player && "paused" in player) {
+            // AnimatedImage.paused preserves its frame; playing=false would restart it.
+            player.paused = !root._playbackEnabled;
+            if (root._playbackEnabled) player.playing = true;
+        }
+    }
+    on_PlaybackEnabledChanged: Qt.callLater(root._syncPlayback)
+
     readonly property var media: item ? item.media : null
     readonly property var hotspots: item && item.hotspots ? item.hotspots : []
     readonly property bool movable: !!(item && item.touchEvents)
@@ -23,24 +40,21 @@ Item {
 
     DsMediaViewer {
         id: viewer
+        objectName: "viewer"
         anchors.fill: parent
         media: root.media
         fillMode: Image.PreserveAspectFit
-        autoPlay: root.active && !!root.item.autoplay
+        autoPlay: root._playbackEnabled
         loops: root.item.loop ? -1 : 1
         page: root.item.pageNumber || 1
-        onMediaLoaded: if (!root.active && videoItem) videoItem.pause()
+        onMediaItemChanged: Qt.callLater(root._syncPlayback)
+        onMediaLoaded: root._syncPlayback()
     }
     Binding {
         target: viewer.videoItem
         property: "volume"
         value: root.item.volume === undefined ? 0.5 : root.item.volume
         when: viewer.videoItem !== null
-    }
-    onActiveChanged: {
-        if (!viewer.videoItem) return;
-        if (active && item.autoplay) viewer.videoItem.play();
-        else viewer.videoItem.pause();
     }
 
     DragHandler {

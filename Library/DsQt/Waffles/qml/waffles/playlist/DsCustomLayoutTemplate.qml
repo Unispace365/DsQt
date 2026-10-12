@@ -7,6 +7,23 @@ Item {
     id: root
     property var slide: null
     property bool active: true
+    property bool paused: false
+    readonly property bool _playbackEnabled: root.active && !root.paused && !root.missingFrame
+
+    function _syncPlayback() {
+        const player = background.mediaItem;
+        if (!player) return;
+        if (background.videoItem) {
+            if (root._playbackEnabled) player.play();
+            else player.pause();
+        } else if ("playing" in player && "paused" in player) {
+            // AnimatedImage.paused preserves its frame; playing=false would restart it.
+            player.paused = !root._playbackEnabled;
+            if (root._playbackEnabled) player.playing = true;
+        }
+    }
+    on_PlaybackEnabledChanged: Qt.callLater(root._syncPlayback)
+
     // Explicit application frame selection is strict. Empty selects the closest authored aspect.
     property string frameUid: root.layout ? root.layout.frameUid || "" : ""
     readonly property var layout: slide ? slide.layout : null
@@ -47,27 +64,21 @@ Item {
 
         DsMediaViewer {
             id: background
+            objectName: "background"
             anchors.fill: parent
             media: root.hasBackground ? root.layout.background : null
             visible: root.hasBackground
             fillMode: Image.PreserveAspectCrop
-            autoPlay: root.active
+            autoPlay: root._playbackEnabled
             loops: -1
-            onMediaLoaded: if (!root.active && videoItem) videoItem.pause()
+            onMediaItemChanged: Qt.callLater(root._syncPlayback)
+            onMediaLoaded: root._syncPlayback()
         }
         Binding {
             target: background.videoItem
             property: "volume"
             value: 0
             when: background.videoItem !== null
-        }
-        Connections {
-            target: root
-            function onActiveChanged() {
-                if (!background.videoItem) return;
-                if (root.active) background.videoItem.play();
-                else background.videoItem.pause();
-            }
         }
 
         Column {
@@ -115,7 +126,8 @@ Item {
             DsCustomLayoutMedia {
                 required property var modelData
                 item: modelData
-                active: root.active
+                active: root.active && !root.missingFrame
+                paused: root.paused
                 x: modelData.x * canvas.width
                 y: modelData.y * canvas.height
                 width: modelData.w * canvas.width
