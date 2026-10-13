@@ -48,6 +48,10 @@ set_target_properties(TouchEngineSDK PROPERTIES
 
 # Find Vulkan SDK
 find_package(Vulkan)
+set(DSQT_TOUCHENGINE_VULKAN_ENABLED FALSE PARENT_SCOPE)
+if(Vulkan_FOUND)
+    set(DSQT_TOUCHENGINE_VULKAN_ENABLED TRUE PARENT_SCOPE)
+endif()
 
 # Source files
 set(SOURCES
