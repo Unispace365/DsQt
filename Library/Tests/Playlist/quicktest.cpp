@@ -1426,8 +1426,47 @@ private slots:
         QTRY_VERIFY(panel->isVisible());
     }
 
-
-
+    void whiteboardToolbarMoves_data() { stageSelectsCustomViewerByStackingOrder_data(); }
+    void whiteboardToolbarMoves() {
+        QFETCH(bool, touch);
+        createPanelScene("whiteboard"); QVERIFY(view);
+        auto board = visualChild(view.get(), "panel"); QVERIFY(board);
+        // Exercise the fit-to-window transform used by ECPresenter.
+        board->setTransformOrigin(QQuickItem::TopLeft);
+        board->setScale(0.25);
+        board->setSize(QSizeF(1600, 1000));
+        auto toolbar = visualChild(board, "whiteboardToolbar"); QVERIFY(toolbar);
+        auto handle = visualChild(toolbar, "whiteboardDragHandle"); QVERIFY(handle);
+        QTRY_VERIFY(qAbs(toolbar->x() + toolbar->width() + 32 - board->width()) < 1);
+        QTRY_VERIFY(qAbs(toolbar->y() + toolbar->height()/2 - board->height()/2) < 1);
+        const auto initial = toolbar->position();
+        dragAt(centerOf(handle), QPoint(-50,-20), touch);
+        QVERIFY(qAbs(toolbar->x() - (initial.x() - 200)) < 5);
+        QVERIFY(qAbs(toolbar->y() - (initial.y() - 80)) < 5);
+        QVERIFY(!board->property("hasDrawing").toBool());
+        QVERIFY(!board->property("drawing").toBool());
+        const auto moved = toolbar->position();
+        board->setProperty("shown", false);
+        board->setProperty("shown", true);
+        QCOMPARE(toolbar->position(), moved);
+        auto highlighter = visualChild(toolbar, "highlighterButton"); QVERIFY(highlighter);
+        const auto previousTool = board->property("tool");
+        clickAt(centerOf(highlighter), touch);
+        QVERIFY(board->property("tool") != previousTool);
+        QCOMPARE(toolbar->position(), moved);
+        QVERIFY(!board->property("hasDrawing").toBool());
+        dragAt(centerOf(handle), QPoint(70,40) - centerOf(handle), touch);
+        QVERIFY(qAbs(toolbar->x()) < 1);
+        QVERIFY(qAbs(toolbar->y()) < 1);
+        dragAt(centerOf(handle), QPoint(620,440) - centerOf(handle), touch);
+        QVERIFY(qAbs(toolbar->x() + toolbar->width() - board->width()) < 1);
+        QVERIFY(qAbs(toolbar->y() + toolbar->height() - board->height()) < 1);
+        board->setSize(QSizeF(1200,700));
+        QTRY_VERIFY(toolbar->x() >= 0 && toolbar->x() + toolbar->width() <= board->width() + 1);
+        QTRY_VERIFY(toolbar->y() >= 0 && toolbar->y() + toolbar->height() <= board->height() + 1);
+        QVERIFY(!board->property("hasDrawing").toBool());
+        QCOMPARE(view->property("underneath").toInt(), 0);
+    }
 
     void whiteboardStillDraws_data() { stageSelectsCustomViewerByStackingOrder_data(); }
     void whiteboardStillDraws() {
