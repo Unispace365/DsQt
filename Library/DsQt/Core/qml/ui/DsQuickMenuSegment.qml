@@ -26,6 +26,35 @@ Item {
     readonly property real labelRadius: (innerRadius + outerRadius) * 0.5
     readonly property real labelX: width * 0.5 + Math.cos(middleAngle) * labelRadius
     readonly property real labelY: height * 0.5 + Math.sin(middleAngle) * labelRadius
+    readonly property real labelInset: 6
+    readonly property real labelHalfAngle: Math.min(180, Math.max(0, sweepAngle)) * Math.PI / 360
+    readonly property real labelClearance: Math.max(0, Math.min(
+        (outerRadius - innerRadius) * 0.5, labelRadius * Math.sin(labelHalfAngle)) - labelInset)
+
+    // Largest centered, horizontal rectangle at this height that clears both arcs and sides.
+    function labelWidth(labelHeight: real): real {
+        const cx = Math.abs(Math.cos(root.middleAngle) * root.labelRadius)
+        const cy = Math.abs(Math.sin(root.middleAngle) * root.labelRadius)
+        const halfHeight = labelHeight * 0.5
+        const outer = Math.max(0, root.outerRadius - root.labelInset)
+        const inner = root.innerRadius + root.labelInset
+        let halfWidth = Math.sqrt(Math.max(0, outer * outer
+            - (cy + halfHeight) * (cy + halfHeight))) - cx
+        const nearestY = Math.max(0, cy - halfHeight)
+        if (nearestY < inner)
+            halfWidth = Math.min(halfWidth, cx - Math.sqrt(inner * inner - nearestY * nearestY))
+        if (root.sweepAngle < 360) {
+            const sideRoom = root.labelRadius * Math.sin(root.labelHalfAngle) - root.labelInset
+            for (const angle of [root.middleAngle - root.labelHalfAngle, root.middleAngle + root.labelHalfAngle]) {
+                const horizontal = Math.abs(Math.sin(angle))
+                if (horizontal > 0.000001)
+                    halfWidth = Math.min(halfWidth,
+                        (sideRoom - Math.abs(Math.cos(angle)) * halfHeight) / horizontal)
+            }
+        }
+        return Math.max(0, halfWidth * 2)
+    }
+
     readonly property real revealScale: 1 - Math.pow(1 - revealProgress, 3)
     property real highlightOpacity: root.available && selected ? 1 : 0
 
@@ -127,32 +156,62 @@ Item {
         NumberAnimation { duration: 200 }
     }
 
+    FontMetrics {
+        id: labelMetrics
+        font: labelText.font
+    }
+
     Item {
         id: label
-        x: root.labelX
-        y: root.labelY
+        objectName: "quickMenuLabel"
+        readonly property bool hasIcon: root.iconSource.toString().length > 0
+        readonly property real iconWidth: hasIcon ? (root.entry?.iconWidth ?? icon.implicitWidth) : 0
+        readonly property real iconHeight: hasIcon ? (root.entry?.iconHeight ?? icon.implicitHeight) : 0
+        readonly property real iconScale: iconWidth > 0 && iconHeight > 0
+            ? Math.min(1, width / iconWidth, height * 0.45 / iconHeight) : 0
+        readonly property real spacing: hasIcon ? Math.min(4, height * 0.06) : 0
+        readonly property real contentHeight: icon.height + spacing + labelText.contentHeight
+
+        height: Math.min(Math.SQRT2 * root.labelClearance,
+            iconHeight + (hasIcon ? 4 : 0) + labelMetrics.height * 2)
+        width: root.labelWidth(height)
+        x: root.labelX - width * 0.5
+        y: root.labelY - height * 0.5
         opacity: root.revealProgress
+        visible: width > 0 && height > 0
+        // This rectangle is entirely inside the padded wedge, including font glyph overhang.
+        clip: true
 
         Image {
             id: icon
+            objectName: "quickMenuLabelIcon"
             source: root.iconSource
-            x: -width * 0.5
-            y: -height * 0.5
-            width: root.entry?.iconWidth ?? implicitWidth
-            height: root.entry?.iconHeight ?? implicitHeight
+            x: (label.width - width) * 0.5
+            y: (label.height - label.contentHeight) * 0.5
+            width: label.iconWidth * label.iconScale
+            height: label.iconHeight * label.iconScale
             sourceSize: Qt.size(root.entry?.iconWidth ?? 0, root.entry?.iconHeight ?? 0)
             fillMode: Image.PreserveAspectFit
         }
 
         Text {
+            id: labelText
+            objectName: "quickMenuLabelText"
             color: "#bbbbbb"
             font.pixelSize: root.config?.fontSize ?? 8
             font.family: root.config?.fontFamily ?? "Helvetica Nueue"
             font.weight: root.config?.fontWeight ?? 400
             horizontalAlignment: Text.AlignHCenter
             text: root.entry?.iconText ?? ""
-            x: -width * 0.5
-            y: root.iconSource.toString() ? icon.y + icon.height : -height * 0.5
+            textFormat: Text.PlainText
+            width: label.width
+            height: Math.max(0, label.height - icon.height - label.spacing)
+            y: icon.y + icon.height + label.spacing
+            wrapMode: Text.WordWrap
+            maximumLineCount: 2
+            fontSizeMode: Text.Fit
+            minimumPixelSize: Math.min(8, font.pixelSize)
+            elide: Text.ElideRight
         }
     }
 

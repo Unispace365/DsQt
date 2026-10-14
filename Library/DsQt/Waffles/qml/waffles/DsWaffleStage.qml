@@ -521,6 +521,124 @@ Item {
         return _layers[name] || null;
     }
 
+    // Public menu/stage operations; applications do not need viewer-layer internals.
+    readonly property var activePlaylist: _activePlaylist
+    readonly property Item activeLauncher: _private.launcher
+    readonly property bool canNavigate: activePlaylist !== null
+        && !activePlaylist.ambient && activePlaylist.count > 1
+    readonly property var mediaViewers: {
+        const items = Array.from(viewerLayer.children).filter(
+            item => item.viewerType === DsViewer.ViewerType.TitledMediaViewer);
+        if (wafflesRoot._fullscreenViewer && items.indexOf(wafflesRoot._fullscreenViewer) < 0)
+            items.push(wafflesRoot._fullscreenViewer);
+        return items;
+    }
+    readonly property bool hasMedia: mediaViewers.length > 0 && !_closingMedia
+    readonly property bool mediaLayoutPending: _pendingMediaLayout !== ""
+    property bool _closingMedia: false
+    property string _pendingMediaLayout: ""
+    property point _gatherPoint
+
+    function nextSlide() {
+        if (wafflesRoot.canNavigate)
+            wafflesRoot.activePlaylist.next();
+    }
+    function previousSlide() {
+        if (wafflesRoot.canNavigate)
+            wafflesRoot.activePlaylist.prev();
+    }
+
+    // Position is in stage coordinates; the launcher can live in a transformed layer.
+    function showLauncher(mode = "content", position = Qt.point(width / 2, height / 2)) {
+        const item = wafflesRoot.activeLauncher;
+        if (!item)
+            return;
+        if ("viewMode" in item)
+            item.viewMode = mode;
+        const parentItem = item.parent;
+        const center = parentItem.mapFromItem(wafflesRoot, position);
+        item.x = Math.max(0, Math.min(parentItem.width - item.width, center.x - item.width / 2));
+        item.y = Math.max(0, Math.min(parentItem.height - item.height, center.y));
+        if ("shown" in item)
+            item.shown = true;
+    }
+
+    function arrangeMedia() {
+        wafflesRoot._layoutMedia("arrange", Qt.point(width / 2, height / 2));
+    }
+    function gatherMedia(position: point) {
+        wafflesRoot._layoutMedia("gather", position);
+    }
+
+    function closeMedia() {
+        wafflesRoot._pendingMediaLayout = "";
+        wafflesRoot.mediaLayoutDelay.stop();
+        if (wafflesRoot._closingMedia)
+            return;
+        const items = wafflesRoot.mediaViewers.slice();
+        wafflesRoot._closingMedia = items.length > 0;
+        for (const item of items)
+            wafflesRoot.closeViewer(item);
+        wafflesRoot.floatingKeyboardShown = false;
+        wafflesRoot.mediaCloseDelay.restart();
+    }
+
+    function _layoutMedia(mode, position) {
+        wafflesRoot._pendingMediaLayout = mode;
+        wafflesRoot._gatherPoint = position;
+        if (wafflesRoot._fullscreenViewer) {
+            wafflesRoot.setFullscreen(wafflesRoot._fullscreenViewer, false);
+            wafflesRoot.mediaLayoutDelay.restart();
+        } else {
+            wafflesRoot._applyMediaLayout();
+        }
+    }
+
+    function _applyMediaLayout() {
+        const items = wafflesRoot.mediaViewers.slice().sort((a, b) => a.z - b.z);
+        const mode = wafflesRoot._pendingMediaLayout;
+        wafflesRoot._pendingMediaLayout = "";
+        if (!items.length || !mode)
+            return;
+        const margin = 64;
+        const areaWidth = Math.max(1, wafflesRoot.width - 2 * margin);
+        const areaHeight = Math.max(1, wafflesRoot.height - 2 * margin);
+        const columns = Math.min(items.length, Math.ceil(Math.sqrt(items.length * areaWidth / areaHeight)));
+        const rows = Math.ceil(items.length / columns);
+        const cellWidth = areaWidth / columns;
+        const cellHeight = areaHeight / rows;
+        for (let i = 0; i < items.length; ++i) {
+            const item = items[i];
+            const maxWidth = mode === "arrange" ? Math.max(1, cellWidth - margin) : areaWidth;
+            const maxHeight = mode === "arrange" ? Math.max(1, cellHeight - margin) : areaHeight;
+            const factor = Math.min(1, maxWidth / Math.max(1, item.width),
+                                   maxHeight / Math.max(1, item.height));
+            item.viewerWidth = Math.max(1, Math.round(item.width * factor));
+            item.viewerHeight = Math.max(1, Math.round(item.height * factor));
+            if (mode === "arrange") {
+                item.x = margin + (i % columns) * cellWidth + (cellWidth - item.width) / 2;
+                item.y = margin + Math.floor(i / columns) * cellHeight + (cellHeight - item.height) / 2;
+            } else {
+                const offset = (i - (items.length - 1) / 2) * 36;
+                item.x = Math.max(margin, Math.min(wafflesRoot.width - margin - item.width,
+                                                wafflesRoot._gatherPoint.x - item.width / 2 + offset));
+                item.y = Math.max(margin, Math.min(wafflesRoot.height - margin - item.height,
+                                                wafflesRoot._gatherPoint.y - item.height / 2 + offset));
+            }
+        }
+        wafflesRoot.selectViewer(items[items.length - 1]);
+    }
+
+    property Timer mediaLayoutDelay: Timer {
+        interval: wafflesRoot.fullscreenDuration + 50
+        onTriggered: wafflesRoot._applyMediaLayout()
+    }
+
+    property Timer mediaCloseDelay: Timer {
+        interval: wafflesRoot.viewerAnimationDuration + 50
+        onTriggered: wafflesRoot._closingMedia = false
+    }
+
     function createMenu() {
         if (!launcher)
             return;

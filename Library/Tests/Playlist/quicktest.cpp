@@ -544,9 +544,140 @@ class PlaylistTest : public QObject {
     }
 
 
+    void createQuickMenuHostScene(bool customVisual = false) {
+        QQmlComponent component(&engine);
+        component.setData(R"(
+            import QtQuick
+            import Dsqt.Core
+            Item {
+                id: scene
+                width: 640; height: 480
+                property bool customVisual: false
+                property int actions: 0
+                property int underneath: 0
+                property int timeout: 0
+                property point selectedPosition
+                property alias host: host
+                TapHandler { onTapped: scene.underneath++ }
+                DsQuickMenuHost {
+                    id: host
+                    anchors.fill: parent
+                    triggerTime: 0.01
+                    model: [{iconText:"Open"}, {iconText:"Disabled", available:false}]
+                    menuComponent: scene.customVisual ? alternate : standard
+                    onItemSelected: (index, position) => {
+                        scene.actions++;
+                        scene.selectedPosition = position;
+                    }
+                }
+                Component {
+                    id: standard
+                    DsQuickMenu {
+                        objectName: "hostVisual"
+                        innerRadius: 60; outerRadius: 120
+                        closeTimer: scene.timeout
+                        revealDuration: 0; segmentStagger: 0
+                    }
+                }
+                Component {
+                    id: alternate
+                    Rectangle {
+                        id: visual
+                        objectName: "hostVisual"
+                        property list<var> model
+                        property var config
+                        property color highlightColor
+                        property real outerRadius: 70
+                        signal itemSelected(int index, point position)
+                        signal closed()
+                        width: 140; height: 140; color: highlightColor
+                        transform: Translate { x:-70; y:-70 }
+                        visible: false
+                        function openMenu(touch) { visible = true; }
+                        function closeMenu() {
+                            if (!visible) return;
+                            visible = false;
+                            Qt.callLater(visual.closed);
+                        }
+                        function updatePoint(point) {}
+                        function releaseGesture() {}
+                        MouseArea {
+                            anchors.fill: parent
+                            onClicked: visual.itemSelected(0, visual.mapToGlobal(width/2, height/2))
+                        }
+                    }
+                }
+            }
+        )", QUrl("qrc:/menu-host-regression.qml"));
+        QVERIFY2(component.isReady(), qPrintable(component.errorString()));
+        view.reset(qobject_cast<QQuickItem *>(component.createWithInitialProperties({{"customVisual",customVisual}})));
+        QVERIFY2(view, qPrintable(component.errorString()));
+        QQmlEngine::setObjectOwnership(view.get(), QQmlEngine::CppOwnership);
+        view->setParentItem(window.contentItem());
+        engine.globalObject().setProperty("view", engine.newQObject(view.get()));
+        QTest::qWait(30);
+    }
 
-
-
+    void createWaffleMenuScene() {
+        QQmlComponent component(&engine);
+        component.setData(R"(
+            import QtQuick
+            import Dsqt.Core
+            import Dsqt.Waffles
+            Item {
+                id: scene
+                width: 640; height: 480
+                property alias stage: stage
+                property alias menu: menu
+                property int customActions: 0
+                property int ambientRequests: 0
+                property bool customAvailable: true
+                property point customPosition
+                DsWaffleStage {
+                    id: stage
+                    anchors.fill: parent
+                    glassEnabled: false; controlsIdleMs: 0
+                    launcherButtonVisible: false
+                    fullscreenDuration: 0
+                    viewerAnimationDuration: 0
+                    viewerEnterAnimation: 0; viewerExitAnimation: 0
+                    launcher: Component {
+                        Item {
+                            property var stage
+                            property var model
+                            property string viewMode: "content"
+                            property bool shown: false
+                            width: 100; height: 60
+                        }
+                    }
+                }
+                DsWaffleQuickMenu {
+                    id: menu
+                    anchors.fill: parent
+                    stage: scene.stage
+                    ambientAvailable: true
+                    actionOverrides: ({
+                        help: {iconText:"Help",available:scene.customAvailable,
+                            trigger: position => {scene.customActions++;scene.customPosition=position;}}
+                    })
+                    onAmbientRequested: scene.ambientRequests++
+                }
+            }
+        )", QUrl("qrc:/waffle-menu-regression.qml"));
+        QVERIFY2(component.isReady(), qPrintable(component.errorString()));
+        view.reset(qobject_cast<QQuickItem *>(component.create()));
+        QVERIFY2(view, qPrintable(component.errorString()));
+        QQmlEngine::setObjectOwnership(view.get(), QQmlEngine::CppOwnership);
+        view->setParentItem(window.contentItem());
+        engine.globalObject().setProperty("view", engine.newQObject(view.get()));
+        evaluate(R"(
+            function menuAction(id) {
+                const index=view.menu.actionController.entries.findIndex(entry=>entry.action===id);
+                view.menu.actionController.trigger(index,view.stage.mapToGlobal(320,240));
+            }
+        )");
+        QTest::qWait(30);
+    }
 
 private slots:
     void initTestCase() {
@@ -719,26 +850,340 @@ private slots:
         QCOMPARE(view->property("underneath").toInt(), underneath);
     }
 
+    void quickMenuHostLifecycle_data() {
+        QTest::addColumn<bool>("customVisual");
+        QTest::newRow("radial") << false;
+        QTest::newRow("replacement") << true;
+    }
+    void quickMenuHostLifecycle() {
+        QFETCH(bool, customVisual);
+        createQuickMenuHostScene(customVisual); QVERIFY(view);
+        QTest::mouseClick(&window,Qt::RightButton,Qt::NoModifier,QPoint(635,475));
+        QTRY_VERIFY(visualChild(view.get(),"hostVisual"));
+        auto menu=visualChild(view.get(),"hostVisual");
+        const int radius=customVisual ? 70 : 120;
+        const QPointF center=menu->mapToScene(QPointF(radius+(!customVisual),radius+(!customVisual)));
+        QVERIFY(center.x() <= 640-radius-7);
+        QVERIFY(center.y() <= 480-radius-7);
+        evaluate("view.host.model=[{iconText:'Changed'}, {iconText:'Disabled',available:false}]");
+        auto menuJs=engine.newQObject(menu);
+        QCOMPARE(menuJs.property("model").property(0).property("iconText").toString(),QString("Changed"));
+        const QPoint select=(center+QPointF(customVisual?0:85,0)).toPoint();
+        clickAt(select,false);
+        QCOMPARE(view->property("actions").toInt(),1);
+        QCOMPARE(view->property("underneath").toInt(),0);
+        QTRY_VERIFY(!visualChild(view.get(),"hostVisual"));
+        // Global selection position can be mapped back into the application.
+        const auto global=view->property("selectedPosition").toPointF();
+        QVERIFY(qAbs(window.mapFromGlobal(global.toPoint()).x()-select.x())<2);
+        evaluate("view.host.openAt(Qt.point(320,240))");
+        QTRY_VERIFY(visualChild(view.get(),"hostVisual"));
+        evaluate("view.host.enabled=false");
+        QTRY_VERIFY(!visualChild(view.get(),"hostVisual"));
+        clickAt(QPoint(320,240),false);
+        QCOMPARE(view->property("underneath").toInt(),1);
+        evaluate("view.host.enabled=true;view.host.rightClickEnabled=false");
+        QTest::mouseClick(&window,Qt::RightButton,Qt::NoModifier,QPoint(320,240));
+        QVERIFY(!visualChild(view.get(),"hostVisual"));
+    }
+
+    void quickMenuHostTimeout() {
+        createQuickMenuHostScene(); QVERIFY(view);
+        view->setProperty("timeout",60);
+        evaluate("view.host.openAt(Qt.point(320,240))");
+        QTRY_VERIFY(visualChild(view.get(),"hostVisual"));
+        QTest::mouseMove(&window,QPoint(10,10));
+        QTRY_VERIFY(!visualChild(view.get(),"hostVisual"));
+    }
+
+    void quickMenuHostTouchReopens_data() {
+        QTest::addColumn<bool>("simulated");
+        QTest::newRow("five-finger") << false;
+        QTest::newRow("shift-mouse") << true;
+    }
+    void quickMenuHostTouchReopens() {
+        QFETCH(bool,simulated);
+        createQuickMenuHostScene(); QVERIFY(view);
+        auto sequence=QTest::touchEvent(&window,touchDevice,false);
+        const QPoint center(320,240);
+        for(int cycle=0;cycle<3;++cycle) {
+            if(simulated) {
+                QTest::mousePress(&window,Qt::LeftButton,Qt::ShiftModifier,center);
+                QTest::qWait(30);
+                QTest::mouseMove(&window,center+QPoint(2,0));
+            } else {
+                for(int i=0;i<5;++i) sequence.press(i,center+QPoint((i-2)*10,0),&window);
+                sequence.commit();
+                QTest::qWait(30);
+                for(int i=0;i<5;++i) sequence.move(i,center+QPoint((i-2)*10+2,0),&window);
+                sequence.commit();
+            }
+            QTRY_VERIFY(visualChild(view.get(),"hostVisual"));
+            auto menu=visualChild(view.get(),"hostVisual");
+            evaluate("view.host.model=[{iconText:'Touch update'}, {iconText:'Disabled',available:false}]");
+            QCOMPARE(engine.newQObject(menu).property("model").property(0).property("iconText").toString(),
+                     QString("Touch update"));
+            if(simulated) QTest::mouseRelease(&window,Qt::LeftButton,Qt::NoModifier,center+QPoint(2,0));
+            else {
+                for(int i=4;i>=0;--i) {
+                    for(int j=0;j<i;++j) sequence.stationary(j);
+                    sequence.release(i,center+QPoint((i-2)*10+2,0),&window).commit();
+                }
+            }
+            QCOMPARE(view->property("underneath").toInt(),0);
+            QCOMPARE(view->property("actions").toInt(),0);
+            clickAt(QPoint(405,240),false);
+            QCOMPARE(view->property("actions").toInt(),1);
+            QTRY_VERIFY(!visualChild(view.get(),"hostVisual"));
+            view->setProperty("actions",0);
+        }
+    }
 
 
+    void quickMenuHostGestureSelection_data() { quickMenuHostTouchReopens_data(); }
+    void quickMenuHostGestureSelection() {
+        QFETCH(bool,simulated);
+        createQuickMenuHostScene(); QVERIFY(view);
+        const QPoint center(320,240), delta(90,0);
+        auto sequence=QTest::touchEvent(&window,touchDevice,false);
+        if(simulated) QTest::mousePress(&window,Qt::LeftButton,Qt::ShiftModifier,center);
+        else {
+            for(int i=0;i<5;++i) sequence.press(i,center+QPoint((i-2)*10,0),&window);
+            sequence.commit();
+        }
+        QTest::qWait(30);
+        if(simulated) QTest::mouseMove(&window,center+QPoint(2,0));
+        else {
+            for(int i=0;i<5;++i) sequence.move(i,center+QPoint((i-2)*10+2,0),&window);
+            sequence.commit();
+        }
+        QTRY_VERIFY(visualChild(view.get(),"hostVisual"));
+        if(simulated) {
+            QTest::mouseMove(&window,center+delta);
+            QTest::mouseRelease(&window,Qt::LeftButton,Qt::NoModifier,center+delta);
+        } else {
+            for(int i=0;i<5;++i) sequence.move(i,center+QPoint((i-2)*10,0)+delta,&window);
+            sequence.commit();
+            for(int i=0;i<5;++i) sequence.release(i,center+QPoint((i-2)*10,0)+delta,&window);
+            sequence.commit();
+        }
+        QCOMPARE(view->property("actions").toInt(),1);
+        QCOMPARE(view->property("underneath").toInt(),0);
+        QTRY_VERIFY(!visualChild(view.get(),"hostVisual"));
+    }
 
+    void waffleMenuBundledVisual() {
+        createWaffleMenuScene(); QVERIFY(view);
+        evaluate("view.menu.openAt(Qt.point(320,240))");
+        QTRY_VERIFY(visualChild(view.get(),"quickMenuLabelIcon"));
+        QList<QQuickItem *> icons;
+        std::function<void(QQuickItem *)> collect=[&](QQuickItem *item) {
+            if(item->objectName()=="quickMenuLabelIcon") icons.append(item);
+            for(auto child:item->childItems()) collect(child);
+        };
+        collect(view.get());
+        QCOMPARE(icons.size(),9);
+        for(auto icon:icons) {
+            QTRY_COMPARE(icon->property("status").toInt(),1);
+            QVERIFY(icon->property("source").toUrl().toString().startsWith("qrc:/qt/qml/Dsqt/Waffles/"));
+        }
+        for(const QString &name:{"close.svg","close_pressed.svg","quickMenuSelectionArrowwt.svg"})
+            QVERIFY(QFile::exists(":/qt/qml/Dsqt/Core/res/quick_menu/"+name));
+        const auto snapshot=qEnvironmentVariable("DSQT_MENU_INTEGRATION_SNAPSHOT");
+        if(!snapshot.isEmpty()) {
+            QTest::qWait(650);
+            QVERIFY(window.grabWindow().save(snapshot));
+        }
+    }
 
+    void waffleMenuStandardAndCustomActions() {
+        createWaffleMenuScene(); QVERIFY(view);
+        QCOMPARE(evaluate("view.menu.model.length").toInt(),9);
+        QVERIFY(evaluate("view.stage.activeLauncher !== null").toBool());
+        QVERIFY(!evaluate("view.menu.model.find(e=>e.action==='forward').available").toBool());
+        QVERIFY(!evaluate("view.menu.model.find(e=>e.action==='arrange').available").toBool());
+        evaluate("menuAction('content')");
+        QCOMPARE(evaluate("view.stage.activeLauncher.viewMode").toString(),QString("content"));
+        QVERIFY(evaluate("view.stage.activeLauncher.shown").toBool());
+        evaluate("menuAction('asset_browsing')");
+        QCOMPARE(evaluate("view.stage.activeLauncher.viewMode").toString(),QString("search"));
+        evaluate("menuAction('ambient')");
+        QCOMPARE(view->property("ambientRequests").toInt(),1);
+        evaluate(R"(
+            view.menu.actionIds=["help","content"];
+            view.menu.actionController.trigger(0,view.stage.mapToGlobal(123,145));
+        )");
+        QCOMPARE(view->property("customActions").toInt(),1);
+        QCOMPARE(evaluate("view.menu.model[0].iconText").toString(),QString("Help"));
+        const auto position=view->property("customPosition").toPointF();
+        QCOMPARE(window.mapFromGlobal(position.toPoint()),QPoint(123,145));
+        view->setProperty("customAvailable",false);
+        evaluate("view.menu.actionController.trigger(0,Qt.point(0,0))");
+        QCOMPARE(view->property("customActions").toInt(),1);
+        // A standard action can also be replaced without changing the menu's dispatch code.
+        evaluate(R"(
+            view.menu.actionOverrides={content:{iconText:"Browse",trigger:()=>view.customActions++}};
+            view.stage.activeLauncher.shown=false;
+            menuAction("content");
+        )");
+        QCOMPARE(view->property("customActions").toInt(),2);
+        QVERIFY(!evaluate("view.stage.activeLauncher.shown").toBool());
+        evaluate("view.menu.actionIds=['whiteboard'];menuAction('whiteboard')");
+        QVERIFY(evaluate("view.stage.whiteboardShown").toBool());
+        QVERIFY(!evaluate("view.menu.enabled").toBool());
+        evaluate("view.stage.closeWhiteboard()");
+        QVERIFY(evaluate("view.menu.enabled").toBool());
+    }
 
+    void waffleMenuStageOperations() {
+        createWaffleMenuScene(); QVERIFY(view);
+        evaluate(R"(
+            for(let i=0;i<2;i++) view.stage.openViewer({
+                objectName:"menuMedia"+i,stage:view.stage,x:10,y:10,
+                viewerWidth:200,viewerHeight:140,minWidth:40,minHeight:40,
+                model:{title:"Media",media:{type:"image",filepath:imageUrl}}
+            });
+        )");
+        QTRY_COMPARE(evaluate("view.stage.mediaViewers.length").toInt(),2);
+        QTest::qWait(50); // Finish the media loaders before testing immediate close/layout.
+        QVERIFY(evaluate("view.menu.model.find(e=>e.action==='arrange').available").toBool());
+        evaluate("menuAction('arrange')");
+        QVERIFY(evaluate("view.stage.mediaViewers[0].x !== view.stage.mediaViewers[1].x").toBool());
+        evaluate("menuAction('gather')");
+        QVERIFY(evaluate("Math.abs(view.stage.mediaViewers[1].x-view.stage.mediaViewers[0].x)===36").toBool());
+        evaluate("view.stage.setFullscreen(view.stage.mediaViewers[0],true);menuAction('arrange')");
+        QTRY_VERIFY(!evaluate("view.stage.mediaLayoutPending").toBool());
+        QTRY_VERIFY(evaluate("view.stage.mediaViewers.every(v=>!v.fullscreen)").toBool());
+        evaluate("menuAction('close_assets')");
+        QTRY_COMPARE(evaluate("view.stage.mediaViewers.length").toInt(),0);
+        QVERIFY(!evaluate("view.menu.model.find(e=>e.action==='close_assets').available").toBool());
+        evaluate(R"(
+            view.stage.openPlaylist({slides:[
+                {uid:"a",media:{type:"image",filepath:imageUrl}},
+                {uid:"b",media:{type:"image",filepath:imageUrl}}
+            ]});
+        )");
+        QTRY_VERIFY(evaluate("view.stage.canNavigate").toBool());
+        QTest::qWait(50);
+        evaluate("menuAction('forward')");
+        QCOMPARE(evaluate("view.stage.activePlaylist.index").toInt(),1);
+        QTest::qWait(50);
+        evaluate("menuAction('back')");
+        QCOMPARE(evaluate("view.stage.activePlaylist.index").toInt(),0);
+        QTest::qWait(50); // Drain the last slide loader before fixture teardown.
+    }
 
+    void quickMenuLabelsStayInWedges_data() {
+        QTest::addColumn<int>("fontSize");
+        QTest::addColumn<int>("itemCount");
+        QTest::addColumn<qreal>("angle");
+        QTest::addColumn<qreal>("inner");
+        QTest::addColumn<qreal>("outer");
+        QTest::addColumn<bool>("longLabels");
+        QTest::newRow("presenter-nine-labels") << 16 << 9 << 0.0 << 125.0 << 230.0 << false;
+        QTest::newRow("rotated") << 16 << 9 << 73.0 << 125.0 << 230.0 << false;
+        QTest::newRow("larger-font") << 32 << 9 << 0.0 << 125.0 << 230.0 << false;
+        QTest::newRow("compact-long-labels") << 16 << 9 << 13.0 << 60.0 << 120.0 << true;
+        QTest::newRow("more-wedges") << 16 << 18 << 0.0 << 125.0 << 230.0 << true;
+        QTest::newRow("single-wedge") << 16 << 1 << 0.0 << 125.0 << 230.0 << false;
+        QTest::newRow("two-wedges") << 16 << 2 << 0.0 << 125.0 << 230.0 << false;
+    }
+    void quickMenuLabelsStayInWedges() {
+        QFETCH(int,fontSize); QFETCH(int,itemCount); QFETCH(qreal,angle);
+        QFETCH(qreal,inner); QFETCH(qreal,outer); QFETCH(bool,longLabels);
+        QQmlComponent component(&engine);
+        component.setData(R"(
+            import QtQuick
+            import Dsqt.Core
+            DsQuickMenu {
+                id: menu
+                required property url fontAsset
+                required property string iconBase
+                required property int testFontSize
+                required property int itemCount
+                required property bool longLabels
+                x: 320; y: 240
+                revealDuration: 0; segmentStagger: 0; closeTimer: 0
+                state: "On"
+                FontLoader { id: menuFont; objectName: "menuFont"; source: menu.fontAsset }
+                config: ({fontSize:menu.testFontSize,fontFamily:menuFont.name,
+                    iconPath:menu.iconBase})
+                readonly property var labels: ["Content","Whiteboard","Forward","Arrange","Close Assets",
+                    "Gather","Back","Asset Browsing","Ambient"]
+                readonly property var icons: ["content","whiteboard","forward","arrange","close_assets",
+                    "gather","back","asset_browsing","ambient"]
+                model: Array.from({length:itemCount}, (_,i) => ({
+                    icon:icons[i%9]+".svg",
+                    iconText:longLabels ? "An extremely long Asset Browsing label with extra words" : labels[i%9]
+                }))
+            }
+        )",QUrl("qrc:/quick-menu-label-regression.qml"));
+        QVERIFY2(component.isReady(),qPrintable(component.errorString()));
+        view.reset(qobject_cast<QQuickItem *>(component.createWithInitialProperties({
+            {"fontAsset",QUrl::fromLocalFile(QStringLiteral(DSQT_TEST_ASSET_DIR)
+                + "/fonts/Roboto/Roboto-VariableFont_wdth,wght.ttf")},
+            {"iconBase",QStringLiteral("file:///data/images/waffles/quick_menu/")},
+            {"testFontSize",fontSize},{"itemCount",itemCount},{"longLabels",longLabels},
+            {"startAngle",angle},{"innerRadius",inner},{"outerRadius",outer}
+        })));
+        QVERIFY2(view,qPrintable(component.errorString()));
+        QQmlEngine::setObjectOwnership(view.get(),QQmlEngine::CppOwnership);
+        view->setParentItem(window.contentItem());
+        auto font=view->findChild<QObject *>("menuFont"); QVERIFY(font);
+        QTRY_COMPARE(font->property("status").toInt(),1);
+        QList<QQuickItem *> labels;
+        QList<QQuickItem *> pending{view.get()};
+        while (!pending.isEmpty()) {
+            auto item=pending.takeLast();
+            if (item->objectName()=="quickMenuLabel") labels.append(item);
+            pending.append(item->childItems());
+        }
+        QCOMPARE(labels.size(),itemCount);
+        for (auto label : labels) {
+            auto text=label->findChild<QQuickItem *>("quickMenuLabelText"); QVERIFY(text);
+            auto icon=label->findChild<QQuickItem *>("quickMenuLabelIcon"); QVERIFY(icon);
+            QTRY_COMPARE(icon->property("status").toInt(),1);
+            QVERIFY(QMetaObject::invokeMethod(text,"forceLayout"));
+            QVERIFY(label->isVisible());
+            QVERIFY(label->clip());
+            QVERIFY(text->property("lineCount").toInt()<=2);
+            QVERIFY(text->property("contentWidth").toReal()<=text->width()+0.1);
+            QVERIFY(text->property("contentHeight").toReal()<=text->height()+0.1);
+            if (!longLabels) QVERIFY(!text->property("truncated").toBool());
+            engine.globalObject().setProperty("menuLabelText",engine.newQObject(text));
+            const int fittedSize=evaluate("menuLabelText.fontInfo.pixelSize").toInt();
+            QVERIFY(fittedSize<=fontSize);
+            if (fontSize==16 && itemCount==9 && !longLabels)
+                QVERIFY2(fittedSize>=12,qPrintable(text->property("text").toString()));
+            if (text->property("text").toString()=="Asset Browsing" && itemCount==9)
+                QCOMPARE(text->property("lineCount").toInt(),2);
 
-
-
-
-
-
-
-
-
-
-
-
-
-
+            // Sample the complete clipped label area, not just the text's anchor or corners:
+            // the inner circular boundary can cut through the middle of a rectangle edge.
+            auto segment=label->parentItem();
+            const QPointF center(segment->width()/2,segment->height()/2);
+            const qreal start=segment->property("startAngle").toReal();
+            const qreal sweep=segment->property("sweepAngle").toReal();
+            for (int row=0; row<=16; ++row) {
+                for (int column=0; column<=16; ++column) {
+                    const QPointF point=label->mapToItem(segment,
+                        QPointF(label->width()*column/16,label->height()*row/16))-center;
+                    const qreal radius=std::hypot(point.x(),point.y());
+                    QVERIFY(radius>=inner+5.9);
+                    QVERIFY(radius<=outer-5.9);
+                    const qreal degrees=qRadiansToDegrees(std::atan2(point.y(),point.x()))+90-start;
+                    const qreal localAngle=std::fmod(std::fmod(degrees,360.0)+360.0,360.0);
+                    QVERIFY2(localAngle<=sweep,qPrintable(text->property("text").toString()));
+                }
+            }
+        }
+        engine.globalObject().setProperty("menuLabelText",QJSValue());
+        const QString snapshot=qEnvironmentVariable("DSQT_MENU_LABEL_SNAPSHOT");
+        if (!snapshot.isEmpty()) {
+            QTest::qWait(100);
+            QVERIFY(window.grabWindow().save(snapshot));
+        }
+    }
 
     void menuCloseDoesNotClickThrough_data() {
         QTest::addColumn<bool>("touch");

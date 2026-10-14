@@ -41,6 +41,8 @@ qt_add_qml_module(Waffles
         whiteboard/dsWhiteboardCanvas.h
         whiteboard/dsWhiteboardCanvas.cpp
     QML_FILES
+        qml/waffles/DsWaffleQuickMenu.qml
+        qml/waffles/DsQuickMenuActions.qml
 
         qml/ux/BottomOuterControls.qml
         qml/ux/CloseButton.qml
@@ -81,6 +83,23 @@ qt_add_qml_module(Waffles
         qml/ui/DsPdfViewer.qml
 
     RESOURCES
+        data/images/waffles/quick_menu/content.svg
+        data/images/waffles/quick_menu/content_disabled.svg
+        data/images/waffles/quick_menu/whiteboard.svg
+        data/images/waffles/quick_menu/forward.svg
+        data/images/waffles/quick_menu/forward_disabled.svg
+        data/images/waffles/quick_menu/arrange.svg
+        data/images/waffles/quick_menu/arrange_disabled.svg
+        data/images/waffles/quick_menu/close_assets.svg
+        data/images/waffles/quick_menu/close_assets_disabled.svg
+        data/images/waffles/quick_menu/gather.svg
+        data/images/waffles/quick_menu/gather_disabled.svg
+        data/images/waffles/quick_menu/back.svg
+        data/images/waffles/quick_menu/back_disabled.svg
+        data/images/waffles/quick_menu/asset_browsing.svg
+        data/images/waffles/quick_menu/asset_browsing_disabled.svg
+        data/images/waffles/quick_menu/ambient.svg
+        data/images/waffles/quick_menu/ambient_disabled.svg
         data/images/waffles/missing_content.svg
         # Window controls are bundled for every consuming application.
         data/images/waffles/window/close.svg

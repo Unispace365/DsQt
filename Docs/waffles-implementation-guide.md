@@ -64,7 +64,7 @@ patterns within the project selected above.
 | Reference | What it demonstrates | Files to read first |
 | --- | --- | --- |
 | [AssetViewer](../Examples/AssetViewer/) | Local/sample media, controls, and styling without a live Bridge workflow. | `main.cpp`, `Main.qml`, `qml/MainView.qml`, `settings/` |
-| [ECPresenter](https://github.com/Unispace365/ECPresenter) | Live Bridge content, presentations, custom-layout navigation, quick-menu actions, and idle/resume behavior. | Local `main.cpp`, `qml/MainView.qml`, `qml/PresenterActions.qml`, `qml/PresenterQuickMenu.qml` |
+| [ECPresenter](https://github.com/Unispace365/ECPresenter) | Live Bridge content, presentations, custom-layout navigation, quick-menu actions, and idle/resume behavior. | Local `main.cpp` and `qml/MainView.qml` |
 
 Keep product behavior in the application. Add or change a DsQt component when
 the capability should be reusable by multiple applications. ECPresenter's action
@@ -411,28 +411,124 @@ by this media transport contract. Custom templates must implement their own
 
 ## 6. Add quick-menu actions and whiteboarding
 
-### Quick-menu responsibilities
+### Add the standard Waffles menu
 
-`DsQuickMenu` and `DsQuickMenuSegment` belong to **DsQt Core**. The application
-supplies entries, availability, icon configuration, placement, and action logic.
-`itemSelected(index, position)` reports a global position; convert it into stage
-coordinates before arranging windows or positioning the launcher.
+Import `Dsqt.Waffles` and place the host above the stage in the visual stack.
+The application supplies its stage and ambient-content callback:
 
-ECPresenter's local `PresenterQuickMenu.qml` configures five-touch activation
-using `DsClusterManager` and `DsClusterView`, plus right-click activation. Its
-`PresenterActions.qml` supplies nine actions: content, whiteboard, forward,
-arrange, close assets, gather, back, asset browsing, and ambient. These files are
-application components, not types exported by `Dsqt.Waffles`.
+```qml
+DsWaffleQuickMenu {
+    id: quickMenu
+    anchors.fill: parent
+    stage: waffleStage
+    ambientAvailable: contentModel.ready && !!contentModel.currentAmbientPlaylist
+    onAmbientRequested: mainView.playAmbient(true)
+}
+```
 
-The menu expects entries with an icon, label (`iconText`), and availability.
-ECPresenter also keeps an action identifier in each entry. Preserve the
-availability checks before dispatch. `closeMenu()` closes a menu; the host is
-responsible for closing all active touch menus during lifecycle changes.
-The setting `[quickMenu] closeDelay` is in milliseconds; `0` disables automatic
-closing, and pointer interaction pauses the countdown.
+The host handles right-click and five-finger activation (including Shift+mouse
+simulation), placement, selection forwarding, and closing. It disables activation
+while the stage's whiteboard or ambient view is shown. Hidden or disabled hosts
+close their menus. `closeMenus()` explicitly closes all menus; `openAt(point)`
+opens a menu at a point **local to the host**.
 
-Menu icons and the selection arrow still use application asset paths. Include
-the `data/images/waffles/quick_menu/` assets when adopting the reference host.
+The nine defaults, in order, are `content`, `whiteboard`, `forward`, `arrange`,
+`close_assets`, `gather`, `back`, `asset_browsing`, and `ambient`. Availability
+follows stage state. Content opens the launcher's content view; Asset Browsing
+opens its search view. Ambient emits `ambientRequested()` for the app to handle.
+
+### Change entries, order, and actions
+
+Set `actionIds` to add, remove, or reorder wedges. Set `actionOverrides` by ID
+to replace `iconText`, icons (`iconSource`, or `icon` and `iconPath`),
+`available`, or `trigger(position)`. A custom ID needs a callback; an explicit
+`available: false` prevents dispatch. Use bindings or replace override objects
+when changing them at runtime.
+
+```qml
+DsWaffleQuickMenu {
+    anchors.fill: parent
+    stage: waffleStage
+    actionIds: ["content", "whiteboard", "help", "ambient"]
+    actionOverrides: ({
+        content: { iconText: qsTr("Browse") },
+        help: {
+            iconText: qsTr("Help"),
+            iconSource: "qrc:/images/help.svg",
+            available: true,
+            trigger: position => helpPanel.openAt(waffleStage.mapFromGlobal(position))
+        }
+    })
+    ambientAvailable: true
+    onAmbientRequested: mainView.playAmbient(true)
+}
+```
+
+Here `helpPanel` is an application-defined panel. Callbacks and
+`itemSelected(index, position)` receive **global** positions; convert with
+`stage.mapFromGlobal(position)` before calling stage methods.
+A `trigger` override replaces the standard action's behavior.
+
+### Appearance and activation
+
+Waffles defaults to bundled Roboto at 16 px and `DsTheme.accent`.
+Set `config: ({fontFamily: "Roboto", fontSize: 20})` for larger labels.
+The circular visual wraps to two lines and fits text inside padded wedge bounds;
+long labels can shrink or elide. Standard action icons are bundled in Waffles,
+and close/selection icons in Core. Applications need no `quick_menu` directory
+for the defaults. `config.closeIcon`, `config.closePressedIcon`, and
+`config.selectionArrow` override the control icons.
+
+Use `rightClickEnabled` and `touchEnabled` to choose activation methods.
+`minimumTouchCount` defaults to 5, `minimumClusterSeparation` to 300,
+`clusterSize` to 300, and `triggerTime` to 0.1 seconds; configure these at creation.
+`edgeMargin` defaults to 8. `[quickMenu] closeDelay` is in milliseconds:
+`0` disables automatic closing, and pointer interaction pauses the countdown.
+
+Set `menuComponent` to change the visual for both mouse and touch. This example
+also needs `import Dsqt.Core`:
+
+```qml
+menuComponent: Component {
+    DsQuickMenu {
+        innerRadius: 140
+        outerRadius: 260
+        startAngle: 20
+        closeTimer: 10000
+    }
+}
+```
+
+A completely different visual must be an `Item` centered on its local origin
+and expose:
+
+- Properties `model`, `config`, `highlightColor`, and `outerRadius` (placement radius).
+- Methods `openMenu(touch)`, `closeMenu()`, `updatePoint(localPoint)`, and `releaseGesture()`.
+- Signals `itemSelected(int index, point globalPosition)` and `closed()`.
+
+The host binds model/config/color, forwards input, and unloads the visual after
+`closed()`. Emit `closed()` after dismissal completes. The visual owns its hit
+areas, underlying-input blocking, and availability checks. `DsQuickMenu`
+implements this contract, including label fitting.
+
+### Reuse the pieces independently
+
+**Core** exports `DsQuickMenuHost` for activation/lifetime without Waffles.
+Supply `model` entries with `iconText`, optional icons and `available`, plus
+`config` and an `onItemSelected` handler.
+
+**Waffles** exports `DsQuickMenuActions` for the standard entry model and
+`trigger(index, globalPosition)`. `DsWaffleQuickMenu` combines it with the host;
+`actionController` exposes the controller.
+
+Public stage properties are `activeLauncher`, `activePlaylist`, `canNavigate`,
+`mediaViewers`, `hasMedia`, and `mediaLayoutPending`. Operations are
+`showLauncher(mode, stagePosition)`, `nextSlide()`, `previousSlide()`,
+`arrangeMedia()`, `gatherMedia(stagePosition)`, and `closeMedia()`.
+Arrange/gather wait for leaving fullscreen before positioning windows.
+Closing media preserves the presentation; whiteboard lifecycle is separate.
+
+ECPresenter demonstrates the integrated menu in `qml/MainView.qml`.
 Validate animation and interaction against the
 [Figma quick-menu motion](https://www.figma.com/design/fjxsTDEKzJ7Xs50BQyptGE/White-Label-Waffles-DD?node-id=454-1302&m=dev).
 
@@ -444,9 +540,9 @@ drawing; `closeWhiteboard(true)` clears it. The default toolbar saves a PNG
 through a file dialog and reports save errors. A transparent export contains the
 drawing, not a screenshot of application content behind it.
 
-ECPresenter closes quick menus before opening the board and disables its menu
-host while `whiteboardShown` is true. It clears the board on idle or an explicit
-switch to ambient. Choose that policy deliberately in another application.
+The Waffles menu closes before dispatch and disables activation while
+`whiteboardShown` is true. ECPresenter retains the drawing and foreground session
+under the ambient overlay. Choose reset versus retention deliberately.
 For custom toolbars, drawing properties, and save signals, use the
 [whiteboard reference](articles/whiteboard.md) and
 [whiteboard Figma design](https://www.figma.com/design/fjxsTDEKzJ7Xs50BQyptGE/White-Label-Waffles-DD?node-id=715-1584).
@@ -465,19 +561,19 @@ existing startup and idle handlers.
    falling back to the configured default when necessary.
 3. Remember the current slide UID per presentation. Resolve it against refreshed
    slides when reopening; retain an index fallback for removed/reordered content.
-4. When returning to idle, close application menus, clear transient windows and
-   whiteboarding, hide keyboards and launcher, and play or retain ambient content.
+4. When returning to idle, close menus and show ambient content over the retained
+   foreground session. Reset the foreground only when that is the desired policy.
 5. Update current-presentation tracking from `playlistOpened(item, ambient)` so
    launcher selections and hotspot navigation follow the same lifecycle.
 
 `stage.clearForeground()` helps clear stage-owned viewers, drawing, keyboard,
 and launcher; it leaves the presentation layer alone. It does not close
-application-owned quick menus or choose an ambient playlist. ECPresenter uses
-its own action controller to coordinate that complete reset.
+separate menu hosts or choose an ambient playlist. Use `quickMenu.closeMenus()`
+for explicit dismissal. ECPresenter retains its foreground session under ambient.
 
-The reference app currently accesses stage members such as `_activePlaylist`
-and `_fullscreenViewer`. They are implementation details, not a stable public
-integration contract. Keep such access localized and check it when updating DsQt.
+Use public stage properties such as `activePlaylist` for integration.
+Underscore-prefixed members remain implementation details; the shared menu does
+not require application code to inspect them.
 
 ## 8. Configure appearance and behavior
 
@@ -562,8 +658,8 @@ does not replace this connection.
 
 Use [theming and settings](waffles-tour/glass-and-theming.html) for detailed
 values. Deploy the application's required icons and fonts as well as the QML
-modules. Standard media/window controls and Roboto are bundled with DsQt;
-application launcher and quick-menu assets still resolve under `%APP%`.
+modules. Standard media/window controls, quick-menu icons, and Roboto are bundled with
+DsQt; application launcher and legacy assets still resolve under `%APP%`.
 
 ## 9. Verify the integrated application
 
@@ -655,7 +751,7 @@ performance. Record software checks and physical-device acceptance separately.
 | Empty launcher | Bridge Sync is running; configured settings filename exists; database path, platform ID, schema fields, and adapter `ready` state are correct. |
 | Custom layout uses the basic media template | Actual slide `typeUid` matches `playlistTemplateByTypeUid`; adapter frame/layout configuration matches the schema. |
 | Hotspot does nothing | Destination exists and both navigation signals are connected to the application resolver. |
-| Menu has missing icons | Application quick-menu assets and selection arrow are deployed at the configured paths. |
+| Menu has missing icons | Rebuild/install Core and Waffles for bundled defaults; verify any custom icon URLs in overrides/config. |
 | Settings seem ignored | File is merged into `app_settings`; property reads use the right prefix; the setting is actually wired in code. |
 | Web viewer is unavailable or blank | WebEngine module, initialization, deployed resources, and chosen graphics backend have been validated together. |
 

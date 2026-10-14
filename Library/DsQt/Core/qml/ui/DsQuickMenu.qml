@@ -31,6 +31,11 @@ Item {
     readonly property int revealTotal: Math.max(0, revealDuration)
         + Math.max(0, segments.count - 1) * Math.max(0, segmentStagger)
 
+    property url closeIcon: config?.closeIcon ?? "qrc:/qt/qml/Dsqt/Core/res/quick_menu/close.svg"
+    property url closePressedIcon: config?.closePressedIcon ?? "qrc:/qt/qml/Dsqt/Core/res/quick_menu/close_pressed.svg"
+    property url selectionArrow: config?.selectionArrow ?? "qrc:/qt/qml/Dsqt/Core/res/quick_menu/quickMenuSelectionArrowwt.svg"
+
+    signal closed()
     signal itemHighlighted(index: int, highlight: bool)
     signal itemSelected(index: int, position: point)
 
@@ -94,9 +99,10 @@ Item {
             sweepAngle: segments.count > 0 ? 360 / segments.count : 0
             entry: modelData
             config: root.config
-            iconSource: modelData?.icon ? Ds.env.expandUrl(
+            iconSource: modelData?.iconSource ? Ds.env.expandUrl(modelData.iconSource)
+                : modelData?.icon ? Ds.env.expandUrl(
                 (modelData?.iconPath || root.config?.iconPath || "") + modelData.icon) : ""
-            arrowSource: Ds.env.expandUrl("file:///%APP%/data/images/waffles/quick_menu/quickMenuSelectionArrowwt.svg")
+            arrowSource: root.selectionArrow
             highlightColor: root.highlightColor
             selected: ((root.selection >> index) & 1) !== 0
             interactive: root.state === "On"
@@ -121,7 +127,7 @@ Item {
         Image {
             id: closeUp
             visible: !closeTapHandler.pressed
-            source: Ds.env.expandUrl("file:///%APP%/data/images/waffles/quick_menu/close.svg")
+            source: root.closeIcon
             fillMode: Image.PreserveAspectFit
             sourceSize: Qt.size(24, 24)
         }
@@ -129,7 +135,7 @@ Item {
         Image {
             visible: closeTapHandler.pressed
             anchors.centerIn: parent
-            source: Ds.env.expandUrl("file:///%APP%/data/images/waffles/quick_menu/close_pressed.svg")
+            source: root.closePressedIcon
             fillMode: Image.PreserveAspectFit
             sourceSize: Qt.size(54, 54)
         }
@@ -153,6 +159,22 @@ Item {
         } else {
             revealAnimation.start()
         }
+    }
+
+    function openMenu(touch = false) {
+        root.state = "On"
+        root._clusterActive = touch
+    }
+
+    function releaseGesture() {
+        if (root.state !== "On")
+            return
+        const index = root._clusterIndex
+        const position = root.mapToGlobal(root.clusterPoint)
+        root._clusterActive = false
+        root._clusterIndex = -1
+        root.refreshHighlights()
+        root.selectItem(index, position)
     }
 
     function closeMenu() {
@@ -183,8 +205,10 @@ Item {
     }
 
     function refreshHighlights() {
-        for (let i = 0; i < segments.count; ++i)
-            root.setHighlighted(i, i === root._clusterIndex || segments.itemAt(i)?.pointerHighlighted)
+        for (let i = 0; i < segments.count; ++i) {
+            const segment = segments.itemAt(i) as DsQuickMenuSegment
+            root.setHighlighted(i, i === root._clusterIndex || segment?.pointerHighlighted)
+        }
     }
 
     function rotate(cx, cy, x, y, angle) {
@@ -250,22 +274,11 @@ Item {
     }
 
     DsClusterView.onMinimumMetChanged: {
-        if (root.DsClusterView.minimumMet) {
-            root.state = "On"
-            root._clusterActive = true
-        }
+        if (root.DsClusterView.minimumMet)
+            root.openMenu(true)
     }
     DsClusterView.onRemoved: root.closeMenu()
-    DsClusterView.onReleased: {
-        if (root.state !== "On")
-            return
-        const index = root._clusterIndex
-        const position = root.mapToGlobal(root.clusterPoint)
-        root._clusterActive = false
-        root._clusterIndex = -1
-        root.refreshHighlights()
-        root.selectItem(index, position)
-    }
+    DsClusterView.onReleased: root.releaseGesture()
     DsClusterView.onUpdated: point => root.updatePoint(point)
 
     states: [
@@ -311,7 +324,12 @@ Item {
                 }
                 PropertyAction { target: root; property: "visible"; value: false }
                 PropertyAction { target: root; property: "revealElapsed"; value: 0 }
-                ScriptAction { script: root.DsClusterView.animateOffFinished() }
+                ScriptAction {
+                    script: {
+                        root.DsClusterView.animateOffFinished()
+                        root.closed()
+                    }
+                }
             }
         }
     ]

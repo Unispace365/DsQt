@@ -17,6 +17,8 @@ qt_add_qml_module(Core
     VERSION 1.0
     OUTPUT_TARGETS CoreTargets
     QML_FILES
+        qml/ui/DsQuickMenuHost.qml
+        qml/ui/DsQuickMenuTouchHost.qml
         #qml/bridge/DsBridgeQueryControls.qml
         qml/DsAppBase.qml
         qml/DsAppMenuBar.qml
@@ -74,6 +76,9 @@ qt_add_qml_module(Core
     #     Dsqtplugin
     
     RESOURCES
+        res/quick_menu/close.svg
+        res/quick_menu/close_pressed.svg
+        res/quick_menu/quickMenuSelectionArrowwt.svg
         # Bundled Qt Virtual Keyboard "waffles" style — listed as INDIVIDUAL files, NOT via a .qrc.
         # A .qrc compiles to a separate resource object whose initializer the linker dead-strips
         # from this STATIC lib (so the style was missing at runtime → VK fell back to "default").

@@ -23,10 +23,10 @@ Use them to understand integration patterns. ProjectCloner uses
 
 | Part | What it provides | What the application supplies |
 | --- | --- | --- |
-| **DsQt Core** | Engine and settings services, media dispatch, touch clustering, and the animated circular quick-menu component. | Application startup, device choices, menu entries, and action handlers. |
-| **DsQt Waffles** | Stage, media windows and controls, launcher UI, presentation playback, custom layouts, whiteboard, camera/capture services, theme, and glass effects. | Content to display, template registration, navigation handling, and session behavior. |
+| **DsQt Core** | Engine and settings services, media dispatch, touch clustering, quick-menu activation/lifecycle, and a replaceable circular visual. | Application startup, device choices, and custom menu models or visuals. |
+| **DsQt Waffles** | Stage, media windows and controls, launcher UI, standard quick-menu actions, presentation playback, custom layouts, whiteboard, camera/capture services, theme, and glass effects. | Content to display, template registration, navigation handling, and session behavior. |
 | **DsQt Bridge** | Access to synchronized content and `DsContentLauncherModel`, which converts Bridge records into launcher items, slides, and layout data. | A compatible application schema, field/type mappings, platform selection, and a running Bridge Sync service or process. |
-| **ECPresenter** | A reference application combining those DsQt modules with live Bridge content. | Its own startup/idle policy, presentation resume, menu actions, content routing, assets, and deployment configuration. |
+| **ECPresenter** | A reference application combining those DsQt modules with live Bridge content. | Its own startup/idle policy, presentation resume, custom menu actions, ambient selection, content routing, assets, and deployment configuration. |
 | **AssetViewer** | A reference application in this repository demonstrating Waffles with local/sample media, without a live Bridge content workflow. | Reference patterns for media, controls, and styling to adapt to the application's needs. |
 
 DsQt contains both QML and C++. The Waffles whiteboard drawing engine is C++;
@@ -95,8 +95,8 @@ now places schema preparation before Bridge wiring.
 | Media windows | Image, video, PDF, and web viewing; movement, sizing, fullscreen, controls, keyboards, and looping. | Converts content descriptors into viewer properties and supplies application assets. |
 | Presentations | Playback, transitions, a controller that pauses media and automatic advancement, and custom layouts using an explicit application frame or automatic aspect selection. | Configures playlist roles and template IDs, registers renderer Components, remembers the selected slide, and switches between ambient and interactive modes. |
 | Hotspots | Layout hit areas and navigation signals; Bridge destination resolution. | Handles those signals and opens the resolved viewer, playlist, or slide. |
-| Quick menu | Circular rendering, reveal animation, highlighting, selection, and timed closing. | Configures five-touch/right-click activation and nine actions, including arrange/gather, browsing, whiteboard, and ambient playback. |
-| Whiteboard | Pen/highlighter/eraser, multi-touch drawing, colors, sizes, history, clear, backgrounds, and PNG export. | Opens the board and clears it when the application returns to idle/ambient mode. Normal Close preserves the drawing. |
+| Quick menu | Core host with five-touch/right-click activation, replaceable visuals, and timed closing; Waffles supplies standard actions and bundled icons. | Creates `DsWaffleQuickMenu` with a stage, chooses optional overrides, and handles ambient content selection. |
+| Whiteboard | Pen/highlighter/eraser, multi-touch drawing, colors, sizes, history, clear, backgrounds, and PNG export. | Chooses drawing retention/reset policy. Normal Close and the ambient overlay preserve the drawing. |
 | Branding and live inputs | Theme colors, interface scale, glass, and shared camera/capture connections. | Chooses the brand and device configuration and validates the complete experience. Library capture support does not establish a finished application capture workflow. |
 
 ## How the application fits together
@@ -109,9 +109,11 @@ now places schema preparation before Bridge wiring.
 5. Application code handles session decisions: returning to ambient content,
    remembering a presentation position, and clearing foreground interaction.
 
-For example, DsQt draws the quick menu and reports a selection. ECPresenter's
-`PresenterActions` decides that the selection means “open the whiteboard” and
-calls the stage. Those action definitions are not part of `DsQuickMenu` itself.
+For example, `DsWaffleQuickMenu` combines Core's host with standard Waffles
+actions. Whiteboarding, navigation, and arranging media are library operations.
+ECPresenter supplies the stage and an ambient-content callback. Applications can
+reorder or override entries and replace the visual without copying activation
+code. See [quick-menu setup and customization](waffles-implementation-guide.md#6-add-quick-menu-actions-and-whiteboarding).
 
 ## Implementation status and remaining work
 
