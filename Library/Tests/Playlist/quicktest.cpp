@@ -58,6 +58,63 @@ class PlaylistTest : public QObject {
     }
     int state(QObject *player) { return player->property("playbackState").toInt(); }
 
+    QPointingDevice *touchDevice = QTest::createTouchDevice();
+
+    QPoint centerOf(QQuickItem *item) {
+        return item->mapToScene(QPointF(item->width()/2, item->height()/2)).toPoint();
+    }
+
+    QQuickItem *pdfPageView(const QString &viewerName = "pdfViewer") {
+        auto viewer = visualChild(view.get(), viewerName);
+        if (!viewer) return nullptr;
+        auto media = qvariant_cast<QObject *>(viewer->property("mediaViewer"));
+        if (!media) return nullptr;
+        auto pdf = qobject_cast<QQuickItem *>(qvariant_cast<QObject *>(media->property("mediaItem")));
+        if (!pdf) return nullptr;
+        // PdfScrollablePageView is the direct visual child of DsPdfViewer.
+        for (auto child : pdf->childItems())
+            if (child->property("renderScale").isValid()) return child;
+        return nullptr;
+    }
+
+    void createIdleControlsScene(bool fullscreen, const QString &mediaType = "image") {
+        createView("DsWaffleStage", R"(({launcher:null,launcherButtonVisible:false,glassEnabled:false,
+            controlsIdleMs:0,fullscreenDuration:0,fullscreenMargin:0,
+            viewerEnterAnimation:0,viewerExitAnimation:0}))");
+        QVERIFY(view);
+        const QString file = mediaType == "pdf" ? "/media/sample.pdf" : "/media/earth.gif";
+        engine.globalObject().setProperty("idleAsset", QUrl::fromLocalFile(
+            QStringLiteral(DSQT_TEST_ASSET_DIR) + file).toString());
+        engine.globalObject().setProperty("idleMediaType", mediaType);
+        evaluate(R"(
+            view.openViewer({stage:view,objectName:"pdfViewer",x:140,y:140,
+                viewerWidth:320,viewerHeight:230,minWidth:50,minHeight:50,
+                contentLocked:true,matchAspectRatio:false,
+                model:{title:"Idle controls",media:{type:idleMediaType,filepath:idleAsset}}});
+        )");
+        auto viewer = visualChild(view.get(), "pdfViewer"); QVERIFY(viewer);
+        engine.globalObject().setProperty("idleViewer", engine.newQObject(viewer));
+        if (mediaType == "pdf") {
+            QTRY_VERIFY_WITH_TIMEOUT(pdfPageView(), 10000);
+            QTRY_COMPARE_WITH_TIMEOUT(pdfPageView()->property("status").toInt(), 1, 10000);
+        }
+        if (fullscreen) evaluate("view.setFullscreen(idleViewer, true)");
+        QTest::qWait(300);
+        QTest::mouseMove(&window, QPoint(5,5));
+    }
+
+    void clickAt(const QPoint &position, bool touch) {
+        if (touch) {
+            auto sequence = QTest::touchEvent(&window, touchDevice, false);
+            sequence.press(0, position, &window).commit();
+            QTest::qWait(20);
+            sequence.release(0, position, &window).commit();
+        } else {
+            QTest::mouseClick(&window, Qt::LeftButton, Qt::NoModifier, position);
+        }
+        QCoreApplication::processEvents();
+    }
+
 private slots:
     void initTestCase() {
         window.resize(640, 480);
@@ -209,6 +266,173 @@ private slots:
         QVERIFY(QFile::exists(path));
         QVERIFY(!QImage(path).isNull());
     }
+    void stageSelectsCustomViewerByStackingOrder_data() {
+        QTest::addColumn<bool>("touch");
+        QTest::newRow("mouse") << false;
+        QTest::newRow("touch") << true;
+    }
+    void stageSelectsCustomViewerByStackingOrder() {
+        QFETCH(bool, touch);
+        createView("DsWaffleStage", R"(({launcher:null,launcherButtonVisible:false,
+            glassEnabled:false,viewerEnterAnimation:0}))"); QVERIFY(view);
+        // Pluggable viewers can leave selection to the stage's tap handler.
+        QQmlComponent component(&engine);
+        component.setData(R"(
+            import QtQuick
+            import Dsqt.Waffles
+            DsViewer {
+                width: viewerWidth; height: viewerHeight
+                enterAnimation: DsViewer.None
+                property bool selected: false
+                Rectangle { anchors.fill: parent; color: "gray" }
+            }
+        )", QUrl("qrc:/stage-custom-viewer.qml"));
+        QVERIFY2(component.isReady(), qPrintable(component.errorString()));
+        view->setProperty("viewer", QVariant::fromValue(&component));
+        evaluate(R"(
+            view.openViewer({objectName:"front",x:100,y:100,viewerWidth:300,viewerHeight:200});
+            view.openViewer({objectName:"rear",x:100,y:100,viewerWidth:300,viewerHeight:200});
+            view.selectViewer(view.getLayer("viewer").children[0]);
+        )");
+        auto front = visualChild(view.get(), "front"); QVERIFY(front);
+        auto rear = visualChild(view.get(), "rear"); QVERIFY(rear);
+        QVERIFY(front->z() > rear->z());
+        clickAt(QPoint(200, 200), touch);
+        QCOMPARE(qvariant_cast<QObject *>(view->property("_selectedViewer")), front);
+        // Equal z values use sibling order; empty space still clears selection.
+        front->setZ(rear->z());
+        clickAt(QPoint(200, 200), touch);
+        QCOMPARE(qvariant_cast<QObject *>(view->property("_selectedViewer")), rear);
+        clickAt(QPoint(50, 400), touch);
+        QVERIFY(!qvariant_cast<QObject *>(view->property("_selectedViewer")));
+    }
+
+    void stageSelectAtUsesRequestedLayer_data() {
+        QTest::addColumn<QString>("layer");
+        QTest::addColumn<bool>("touch");
+        for (const QString &layer : {"viewer", "modal1", "modal3"})
+            for (bool touch : {false, true})
+                QTest::newRow(qPrintable(layer + (touch ? "-touch" : "-mouse"))) << layer << touch;
+    }
+    void stageSelectAtUsesRequestedLayer() {
+        QFETCH(QString, layer); QFETCH(bool, touch);
+        createIdleControlsScene(false); QVERIFY(view);
+        auto rear = visualChild(view.get(), "pdfViewer"); QVERIFY(rear);
+        engine.globalObject().setProperty("selectionLayer", layer);
+        evaluate(R"(
+            idleViewer.parent = view.getLayer(selectionLayer);
+            view.openViewer({stage:view,layer:selectionLayer,objectName:"front",
+                x:140,y:140,viewerWidth:320,viewerHeight:230,
+                model:{title:"Front",media:{type:"image",filepath:idleAsset}}});
+        )");
+        auto front = visualChild(view.get(), "front"); QVERIFY(front);
+        engine.globalObject().setProperty("selectionPoint", engine.toScriptValue(
+            rear->mapToGlobal(QPointF(100, 100))));
+        QCOMPARE(evaluate("view.viewerAt(selectionPoint, idleViewer.parent)").toQObject(), front);
+        if (layer != "viewer") QVERIFY(evaluate("view.viewerAt(selectionPoint)").isNull());
+
+        rear->setProperty("controlsAwake", false);
+        QSignalSpy rearActivity(rear, SIGNAL(controlsAwakeChanged()));
+        QVERIFY(rearActivity.isValid());
+        evaluate("idleViewer.selectAt(selectionPoint)");
+        QCOMPARE(qvariant_cast<QObject *>(view->property("_selectedViewer")), front);
+        QVERIFY(front->property("selected").toBool());
+        QVERIFY(!rear->property("selected").toBool());
+        QCOMPARE(rearActivity.count(), 0);
+
+        front->setVisible(false);
+        evaluate("idleViewer.selectAt(selectionPoint)");
+        QCOMPARE(qvariant_cast<QObject *>(view->property("_selectedViewer")), rear);
+        QVERIFY(rear->property("selected").toBool());
+        QVERIFY(!front->property("selected").toBool());
+        QVERIFY(rearActivity.count() > 0);
+        evaluate("view.selectViewer(null)");
+        QVERIFY(!rear->property("selected").toBool());
+        rear->setProperty("controlsAwake", false);
+        rearActivity.clear();
+        evaluate("idleViewer.selectAt(view.mapToGlobal(5, 5))");
+        QVERIFY(!qvariant_cast<QObject *>(view->property("_selectedViewer")));
+        QCOMPARE(rearActivity.count(), 0);
+        clickAt(centerOf(rear), touch);
+        QCOMPARE(qvariant_cast<QObject *>(view->property("_selectedViewer")), rear);
+        QVERIFY(rear->property("selected").toBool());
+    }
+
+    void stageOpacityDoesNotDisableSelection_data() { stageSelectsCustomViewerByStackingOrder_data(); }
+    void stageOpacityDoesNotDisableSelection() {
+        QFETCH(bool, touch);
+        createIdleControlsScene(false); QVERIFY(view);
+        auto viewer = visualChild(view.get(), "pdfViewer"); QVERIFY(viewer);
+        evaluate("view.selectViewer(null); idleViewer.opacity = 0");
+        const QPoint point(300, 230);
+        engine.globalObject().setProperty("selectionPoint", engine.toScriptValue(window.mapToGlobal(point)));
+        QCOMPARE(evaluate("view.viewerAt(selectionPoint)").toQObject(), viewer);
+        clickAt(point, touch);
+        QCOMPARE(qvariant_cast<QObject *>(view->property("_selectedViewer")), viewer);
+        QVERIFY(viewer->property("selected").toBool());
+    }
+
+    void stageFullscreenSelectionPreservesStacking_data() {
+        QTest::addColumn<bool>("touch");
+        QTest::addColumn<QString>("mediaType");
+        for (bool touch : {false, true})
+            for (const QString &media : {"image", "pdf"})
+                QTest::newRow(qPrintable(media + (touch ? "-touch" : "-mouse"))) << touch << media;
+    }
+    void stageFullscreenSelectionPreservesStacking() {
+        QFETCH(bool, touch); QFETCH(QString, mediaType);
+        if (mediaType == "pdf") {
+            QQmlComponent pdfModule(&engine);
+            pdfModule.setData("import QtQuick.Pdf\nPdfDocument {}", QUrl());
+            if (!pdfModule.isReady()) QSKIP("Qt Quick PDF is not available.");
+        }
+        createIdleControlsScene(false, mediaType); QVERIFY(view);
+        auto fullscreen = visualChild(view.get(), "pdfViewer"); QVERIFY(fullscreen);
+        evaluate(R"(
+            view.openViewer({stage:view,objectName:"backgroundViewer",
+                x:140,y:140,viewerWidth:320,viewerHeight:230,
+                model:{title:"Background",media:{type:"image",filepath:idleAsset}}});
+            view.selectViewer(null);
+            view.setFullscreen(idleViewer, true);
+        )");
+        auto background = visualChild(view.get(), "backgroundViewer"); QVERIFY(background);
+        engine.globalObject().setProperty("backgroundViewer", engine.newQObject(background));
+        QTest::qWait(300);
+        const qreal fullscreenZ = fullscreen->z();
+        QVERIFY(fullscreenZ > view->property("_scrimZ").toReal());
+        engine.globalObject().setProperty("selectionPoint", engine.toScriptValue(
+            fullscreen->mapToGlobal(QPointF(fullscreen->width() / 2, fullscreen->height() / 2))));
+        fullscreen->setProperty("controlsAwake", false);
+        QSignalSpy activity(fullscreen, SIGNAL(controlsAwakeChanged()));
+        QVERIFY(activity.isValid());
+        evaluate("idleViewer.selectAt(selectionPoint)");
+        QVERIFY(activity.count() > 0);
+        QVERIFY(!qvariant_cast<QObject *>(view->property("_selectedViewer")));
+        QCOMPARE(fullscreen->z(), fullscreenZ);
+
+        // Background passive handlers and direct press-selection paths must both be harmless.
+        background->setProperty("controlsAwake", false);
+        QSignalSpy backgroundActivity(background, SIGNAL(controlsAwakeChanged()));
+        QVERIFY(backgroundActivity.isValid());
+        evaluate(R"(
+            backgroundViewer.selectAt(backgroundViewer.mapToGlobal(100, 100));
+            view.selectViewer(backgroundViewer);
+        )");
+        QCOMPARE(backgroundActivity.count(), 0);
+        QVERIFY(!qvariant_cast<QObject *>(view->property("_selectedViewer")));
+        QVERIFY(!background->property("selected").toBool());
+
+        clickAt(centerOf(fullscreen), touch);
+        QCOMPARE(fullscreen->z(), fullscreenZ);
+        QCOMPARE(qvariant_cast<QObject *>(view->property("_fullscreenViewer")), fullscreen);
+        QVERIFY(!background->property("selected").toBool());
+        // Explicit selection must also keep the fullscreen viewer above its backdrop.
+        evaluate("view.selectViewer(idleViewer)");
+        QCOMPARE(qvariant_cast<QObject *>(view->property("_selectedViewer")), fullscreen);
+        QVERIFY(fullscreen->property("selected").toBool());
+        QCOMPARE(fullscreen->z(), fullscreenZ);
+    }
+
 };
 
 QTEST_MAIN(PlaylistTest)

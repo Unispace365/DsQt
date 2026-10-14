@@ -151,6 +151,32 @@ DsViewer {
         if (controlsIdleMs > 0 && selected && !fullscreen) idleTimer.restart();
         _applyControls();
     }
+    function containsInput(globalPosition) {
+        if (root.contains(root.mapFromGlobal(globalPosition)))
+            return true;
+        for (let i = 0; i < root.controls.length; i++) {
+            const control = root.controls[i];
+            if (control.visible && control.enabled && control.opacity > 0
+                    && control.contains(control.mapFromGlobal(globalPosition)))
+                return true;
+        }
+        return false;
+    }
+
+    // Passive content handlers may also observe taps delivered to an overlapping viewer.
+    function selectAt(globalPosition) {
+        if (root.stage) {
+            if (root.stage._fullscreenViewer && root.stage._fullscreenViewer !== root)
+                return;
+            if (root.stage.viewerAt(globalPosition, root.parent) !== root)
+                return;
+            // Fullscreen taps wake controls without changing selection or scrim stacking.
+            if (!root.fullscreen && !root.stage._fullscreenViewer)
+                root.stage.selectViewer(root);
+        }
+        root.wake();
+    }
+
     // Dragging (incl. the title-bar DragHandler, which moves the viewer) keeps inner controls awake.
     onXChanged: wake()
     onYChanged: wake()
@@ -451,7 +477,7 @@ DsViewer {
             // select it otherwise). Disabled once selected, so the page then receives taps.
             TapHandler {
                 enabled: !root.selected
-                onTapped: { if (root.stage) root.stage.selectViewer(root); root.wake(); }
+                onTapped: point => root.selectAt(point.globalPosition)
             }
 
             // SELECTED: a thin top strip wakes the auto-hidden controls on tap (the rest of the
@@ -464,7 +490,7 @@ DsViewer {
                 height: DsTheme.dp(56)
                 TapHandler {
                     enabled: root.selected
-                    onTapped: { if (root.stage) root.stage.selectViewer(root); root.wake(); }
+                    onTapped: point => root.selectAt(point.globalPosition)
                 }
                 Rectangle {
                     anchors.horizontalCenter: parent.horizontalCenter

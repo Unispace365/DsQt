@@ -773,12 +773,34 @@ Item {
             _private.launcher.shown = false;
     }
 
-    // Brings a viewer to the front and marks it selected (deselecting the rest within the
-    // viewer layer). Selected viewers show their controls/title; the z bump reorders the glass
-    // chain so the front viewer samples everything beneath it. Pass null to deselect all.
+    // Find the frontmost input hit in one layer, including controls outside the viewer body.
+    // Opacity alone does not disable Qt Quick input; use visible/enabled to exclude an item.
+    function viewerAt(globalPosition, layer) {
+        let front = null;
+        const kids = (layer || viewerLayer).children;
+        for (let i = 0; i < kids.length; i++) {
+            const child = kids[i];
+            if (!child.visible || !child.enabled)
+                continue;
+            const hit = typeof child.containsInput === "function"
+                ? child.containsInput(globalPosition)
+                : child.contains(child.mapFromGlobal(globalPosition));
+            // Later siblings paint above earlier siblings when z is equal.
+            if (hit && (!front || child.z >= front.z))
+                front = child;
+        }
+        return front;
+    }
+
+    // Select and raise a viewer, clearing the previous selection even in a custom layer.
+    // Fullscreen owns its stacking above the scrim. Pass null to deselect all.
     function selectViewer(v) {
+        if (_fullscreenViewer && v && v !== _fullscreenViewer)
+            return;
         if (v === _selectedViewer)
             return;
+        if (_selectedViewer && ("selected" in _selectedViewer))
+            _selectedViewer.selected = false;
         _selectedViewer = v;
         let kids = viewerLayer.children;
         for (let i = 0; i < kids.length; i++) {
@@ -786,8 +808,12 @@ Item {
             if (p && ("selected" in p))
                 p.selected = (p === v);
         }
-        if (v)
-            v.z = ++_topZ;
+        if (v) {
+            if ("selected" in v)
+                v.selected = true;
+            if (!v.fullscreen && v !== _fullscreenViewer)
+                v.z = ++_topZ;
+        }
         rebuildGlass();
     }
 
@@ -873,15 +899,7 @@ Item {
                 _private.launcher.y = Math.round(point.position.y)
                 if ("shown" in _private.launcher) _private.launcher.shown = true
             }
-            let inView = null;
-            for(let i=0;i<viewerLayer.children.length;i++){
-              let child = viewerLayer.children[i];
-              if(child.contains(child.mapFromGlobal(point.globalPosition))){
-                  inView = child;
-              }
-
-            }
-            wafflesRoot.selectViewer(inView);
+            wafflesRoot.selectViewer(wafflesRoot.viewerAt(point.globalPosition));
 
         }
     }
