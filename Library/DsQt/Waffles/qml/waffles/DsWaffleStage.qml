@@ -368,9 +368,28 @@ Item {
     Item {
         id: inputBlocker
         anchors.fill: wafflesRoot
+        z: ambient.z + 1
         enabled: wafflesRoot.ambientShown
-        PointHandler {
+        readonly property bool pointerActive: ambientMouse.pressed || ambientTouch.activePointCount > 0
+        // Release the shield after event delivery, so the final release cannot hit foreground content.
+        onPointerActiveChanged: if (!pointerActive) Qt.callLater(wafflesRoot._finishAmbientClose)
 
+        HoverHandler { blocking: true }
+        MouseArea {
+            id: ambientMouse
+            anchors.fill: parent
+            acceptedButtons: Qt.AllButtons
+            preventStealing: true
+            onWheel: wheel => wheel.accepted = true
+        }
+        MultiPointTouchArea {
+            id: ambientTouch
+            anchors.fill: parent
+            mouseEnabled: false
+            property int activePointCount: 0
+            onTouchUpdated: points => ambientTouch.activePointCount = points.filter(point => point.pressed).length
+            onCanceled: points => ambientTouch.activePointCount = Math.max(0, ambientTouch.activePointCount - points.length)
+            onGestureStarted: gesture => gesture.grab()
         }
     }
 
@@ -950,12 +969,14 @@ Item {
     }
 
     property bool _ambientClosing: false
+    property bool _ambientFadeFinished: false
 
     function hideAmbient() {
         if (!wafflesRoot._ambientPlaylist || wafflesRoot._ambientClosing)
             return;
 
         wafflesRoot._ambientClosing = true;
+        wafflesRoot._ambientFadeFinished = false;
 
         const viewer = wafflesRoot._ambientPlaylist;
         viewer.paused = true;
@@ -965,18 +986,29 @@ Item {
         ambientCloseTimer.start();
     }
 
+    function _finishAmbientClose() {
+        if (!wafflesRoot._ambientClosing || !wafflesRoot._ambientFadeFinished || inputBlocker.pointerActive)
+            return;
+
+        const viewer = wafflesRoot._ambientPlaylist;
+        wafflesRoot._ambientPlaylist = null;
+        wafflesRoot._ambientClosing = false;
+        wafflesRoot._ambientFadeFinished = false;
+        if (viewer) {
+            // destroy() is deferred; stop intercepting the next gesture immediately.
+            viewer.enabled = false;
+            viewer.destroy();
+        }
+    }
+
     Timer {
         id: ambientCloseTimer
         repeat: false
 
         onTriggered: {
-            const viewer = wafflesRoot._ambientPlaylist;
-
-            wafflesRoot._ambientPlaylist = null;
-            wafflesRoot._ambientClosing = false;
-
-            if (viewer)
-                viewer.destroy();
+            // Keep the ambient layer above app-level input until the entire wake gesture ends.
+            wafflesRoot._ambientFadeFinished = true;
+            wafflesRoot._finishAmbientClose();
         }
     }
 

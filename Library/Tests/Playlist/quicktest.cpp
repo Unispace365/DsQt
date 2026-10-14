@@ -73,6 +73,70 @@ class PlaylistTest : public QObject {
     int state(QObject *player) { return player->property("playbackState").toInt(); }
     QPointingDevice *touchDevice = QTest::createTouchDevice();
 
+    void createAmbientWakeScene() {
+        QQmlComponent component(&engine);
+        component.setData(R"(
+            import QtQuick
+            import Dsqt.Core
+            import Dsqt.Waffles
+            DsWaffleStage {
+                id: stage
+                width: 640; height: 480
+                required property var inputWindow
+                required property url asset
+                launcher: null; launcherButtonVisible: false; glassEnabled: false
+                playlistFadeMs: 20
+                property int actions: 0
+                property int hotspots: 0
+                property int mousePresses: 0
+                property int touchPresses: 0
+                property int wheels: 0
+                DsIdle {
+                    areaItemTarget: stage.inputWindow
+                    idleTimeout: 60000
+                    onIdleEnded: stage.hideAmbient()
+                }
+                // Exercise a retained foreground above the normal viewer/modal layers.
+                Item {
+                    anchors.fill: parent; z: 150
+                    MouseArea {
+                        anchors.fill: parent; acceptedButtons: Qt.AllButtons
+                        onPressed: stage.mousePresses++
+                        onWheel: stage.wheels++
+                    }
+                    MultiPointTouchArea {
+                        anchors.fill: parent; mouseEnabled: false
+                        onPressed: points => stage.touchPresses += points.length
+                    }
+                    DsCustomLayoutMedia {
+                        anchors.fill: parent
+                        item: ({uid: "background", media: {type: "image", filepath: stage.asset},
+                            hotspots: [{uid: "link", x: 0, y: 0, w: 0.5, h: 1, target: "destination"}]})
+                        onContentRequested: stage.hotspots++
+                    }
+                    MouseArea {
+                        x: 400; y: 160; width: 160; height: 160
+                        acceptedButtons: Qt.AllButtons
+                        onPressed: stage.mousePresses++
+                        onClicked: stage.actions++
+                    }
+                }
+            }
+        )", QUrl("qrc:/ambient-wake-regression.qml"));
+        QVERIFY2(component.isReady(), qPrintable(component.errorString()));
+        view.reset(qobject_cast<QQuickItem *>(component.createWithInitialProperties({
+            {"inputWindow", QVariant::fromValue(&window)},
+            {"asset", QUrl::fromLocalFile(QStringLiteral(DSQT_TEST_ASSET_DIR) + "/media/earth.gif")}
+        })));
+        QVERIFY2(view, qPrintable(component.errorString()));
+        QQmlEngine::setObjectOwnership(view.get(), QQmlEngine::CppOwnership);
+        view->setParentItem(window.contentItem());
+        engine.globalObject().setProperty("view", engine.newQObject(view.get()));
+        evaluate("view.showAmbient({ambient:true,slides:[{uid:'ambient'}]})");
+        QVERIFY(view->property("ambientShown").toBool());
+        QTest::qWait(100);
+    }
+
     void createInputScene(bool menu) {
         const QByteArray foreground = menu ? R"(
             DsQuickMenu {
@@ -821,6 +885,104 @@ private slots:
         QCOMPARE(evaluate("view.currentSlide.uid").toString(), "first");
         view->setProperty("paused", false);
         QTRY_COMPARE_WITH_TIMEOUT(view->property("index").toInt(), 1, 2500);
+    }
+    void ambientWakeConsumesGesture_data() {
+        QTest::addColumn<bool>("touch");
+        QTest::addColumn<bool>("hold");
+        QTest::addColumn<bool>("hotspot");
+        for (bool touch : {false, true})
+            for (bool hold : {false, true})
+                for (bool hotspot : {false, true}) {
+                    const QByteArray name = QByteArray(touch ? "touch" : "mouse")
+                        + (hold ? "-held" : "-tap") + (hotspot ? "-hotspot" : "-button");
+                    QTest::newRow(name.constData()) << touch << hold << hotspot;
+                }
+    }
+    void ambientWakeConsumesGesture() {
+        QFETCH(bool, touch); QFETCH(bool, hold); QFETCH(bool, hotspot);
+        createAmbientWakeScene(); QVERIFY(view);
+        const QPoint position = hotspot ? QPoint(160, 240) : QPoint(480, 240);
+        auto sequence = QTest::touchEvent(&window, touchDevice, false);
+        if (touch) sequence.press(0, position, &window).commit();
+        else QTest::mousePress(&window, Qt::LeftButton, Qt::NoModifier, position);
+        QTRY_VERIFY(view->property("_ambientClosing").toBool());
+        // Always release the synthetic input, even if the held-gesture check fails.
+        if (hold) QTest::qWait(200);
+        const bool shieldRetained = view->property("ambientShown").toBool();
+        if (touch) sequence.release(0, position, &window).commit();
+        else QTest::mouseRelease(&window, Qt::LeftButton, Qt::NoModifier, position);
+        QVERIFY(shieldRetained);
+        QTRY_VERIFY(!view->property("ambientShown").toBool());
+        QCOMPARE(view->property("actions").toInt(), 0);
+        QCOMPARE(view->property("hotspots").toInt(), 0);
+        QCOMPARE(view->property("mousePresses").toInt(), 0);
+        QCOMPARE(view->property("touchPresses").toInt(), 0);
+        clickAt(position, touch);
+        QCOMPARE(view->property(hotspot ? "hotspots" : "actions").toInt(), 1);
+    }
+    void ambientWakeHoldsUntilLastTouch() {
+        createAmbientWakeScene(); QVERIFY(view);
+        auto sequence = QTest::touchEvent(&window, touchDevice, false);
+        sequence.press(0, QPoint(160, 240), &window).commit();
+        QTest::qWait(200);
+        sequence.stationary(0).press(1, QPoint(480, 240), &window).commit();
+        sequence.release(0, QPoint(160, 240), &window).stationary(1).commit();
+        QTest::qWait(30);
+        const bool shieldRetained = view->property("ambientShown").toBool();
+        sequence.move(1, QPoint(500, 260), &window).commit();
+        sequence.release(1, QPoint(500, 260), &window).commit();
+        QVERIFY(shieldRetained);
+        QTRY_VERIFY(!view->property("ambientShown").toBool());
+        QCOMPARE(view->property("actions").toInt(), 0);
+        QCOMPARE(view->property("hotspots").toInt(), 0);
+        QCOMPARE(view->property("touchPresses").toInt(), 0);
+        clickAt(QPoint(480, 240), true);
+        QCOMPARE(view->property("actions").toInt(), 1);
+    }
+    void ambientWakeCancellationReleasesShield() {
+        createAmbientWakeScene(); QVERIFY(view);
+        auto sequence = QTest::touchEvent(&window, touchDevice, false);
+        sequence.press(0, QPoint(160, 240), &window).commit();
+        QTest::qWait(200);
+        QTouchEvent cancel(QEvent::TouchCancel, touchDevice);
+        QCoreApplication::sendEvent(&window, &cancel);
+        QTest::qWait(30);
+        const bool shieldReleased = !view->property("ambientShown").toBool();
+        sequence.release(0, QPoint(160, 240), &window).commit();
+        QVERIFY(shieldReleased);
+        QCOMPARE(view->property("hotspots").toInt(), 0);
+        QCOMPARE(view->property("touchPresses").toInt(), 0);
+        clickAt(QPoint(160, 240), true);
+        QCOMPARE(view->property("hotspots").toInt(), 1);
+    }
+    void ambientWakeConsumesOtherMouseButtons_data() {
+        QTest::addColumn<Qt::MouseButton>("button");
+        QTest::newRow("right") << Qt::RightButton;
+        QTest::newRow("middle") << Qt::MiddleButton;
+    }
+    void ambientWakeConsumesOtherMouseButtons() {
+        QFETCH(Qt::MouseButton, button);
+        createAmbientWakeScene(); QVERIFY(view);
+        const QPoint position(480, 240);
+        QTest::mousePress(&window, button, Qt::NoModifier, position);
+        QTest::qWait(200);
+        const bool shieldRetained = view->property("ambientShown").toBool();
+        QTest::mouseRelease(&window, button, Qt::NoModifier, position);
+        QVERIFY(shieldRetained);
+        QTRY_VERIFY(!view->property("ambientShown").toBool());
+        QCOMPARE(view->property("actions").toInt(), 0);
+        QCOMPARE(view->property("mousePresses").toInt(), 0);
+        QTest::mouseClick(&window, button, Qt::NoModifier, position);
+        QCOMPARE(view->property("actions").toInt(), 1);
+    }
+    void ambientBlocksWheelInput() {
+        createAmbientWakeScene(); QVERIFY(view);
+        wheelAt(QPoint(600, 400));
+        QCOMPARE(view->property("wheels").toInt(), 0);
+        evaluate("view.hideAmbient()");
+        QTRY_VERIFY(!view->property("ambientShown").toBool());
+        wheelAt(QPoint(600, 400));
+        QCOMPARE(view->property("wheels").toInt(), 1);
     }
     void overlaysBlockUnderlyingHotspots_data() {
         QTest::addColumn<bool>("menu");
