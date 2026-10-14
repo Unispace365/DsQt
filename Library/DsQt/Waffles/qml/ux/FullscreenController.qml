@@ -19,6 +19,8 @@ import Dsqt.Waffles
 // the tab stays put when the bar appears/disappears (collapse).
 DsController {
     id: controller
+    interactionActive: tabPress.active || barPress.active || tabDrag.active || barDrag.active
+        || fsMedia.interactionActive
 
     // Sized to the Figma spec (frame 459 × 99). The bar is inset 15 px from the frame's left so
     // the collapse tab overlaps its left edge — frame width = barWidth + tabSize/2 (459 = 444 + 15).
@@ -70,11 +72,34 @@ DsController {
     // Collapse tab — centred on the controller origin (0,0); never moves when toggling.
     Item {
         id: tab
-        HoverHandler { blocking: true }
+        Item {
+            anchors.fill: parent
+            z: 100
+            PointHandler {
+                id: tabPress
+                acceptedButtons: Qt.AllButtons
+                onPointChanged: if (active) controller.wake()
+            }
+        }
+        HoverHandler {
+            blocking: true
+            property point lastPosition: Qt.point(-1, -1)
+            onPointChanged: {
+                if (!hovered || !controller.enabled
+                        || (point.scenePosition.x === lastPosition.x && point.scenePosition.y === lastPosition.y))
+                    return;
+                lastPosition = point.scenePosition;
+                // Keep the viewer's hover position current while this bar covers it.
+                // Otherwise fading the bar out can look like fresh movement underneath.
+                if (controller.viewer && typeof controller.viewer.hoverAt === "function")
+                    controller.viewer.hoverAt(point.scenePosition);
+                controller.wake();
+            }
+        }
         MouseArea {
             anchors.fill: parent
             acceptedButtons: Qt.AllButtons
-            onWheel: event => { event.accepted = true }
+            onWheel: event => { controller.wake(); event.accepted = true }
         }
         MultiPointTouchArea {
             anchors.fill: parent
@@ -100,9 +125,13 @@ DsController {
             anchors.fill: parent
             icon: controller.collapsed ? controller.windowIcon("controller_expand.svg")
                                        : controller.windowIcon("controller_collapse.svg")
-            onClicked: controller.collapsed = !controller.collapsed
+            onClicked: {
+                controller.collapsed = !controller.collapsed;
+                controller.wake();
+            }
         }
         DragHandler {
+            id: tabDrag
             target: controller
             xAxis.minimum: controller._left
             xAxis.maximum: controller.parent ? controller.parent.width - controller._right : 0
@@ -114,11 +143,34 @@ DsController {
     // Main bar — left edge at the origin (= the tab's centre), vertically centred on it.
     Item {
         id: bar
-        HoverHandler { blocking: true }
+        Item {
+            anchors.fill: parent
+            z: 100
+            PointHandler {
+                id: barPress
+                acceptedButtons: Qt.AllButtons
+                onPointChanged: if (active) controller.wake()
+            }
+        }
+        HoverHandler {
+            blocking: true
+            property point lastPosition: Qt.point(-1, -1)
+            onPointChanged: {
+                if (!hovered || !controller.enabled
+                        || (point.scenePosition.x === lastPosition.x && point.scenePosition.y === lastPosition.y))
+                    return;
+                lastPosition = point.scenePosition;
+                // Keep the viewer's hover position current while this bar covers it.
+                // Otherwise fading the bar out can look like fresh movement underneath.
+                if (controller.viewer && typeof controller.viewer.hoverAt === "function")
+                    controller.viewer.hoverAt(point.scenePosition);
+                controller.wake();
+            }
+        }
         MouseArea {
             anchors.fill: parent
             acceptedButtons: Qt.AllButtons
-            onWheel: event => { event.accepted = true }
+            onWheel: event => { controller.wake(); event.accepted = true }
         }
         MultiPointTouchArea {
             anchors.fill: parent
@@ -145,6 +197,7 @@ DsController {
         // whole controls area when the media type has no controls (e.g. an image). The actual
         // controls (sliders/buttons) sit on top and take their own input.
         DragHandler {
+            id: barDrag
             target: controller
             xAxis.minimum: controller._left
             xAxis.maximum: controller.parent ? controller.parent.width - controller._right : 0
@@ -186,9 +239,10 @@ DsController {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     chrome: false
-                    // DsControlSet defaults to opacity 0; force visible here (the bar doesn't auto-hide).
+                    // The controller owns visibility for the entire bar.
                     opacity: 1
                     signalObject: controller.viewer
+                    onInteracted: if (controller.enabled) controller.wake()
                 }
                 // Empty, draggable space when there are no media controls (e.g. image); also pushes
                 // the window buttons to the right.

@@ -140,6 +140,7 @@ Item {
     property real viewerWebHeight: appSettings.getFloat("viewer.webHeight", 800)
     // Controls auto-hide after this idle time (ms). 0 disables auto-hide. Per-viewer overridable.
     property int controlsIdleMs: appSettings.getInt("controlsIdleSeconds", 4) * 1000
+    property string fullscreenControllerIdleBehavior: appSettings.getString("fullscreen.controllerIdleBehavior", "hide")
     // Enter/exit animation defaults (per-viewer overridable on creation). Stored as strings in
     // settings (fade | grow | growBounce | fadeRise | none); mapped to the DsViewer.Anim enum.
     property int viewerEnterAnimation: _animFromString(appSettings.getString("viewer.enterAnimation", "growBounce"))
@@ -727,6 +728,12 @@ Item {
         }
         if (wafflesRoot._fsController) {
             // Optional properties preserve the contract for custom controller visuals.
+            if ("controlsIdleMs" in wafflesRoot._fsController)
+                wafflesRoot._fsController.controlsIdleMs = Qt.binding(() => wafflesRoot.controlsIdleMs);
+            if ("idleBehavior" in wafflesRoot._fsController)
+                wafflesRoot._fsController.idleBehavior = Qt.binding(() => wafflesRoot.fullscreenControllerIdleBehavior);
+            wafflesRoot._fsController.viewer = v;
+            wafflesRoot._fsController.collapsed = false;
             wafflesRoot._fsController.shown = true;
         }
     }

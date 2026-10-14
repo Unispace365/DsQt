@@ -20,11 +20,52 @@ Item {
     property bool shown: false
     property bool collapsed: false
 
+    // The stage supplies the shared media-controls timeout; application idle is unrelated.
+    property int controlsIdleMs: 4000
+    property string idleBehavior: "none" // hide | collapse | none
+    property bool interactionActive: false
+    property bool _idleHidden: false
+    readonly property bool controlsHidden: shown && _idleHidden
+    readonly property bool _busy: interactionActive
+        || (viewer && ("interactionActive" in viewer) && viewer.interactionActive)
+
+    function wake() {
+        controller._idleHidden = false;
+        idleTimer.stop();
+        if (controller.shown && controller.viewer && !controller._busy && controller.controlsIdleMs > 0
+                && (controller.idleBehavior === "hide" || controller.idleBehavior === "collapse"))
+            idleTimer.restart();
+    }
+    onControlsIdleMsChanged: wake()
+    onIdleBehaviorChanged: wake()
+    on_BusyChanged: if (!controller.controlsHidden) wake()
+    Connections {
+        target: controller
+        function onShownChanged() { controller.wake(); }
+        function onViewerChanged() { controller.wake(); }
+    }
+    Connections {
+        target: controller.viewer
+        ignoreUnknownSignals: true
+        function onInteracted() { controller.wake(); }
+    }
+    Timer {
+        id: idleTimer
+        interval: Math.max(1, controller.controlsIdleMs)
+        onTriggered: {
+            if (controller.idleBehavior === "hide")
+                controller._idleHidden = true;
+            else if (controller.idleBehavior === "collapse")
+                controller.collapsed = true;
+        }
+    }
+
     readonly property var model: viewer ? viewer.model : null
 
     // Fade with `shown`. Subclasses keep their own internal layout; this shows/hides the whole thing.
     visible: opacity > 0
-    opacity: shown ? 1 : 0
+    enabled: shown && !controlsHidden
+    opacity: shown && !controlsHidden ? 1 : 0
     Behavior on opacity { NumberAnimation { duration: 250; easing.type: Easing.OutCubic } }
 
     // Frosted-glass context for the controller's panels. `source` is the fullscreen viewer's

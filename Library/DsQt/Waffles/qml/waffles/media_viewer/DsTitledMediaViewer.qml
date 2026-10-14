@@ -100,39 +100,47 @@ DsViewer {
     // the content) and return when the viewer is touched/hovered/dragged. 0 disables auto-hide.
     property int  controlsIdleMs: stage ? stage.controlsIdleMs : 4000
     property bool controlsAwake: true
-    Timer { id: idleTimer; interval: root.controlsIdleMs; onTriggered: root.controlsAwake = false }
+    signal interacted()
+    property point _lastHoverPosition: Qt.point(-1, -1)
+    function hoverAt(position) {
+        if (position.x === _lastHoverPosition.x && position.y === _lastHoverPosition.y) return;
+        _lastHoverPosition = position;
+        if (root.contains(root.mapFromItem(null, position.x, position.y)))
+            root.wake();
+    }
+    readonly property bool interactionActive: contentPress.active
+        || root.controls.some(control => control.interactionActive)
+    readonly property bool controlsHidden: root.fullscreen
+        ? !!(root.stage && root.stage._fsController && ("controlsHidden" in root.stage._fsController)
+             && root.stage._fsController.controlsHidden)
+        : root.selected && root.controlsIdleMs > 0 && !root.controlsAwake
+    Timer { id: idleTimer; interval: Math.max(1, root.controlsIdleMs); onTriggered: root.controlsAwake = false }
+    onControlsIdleMsChanged: wake()
+    onInteractionActiveChanged: if (!root.controlsHidden) wake()
 
-    // Interactive content (web / pdf) captures pointer input, so the viewer's normal hover/drag
-    // path never fires to "wake" faded controls — they'd be unreachable. We don't force the
-    // controls on; instead the reveal layer (see contentLayer below) brings them back on mouse
-    // hover or a top-strip tap. This flag gates that reveal layer to only intercept over such
-    // content (image/video wake fine the normal way).
     readonly property bool contentInteractive: root.mediaViewer
         ? (root.mediaViewer.mediaType === "web" || root.mediaViewer.mediaType === "pdf") : false
 
-    // Outer controls (title, corner buttons) show whenever the viewer is selected and not
-    // fullscreen (fullscreen hands controls to the stage's fullscreen controller). INNER controls
-    // (over the content, e.g. the media transport bar) additionally auto-hide when idle and return
-    // on interaction, so they don't cover the content.
-    onSelectedChanged: { if (selected) { wake(); refreshGlass(); } else _applyControls() }
-    onFullscreenChanged: { if (!fullscreen && selected) { wake(); refreshGlass(); } else _applyControls() }
+    // All windowed controls share one timeout. Fullscreen uses the stage's controller instead.
+    onSelectedChanged: { wake(); if (selected) refreshGlass(); }
+    onFullscreenChanged: { wake(); if (!fullscreen && selected) refreshGlass(); }
     onControlsAwakeChanged: _applyControls()
     // TEMP diagnostic — flip on to log control state on each _applyControls.
     property bool _debugControls: false
     function _applyControls() {
         let base = selected && !fullscreen;
-        let innerOn = base && (controlsAwake || controlsIdleMs <= 0);
+        let controlsOn = base && (controlsAwake || controlsIdleMs <= 0);
         if (root._debugControls) {
             let mt = root.mediaViewer ? root.mediaViewer.mediaType : "(none)";
             console.log("[DsTitledMediaViewer] mediaType=" + mt + " selected=" + selected
                         + " fullscreen=" + fullscreen + " controls=" + root.controls.length
-                        + " base=" + base + " innerOn=" + innerOn
+                        + " base=" + base + " controlsOn=" + controlsOn
                         + " viewer=" + Math.round(viewerWidth) + "x" + Math.round(viewerHeight)
                         + " pos=" + Math.round(root.x) + "," + Math.round(root.y) + " z=" + root.z);
         }
         for (var i = 0; i < root.controls.length; i++) {
             let c = root.controls[i];
-            let want = ((_edgeIsInner(c.edge) ? innerOn : base) ? 1 : 0);
+            let want = controlsOn ? 1 : 0;
             c.opacity = want;
             if (root._debugControls)
                 console.log("    ctrl[" + i + "] edge=" + c.edge + " wantOpacity=" + want
@@ -140,16 +148,14 @@ DsViewer {
                             + " parent=" + (c.parent ? c.parent : "(none)"));
         }
     }
-    function _edgeIsInner(e) {
-        return e === DsControlSet.Edge.TopInner || e === DsControlSet.Edge.BottomInner
-            || e === DsControlSet.Edge.LeftInner || e === DsControlSet.Edge.RightInner
-            || e === DsControlSet.Edge.Center;
-    }
-    // Resets the inner-controls idle timer and re-applies visibility; called on any interaction.
+    // Activity resets only this viewer's controls; it never changes application idle state.
     function wake() {
         controlsAwake = true;
-        if (controlsIdleMs > 0 && selected && !fullscreen) idleTimer.restart();
+        idleTimer.stop();
+        if (controlsIdleMs > 0 && selected && !fullscreen && !interactionActive)
+            idleTimer.restart();
         _applyControls();
+        root.interacted();
     }
     function containsInput(globalPosition) {
         if (root.contains(root.mapFromGlobal(globalPosition)))
@@ -380,6 +386,22 @@ DsViewer {
     Item {
         id: contentLayer
         anchors.fill: parent
+        Item {
+            anchors.fill: parent
+            z: 100
+            PointHandler {
+                id: contentPress
+                acceptedButtons: Qt.AllButtons
+                onPointChanged: if (active && !root.controlsHidden) root.wake()
+            }
+            // Remember movement outside the media too, so returning to the same pixel wakes
+            // controls. This observer never blocks input; the media's hover shield does that.
+            HoverHandler {
+                blocking: false
+                margin: root.stage ? root.stage.width + root.stage.height : root.width + root.height
+                onPointChanged: if (hovered && (root.selected || root.fullscreen)) root.hoverAt(point.scenePosition)
+            }
+        }
 
         // The media region's OWN glass — off by default (media is opaque, like the design). It
         // uses the same DsGlassBackground element + glass context as the control sets do. Turn on
@@ -437,7 +459,6 @@ DsViewer {
         }
 
         // Mouse movement anywhere over the viewer (incl. over the controls) keeps controls awake.
-        HoverHandler { blocking: true; onPointChanged: root.wake() }
 
         Item {
             id: background
@@ -561,58 +582,41 @@ DsViewer {
             actionText: root.model && root.model.errorMessage ? ""
                 : contentState === "error" ? qsTr("Try again") : ""
         }
-        // Reveal affordance for interactive content (web / pdf). That content captures pointer
-        // input, so once the inner controls auto-hide the normal hover/drag wake path can't fire.
-        // This layer sits ABOVE the content but BELOW the control holders (declared later), so it
-        // brings controls back without covering them when they're visible. Enabled only over
-        // interactive content while selected (image/video wake fine the normal way).
-        //   - passive HoverHandler over the whole content → mouse movement reveals; it never grabs
-        //     the pointer, so the page stays fully interactive;
-        //   - a thin top strip with a TapHandler → touch reveals (a small dead-zone at the very
-        //     top), with a subtle grab-handle hint shown only while controls are hidden.
+        // Stay above media (including PDF/web input) and below the controls. Hover is always
+        // observed so enabling a hidden-controls surface under a stationary cursor cannot wake it.
         Item {
             id: revealLayer
             anchors.fill: mediaView
-            // Live over interactive content whenever not fullscreen — INCLUDING when deselected,
-            // so the viewer can be re-selected (the web/pdf view captures taps, so neither the
-            // stage tap-to-select nor the body-drag beneath the content can reach it).
-            enabled: root.contentInteractive && root.contentInputEnabled && !root.fullscreen
-
-            // Mouse: hovering a SELECTED viewer reveals its auto-hidden controls. Passive — never
-            // grabs the pointer, so the page stays fully interactive.
-            HoverHandler { blocking: true; onPointChanged: if (root.selected) root.wake() }
-
-            // DESELECTED: a full-cover tap selects the viewer (you can't tap through the page to
-            // select it otherwise). Disabled once selected, so the page then receives taps.
+            enabled: root.selected || root.fullscreen || (root.contentInteractive && root.contentInputEnabled)
+            HoverHandler { blocking: true }
             TapHandler {
-                enabled: !root.selected
+                enabled: !root.fullscreen && !root.selected && root.contentInteractive && root.contentInputEnabled
                 gesturePolicy: TapHandler.ReleaseWithinBounds
                 onTapped: point => root.selectAt(point.globalPosition)
             }
-
-            // SELECTED: a thin top strip wakes the auto-hidden controls on tap (the rest of the
-            // page stays tappable), with a grab-handle hint shown while controls are hidden.
             Item {
-                id: revealStrip
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.top: parent.top
-                height: DsTheme.dp(56)
-                TapHandler {
-                    enabled: root.selected
-                    onTapped: point => root.selectAt(point.globalPosition)
+                anchors.fill: parent
+                visible: root.controlsHidden || revealMouse.pressed || revealTouch.touchCount > 0
+                MouseArea {
+                    id: revealMouse
+                    anchors.fill: parent
+                    acceptedButtons: Qt.AllButtons
+                    preventStealing: true
+                    onClicked: mouse => { if (mouse.button === Qt.LeftButton) root.wake(); }
+                    onWheel: event => { root.wake(); event.accepted = true; }
                 }
-                Rectangle {
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    anchors.top: parent.top
-                    anchors.topMargin: DsTheme.dp(8)
-                    width: DsTheme.dp(40)
-                    height: DsTheme.dp(4)
-                    radius: DsTheme.dp(2)
-                    color: DsTheme.surfaceText
-                    // Hint only while selected (interactive content) and controls are hidden.
-                    opacity: (root.contentInteractive && root.selected && !root.controlsAwake) ? 0.4 : 0
-                    Behavior on opacity { NumberAnimation { duration: 150 } }
+                MultiPointTouchArea {
+                    id: revealTouch
+                    anchors.fill: parent
+                    mouseEnabled: false
+                    property int touchCount: 0
+                    onPressed: points => { touchCount += points.length; }
+                    onGestureStarted: gesture => gesture.grab()
+                    onReleased: points => {
+                        touchCount = Math.max(0, touchCount - points.length);
+                        if (touchCount === 0) root.wake();
+                    }
+                    onCanceled: points => { touchCount = Math.max(0, touchCount - points.length); }
                 }
             }
         }

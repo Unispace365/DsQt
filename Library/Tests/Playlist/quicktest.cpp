@@ -1495,18 +1495,140 @@ private slots:
 
 
 
+    void allMediaControlsTimeout_data() {
+        QTest::addColumn<bool>("fullscreen");
+        QTest::addColumn<bool>("touch");
+        QTest::addColumn<QString>("mediaType");
+        for (bool fullscreen : {false,true})
+            for (bool touch : {false,true})
+                for (const QString &media : {"image","pdf"})
+                    QTest::newRow(qPrintable(QString("%1-%2-%3").arg(fullscreen ? "fullscreen" : "windowed",
+                        touch ? "touch" : "mouse",media))) << fullscreen << touch << media;
+    }
+    void allMediaControlsTimeout() {
+        QFETCH(bool, fullscreen); QFETCH(bool, touch); QFETCH(QString, mediaType);
+        createIdleControlsScene(fullscreen,mediaType); QVERIFY(view);
+        auto viewer = visualChild(view.get(),"pdfViewer"); QVERIFY(viewer);
+        auto controller = qobject_cast<QQuickItem *>(qvariant_cast<QObject *>(view->property("_fsController")));
+        const QPoint point = fullscreen ? QPoint(320,170) : QPoint(300,230);
+        // Leave a stationary mouse over the media: timeout must still work.
+        QTest::mouseMove(&window,point);
+        QString selection;
+        if (mediaType == "pdf") {
+            QVERIFY(QMetaObject::invokeMethod(pdfPageView(),"selectAll"));
+            QTRY_VERIFY(!pdfPageView()->property("selectedText").toString().isEmpty());
+            selection=pdfPageView()->property("selectedText").toString();
+        }
+        view->setProperty("controlsIdleMs",100);
+        QTRY_VERIFY(viewer->property("controlsHidden").toBool());
+        if (fullscreen) {
+            QVERIFY(controller);
+            QTRY_VERIFY(!controller->isVisible());
+        } else {
+            QTRY_VERIFY(evaluate("idleViewer.controls.every(c => c.opacity === 0 && !c.visible)").toBool());
+        }
+        clickAt(point,touch);
+        QTRY_VERIFY(!viewer->property("controlsHidden").toBool());
+        // Disable timeout after reveal so assertions cannot race the short test timer.
+        view->setProperty("controlsIdleMs",0);
+        if (fullscreen) QTRY_COMPARE(controller->opacity(),1.0);
+        else QTRY_VERIFY(evaluate("idleViewer.controls.every(c => c.opacity === 1)").toBool());
+        if (mediaType == "pdf") {
+            QCOMPARE(pdfPageView()->property("selectedText").toString(),selection);
+            clickAt(point,touch);
+            QTRY_VERIFY(pdfPageView()->property("selectedText").toString()!=selection);
+        }
+    }
 
+    void fullscreenIdleModes_data() {
+        QTest::addColumn<QString>("mode");
+        QTest::addColumn<int>("timeout");
+        QTest::newRow("hide") << QString("hide") << 100;
+        QTest::newRow("collapse") << QString("collapse") << 100;
+        QTest::newRow("none") << QString("none") << 100;
+        QTest::newRow("disabled") << QString("hide") << 0;
+        QTest::newRow("invalid-stays-visible") << QString("invalid") << 100;
+    }
+    void fullscreenIdleModes() {
+        QFETCH(QString,mode); QFETCH(int,timeout);
+        createIdleControlsScene(true); QVERIFY(view);
+        auto controller=qobject_cast<QQuickItem *>(qvariant_cast<QObject *>(view->property("_fsController")));
+        QVERIFY(controller);
+        view->setProperty("fullscreenControllerIdleBehavior",mode);
+        view->setProperty("controlsIdleMs",timeout);
+        QTest::qWait(500);
+        QCOMPARE(controller->property("controlsHidden").toBool(),mode=="hide" && timeout>0);
+        QCOMPARE(controller->property("collapsed").toBool(),mode=="collapse");
+        if (mode=="collapse") {
+            view->setProperty("controlsIdleMs",0);
+            auto tab=itemWithProperty(controller,"icon",
+                QUrl("qrc:/qt/qml/Dsqt/Waffles/data/images/waffles/window/controller_expand.svg"));
+            QVERIFY(tab);
+            clickAt(centerOf(tab),false);
+            QVERIFY(!controller->property("collapsed").toBool());
+        }
+        // Changing settings wakes existing controllers and updates their timeout binding.
+        view->setProperty("controlsIdleMs",0);
+        QTRY_COMPARE(controller->opacity(),1.0);
+        QCOMPARE(controller->property("controlsIdleMs").toInt(),0);
+        evaluate("view.setFullscreen(idleViewer,false)");
+        QTRY_VERIFY(!controller->isVisible());
+        evaluate("view.setFullscreen(idleViewer,true)");
+        QTRY_COMPARE(controller->opacity(),1.0);
+        QVERIFY(!controller->property("collapsed").toBool());
+    }
 
+    void controlsStayAwakeDuringPress_data() {
+        QTest::addColumn<bool>("fullscreen");
+        QTest::addColumn<bool>("touch");
+        for (bool fullscreen : {false,true})
+            for (bool touch : {false,true})
+                QTest::newRow(qPrintable(QString("%1-%2").arg(fullscreen?"fullscreen":"windowed",
+                    touch?"touch":"mouse"))) << fullscreen << touch;
+    }
+    void controlsStayAwakeDuringPress() {
+        QFETCH(bool,fullscreen); QFETCH(bool,touch);
+        createIdleControlsScene(fullscreen); QVERIFY(view);
+        auto viewer=visualChild(view.get(),"pdfViewer"); QVERIFY(viewer);
+        const QPoint point = fullscreen ? QPoint(290,290) : QPoint(270,120);
+        QTest::mouseMove(&window,point);
+        view->setProperty("controlsIdleMs",150);
+        auto sequence=QTest::touchEvent(&window,touchDevice,false);
+        if (touch) sequence.press(0,point,&window).commit();
+        else QTest::mousePress(&window,Qt::LeftButton,Qt::NoModifier,point);
+        QTest::qWait(450);
+        QVERIFY(!viewer->property("controlsHidden").toBool());
+        if (touch) sequence.release(0,point,&window).commit();
+        else QTest::mouseRelease(&window,Qt::LeftButton,Qt::NoModifier,point);
+        QTRY_VERIFY(viewer->property("controlsHidden").toBool());
+        // Moving the mouse must restore controls; a stationary pointer must not keep them alive.
+        QTest::mouseMove(&window,QPoint(5,5),20);
+        QTest::mouseMove(&window,QPoint(330,210),20);
+        QTRY_VERIFY(!viewer->property("controlsHidden").toBool());
+        QTRY_VERIFY(viewer->property("controlsHidden").toBool());
+    }
 
+    void fullscreenControllerStaysHiddenUnderStationaryMouse() {
+        createIdleControlsScene(true); QVERIFY(view);
+        auto viewer=visualChild(view.get(),"pdfViewer"); QVERIFY(viewer);
+        QTest::mouseMove(&window,QPoint(290,290));
+        view->setProperty("controlsIdleMs",100);
+        QSignalSpy hiddenChanges(viewer,SIGNAL(controlsHiddenChanged()));
+        QVERIFY(hiddenChanges.isValid());
+        QTest::qWait(800);
+        QVERIFY(viewer->property("controlsHidden").toBool());
+        QCOMPARE(hiddenChanges.count(),1);
+    }
 
-
-
-
-
-
-
-
-
+    void windowedControlsDisabledTimeout() {
+        createIdleControlsScene(false); QVERIFY(view);
+        view->setProperty("controlsIdleMs",100);
+        QTRY_VERIFY(evaluate("idleViewer.controlsHidden").toBool());
+        view->setProperty("controlsIdleMs",0);
+        QTRY_VERIFY(evaluate("idleViewer.controls.every(c => c.opacity === 1)").toBool());
+        QTest::qWait(500);
+        QVERIFY(!evaluate("idleViewer.controlsHidden").toBool());
+    }
 
     void bundledWindowIcons_data() {
         QTest::addColumn<QString>("name");

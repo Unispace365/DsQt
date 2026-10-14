@@ -2,16 +2,42 @@ import QtQuick
 import Dsqt.Waffles
 
 Item {
-    HoverHandler { blocking: true }
+    id: root
+
+    // Keep background input behind the controls without covering their buttons.
+    HoverHandler {
+        blocking: true
+        property point lastPosition: Qt.point(-1, -1)
+        onPointChanged: {
+            if (!hovered || (point.scenePosition.x === lastPosition.x && point.scenePosition.y === lastPosition.y))
+                return;
+            lastPosition = point.scenePosition;
+            root.interacted();
+        }
+    }
+    // Observe presses before child buttons/sliders accept them, without taking their grabs.
+    Item {
+        anchors.fill: parent
+        z: 100
+        PointHandler {
+            id: controlPress
+            acceptedButtons: Qt.AllButtons
+            onActiveChanged: root.interacted()
+            onPointChanged: if (active) root.interacted()
+        }
+    }
+    readonly property bool interactionActive: controlPress.active
     MouseArea {
         anchors.fill: parent
         acceptedButtons: Qt.AllButtons
-        onWheel: event => { event.accepted = true }
+        onPressed: root.interacted()
+        onWheel: event => { root.interacted(); event.accepted = true }
     }
     MultiPointTouchArea {
         anchors.fill: parent
         mouseEnabled: false
         onGestureStarted: gesture => { if (gesture.touchPoints.length > 1) gesture.grab() }
+        onPressed: root.interacted()
     }
 
     enum Edge {
