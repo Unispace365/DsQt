@@ -188,6 +188,7 @@ Item {
 
     TapHandler {
         id: segmentTap
+        gesturePolicy: TapHandler.ReleaseWithinBounds
         enabled: root.available
         onTapped: eventPoint => root.selectedAt(root.mapToGlobal(eventPoint.position))
     }

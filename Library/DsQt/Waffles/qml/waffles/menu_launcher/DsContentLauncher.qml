@@ -202,7 +202,12 @@ DsViewer {
                 verticalAlignment: Text.AlignVCenter
             }
         }
-        TapHandler { onTapped: pill.clicked() }
+        TapHandler {
+            gesturePolicy: TapHandler.ReleaseWithinBounds
+            // Let the list scroll, but keep background PDF handlers from stealing the tap.
+            grabPermissions: PointerHandler.CanTakeOverFromItems | PointerHandler.ApprovesTakeOverByItems
+            onTapped: pill.clicked()
+        }
     }
 
     // A search type-filter chip. Single-select: tapping sets the model's searchKinds to this
@@ -231,6 +236,9 @@ DsViewer {
             font.pixelSize: DsTheme.dp(13)
         }
         TapHandler {
+            gesturePolicy: TapHandler.ReleaseWithinBounds
+            // Let the list scroll, but keep background PDF handlers from stealing the tap.
+            grabPermissions: PointerHandler.CanTakeOverFromItems | PointerHandler.ApprovesTakeOverByItems
             onTapped: {
                 if (!chip.targetModel) return;
                 if (typeof chip.targetModel.setSearchFilter === "function")
@@ -354,12 +362,30 @@ DsViewer {
             opacity: lrow.selected ? 0 : 0.6
         }
 
-        TapHandler { onTapped: lrow.activated() }
+        TapHandler {
+            gesturePolicy: TapHandler.ReleaseWithinBounds
+            // Let the list scroll, but keep background PDF handlers from stealing the tap.
+            grabPermissions: PointerHandler.CanTakeOverFromItems | PointerHandler.ApprovesTakeOverByItems
+            onTapped: lrow.activated()
+        }
     }
 
     // -----------------------------------------------------------------------------------------
     // The panel.
     // -----------------------------------------------------------------------------------------
+
+    // Panel input stays behind rows, fields, and the keyboard.
+    HoverHandler { blocking: true }
+    MouseArea {
+        anchors.fill: parent
+        acceptedButtons: Qt.AllButtons
+        onWheel: event => { event.accepted = true }
+    }
+    MultiPointTouchArea {
+        anchors.fill: parent
+        mouseEnabled: false
+        onGestureStarted: gesture => { if (gesture.touchPoints.length > 1) gesture.grab() }
+    }
 
     DsGlassBackground {
         anchors.fill: parent
@@ -516,7 +542,12 @@ DsViewer {
                             source: root._icon("back")
                             color: DsTheme.surfaceText
                         }
-                        TapHandler { onTapped: if (root.model) root.model.back() }
+                        TapHandler {
+                            gesturePolicy: TapHandler.ReleaseWithinBounds
+                            // Let the list scroll, but keep background PDF handlers from stealing the tap.
+                            grabPermissions: PointerHandler.CanTakeOverFromItems | PointerHandler.ApprovesTakeOverByItems
+                            onTapped: if (root.model) root.model.back()
+                        }
                     }
                     Text {
                         Layout.fillWidth: true
@@ -796,6 +827,9 @@ DsViewer {
                             // Reset the model too: searchField.clear() is a programmatic change so
                             // it doesn't fire onTextEdited, which is what syncs model.searchQuery.
                             TapHandler {
+                                gesturePolicy: TapHandler.ReleaseWithinBounds
+                                // Let the list scroll, but keep background PDF handlers from stealing the tap.
+                                grabPermissions: PointerHandler.CanTakeOverFromItems | PointerHandler.ApprovesTakeOverByItems
                                 onTapped: {
                                     if (root.model) root.model.searchQuery = "";
                                     searchField.clear();
@@ -814,6 +848,23 @@ DsViewer {
     // out), splitting the border the way the fullscreen controller's collapse tab straddles the bar.
     Rectangle {
         id: closeBtn
+        objectName: "launcherCloseButton"
+        HoverHandler { blocking: true }
+        MouseArea {
+            anchors.fill: parent
+            acceptedButtons: Qt.AllButtons
+            onClicked: mouse => { if (mouse.button === Qt.LeftButton) root.shown = false }
+            onWheel: event => { event.accepted = true }
+        }
+        MultiPointTouchArea {
+            anchors.fill: parent
+            mouseEnabled: false
+            onGestureStarted: gesture => { if (gesture.touchPoints.length > 1) gesture.grab() }
+            TapHandler {
+                acceptedDevices: PointerDevice.TouchScreen
+                onTapped: root.shown = false
+            }
+        }
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.verticalCenter: parent.bottom
         width: DsTheme.dp(44)
@@ -838,7 +889,5 @@ DsViewer {
             source: root._icon("close")
             color: DsTheme.surfaceText
         }
-
-        TapHandler { onTapped: root.shown = false }
     }
 }

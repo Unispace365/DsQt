@@ -43,6 +43,18 @@ Item {
         border.width: DsTheme.glassBorderWidth
     }
 
+    HoverHandler { blocking: true }
+    MouseArea {
+        anchors.fill: parent
+        acceptedButtons: Qt.AllButtons
+        onWheel: event => { event.accepted = true }
+    }
+    MultiPointTouchArea {
+        anchors.fill: parent
+        mouseEnabled: false
+        onGestureStarted: gesture => { if (gesture.touchPoints.length > 1) gesture.grab() }
+    }
+
     Column {
         id: frameCol
         width: parent.width
@@ -52,6 +64,16 @@ Item {
             width: parent.width
             height: DsTheme.dp(44)
 
+            MouseArea {
+                anchors.fill: parent
+                acceptedButtons: Qt.AllButtons
+                onWheel: event => { event.accepted = true }
+            }
+            MultiPointTouchArea {
+                anchors.fill: parent
+                mouseEnabled: false
+                onGestureStarted: gesture => { if (gesture.touchPoints.length > 1) gesture.grab() }
+            }
             DragHandler { target: fkb }
 
             Text {
@@ -79,7 +101,10 @@ Item {
                     color: DsTheme.surfaceText
                     font.pixelSize: DsTheme.dp(14)
                 }
-                TapHandler { onTapped: fkb.closeRequested() }
+                TapHandler {
+                    gesturePolicy: TapHandler.ReleaseWithinBounds
+                    onTapped: fkb.closeRequested()
+                }
             }
         }
 

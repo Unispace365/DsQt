@@ -70,6 +70,17 @@ DsController {
     // Collapse tab — centred on the controller origin (0,0); never moves when toggling.
     Item {
         id: tab
+        HoverHandler { blocking: true }
+        MouseArea {
+            anchors.fill: parent
+            acceptedButtons: Qt.AllButtons
+            onWheel: event => { event.accepted = true }
+        }
+        MultiPointTouchArea {
+            anchors.fill: parent
+            mouseEnabled: false
+            onGestureStarted: gesture => { if (gesture.touchPoints.length > 1) gesture.grab() }
+        }
         width: controller.tabSize
         height: controller.tabSize
         x: -width / 2
@@ -103,6 +114,17 @@ DsController {
     // Main bar — left edge at the origin (= the tab's centre), vertically centred on it.
     Item {
         id: bar
+        HoverHandler { blocking: true }
+        MouseArea {
+            anchors.fill: parent
+            acceptedButtons: Qt.AllButtons
+            onWheel: event => { event.accepted = true }
+        }
+        MultiPointTouchArea {
+            anchors.fill: parent
+            mouseEnabled: false
+            onGestureStarted: gesture => { if (gesture.touchPoints.length > 1) gesture.grab() }
+        }
         visible: !controller.collapsed
         width: controller.barWidth
         height: controller.barHeight

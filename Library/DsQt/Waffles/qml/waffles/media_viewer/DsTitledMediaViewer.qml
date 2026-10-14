@@ -78,8 +78,8 @@ DsViewer {
     // maxHeight] — i.e. honours the same bounds applySizing() does — and stays centred on the
     // viewer's centre point so it doesn't snap to a corner.
     property bool pinchEnabled: false
-    readonly property bool viewerZoomEnabled: root.pinchEnabled && !root.fullscreen
-                                               && (!root.contentInteractive || root.contentLocked)
+    readonly property bool viewerZoomEnabled: root.pinchEnabled && root.viewerDragEnabled
+                                               && (!root.contentInteractive || !root.contentInputEnabled)
 
     // --- Enter/exit animation: defaults from the stage, overridable per viewer on creation ---
     enterAnimation:    stage ? stage.viewerEnterAnimation : DsViewer.Anim.Fade
@@ -177,14 +177,17 @@ DsViewer {
         root.wake();
     }
 
-    // Dragging (incl. the title-bar DragHandler, which moves the viewer) keeps inner controls awake.
+    // Dragging (including the title bar) keeps all controls awake.
     onXChanged: wake()
     onYChanged: wake()
 
-    // When true the content (web page / pdf) ignores input so the viewer can be dragged instead;
-    // the media controls' lock button toggles this. Disable the content subtree as well as
-    // covering it: a MouseArea alone does not block the PDF's touch handlers.
+    // For PDFs, the lock fixes the viewer in place and enables document interaction.
+    // Unlocked PDFs move/resize as a window. Web content retains its content-lock behavior.
+    // Disable the media subtree when moving the window so PDF handlers cannot grab gestures.
     property bool contentLocked: false
+    readonly property bool pdfContent: root.mediaViewer && root.mediaViewer.mediaType === "pdf"
+    readonly property bool contentInputEnabled: root.pdfContent ? root.contentLocked : !root.contentLocked
+    readonly property bool viewerDragEnabled: !root.fullscreen && !(root.pdfContent && root.contentLocked)
 
     // Bumped (over a few frames, after layout) to force the glass to re-sample its real on-screen
     // position. The glass origin is computed via mapToItem, which is NOT reactive to the control
@@ -395,30 +398,46 @@ DsViewer {
             bottomRightRadius: 0
         }
 
-        // Consumes presses over the viewer body so a viewer on top blocks touches/clicks from
-        // reaching viewers or the gallery beneath it (a MouseArea accepts the press, unlike a
-        // PointerHandler). Also drags the viewer by its body and raises it on press. Sits below
-        // the media/controls so they (e.g. a web viewer or buttons) still get input first.
+        // Consume body input below the media/controls, which get first chance to handle it.
+        // MouseArea provides mouse dragging; the touch surface below handles every finger.
         //
         // When pinchEnabled is on and the user presses with Alt held, body-drag is suppressed
         // so the Alt-drag zoom handler gets to run uncontested.
         MouseArea {
             id: bodyDrag
             anchors.fill: mediaView
-            enabled: !root.contentLocked
             acceptedButtons: Qt.AllButtons
             property int _pressMods: 0
-            drag.target: (root.fullscreen || (root.pinchEnabled && (bodyDrag._pressMods & Qt.AltModifier))) ? null : root
+            drag.target: (!root.viewerDragEnabled || (root.pinchEnabled && (bodyDrag._pressMods & Qt.AltModifier))) ? null : root
             onPressed: (mouse) => {
                 bodyDrag._pressMods = mouse.modifiers;
                 if (root.stage) root.stage.selectViewer(root);
                 root.wake();
             }
             onReleased: bodyDrag._pressMods = 0
+            onCanceled: bodyDrag._pressMods = 0
+            onWheel: event => { event.accepted = true }
+        }
+        MultiPointTouchArea {
+            anchors.fill: mediaView
+            mouseEnabled: false
+            onGestureStarted: gesture => {
+                if (!root.viewerZoomEnabled) gesture.grab()
+            }
+            onPressed: {
+                if (root.stage) root.stage.selectViewer(root);
+                root.wake();
+            }
+            DragHandler {
+                target: root
+                enabled: root.viewerDragEnabled
+                acceptedDevices: PointerDevice.TouchScreen
+                maximumPointCount: 1
+            }
         }
 
         // Mouse movement anywhere over the viewer (incl. over the controls) keeps controls awake.
-        HoverHandler { onPointChanged: root.wake() }
+        HoverHandler { blocking: true; onPointChanged: root.wake() }
 
         Item {
             id: background
@@ -437,10 +456,17 @@ DsViewer {
             width: root.viewerWidth;
             height: root.viewerHeight
             property alias viewer: viewer
+            // Qt's PDF tap handlers are passive. Own taps at the viewer boundary so
+            // selecting text or following a link cannot activate a hotspot underneath.
+            TapHandler {
+                enabled: root.pdfContent && root.contentInputEnabled
+                gesturePolicy: TapHandler.ReleaseWithinBounds
+                onTapped: point => root.selectAt(point.globalPosition)
+            }
             DsMediaViewer {
                 id: viewer
                 anchors.fill: parent
-                enabled: !root.contentLocked
+                enabled: root.contentInputEnabled
                 media: root.config.media
                 fillMode: root.mediaFillMode
                 autoPlay: true
@@ -452,111 +478,36 @@ DsViewer {
             }
         }
 
-        // Reveal affordance for interactive content (web / pdf). That content captures pointer
-        // input, so once the inner controls auto-hide the normal hover/drag wake path can't fire.
-        // This layer sits ABOVE the content but BELOW the control holders (declared later), so it
-        // brings controls back without covering them when they're visible. Enabled only over
-        // interactive content while selected (image/video wake fine the normal way).
-        //   - passive HoverHandler over the whole content → mouse movement reveals; it never grabs
-        //     the pointer, so the page stays fully interactive;
-        //   - a thin top strip with a TapHandler → touch reveals (a small dead-zone at the very
-        //     top), with a subtle grab-handle hint shown only while controls are hidden.
-        Item {
-            id: revealLayer
-            anchors.fill: mediaView
-            // Live over interactive content whenever not fullscreen — INCLUDING when deselected,
-            // so the viewer can be re-selected (the web/pdf view captures taps, so neither the
-            // stage tap-to-select nor the body-drag beneath the content can reach it).
-            enabled: root.contentInteractive && !root.fullscreen
-
-            // Mouse: hovering a SELECTED viewer reveals its auto-hidden controls. Passive — never
-            // grabs the pointer, so the page stays fully interactive.
-            HoverHandler { onPointChanged: if (root.selected) root.wake() }
-
-            // DESELECTED: a full-cover tap selects the viewer (you can't tap through the page to
-            // select it otherwise). Disabled once selected, so the page then receives taps.
-            TapHandler {
-                enabled: !root.selected
-                onTapped: point => root.selectAt(point.globalPosition)
-            }
-
-            // SELECTED: a thin top strip wakes the auto-hidden controls on tap (the rest of the
-            // page stays tappable), with a grab-handle hint shown while controls are hidden.
-            Item {
-                id: revealStrip
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.top: parent.top
-                height: DsTheme.dp(56)
-                TapHandler {
-                    enabled: root.selected
-                    onTapped: point => root.selectAt(point.globalPosition)
-                }
-                Rectangle {
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    anchors.top: parent.top
-                    anchors.topMargin: DsTheme.dp(8)
-                    width: DsTheme.dp(40)
-                    height: DsTheme.dp(4)
-                    radius: DsTheme.dp(2)
-                    color: DsTheme.surfaceText
-                    // Hint only while selected (interactive content) and controls are hidden.
-                    opacity: (root.contentInteractive && root.selected && !root.controlsAwake) ? 0.4 : 0
-                    Behavior on opacity { NumberAnimation { duration: 150 } }
-                }
-            }
-        }
-
-        // Lock gestures operate on the window; the disabled media subtree cannot compete.
-        Item {
-            anchors.fill: mediaView
-            visible: root.contentLocked
-            enabled: root.contentLocked
-            MultiPointTouchArea {
-                anchors.fill: parent
-                minimumTouchPoints: 1
-                maximumTouchPoints: 10
-                mouseEnabled: true
-                onPressed: {
-                    if (root.stage) root.stage.selectViewer(root);
-                    root.wake();
-                }
-            }
-            DragHandler {
-                target: root
-                enabled: !root.fullscreen
-                maximumPointCount: 1
-                acceptedModifiers: Qt.NoModifier
-                onActiveChanged: if (active) {
-                    if (root.stage) root.stage.selectViewer(root);
-                    root.wake();
-                }
-            }
-        }
-
-        // Above the lock surface so both touch points reach the window zoom handlers.
+        // Window gestures sit above the media; disabled for an interactive PDF.
         Item {
             anchors.fill: mediaView
             // --- Pinch / Alt-drag / Alt-wheel zoom handlers (gated on pinchEnabled) ---
             // All three apply via the same _zoomTo() helper, so the clamp + recentre logic is shared.
-            // PinchHandler covers real multi-touch and trackpad-pinch on platforms that emit it; the
-            // mouse handlers limit to Mouse + Alt modifier so they don't fight normal interaction.
-            PinchHandler {
+            // PinchArea retains its touch grab, preventing a PDF underneath from
+            // taking the same fingers. Mouse zoom uses Alt to avoid normal interaction.
+            PinchArea {
                 id: pinchZoom
                 objectName: "viewerPinch"
+                anchors.fill: parent
                 enabled: root.viewerZoomEnabled
-                target: null
-                minimumScale: 0.05
-                maximumScale: 20
+                // PinchArea owns touch presses even when only one finger is used.
+                // Select on a single tap without giving up the pinch grab to a PDF below.
+                TapHandler {
+                    acceptedDevices: PointerDevice.TouchScreen
+                    gesturePolicy: TapHandler.DragThreshold
+                    onTapped: point => root.selectAt(point.globalPosition)
+                }
                 property real baseW: 0
                 property real baseH: 0
-                onActiveChanged: {
-                    if (active) { pinchZoom.baseW = root.viewerWidth; pinchZoom.baseH = root.viewerHeight; }
+                onPinchStarted: {
+                    pinchZoom.baseW = root.viewerWidth;
+                    pinchZoom.baseH = root.viewerHeight;
+                    if (root.stage) root.stage.selectViewer(root);
+                    root.wake();
                 }
-                onActiveScaleChanged: {
-                    if (!pinchZoom.active) return;
-                    root._zoomTo(pinchZoom.baseW * pinchZoom.activeScale,
-                                 pinchZoom.baseH * pinchZoom.activeScale);
+                onPinchUpdated: pinch => {
+                    root._zoomTo(pinchZoom.baseW * pinch.scale,
+                                 pinchZoom.baseH * pinch.scale);
                 }
             }
 
@@ -610,6 +561,62 @@ DsViewer {
             actionText: root.model && root.model.errorMessage ? ""
                 : contentState === "error" ? qsTr("Try again") : ""
         }
+        // Reveal affordance for interactive content (web / pdf). That content captures pointer
+        // input, so once the inner controls auto-hide the normal hover/drag wake path can't fire.
+        // This layer sits ABOVE the content but BELOW the control holders (declared later), so it
+        // brings controls back without covering them when they're visible. Enabled only over
+        // interactive content while selected (image/video wake fine the normal way).
+        //   - passive HoverHandler over the whole content → mouse movement reveals; it never grabs
+        //     the pointer, so the page stays fully interactive;
+        //   - a thin top strip with a TapHandler → touch reveals (a small dead-zone at the very
+        //     top), with a subtle grab-handle hint shown only while controls are hidden.
+        Item {
+            id: revealLayer
+            anchors.fill: mediaView
+            // Live over interactive content whenever not fullscreen — INCLUDING when deselected,
+            // so the viewer can be re-selected (the web/pdf view captures taps, so neither the
+            // stage tap-to-select nor the body-drag beneath the content can reach it).
+            enabled: root.contentInteractive && root.contentInputEnabled && !root.fullscreen
+
+            // Mouse: hovering a SELECTED viewer reveals its auto-hidden controls. Passive — never
+            // grabs the pointer, so the page stays fully interactive.
+            HoverHandler { blocking: true; onPointChanged: if (root.selected) root.wake() }
+
+            // DESELECTED: a full-cover tap selects the viewer (you can't tap through the page to
+            // select it otherwise). Disabled once selected, so the page then receives taps.
+            TapHandler {
+                enabled: !root.selected
+                gesturePolicy: TapHandler.ReleaseWithinBounds
+                onTapped: point => root.selectAt(point.globalPosition)
+            }
+
+            // SELECTED: a thin top strip wakes the auto-hidden controls on tap (the rest of the
+            // page stays tappable), with a grab-handle hint shown while controls are hidden.
+            Item {
+                id: revealStrip
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
+                height: DsTheme.dp(56)
+                TapHandler {
+                    enabled: root.selected
+                    onTapped: point => root.selectAt(point.globalPosition)
+                }
+                Rectangle {
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    anchors.top: parent.top
+                    anchors.topMargin: DsTheme.dp(8)
+                    width: DsTheme.dp(40)
+                    height: DsTheme.dp(4)
+                    radius: DsTheme.dp(2)
+                    color: DsTheme.surfaceText
+                    // Hint only while selected (interactive content) and controls are hidden.
+                    opacity: (root.contentInteractive && root.selected && !root.controlsAwake) ? 0.4 : 0
+                    Behavior on opacity { NumberAnimation { duration: 150 } }
+                }
+            }
+        }
+
         //holders for the controlSets.
         Item {
             id:topOuter

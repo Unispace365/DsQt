@@ -49,6 +49,30 @@ Item {
         target: "app_settings"
     }
 
+    // The whole menu disc consumes input, including its center and unavailable entries.
+    // Keep these surfaces behind the segment and close-button handlers.
+    QtObject {
+        id: inputMask
+        function contains(point: point): bool {
+            const dx = point.x - root.width * 0.5
+            const dy = point.y - root.height * 0.5
+            return dx * dx + dy * dy <= root.cOuterRadius * root.cOuterRadius
+        }
+    }
+    MouseArea {
+        anchors.fill: parent
+        containmentMask: inputMask
+        HoverHandler { blocking: true }
+        acceptedButtons: Qt.AllButtons
+        onWheel: event => { event.accepted = true }
+    }
+    MultiPointTouchArea {
+        anchors.fill: parent
+        containmentMask: inputMask
+        mouseEnabled: false
+        onGestureStarted: gesture => gesture.grab()
+    }
+
     Repeater {
         id: segments
         model: root.model
@@ -112,6 +136,7 @@ Item {
 
         TapHandler {
             id: closeTapHandler
+            gesturePolicy: TapHandler.ReleaseWithinBounds
             onTapped: root.closeMenu()
         }
     }

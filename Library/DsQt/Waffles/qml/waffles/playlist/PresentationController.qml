@@ -79,6 +79,17 @@ Item {
     // Collapse tab — centred on the origin; never moves when toggling.
     Item {
         id: tab
+        HoverHandler { blocking: true }
+        MouseArea {
+            anchors.fill: parent
+            acceptedButtons: Qt.AllButtons
+            onWheel: event => { event.accepted = true }
+        }
+        MultiPointTouchArea {
+            anchors.fill: parent
+            mouseEnabled: false
+            onGestureStarted: gesture => { if (gesture.touchPoints.length > 1) gesture.grab() }
+        }
         width: pc.tabSize; height: pc.tabSize
         x: -width / 2; y: -height / 2
         z: 1
@@ -106,6 +117,17 @@ Item {
     // Bar — left edge at the origin, vertically centred on it.
     Item {
         id: bar
+        HoverHandler { blocking: true }
+        MouseArea {
+            anchors.fill: parent
+            acceptedButtons: Qt.AllButtons
+            onWheel: event => { event.accepted = true }
+        }
+        MultiPointTouchArea {
+            anchors.fill: parent
+            mouseEnabled: false
+            onGestureStarted: gesture => { if (gesture.touchPoints.length > 1) gesture.grab() }
+        }
         visible: !pc.collapsed
         width: pc.barWidth; height: pc.barHeight
         x: 0; y: -height / 2

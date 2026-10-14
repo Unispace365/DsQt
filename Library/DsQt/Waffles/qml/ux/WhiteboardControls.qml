@@ -47,8 +47,10 @@ DsControlSet {
         }
     }
 
-    Item {
+    MultiPointTouchArea {
         id: panel
+        mouseEnabled: false
+        onGestureStarted: gesture => { if (gesture.touchPoints.length > 1) gesture.grab() }
         width: 1141
         height: 102
         scale: Math.min(DsTheme.uiScale, toolbar.width / width)

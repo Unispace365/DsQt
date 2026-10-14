@@ -14,6 +14,7 @@ DsTitledMediaViewer {
                     model: viewer.model
                     DragHandler {
                         target: viewer
+                        enabled: viewer.viewerDragEnabled
                     }
                 },
                 RightOuterControls {

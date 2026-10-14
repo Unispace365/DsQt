@@ -108,10 +108,16 @@ Item {
             visible: board.solidBackground
         }
         // Block pointer events from reaching underlying content, including transparent areas.
+        HoverHandler { blocking: true }
         MouseArea {
             anchors.fill: parent
             acceptedButtons: Qt.AllButtons
             onWheel: wheel => wheel.accepted = true
+        }
+        MultiPointTouchArea {
+            anchors.fill: parent
+            mouseEnabled: false
+            onGestureStarted: gesture => gesture.grab()
         }
         DsWhiteboardCanvas {
             id: canvas

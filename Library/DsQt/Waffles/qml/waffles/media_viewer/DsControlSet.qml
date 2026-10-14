@@ -2,6 +2,17 @@ import QtQuick
 import Dsqt.Waffles
 
 Item {
+    HoverHandler { blocking: true }
+    MouseArea {
+        anchors.fill: parent
+        acceptedButtons: Qt.AllButtons
+        onWheel: event => { event.accepted = true }
+    }
+    MultiPointTouchArea {
+        anchors.fill: parent
+        mouseEnabled: false
+        onGestureStarted: gesture => { if (gesture.touchPoints.length > 1) gesture.grab() }
+    }
 
     enum Edge {
         TopInner,

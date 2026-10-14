@@ -647,6 +647,7 @@ DsWhiteboardCanvas::DsWhiteboardCanvas(QQuickItem *parent)
     setFillColor(Qt::transparent);
     setAcceptedMouseButtons(Qt::LeftButton);
     setAcceptTouchEvents(true);
+    setKeepTouchGrab(true);
 }
 
 DsWhiteboardTool::Tool DsWhiteboardCanvas::tool() const
