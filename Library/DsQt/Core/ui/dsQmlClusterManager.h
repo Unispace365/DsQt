@@ -6,6 +6,7 @@
 #include <QEvent>
 #include <QPointerEvent>
 #include <QQuickItem>
+#include <QSet>
 
 namespace dsqt::ui {
 
@@ -63,6 +64,9 @@ signals:
 
     void triggerTimeChanged();
 
+protected:
+    void mouseUngrabEvent() override;
+
 private:
     /*
      * Finds the nearest cluster or if no cluster is nearest returns a new cluster.
@@ -79,11 +83,17 @@ private:
     bool m_holdOpenOnTouch = false;
     int m_minClusterTouchCount = 3;
     bool m_doubleTapActivation = false;
-    float m_boundingBoxSize;
+    float m_boundingBoxSize = 300;
 
-    float m_minClusterSeparation;
+    float m_minClusterSeparation = 300;
     void parseTouch(const TouchInfo &ti);
-    float m_triggerTime;
+    float m_triggerTime = 0.1f;
+    // Once claimed, a cluster keeps its remaining fingers even below the activation count.
+    QSet<int> m_claimedTouchIds;
+    int m_simulatedTouchCount = 0;
+    void updateSimulatedTouches(const QPointF &position, QEventPoint::State state);
+    void claimTouchClusters(QTouchEvent *event);
+    void cancelTouches(bool simulated);
 };
 }
 #endif // DSQMLCLUSTERMANAGER_H

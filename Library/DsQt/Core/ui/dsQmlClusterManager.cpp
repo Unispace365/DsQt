@@ -11,110 +11,147 @@ DsQmlClusterManager::DsQmlClusterManager(QQuickItem* parent):QQuickItem(parent) 
 
 uint64_t DsQmlClusterManager::mMaxClusterId = 1;
 
+void DsQmlClusterManager::updateSimulatedTouches(const QPointF &position, QEventPoint::State state)
+{
+    for (int i = 0; i < m_simulatedTouchCount; ++i) {
+        const QTransform rotation = QTransform().rotate(360.0 * i / m_simulatedTouchCount);
+        TouchInfo touch;
+        touch.mPoint = position + 50 * rotation.map(QPointF(0, 1));
+        // Negative IDs keep simulated contacts separate from real touch IDs (+1 below).
+        touch.mFingerId = -i - 1;
+        touch.mState = state;
+        parseTouch(touch);
+    }
+}
+
+void DsQmlClusterManager::claimTouchClusters(QTouchEvent *event)
+{
+    for (int i = 0; i < mClusters->rowCount(); ++i) {
+        const auto cluster = mClusters->cluster(i);
+        bool claimed = false;
+        for (const auto &touch : cluster->mTouches)
+            claimed |= m_claimedTouchIds.contains(touch.mFingerId);
+        const bool qualifies = cluster->mTouchCount >= m_minClusterTouchCount
+            && cluster->mBoundingBox.width() < m_boundingBoxSize
+            && cluster->mBoundingBox.height() < m_boundingBoxSize;
+        if (claimed || qualifies) {
+            for (const auto &touch : cluster->mTouches)
+                if (touch.mFingerId > 0)
+                    m_claimedTouchIds.insert(touch.mFingerId);
+        }
+    }
+
+    for (qsizetype i = 0; i < event->pointCount(); ++i) {
+        auto &point = event->point(i);
+        if (!m_claimedTouchIds.contains(point.id() + 1))
+            continue;
+        // Cancel passive taps as well as exclusive drags/buttons already tracking a finger.
+        // Retain the grab until release so a shrinking cluster cannot leak its final tap.
+        event->clearPassiveGrabbers(point);
+        event->setExclusiveGrabber(point, this);
+        point.setAccepted();
+    }
+    setKeepTouchGrab(!m_claimedTouchIds.isEmpty());
+}
+
 bool DsQmlClusterManager::event(QEvent *event)
 {
-
-    //qDebug()<<event->type();
-    auto touchevent = static_cast<QTouchEvent*>(event);
-    auto mouseevent = static_cast<QMouseEvent*>(event);
-    auto keyevent = static_cast<QKeyEvent*>(event);
-    int mouseoffset = 1;
-
-    bool mousePressed = false, mouseMoved = false, mouseReleased = false;
-    auto mouseState = QEventPoint::Unknown;
-    switch(event->type()){
-    //these mouse cases drop through
+    switch (event->type()) {
     case QEvent::MouseButtonPress:
-        mouseevent->addPassiveGrabber(mouseevent->point(0),this);
-        mousePressed = true;
-        mouseState = QEventPoint::Pressed;
     case QEvent::MouseMove:
-        if(!mousePressed && (mouseevent->modifiers() & Qt::ShiftModifier)){
-            mouseMoved = true;
-            mouseState = QEventPoint::Updated;
+    case QEvent::MouseButtonRelease: {
+        auto mouse = static_cast<QMouseEvent *>(event);
+        if (event->type() == QEvent::MouseButtonPress
+            && (mouse->modifiers() & Qt::ShiftModifier) && m_simulatedTouchCount == 0) {
+            m_simulatedTouchCount = qMax(1, m_minClusterTouchCount);
+            setKeepMouseGrab(true);
         }
-    case QEvent::MouseButtonRelease:
-        if(!mousePressed && !mouseMoved){
-            mouseReleased = true;
-            mouseState = QEventPoint::Released;
+        if (m_simulatedTouchCount == 0)
+            break;
+        auto state = QEventPoint::Updated;
+        if (event->type() == QEvent::MouseButtonPress)
+            state = QEventPoint::Pressed;
+        else if (event->type() == QEvent::MouseButtonRelease && mouse->buttons() == Qt::NoButton)
+            state = QEventPoint::Released;
+        mouse->clearPassiveGrabbers(mouse->point(0));
+        mouse->setExclusiveGrabber(mouse->point(0), this);
+        updateSimulatedTouches(mouse->position(), state);
+        if (state == QEventPoint::Released) {
+            m_simulatedTouchCount = 0;
+            setKeepMouseGrab(false);
         }
-
-        if ((mouseevent->modifiers() & Qt::ShiftModifier) || (mouseReleased && mClusters->rowCount() > 0)) {
-            QTransform rotate = QTransform().rotate(360.0f / m_minClusterTouchCount);
-
-            for (int i = 0; i < m_minClusterTouchCount; i++) {
-                TouchInfo ti;
-
-                constexpr QPointF unit(0, 1);
-                ti.mPoint    = mouseevent->pos() + 50 * rotate.map(unit);
-                ti.mFingerId = i + 100;
-                ti.mState    = mouseState;
-                parseTouch(ti);
-            }
-        }
-        break;
+        mouse->accept();
+        return true;
+    }
     case QEvent::TouchBegin:
-        for(auto& point:touchevent->points()){
-             touchevent->addPassiveGrabber(point,this);
-            TouchInfo ti;
-            ti.mPoint = point.position();
-            ti.mFingerId = point.id()+mouseoffset;
-            ti.mState = point.state();
-            parseTouch(ti);
-            //qDebug()<<"touch begin - "<<point.id()+mouseoffset;
-        }
-
-
-        break;
     case QEvent::TouchUpdate:
-
-        for(auto& point:touchevent->points()){
-            TouchInfo ti;
-            ti.mPoint = point.position();
-            ti.mFingerId = point.id()+mouseoffset;
-            ti.mState = point.state();
-            if(point.state() == QEventPoint::State::Pressed){
-                touchevent->addPassiveGrabber(point,this);
-                 parseTouch(ti);
-                //qDebug()<<"touch begin -"<<point.id();
-            } else
-            if(point.state() == QEventPoint::State::Updated){
-                 parseTouch(ti);
-                //qDebug()<<"touch updated -"<<point.id()<<nextId++;
-            } else
-            if(point.state() == QEventPoint::State::Released){
-                parseTouch(ti);
-
-            } else if(point.state() == QEventPoint::State::Unknown){
-
+    case QEvent::TouchEnd: {
+        auto touchEvent = static_cast<QTouchEvent *>(event);
+        // Qt delivers touch packets initially accepted. Accept only the owned cluster,
+        // leaving other users' fingers eligible for normal delivery.
+        touchEvent->setAccepted(false);
+        // Process the complete packet before claiming it: the fifth press may be last.
+        for (const auto &point : touchEvent->points()) {
+            if (point.state() == QEventPoint::Released || point.state() == QEventPoint::Stationary)
+                continue;
+            if (point.state() == QEventPoint::Pressed)
+                touchEvent->addPassiveGrabber(point, this);
+            parseTouch({point.id() + 1, point.state(), point.position()});
+        }
+        claimTouchClusters(touchEvent);
+        bool consumed = false;
+        for (const auto &point : touchEvent->points()) {
+            consumed |= m_claimedTouchIds.contains(point.id() + 1);
+            if (point.state() == QEventPoint::Released) {
+                parseTouch({point.id() + 1, QEventPoint::Released, point.position()});
+                m_claimedTouchIds.remove(point.id() + 1);
             }
-
+        }
+        setKeepTouchGrab(!m_claimedTouchIds.isEmpty());
+        if (consumed) {
+            if (touchEvent->allPointsAccepted())
+                touchEvent->accept();
+            return true; // Only claimed points are accepted; unrelated touches still pass.
         }
         break;
-    case QEvent::TouchEnd:
+    }
     case QEvent::TouchCancel:
-        for(auto& point:touchevent->points()){
-            TouchInfo ti;
-            ti.mPoint = point.position();
-            ti.mFingerId = point.id()+mouseoffset;
-            ti.mState = QEventPoint::State::Released;
-            if(point.state() == QEventPoint::State::Released){
-                parseTouch(ti);
-
-            }
-            if(point.state() == QEventPoint::State::Unknown){
-                parseTouch(ti);
-
-            }
-
-        }
+        cancelTouches(false);
+        m_claimedTouchIds.clear();
+        setKeepTouchGrab(false);
         break;
     default:
         break;
-
     }
-
     return QQuickItem::event(event);
+}
+
+void DsQmlClusterManager::cancelTouches(bool simulated)
+{
+    // Cancellation must not activate a menu as a successful release would.
+    for (int i = mClusters->rowCount() - 1; i >= 0; --i) {
+        const auto cluster = mClusters->cluster(i);
+        const auto touches = cluster->mTouches;
+        for (const auto &touch : touches) {
+            if ((touch.mFingerId < 0) != simulated)
+                continue;
+            if (cluster->mTriggerable) {
+                cluster->mTriggerable = false;
+                emit triggerableChanged(false, cluster);
+            }
+            parseTouch({touch.mFingerId, QEventPoint::Released, touch.mPoint});
+        }
+    }
+}
+
+void DsQmlClusterManager::mouseUngrabEvent()
+{
+    if (m_simulatedTouchCount > 0) {
+        cancelTouches(true);
+        m_simulatedTouchCount = 0;
+        setKeepMouseGrab(false);
+    }
+    QQuickItem::mouseUngrabEvent();
 }
 
 DsQmlTouchCluster* DsQmlClusterManager::closeToCluster(const QPointF& in_point)
@@ -160,6 +197,10 @@ void DsQmlClusterManager::parseTouch(const TouchInfo& ti) {
         DsQmlTouchCluster* alreadyCluster = findCluster(ti.mFingerId,ti.mPoint);
         if (relatedCluster == nullptr && alreadyCluster == nullptr) {
             DsQmlTouchCluster* clust = new DsQmlTouchCluster(this);
+            clust->mTriggerable = false;
+            clust->mInitialTouchTime = QDateTime::currentMSecsSinceEpoch();
+            clust->m_active = false;
+            clust->m_closing = false;
 
             clust->mTouches.push_back(nt);
             clust->mBoundingBox.setRect(nt.mPoint.x(), nt.mPoint.y(), 0.001, 0.001);

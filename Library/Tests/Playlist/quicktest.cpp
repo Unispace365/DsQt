@@ -13,6 +13,7 @@
 #include <QtQml/qqmlextensionplugin.h>
 #include <core/dsQmlApplicationEngine.h>
 #include <core/dsQmlEnvironment.h>
+#include <ui/dsQmlClusterManager.h>
 #include <memory>
 
 Q_IMPORT_QML_PLUGIN(Dsqt_WafflesPlugin)
@@ -420,7 +421,49 @@ class PlaylistTest : public QObject {
         return nullptr;
     }
 
-
+    void createClusterScene(const QString &receiver) {
+        QQmlComponent component(&engine);
+        const QByteArray input = receiver == "button" ? R"(
+            Button { anchors.fill: parent; onClicked: scene.actions++ }
+        )" : receiver == "handler" ? R"(
+            TapHandler { onTapped: scene.actions++ }
+        )" : R"(
+            MouseArea { anchors.fill: parent; onClicked: scene.actions++ }
+        )";
+        component.setData(R"(
+            import QtQuick
+            import QtQuick.Controls
+            import Dsqt.Core
+            Item {
+                id: scene
+                width: 640; height: 480
+                property int actions: 0
+                property int menus: 0
+                property int releases: 0
+                Item {
+                    width: 640; height: 480
+        )" + input + R"(
+                }
+                DsClusterManager {
+                    id: clusterInput
+                    objectName: "clusterInput"
+                    anchors.fill: parent
+                    minClusterTouchCount: 5
+                    minClusterSeperation: 150
+                    boundingBoxSize: 200
+                    triggerTime: 0.01
+                    onTriggerableChanged: (ready, cluster) => { if (ready) scene.menus++; }
+                    onTriggered: cluster => scene.releases++
+                }
+            }
+        )", QUrl("qrc:/cluster-input-regression.qml"));
+        QVERIFY2(component.isReady(), qPrintable(component.errorString()));
+        view.reset(qobject_cast<QQuickItem *>(component.create()));
+        QVERIFY2(view, qPrintable(component.errorString()));
+        QQmlEngine::setObjectOwnership(view.get(), QQmlEngine::CppOwnership);
+        view->setParentItem(window.contentItem());
+        QTest::qWait(50);
+    }
 
     void createIdleControlsScene(bool fullscreen, const QString &mediaType = "image") {
         createView("DsWaffleStage", R"(({launcher:null,launcherButtonVisible:false,glassEnabled:false,
@@ -1482,18 +1525,159 @@ private slots:
         QVERIFY(!panel->property("hasDrawing").toBool());
     }
 
+    void simulatedClusterConsumesInput_data() {
+        QTest::addColumn<QString>("receiver");
+        QTest::addColumn<bool>("releaseShift");
+        for (const QString &receiver : {"button", "handler", "mouseArea"})
+            for (bool releaseShift : {false, true})
+                QTest::newRow(qPrintable(receiver + (releaseShift ? "-release-shift" : "-hold-shift")))
+                    << receiver << releaseShift;
+    }
+    void simulatedClusterConsumesInput() {
+        QFETCH(QString, receiver); QFETCH(bool, releaseShift);
+        createClusterScene(receiver); QVERIFY(view);
+        const QPoint position(250, 200);
+        clickAt(position, false);
+        QCOMPARE(view->property("actions").toInt(), 1);
+        view->setProperty("actions", 0);
+        QTest::mousePress(&window, Qt::LeftButton, Qt::ShiftModifier, position);
+        QTest::qWait(30);
+        QTest::mouseMove(&window, position + QPoint(2, 0));
+        QTRY_COMPARE(view->property("menus").toInt(), 1);
+        QTest::mouseRelease(&window, Qt::LeftButton,
+            releaseShift ? Qt::NoModifier : Qt::ShiftModifier, position + QPoint(2, 0));
+        QCOMPARE(view->property("releases").toInt(), 1);
+        QCOMPARE(view->property("actions").toInt(), 0);
+        clickAt(position, false);
+        QCOMPARE(view->property("actions").toInt(), 1);
+    }
 
+    void touchClusterConsumesInput_data() {
+        QTest::addColumn<QString>("receiver");
+        QTest::addColumn<bool>("staggered");
+        for (const QString &receiver : {"button", "handler", "mouseArea"})
+            for (bool staggered : {false, true})
+                QTest::newRow(qPrintable(receiver + (staggered ? "-staggered" : "-together")))
+                    << receiver << staggered;
+    }
+    void touchClusterConsumesInput() {
+        QFETCH(QString, receiver); QFETCH(bool, staggered);
+        createClusterScene(receiver); QVERIFY(view);
+        const QPoint center(250, 200);
+        clickAt(center, true);
+        QCOMPARE(view->property("actions").toInt(), 1);
+        view->setProperty("actions", 0);
+        auto sequence = QTest::touchEvent(&window, touchDevice, false);
+        const QList<QPoint> points{center, center+QPoint(30,0), center+QPoint(0,30),
+                                  center+QPoint(30,30), center+QPoint(15,15)};
+        if (staggered) {
+            for (int i=0; i<5; ++i) {
+                for (int j=0; j<i; ++j) sequence.stationary(j);
+                sequence.press(i, points[i], &window).commit();
+                QTest::qWait(10);
+            }
+        } else {
+            for (int i=0; i<5; ++i) sequence.press(i, points[i], &window);
+            sequence.commit();
+        }
+        QTest::qWait(30);
+        for (int i=0; i<5; ++i) sequence.move(i, points[i]+QPoint(2,0), &window);
+        sequence.commit();
+        QTRY_COMPARE(view->property("menus").toInt(), 1);
+        // Releasing one at a time must not turn the last finger into a normal tap.
+        for (int i=4; i>=0; --i) {
+            for (int j=0; j<i; ++j) sequence.stationary(j);
+            sequence.release(i, points[i]+QPoint(2,0), &window).commit();
+            QTest::qWait(10);
+        }
+        QCOMPARE(view->property("releases").toInt(), 1);
+        QCOMPARE(view->property("actions").toInt(), 0);
+        clickAt(center, true);
+        QCOMPARE(view->property("actions").toInt(), 1);
+    }
 
+    void touchClusterKeepsUnrelatedInput() {
+        createClusterScene("handler"); QVERIFY(view);
+        auto sequence=QTest::touchEvent(&window,touchDevice,false);
+        const QPoint center(100,100), other(550,400);
+        for (int i=0; i<5; ++i) sequence.press(i,center+QPoint(i*10,0),&window);
+        sequence.commit();
+        for (int i=0; i<5; ++i) sequence.stationary(i);
+        sequence.press(5,other,&window).commit();
+        for (int i=0; i<5; ++i) sequence.stationary(i);
+        sequence.release(5,other,&window).commit();
+        QCOMPARE(view->property("actions").toInt(),1);
+        for (int i=0; i<5; ++i) sequence.release(i,center+QPoint(i*10,0),&window);
+        sequence.commit();
+        QCOMPARE(view->property("actions").toInt(),1);
+    }
 
+    void touchClusterBlocksPdfGestures() {
+        createPdfScene(); QVERIFY(view); QVERIFY(pdfPageView());
+        visualChild(view.get(), "pdfViewer")->setProperty("contentLocked", true);
+        auto manager = new dsqt::ui::DsQmlClusterManager(view.get());
+        manager->setSize(view->size());
+        manager->setMinClusterTouchCount(5);
+        manager->setMinClusterSeperation(150);
+        manager->setBoundingBoxSize(250);
+        manager->setTriggerTime(0);
+        auto pdf = pdfPageView();
+        QVERIFY(QMetaObject::invokeMethod(pdf, "selectAll"));
+        const auto selected = pdf->property("selectedText").toString();
+        QVERIFY(!selected.isEmpty());
+        const auto initialScale = pdf->property("renderScale").toReal();
+        auto sequence = QTest::touchEvent(&window, touchDevice, false);
+        const QPoint center(320,220);
+        for (int i=0; i<5; ++i) sequence.press(i,center+QPoint((i-2)*15,0),&window);
+        sequence.commit();
+        for (int distance : {20,30,40}) {
+            for (int i=0; i<5; ++i) sequence.move(i,center+QPoint((i-2)*distance,0),&window);
+            sequence.commit();
+            QTest::qWait(20);
+        }
+        for (int i=0; i<5; ++i) sequence.release(i,center+QPoint((i-2)*40,0),&window);
+        sequence.commit();
+        QCOMPARE(pdf->property("renderScale").toReal(),initialScale);
+        QCOMPARE(pdf->property("selectedText").toString(),selected);
+        QCOMPARE(view->property("underneath").toInt(),0);
+        // Two-finger PDF zoom remains available.
+        pinchAt(center);
+        QVERIFY(pdf->property("renderScale").toReal()>initialScale);
+    }
 
-
-
-
-
-
-
-
-
+    void clusterCancellationReleasesInput_data() {
+        QTest::addColumn<bool>("touch");
+        QTest::newRow("mouse") << false;
+        QTest::newRow("touch") << true;
+    }
+    void clusterCancellationReleasesInput() {
+        QFETCH(bool,touch);
+        createClusterScene("button"); QVERIFY(view);
+        auto manager=view->findChild<dsqt::ui::DsQmlClusterManager *>("clusterInput");
+        QVERIFY(manager);
+        auto sequence=QTest::touchEvent(&window,touchDevice,false);
+        const QPoint point(250,200);
+        if (touch) {
+            for (int i=0; i<5; ++i) sequence.press(i,point+QPoint(i*10,0),&window);
+            sequence.commit();
+        } else QTest::mousePress(&window,Qt::LeftButton,Qt::ShiftModifier,point);
+        QCOMPARE(manager->clusters()->rowCount(),1);
+        if (touch) {
+            QTouchEvent cancel(QEvent::TouchCancel,touchDevice);
+            QCoreApplication::sendEvent(&window,&cancel);
+            // Finish the synthetic device's sequence after the platform cancellation.
+            for (int i=0; i<5; ++i) sequence.release(i,point+QPoint(i*10,0),&window);
+            sequence.commit();
+        } else {
+            manager->ungrabMouse();
+            QTest::mouseRelease(&window,Qt::LeftButton,Qt::NoModifier,point);
+        }
+        QCOMPARE(manager->clusters()->rowCount(),0);
+        QCOMPARE(view->property("releases").toInt(),0);
+        QCOMPARE(view->property("actions").toInt(),0);
+        clickAt(point,touch);
+        QCOMPARE(view->property("actions").toInt(),1);
+    }
 
     void allMediaControlsTimeout_data() {
         QTest::addColumn<bool>("fullscreen");
