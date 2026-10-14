@@ -4,11 +4,11 @@ import QtQuick.VectorImage
 import Dsqt.Core
 import Dsqt.Waffles
 
-
-
 Item {
     id: wafflesRoot
-    property Component launcher: Component { DsTestLauncher {} }
+    property Component launcher: Component {
+        DsTestLauncher {}
+    }
     // Data adapter for the launcher (e.g. ContentLauncherModel). Passed through to the launcher
     // instance as `model` when the stage creates it. Bridge-agnostic — apps wire their own
     // adapter; the launcher just consumes the shape it defines.
@@ -16,35 +16,55 @@ Item {
     // Named layer the launcher is parented into. Apps can set this to "modal3" to keep the
     // launcher above the fullscreen scrim, or to a custom layer added via addLayer() (deferred).
     property string launcherLayer: "modal1"
-    property Component viewer: Component { TitledMediaViewer {} }
+    property Component viewer: Component {
+        TitledMediaViewer {}
+    }
     // Replace the whiteboard component or its controls while keeping the drawing API.
-    property Component whiteboard: Component { Whiteboard { shown: false } }
+    property Component whiteboard: Component {
+        Whiteboard {
+            shown: false
+        }
+    }
     readonly property DsWhiteboard activeWhiteboard: whiteboardLoader.item as DsWhiteboard
     readonly property bool whiteboardShown: activeWhiteboard ? activeWhiteboard.shown : false
 
     function openWhiteboard() {
-        if (!wafflesRoot.whiteboard) return null;
+        if (!wafflesRoot.whiteboard)
+            return null;
         whiteboardLoader.active = true;
-        if (whiteboardLoader.status !== Loader.Ready || !wafflesRoot.activeWhiteboard) return null;
+        if (whiteboardLoader.status !== Loader.Ready || !wafflesRoot.activeWhiteboard)
+            return null;
         wafflesRoot.floatingKeyboardShown = false;
         wafflesRoot.activeWhiteboard.shown = true;
         return wafflesRoot.activeWhiteboard;
     }
     function closeWhiteboard(reset = false) {
-        if (!wafflesRoot.activeWhiteboard) return;
-        if (reset) wafflesRoot.activeWhiteboard.clear();
+        if (!wafflesRoot.activeWhiteboard)
+            return;
+        if (reset)
+            wafflesRoot.activeWhiteboard.clear();
         wafflesRoot.activeWhiteboard.close();
     }
 
     // Per-type fullscreen controllers (shown while a viewer of that type is fullscreen).
-    property Component fullscreenController: Component { FullscreenController {} }
-    property Component presentationController: Component { PresentationController {} }
+    property Component fullscreenController: Component {
+        FullscreenController {}
+    }
+    property Component presentationController: Component {
+        PresentationController {}
+    }
     // The live controller instance (created lazily, reused across fullscreen sessions).
     property var _fsController: null
 
+    // --- Ambient Playlist
+    property var _ambientPlaylist: null
+    readonly property bool ambientShown: _ambientPlaylist !== null
+
     // --- Playlist (presentation / ambient) ---
     // Full-stage playlist viewer, instantiated into the `presentation` layer by openPlaylist().
-    property Component playlistViewer: Component { DsPlaylistViewer {} }
+    property Component playlistViewer: Component {
+        DsPlaylistViewer {}
+    }
     // typeUid → Component map for slide templates, supplied by the app (uids are schema-specific;
     // unmapped slides fall back to DsMediaTemplate inside the viewer).
     property var playlistTemplateByTypeUid: ({})
@@ -70,29 +90,29 @@ Item {
     property bool floatingKeyboardShown: false
 
     // --- Glass / blurred-backdrop config (defaults from DsTheme tokens; per-viewer overridable) ---
-    property bool  glassEnabled: true
-    property color glassTint:        DsTheme.surface          // Tonal 0
-    property real  glassTintOpacity: DsTheme.glassTintOpacity // 80%
-    property real  glassBlur:        DsTheme.glassBlur
-    property int   glassBlurMax:     DsTheme.glassBlurMax
-    property real  glassBlurMultiplier: DsTheme.glassBlurMultiplier
-    property real  glassRadius:      DsTheme.glassRadius
+    property bool glassEnabled: true
+    property color glassTint: DsTheme.surface          // Tonal 0
+    property real glassTintOpacity: DsTheme.glassTintOpacity // 80%
+    property real glassBlur: DsTheme.glassBlur
+    property int glassBlurMax: DsTheme.glassBlurMax
+    property real glassBlurMultiplier: DsTheme.glassBlurMultiplier
+    property real glassRadius: DsTheme.glassRadius
     property color glassBorderColor: DsTheme.stroke           // Tonal 10
-    property real  glassBorderWidth: DsTheme.glassBorderWidth
+    property real glassBorderWidth: DsTheme.glassBorderWidth
 
     // Control palette derived from the theme roles, so it propagates to every viewer/control
     // (dark surfaces, white text/icons, Tonal-10 strokes). See Docs/articles/color_system.md.
-    palette.window:          DsTheme.surface
-    palette.base:            DsTheme.surface
-    palette.button:          DsTheme.surface
-    palette.windowText:      DsTheme.surfaceText
-    palette.text:            DsTheme.surfaceText
-    palette.buttonText:      DsTheme.surfaceText
-    palette.brightText:      DsTheme.surfaceText
-    palette.dark:            DsTheme.stroke
-    palette.mid:             DsTheme.stroke
-    palette.light:           DsTheme.stroke
-    palette.highlight:       DsTheme.accent
+    palette.window: DsTheme.surface
+    palette.base: DsTheme.surface
+    palette.button: DsTheme.surface
+    palette.windowText: DsTheme.surfaceText
+    palette.text: DsTheme.surfaceText
+    palette.buttonText: DsTheme.surfaceText
+    palette.brightText: DsTheme.surfaceText
+    palette.dark: DsTheme.stroke
+    palette.mid: DsTheme.stroke
+    palette.light: DsTheme.stroke
+    palette.highlight: DsTheme.accent
     palette.highlightedText: DsTheme.accentText
 
     // Content captured as the bottom of the glass stack (e.g. an animated background).
@@ -103,61 +123,65 @@ Item {
 
     // Viewer size limits (from [waffles.viewer] in waffles_settings.toml, merged into the
     // app_settings collection; per-viewer overridable on creation).
-    DsSettingsProxy { id: appSettings; target: "app_settings"; prefix: "waffles" }
-    property real viewerMinWidth:  appSettings.getFloat("viewer.minWidth", 200)
-    property real viewerMaxWidth:  appSettings.getFloat("viewer.maxWidth", 1600)
+    DsSettingsProxy {
+        id: appSettings
+        target: "app_settings"
+        prefix: "waffles"
+    }
+    property real viewerMinWidth: appSettings.getFloat("viewer.minWidth", 200)
+    property real viewerMaxWidth: appSettings.getFloat("viewer.maxWidth", 1600)
     property real viewerMinHeight: appSettings.getFloat("viewer.minHeight", 150)
     property real viewerMaxHeight: appSettings.getFloat("viewer.maxHeight", 1200)
     // Default width an image viewer uses when it fits itself to the media aspect ratio.
     property real viewerImageWidth: appSettings.getFloat("viewer.imageWidth", 800)
     // Default size a web viewer opens at — web pages have no natural aspect to fit to, so they
     // open at this fixed size (clamped to the min/max bounds) unless the caller overrides sizing.
-    property real viewerWebWidth:  appSettings.getFloat("viewer.webWidth", 1280)
+    property real viewerWebWidth: appSettings.getFloat("viewer.webWidth", 1280)
     property real viewerWebHeight: appSettings.getFloat("viewer.webHeight", 800)
     // Controls auto-hide after this idle time (ms). 0 disables auto-hide. Per-viewer overridable.
     property int controlsIdleMs: appSettings.getInt("controlsIdleSeconds", 4) * 1000
     // Enter/exit animation defaults (per-viewer overridable on creation). Stored as strings in
     // settings (fade | grow | growBounce | fadeRise | none); mapped to the DsViewer.Anim enum.
-    property int viewerEnterAnimation:    _animFromString(appSettings.getString("viewer.enterAnimation", "growBounce"))
-    property int viewerExitAnimation:     _animFromString(appSettings.getString("viewer.exitAnimation", "grow"))
+    property int viewerEnterAnimation: _animFromString(appSettings.getString("viewer.enterAnimation", "growBounce"))
+    property int viewerExitAnimation: _animFromString(appSettings.getString("viewer.exitAnimation", "grow"))
     property int viewerAnimationDuration: appSettings.getInt("viewer.animationDuration", 300)
 
     // Playlist slide-transition defaults (per-slide overridable via slide.transition /
     // slide.disableTransition; per-playlist overridable via openPlaylist props). Name is a built-in
     // (none | fade | slideLeft | slideRight) or a custom name registered on the viewer; duration ms.
-    property string playlistDefaultTransition:  appSettings.getString("playlist.defaultTransition", "fade")
-    property int    playlistTransitionDuration: appSettings.getInt("playlist.transitionDuration", 500)
+    property string playlistDefaultTransition: appSettings.getString("playlist.defaultTransition", "fade")
+    property int playlistTransitionDuration: appSettings.getInt("playlist.transitionDuration", 500)
     // Crossfade (ms) when SWITCHING playlists (ambient ↔ interactive) or closing one. The new viewer
     // fades in over the still-opaque outgoing one; distinct from the per-slide transitionDuration.
-    property int    playlistFadeMs:             appSettings.getInt("playlist.crossfadeMs", 400)
+    property int playlistFadeMs: appSettings.getInt("playlist.crossfadeMs", 400)
     // App-supplied custom slide transitions: name → function(front, back, durationMs, done). Threaded
     // into every playlist openPlaylist() creates, so a custom name in a slide's/playlist's transition
     // resolves here (built-ins none/fade/slideLeft/slideRight are handled internally). Set once on the
     // stage; see DsPlaylistViewer.customTransitions and Docs/waffles-tour/playlists.html.
-    property var    playlistCustomTransitions:  ({})
+    property var playlistCustomTransitions: ({})
 
     // --- Fullscreen config. A fullscreen viewer fits the stage (minus margin), over a scrim that
     //     blocks the rest of the UI. The scrim style follows the viewer's resolved glass state
     //     (blur on -> blurred scrim; off -> tint+alpha), or the viewer's fullscreenScrim override. ---
-    property real  fullscreenMargin:              appSettings.getFloat("fullscreen.margin", 80)
-    property color fullscreenScrimColor:          DsTheme.surface
-    property real  fullscreenScrimOpacity:        appSettings.getFloat("fullscreen.scrimOpacity", 0.6)
-    property real  fullscreenScrimBlurTintOpacity: appSettings.getFloat("fullscreen.scrimBlurTintOpacity", 0.3)
+    property real fullscreenMargin: appSettings.getFloat("fullscreen.margin", 80)
+    property color fullscreenScrimColor: DsTheme.surface
+    property real fullscreenScrimOpacity: appSettings.getFloat("fullscreen.scrimOpacity", 0.6)
+    property real fullscreenScrimBlurTintOpacity: appSettings.getFloat("fullscreen.scrimBlurTintOpacity", 0.3)
     // Blur for the blur-mode scrim. Defaults to the glass tokens so the scrim matches the viewer
     // glass; set fullscreen.scrimBlur / scrimBlurMax in settings to give the scrim its own blur.
-    property real  fullscreenScrimBlur:           appSettings.getFloat("fullscreen.scrimBlur", DsTheme.glassBlur)
-    property int   fullscreenScrimBlurMax:        appSettings.getInt("fullscreen.scrimBlurMax", DsTheme.glassBlurMax)
-    property int   fullscreenDuration:            viewerAnimationDuration
+    property real fullscreenScrimBlur: appSettings.getFloat("fullscreen.scrimBlur", DsTheme.glassBlur)
+    property int fullscreenScrimBlurMax: appSettings.getInt("fullscreen.scrimBlurMax", DsTheme.glassBlurMax)
+    property int fullscreenDuration: viewerAnimationDuration
 
     // The single fullscreen viewer (only one at a time), the resolved scrim mode, whether the
     // scrim is shown, and the geometry to restore on exit. Scrim sits at _scrimZ inside modal2;
     // the fullscreen viewer one above it (reparented into modal2 while fullscreen).
-    property var    _fullscreenViewer: null
+    property var _fullscreenViewer: null
     property string _scrimMode: "tint"     // blur | tint | none
-    property bool   _scrimShown: false
-    property rect   _fsRestore: Qt.rect(0, 0, 0, 0)
+    property bool _scrimShown: false
+    property rect _fsRestore: Qt.rect(0, 0, 0, 0)
     // Original parent layer of the fullscreen viewer, restored when leaving fullscreen.
-    property var    _fsOriginalParent: null
+    property var _fsOriginalParent: null
     readonly property int _scrimZ: 9000
 
     // Live composite "slots" (stage-sized textures), one per participant that has something
@@ -181,19 +205,18 @@ Item {
 
     Component.onCompleted: {
         _layers = {
-            "background":   background,
+            "background": background,
             "presentation": presentation,
-            "viewer":       viewerLayer,
-            "modal1":       modal1,
-            "modal2":       modal2,
-            "modal3":       modal3
+            "viewer": viewerLayer,
+            "ambient": ambient,
+            "modal1": modal1,
+            "modal2": modal2,
+            "modal3": modal3
         };
-        createMenu()
+        createMenu();
     }
 
-    TapHandler {
-
-    }
+    TapHandler {}
 
     // Holder for the cumulative composite chain. Each slot is a stage-sized texture of
     // everything beneath one participant. It must actually be in the render tree for its
@@ -255,7 +278,12 @@ Item {
             z: wafflesRoot._scrimZ
             visible: opacity > 0
             opacity: wafflesRoot._scrimShown ? 1 : 0
-            Behavior on opacity { NumberAnimation { duration: wafflesRoot.fullscreenDuration; easing.type: Easing.OutCubic } }
+            Behavior on opacity {
+                NumberAnimation {
+                    duration: wafflesRoot.fullscreenDuration
+                    easing.type: Easing.OutCubic
+                }
+            }
 
             ShaderEffectSource {
                 id: scrimGrab
@@ -277,15 +305,14 @@ Item {
             Rectangle {
                 anchors.fill: parent
                 color: wafflesRoot.fullscreenScrimColor
-                opacity: wafflesRoot._scrimMode === "tint" ? wafflesRoot.fullscreenScrimOpacity
-                       : wafflesRoot._scrimMode === "blur" ? wafflesRoot.fullscreenScrimBlurTintOpacity
-                       : 0
+                opacity: wafflesRoot._scrimMode === "tint" ? wafflesRoot.fullscreenScrimOpacity : wafflesRoot._scrimMode === "blur" ? wafflesRoot.fullscreenScrimBlurTintOpacity : 0
             }
             MouseArea {
                 anchors.fill: parent
                 enabled: wafflesRoot._scrimShown
                 acceptedButtons: Qt.AllButtons
-                onClicked: if (wafflesRoot._fullscreenViewer) wafflesRoot.setFullscreen(wafflesRoot._fullscreenViewer, false)
+                onClicked: if (wafflesRoot._fullscreenViewer)
+                    wafflesRoot.setFullscreen(wafflesRoot._fullscreenViewer, false)
             }
         }
     }
@@ -323,6 +350,29 @@ Item {
         sourceComponent: wafflesRoot.whiteboard
     }
 
+    Rectangle {
+        id: visualBlocker
+        anchors.fill: ambient
+        color: "black"
+        visible: wafflesRoot.ambientShown
+        opacity: ambient.opacity
+    }
+
+    Item {
+        id: ambient
+        anchors.fill: wafflesRoot
+        z: 200
+    }
+
+    Item {
+        id: inputBlocker
+        anchors.fill: wafflesRoot
+        enabled: wafflesRoot.ambientShown
+        PointHandler {
+
+        }
+    }
+
     // Floating "open launcher" button. Visible when the launcher exists, exposes a `shown`
     // property, has been closed, and no fullscreen viewer is active (so the scrim doesn't
     // clash). Sits at the stage's bottom-left. Tap → re-show the launcher.
@@ -340,16 +390,16 @@ Item {
         border.color: DsTheme.stroke
         border.width: 1
 
-        readonly property bool _eligible:
-            wafflesRoot.launcherButtonVisible
-            && _private.launcher
-            && ("shown" in _private.launcher)
-            && _private.launcher.shown === false
-            && wafflesRoot._fullscreenViewer === null
+        readonly property bool _eligible: wafflesRoot.launcherButtonVisible && _private.launcher && ("shown" in _private.launcher) && _private.launcher.shown === false && wafflesRoot._fullscreenViewer === null
 
         visible: opacity > 0
         opacity: _eligible ? 1 : 0
-        Behavior on opacity { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
+        Behavior on opacity {
+            NumberAnimation {
+                duration: 200
+                easing.type: Easing.OutCubic
+            }
+        }
 
         layer.enabled: true
         layer.effect: MultiEffect {
@@ -376,7 +426,7 @@ Item {
         TapHandler {
             onTapped: {
                 if (_private.launcher && ("shown" in _private.launcher))
-                    _private.launcher.shown = true
+                    _private.launcher.shown = true;
             }
         }
     }
@@ -385,11 +435,36 @@ Item {
     ParallelAnimation {
         id: _fsAnim
         property var _done: null
-        NumberAnimation { id: _fsX; property: "x";            duration: wafflesRoot.fullscreenDuration; easing.type: Easing.OutCubic }
-        NumberAnimation { id: _fsY; property: "y";            duration: wafflesRoot.fullscreenDuration; easing.type: Easing.OutCubic }
-        NumberAnimation { id: _fsW; property: "viewerWidth";  duration: wafflesRoot.fullscreenDuration; easing.type: Easing.OutCubic }
-        NumberAnimation { id: _fsH; property: "viewerHeight"; duration: wafflesRoot.fullscreenDuration; easing.type: Easing.OutCubic }
-        onFinished: { let cb = _fsAnim._done; _fsAnim._done = null; if (cb) cb(); }
+        NumberAnimation {
+            id: _fsX
+            property: "x"
+            duration: wafflesRoot.fullscreenDuration
+            easing.type: Easing.OutCubic
+        }
+        NumberAnimation {
+            id: _fsY
+            property: "y"
+            duration: wafflesRoot.fullscreenDuration
+            easing.type: Easing.OutCubic
+        }
+        NumberAnimation {
+            id: _fsW
+            property: "viewerWidth"
+            duration: wafflesRoot.fullscreenDuration
+            easing.type: Easing.OutCubic
+        }
+        NumberAnimation {
+            id: _fsH
+            property: "viewerHeight"
+            duration: wafflesRoot.fullscreenDuration
+            easing.type: Easing.OutCubic
+        }
+        onFinished: {
+            let cb = _fsAnim._done;
+            _fsAnim._done = null;
+            if (cb)
+                cb();
+        }
     }
 
     // One slot = the cumulative composite of everything beneath its owner in the global glass
@@ -426,9 +501,7 @@ Item {
                     width: cap ? cap.childrenRect.width : 0
                     height: cap ? cap.childrenRect.height : 0
                     sourceItem: cap
-                    sourceRect: cap ? Qt.rect(cap.childrenRect.x, cap.childrenRect.y,
-                                              cap.childrenRect.width, cap.childrenRect.height)
-                                    : Qt.rect(0, 0, 0, 0)
+                    sourceRect: cap ? Qt.rect(cap.childrenRect.x, cap.childrenRect.y, cap.childrenRect.width, cap.childrenRect.height) : Qt.rect(0, 0, 0, 0)
                     live: true
                     hideSource: false
                 }
@@ -448,16 +521,18 @@ Item {
     }
 
     function createMenu() {
-        if (!launcher) return;
+        if (!launcher)
+            return;
         if (launcher.status == Component.Ready)
-            completeMenu()
+            completeMenu();
         else
-            launcher.statusChanged.connect(completeMenu)
+            launcher.statusChanged.connect(completeMenu);
     }
 
     function completeMenu() {
-        if (!launcher) return;
-        if(launcher.status == Component.Ready) {
+        if (!launcher)
+            return;
+        if (launcher.status == Component.Ready) {
             // Parented into the launcher's configured layer (default "modal1"). Glass is wired
             // through the cross-layer chain built by rebuildGlass.
             let parentLayer = getLayer(launcherLayer) || modal1;
@@ -466,8 +541,7 @@ Item {
                 "stage": wafflesRoot,
                 "model": wafflesRoot.launcherModel
             });
-            if(_private.launcher == null)
-            {
+            if (_private.launcher == null) {
                 console.log("Error creating menu");
             }
         } else if (launcher.status === Component.Error) {
@@ -477,13 +551,15 @@ Item {
 
     function createViewer(viewerProps: var) {
         if (viewer.status == Component.Ready)
-            completeViewer(viewerProps)
+            completeViewer(viewerProps);
         else
-            viewer.statusChanged.connect(()=>{completeViewer(viewerProps);})
+            viewer.statusChanged.connect(() => {
+                completeViewer(viewerProps);
+            });
     }
 
     function completeViewer(viewerProps: var) {
-        if(viewer.status == Component.Ready) {
+        if (viewer.status == Component.Ready) {
             // Resolve layer (default "viewer"). The `layer` field is consumed by the stage and
             // stripped before forwarding to createObject so it doesn't try to set a non-existent
             // property on the viewer instance.
@@ -493,17 +569,20 @@ Item {
             delete propsForViewer.layer;
 
             let viewerInstance = viewer.createObject(parentLayer, propsForViewer);
-            if(viewerInstance == null)
-            {
+            if (viewerInstance == null) {
                 console.log("Error creating viewer");
             } else {
                 // Open centred in the stage unless the caller positioned the viewer itself.
                 if (!("x" in viewerProps) && !("y" in viewerProps))
                     wafflesRoot.centerViewer(viewerInstance);
                 if (viewerInstance.closeRequested)
-                    viewerInstance.closeRequested.connect(()=>{ wafflesRoot.closeViewer(viewerInstance); });
+                    viewerInstance.closeRequested.connect(() => {
+                        wafflesRoot.closeViewer(viewerInstance);
+                    });
                 if (viewerInstance.fullscreenRequested)
-                    viewerInstance.fullscreenRequested.connect((want)=>{ wafflesRoot.setFullscreen(viewerInstance, want); });
+                    viewerInstance.fullscreenRequested.connect(want => {
+                        wafflesRoot.setFullscreen(viewerInstance, want);
+                    });
                 selectViewer(viewerInstance);
                 if (viewerInstance.playEnter)
                     viewerInstance.playEnter();
@@ -516,7 +595,8 @@ Item {
     // Closes a viewer: clears selection if it was selected, plays its exit animation, then
     // destroys it. Destruction triggers its layer's onChildrenChanged → rebuildGlass.
     function closeViewer(v) {
-        if (!v) return;
+        if (!v)
+            return;
         // If the viewer being closed is fullscreen, tear down the scrim + controller first.
         if (v === _fullscreenViewer) {
             _hideController();
@@ -524,9 +604,12 @@ Item {
             _fullscreenViewer = null;
             _fsOriginalParent = null;
         }
-        if (_selectedViewer === v) _selectedViewer = null;
+        if (_selectedViewer === v)
+            _selectedViewer = null;
         if (v.playExit)
-            v.playExit(()=>{ v.destroy(); });
+            v.playExit(() => {
+                v.destroy();
+            });
         else
             v.destroy();
     }
@@ -536,7 +619,7 @@ Item {
     function centerViewer(v) {
         let off = ((wafflesRoot._openCount % 5) - 2) * 60;
         wafflesRoot._openCount++;
-        v.x = Math.round((wafflesRoot.width  - v.width)  / 2 + off);
+        v.x = Math.round((wafflesRoot.width - v.width) / 2 + off);
         v.y = Math.round((wafflesRoot.height - v.height) / 2 + off);
     }
 
@@ -545,14 +628,19 @@ Item {
     // and animates it to a margin-fit of the stage over the scrim; leaving animates it back to
     // its pre-fullscreen geometry and reparents back to its original layer.
     function setFullscreen(v, on) {
-        if (!v) return;
+        if (!v)
+            return;
         if (on) {
-            if (wafflesRoot._fullscreenViewer === v) return;
+            if (wafflesRoot._fullscreenViewer === v)
+                return;
             if (wafflesRoot._fullscreenViewer) {
                 let prev = wafflesRoot._fullscreenViewer;
                 let pr = wafflesRoot._fsRestore;
                 prev.fullscreen = false;
-                prev.x = pr.x; prev.y = pr.y; prev.viewerWidth = pr.width; prev.viewerHeight = pr.height;
+                prev.x = pr.x;
+                prev.y = pr.y;
+                prev.viewerWidth = pr.width;
+                prev.viewerHeight = pr.height;
                 if (wafflesRoot._fsOriginalParent)
                     prev.parent = wafflesRoot._fsOriginalParent;
                 prev.z = ++wafflesRoot._topZ;
@@ -572,17 +660,19 @@ Item {
             wafflesRoot._animateViewer(v, r.x, r.y, r.width, r.height, null);
             wafflesRoot._showController(v);
         } else {
-            if (wafflesRoot._fullscreenViewer !== v) return;
+            if (wafflesRoot._fullscreenViewer !== v)
+                return;
             let rr = wafflesRoot._fsRestore;
             let originalParent = wafflesRoot._fsOriginalParent || viewerLayer;
             v.fullscreen = false;
             wafflesRoot._scrimShown = false;
             wafflesRoot._hideController();
-            wafflesRoot._animateViewer(v, rr.x, rr.y, rr.width, rr.height, function() {
+            wafflesRoot._animateViewer(v, rr.x, rr.y, rr.width, rr.height, function () {
                 v.parent = originalParent;
                 wafflesRoot._fsOriginalParent = null;
                 v.z = ++wafflesRoot._topZ;
-                if (wafflesRoot._fullscreenViewer === v) wafflesRoot._fullscreenViewer = null;
+                if (wafflesRoot._fullscreenViewer === v)
+                    wafflesRoot._fullscreenViewer = null;
                 wafflesRoot.rebuildGlass();
             });
         }
@@ -599,21 +689,27 @@ Item {
 
     // Largest rect inside the stage (minus margin) that preserves the viewer's current aspect.
     function _fullscreenFit(v) {
-        let availW = wafflesRoot.width  - 2 * wafflesRoot.fullscreenMargin;
+        let availW = wafflesRoot.width - 2 * wafflesRoot.fullscreenMargin;
         let availH = wafflesRoot.height - 2 * wafflesRoot.fullscreenMargin;
         let aspect = (v.viewerHeight > 0) ? (v.viewerWidth / v.viewerHeight) : (availW / availH);
         let w = availW, h = availW / aspect;
-        if (h > availH) { h = availH; w = h * aspect; }
-        return Qt.rect(Math.round((wafflesRoot.width - w) / 2), Math.round((wafflesRoot.height - h) / 2),
-                       Math.round(w), Math.round(h));
+        if (h > availH) {
+            h = availH;
+            w = h * aspect;
+        }
+        return Qt.rect(Math.round((wafflesRoot.width - w) / 2), Math.round((wafflesRoot.height - h) / 2), Math.round(w), Math.round(h));
     }
 
     function _animateViewer(v, x, y, w, h, done) {
         _fsAnim.stop();
-        _fsX.target = v; _fsX.to = x;
-        _fsY.target = v; _fsY.to = y;
-        _fsW.target = v; _fsW.to = w;
-        _fsH.target = v; _fsH.to = h;
+        _fsX.target = v;
+        _fsX.to = x;
+        _fsY.target = v;
+        _fsY.to = y;
+        _fsW.target = v;
+        _fsW.to = w;
+        _fsH.target = v;
+        _fsH.to = h;
         _fsAnim._done = done || null;
         _fsAnim.start();
     }
@@ -622,13 +718,15 @@ Item {
     // Lives in modal2 alongside the scrim and the fullscreen viewer.
     function _showController(v) {
         let comp = wafflesRoot.fullscreenController;   // (could vary by v.viewerType later)
-        if (!comp || comp.status !== Component.Ready) return;
+        if (!comp || comp.status !== Component.Ready)
+            return;
         if (!wafflesRoot._fsController) {
-            wafflesRoot._fsController = comp.createObject(modal2, { "z": wafflesRoot._scrimZ + 2 });
+            wafflesRoot._fsController = comp.createObject(modal2, {
+                "z": wafflesRoot._scrimZ + 2
+            });
         }
         if (wafflesRoot._fsController) {
-            wafflesRoot._fsController.viewer = v;
-            wafflesRoot._fsController.collapsed = false;
+            // Optional properties preserve the contract for custom controller visuals.
             wafflesRoot._fsController.shown = true;
         }
     }
@@ -643,26 +741,118 @@ Item {
     // Maps a settings string to a DsViewer.Anim enum value.
     function _animFromString(s) {
         switch (String(s).toLowerCase()) {
-        case "none":       return DsViewer.Anim.None;
-        case "fade":       return DsViewer.Anim.Fade;
-        case "grow":       return DsViewer.Anim.Grow;
-        case "growbounce": return DsViewer.Anim.GrowBounce;
-        case "faderise":   return DsViewer.Anim.FadeRise;
-        default:           return DsViewer.Anim.Fade;
+        case "none":
+            return DsViewer.Anim.None;
+        case "fade":
+            return DsViewer.Anim.Fade;
+        case "grow":
+            return DsViewer.Anim.Grow;
+        case "growbounce":
+            return DsViewer.Anim.GrowBounce;
+        case "faderise":
+            return DsViewer.Anim.FadeRise;
+        default:
+            return DsViewer.Anim.Fade;
         }
     }
 
-    function openViewer(viewerProps: var){
+    function openViewer(viewerProps: var) {
         createViewer(viewerProps);
     }
 
     // Applications resolve destinations; the stage only presents their failure message.
     function showContentError(title, message) {
         openViewer({
-            model: { title: title, errorTitle: title, errorMessage: message },
-            viewerWidth: DsTheme.dp(550), viewerHeight: DsTheme.dp(350),
+            model: {
+                title: title,
+                errorTitle: title,
+                errorMessage: message
+            },
+            viewerWidth: DsTheme.dp(550),
+            viewerHeight: DsTheme.dp(350),
             matchAspectRatio: false
         });
+    }
+
+    //open an ambient
+    function showAmbient(props) {
+        if(wafflesRoot._ambientClosing)
+            return null;
+
+        let layer = wafflesRoot.getLayer("ambient");
+        if (!layer) {
+            console.warn("showAmbient: no ambient layer");
+            return null;
+        }
+
+        // CROSSFADE rather than hard-cut: capture the outgoing playlist + controller, create the new
+        // viewer ON TOP (it fades itself in), then retire the old one. The old viewer is kept fully
+        // opaque underneath the fading-in new one (then destroyed), so switching ambient ↔ interactive
+        // dissolves cleanly with no background flash.
+        let oldAmbientViewer = wafflesRoot._ambientPlaylist;
+
+        wafflesRoot._ambientPlaylist = null;
+
+        let p = {
+            "playlistItem": (props && props.playlistItem) ? props.playlistItem : null,
+            "slides": (props && props.slides) ? props.slides : [],
+            "ambient": !!(props && props.ambient),
+            "index": Math.max(0, Math.min((props && props.slides ? props.slides.length : 1) - 1, Math.floor(Number(props && props.initialIndex) || 0))),
+            "templateByTypeUid": wafflesRoot.playlistTemplateByTypeUid,
+            "fadeMs": wafflesRoot.playlistFadeMs,
+            // App-registered custom transitions (per-call override, else the stage-wide map).
+            "customTransitions": (props && props.customTransitions) ? props.customTransitions : wafflesRoot.playlistCustomTransitions,
+            // Transition defaults from [waffles.playlist]; a caller can override per-playlist.
+            "defaultTransition": (props && props.defaultTransition) ? props.defaultTransition : wafflesRoot.playlistDefaultTransition,
+            "transitionDuration": (props && props.transitionDuration !== undefined) ? props.transitionDuration : wafflesRoot.playlistTransitionDuration
+        };
+        let ambientInst = wafflesRoot.playlistViewer.createObject(layer, p);
+        if (!ambientInst) {
+            console.warn("showAmbient: failed to create playlist viewer");
+            wafflesRoot._ambientPlaylist = oldAmbientViewer;                 // creation failed — keep the old
+            return null;
+        }
+
+        wafflesRoot._ambientPlaylist = ambientInst;
+
+        // Retire the previous playlist: fade its controller out, keep the viewer opaque under the
+        // fading-in new one, then destroy both once the crossfade has covered them.
+        if (oldAmbientViewer) {
+            oldAmbientViewer.destroy(wafflesRoot.playlistFadeMs + 50);
+        }
+        wafflesRoot.playlistOpened(p.playlistItem, p.ambient);
+        return ambientInst;
+    }
+
+    property bool _ambientClosing: false
+
+    function hideAmbient() {
+        if (!wafflesRoot._ambientPlaylist || wafflesRoot._ambientClosing)
+            return;
+
+        wafflesRoot._ambientClosing = true;
+
+        const viewer = wafflesRoot._ambientPlaylist;
+        viewer.paused = true;
+        viewer.opacity = 0; // Existing Behavior animates the fade.
+
+        ambientCloseTimer.interval = viewer.fadeMs + 50;
+        ambientCloseTimer.start();
+    }
+
+    Timer {
+        id: ambientCloseTimer
+        repeat: false
+
+        onTriggered: {
+            const viewer = wafflesRoot._ambientPlaylist;
+
+            wafflesRoot._ambientPlaylist = null;
+            wafflesRoot._ambientClosing = false;
+
+            if (viewer)
+                viewer.destroy();
+        }
     }
 
     // Open (and play) a playlist full-stage in the `presentation` layer. `props`:
@@ -673,33 +863,32 @@ Item {
     // so app-registered slide templates are used (with DsMediaTemplate as the fallback).
     function openPlaylist(props) {
         let layer = wafflesRoot.getLayer("presentation");
-        if (!layer) { console.warn("openPlaylist: no presentation layer"); return null; }
+        if (!layer) {
+            console.warn("openPlaylist: no presentation layer");
+            return null;
+        }
 
         // CROSSFADE rather than hard-cut: capture the outgoing playlist + controller, create the new
         // viewer ON TOP (it fades itself in), then retire the old one. The old viewer is kept fully
         // opaque underneath the fading-in new one (then destroyed), so switching ambient ↔ interactive
         // dissolves cleanly with no background flash.
-        let oldViewer     = wafflesRoot._activePlaylist;
+        let oldViewer = wafflesRoot._activePlaylist;
         let oldController = wafflesRoot._activePresentationController;
         wafflesRoot._activePlaylist = null;
         wafflesRoot._activePresentationController = null;
 
         let p = {
             "playlistItem": (props && props.playlistItem) ? props.playlistItem : null,
-            "slides":  (props && props.slides) ? props.slides : [],
+            "slides": (props && props.slides) ? props.slides : [],
             "ambient": !!(props && props.ambient),
-            "index": Math.max(0, Math.min((props && props.slides ? props.slides.length : 1) - 1,
-                                          Math.floor(Number(props && props.initialIndex) || 0))),
+            "index": Math.max(0, Math.min((props && props.slides ? props.slides.length : 1) - 1, Math.floor(Number(props && props.initialIndex) || 0))),
             "templateByTypeUid": wafflesRoot.playlistTemplateByTypeUid,
-            "fadeMs":  wafflesRoot.playlistFadeMs,
+            "fadeMs": wafflesRoot.playlistFadeMs,
             // App-registered custom transitions (per-call override, else the stage-wide map).
-            "customTransitions": (props && props.customTransitions) ? props.customTransitions
-                                                                     : wafflesRoot.playlistCustomTransitions,
+            "customTransitions": (props && props.customTransitions) ? props.customTransitions : wafflesRoot.playlistCustomTransitions,
             // Transition defaults from [waffles.playlist]; a caller can override per-playlist.
-            "defaultTransition":  (props && props.defaultTransition) ? props.defaultTransition
-                                                                     : wafflesRoot.playlistDefaultTransition,
-            "transitionDuration": (props && props.transitionDuration !== undefined) ? props.transitionDuration
-                                                                                    : wafflesRoot.playlistTransitionDuration
+            "defaultTransition": (props && props.defaultTransition) ? props.defaultTransition : wafflesRoot.playlistDefaultTransition,
+            "transitionDuration": (props && props.transitionDuration !== undefined) ? props.transitionDuration : wafflesRoot.playlistTransitionDuration
         };
         let inst = wafflesRoot.playlistViewer.createObject(layer, p);
         if (!inst) {
@@ -708,15 +897,21 @@ Item {
             wafflesRoot._activePresentationController = oldController;
             return null;
         }
-        if (inst.closeRequested) inst.closeRequested.connect(() => {
-            if (wafflesRoot._activePlaylist === inst) wafflesRoot.closePlaylist();
-        });
-        if (inst.playlistRequested) inst.playlistRequested.connect((target) => {
-            if (wafflesRoot._activePlaylist === inst) wafflesRoot.playlistRequested(target);
-        });
-        if (inst.contentRequested) inst.contentRequested.connect((target) => {
-            if (wafflesRoot._activePlaylist === inst) wafflesRoot.contentRequested(target);
-        });
+        if (inst.closeRequested)
+            inst.closeRequested.connect(() => {
+                if (wafflesRoot._activePlaylist === inst)
+                    wafflesRoot.closePlaylist();
+            });
+        if (inst.playlistRequested)
+            inst.playlistRequested.connect(target => {
+                if (wafflesRoot._activePlaylist === inst)
+                    wafflesRoot.playlistRequested(target);
+            });
+        if (inst.contentRequested)
+            inst.contentRequested.connect(target => {
+                if (wafflesRoot._activePlaylist === inst)
+                    wafflesRoot.contentRequested(target);
+            });
         wafflesRoot._activePlaylist = inst;
 
         // Show the presentation controller ONLY for interactive playlists (a presentation). Ambient
@@ -724,9 +919,14 @@ Item {
         // layer) so it stays visible/usable; closing it closes the playlist.
         if (!p.ambient) {
             let pcLayer = wafflesRoot.getLayer("modal1") || layer;
-            let pc = wafflesRoot.presentationController.createObject(pcLayer, { "playlist": inst });
+            let pc = wafflesRoot.presentationController.createObject(pcLayer, {
+                "playlist": inst
+            });
             if (pc) {
-                if (pc.closeRequested) pc.closeRequested.connect(()=>{ wafflesRoot.closePlaylist(); });
+                if (pc.closeRequested)
+                    pc.closeRequested.connect(() => {
+                        wafflesRoot.closePlaylist();
+                    });
                 pc.shown = true;                                     // fades in via its opacity Behavior
                 wafflesRoot._activePresentationController = pc;
             }
@@ -734,8 +934,13 @@ Item {
 
         // Retire the previous playlist: fade its controller out, keep the viewer opaque under the
         // fading-in new one, then destroy both once the crossfade has covered them.
-        if (oldController) { oldController.shown = false; oldController.destroy(wafflesRoot.playlistFadeMs + 50); }
-        if (oldViewer)     { oldViewer.destroy(wafflesRoot.playlistFadeMs + 50); }
+        if (oldController) {
+            oldController.shown = false;
+            oldController.destroy(wafflesRoot.playlistFadeMs + 50);
+        }
+        if (oldViewer) {
+            oldViewer.destroy(wafflesRoot.playlistFadeMs + 50);
+        }
         wafflesRoot.playlistOpened(p.playlistItem, p.ambient);
         return inst;
     }
@@ -748,8 +953,10 @@ Item {
             wafflesRoot._activePresentationController = null;
         }
         if (wafflesRoot._activePlaylist) {
-            if (wafflesRoot._activePlaylist.dismiss) wafflesRoot._activePlaylist.dismiss();
-            else wafflesRoot._activePlaylist.destroy();
+            if (wafflesRoot._activePlaylist.dismiss)
+                wafflesRoot._activePlaylist.dismiss();
+            else
+                wafflesRoot._activePlaylist.destroy();
             wafflesRoot._activePlaylist = null;
         }
     }
@@ -763,9 +970,11 @@ Item {
             wafflesRoot.setFullscreen(wafflesRoot._fullscreenViewer, false);
         // Snapshot first — closeViewer() mutates viewerLayer.children as it destroys.
         let kids = [];
-        for (let i = 0; i < viewerLayer.children.length; i++) kids.push(viewerLayer.children[i]);
+        for (let i = 0; i < viewerLayer.children.length; i++)
+            kids.push(viewerLayer.children[i]);
         for (let i = 0; i < kids.length; i++) {
-            if (kids[i] && ("closeRequested" in kids[i])) wafflesRoot.closeViewer(kids[i]);
+            if (kids[i] && ("closeRequested" in kids[i]))
+                wafflesRoot.closeViewer(kids[i]);
         }
         wafflesRoot.selectViewer(null);
         wafflesRoot.floatingKeyboardShown = false;
@@ -853,14 +1062,19 @@ Item {
             let kids = [];
             for (let k = 0; k < layer.children.length; k++) {
                 let kid = layer.children[k];
-                if (!kid || !("backdropSource" in kid)) continue;
-                kids.push({ item: kid, idx: k });
+                if (!kid || !("backdropSource" in kid))
+                    continue;
+                kids.push({
+                    item: kid,
+                    idx: k
+                });
             }
             kids.sort((a, b) => {
                 let d = (a.item.z || 0) - (b.item.z || 0);
                 return d !== 0 ? d : (a.idx - b.idx);
             });
-            for (let kd of kids) participants.push(kd.item);
+            for (let kd of kids)
+                participants.push(kd.item);
         }
 
         // One slot per participant. Base leaves are shared (the two leaf layers); lowerViewers
@@ -879,28 +1093,28 @@ Item {
 
     TapHandler {
         target: null
-        onTapped: (point,button)=>{
+        onTapped: (point, button) => {
             // While fullscreen the scrim handles taps (margin tap exits); ignore stage taps.
-            if (wafflesRoot._fullscreenViewer) return;
+            if (wafflesRoot._fullscreenViewer)
+                return;
             // A tap that lands on the launcher is the launcher's to handle (e.g. opening an item).
             // This stage TapHandler also fires for that same tap (drag-threshold TapHandlers don't
             // grab exclusively), so without this guard the select-by-location below would run with
             // the tap point on the launcher — not over the freshly-centred viewer — and call
             // selectViewer(null), deselecting the viewer the launcher just opened (its controls
             // then never show). Skip selection changes for taps over the visible launcher.
-            if (_private.launcher && _private.launcher.visible
-                && _private.launcher.contains(_private.launcher.mapFromGlobal(point.globalPosition)))
+            if (_private.launcher && _private.launcher.visible && _private.launcher.contains(_private.launcher.mapFromGlobal(point.globalPosition)))
                 return;
-            if(tapCount == 2 && _private.launcher){
+            if (tapCount == 2 && _private.launcher) {
                 // Reposition centred on the tap point, and re-show if the launcher was hidden
                 // via its close button. The `shown` property is optional on the launcher type;
                 // launchers that don't expose it (e.g. DsTestLauncher) simply ignore the bump.
-                _private.launcher.x = Math.round(point.position.x - _private.launcher.width / 2)
-                _private.launcher.y = Math.round(point.position.y)
-                if ("shown" in _private.launcher) _private.launcher.shown = true
+                _private.launcher.x = Math.round(point.position.x - _private.launcher.width / 2);
+                _private.launcher.y = Math.round(point.position.y);
+                if ("shown" in _private.launcher)
+                    _private.launcher.shown = true;
             }
             wafflesRoot.selectViewer(wafflesRoot.viewerAt(point.globalPosition));
-
         }
     }
 }
