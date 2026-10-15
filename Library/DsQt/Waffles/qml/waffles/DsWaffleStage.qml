@@ -374,7 +374,10 @@ Item {
         // Release the shield after event delivery, so the final release cannot hit foreground content.
         onPointerActiveChanged: if (!pointerActive) Qt.callLater(wafflesRoot._finishAmbientClose)
 
-        HoverHandler { blocking: true }
+        HoverHandler {
+            enabled: inputBlocker.enabled
+            blocking: true
+        }
         MouseArea {
             id: ambientMouse
             anchors.fill: parent
