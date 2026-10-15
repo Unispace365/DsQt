@@ -42,6 +42,8 @@ class PlaylistTest : public QObject {
     PlaylistEngine engine;
     QQuickWindow window;
     std::unique_ptr<QQuickItem> view;
+    bool pdfAvailable = false;
+    QString pdfUnavailableReason;
 
     QJSValue evaluate(const QString &script) {
         auto result = engine.evaluate(script);
@@ -204,7 +206,7 @@ class PlaylistTest : public QObject {
         QTest::qWait(300); // Settle control/reveal animations before hit testing.
     }
 
-    void createPdfScene(const QString &overlayType = {}, const QUrl &pdfUrl = {}) {
+    void createMediaScene(const QString &overlayType = {}, const QUrl &pdfUrl = {}, bool usePdf = true) {
         QQmlComponent component(&engine);
         component.setData(R"(
             import QtQuick
@@ -216,6 +218,7 @@ class PlaylistTest : public QObject {
                 required property url pdfUrl
                 required property url imageUrl
                 required property string overlayType
+                required property bool usePdf
                 property int underneath: 0
                 property int underneathWheels: 0
                 MouseArea {
@@ -236,7 +239,8 @@ class PlaylistTest : public QObject {
                     selected: true; controlsIdleMs: 0
                     glassEnabled: false; pinchEnabled: true
                     mediaFillMode: Image.PreserveAspectFit
-                    model: ({title: "PDF", media: {type: "pdf", filepath: scene.pdfUrl}})
+                    model: ({title: "Background", media: {type: scene.usePdf ? "pdf" : "image",
+                        filepath: scene.usePdf ? scene.pdfUrl : scene.imageUrl}})
                 }
                 DsQuickMenu {
                     objectName: "menuOverlay"
@@ -264,21 +268,23 @@ class PlaylistTest : public QObject {
         view.reset(qobject_cast<QQuickItem *>(component.createWithInitialProperties({
             {"pdfUrl", pdfUrl.isEmpty() ? QUrl::fromLocalFile(assets + "/media/sample.pdf") : pdfUrl},
             {"imageUrl", QUrl::fromLocalFile(assets + "/media/earth.gif")},
-            {"overlayType", overlayType}
+            {"overlayType", overlayType}, {"usePdf", usePdf}
         })));
         QVERIFY2(view, qPrintable(component.errorString()));
         QQmlEngine::setObjectOwnership(view.get(), QQmlEngine::CppOwnership);
         view->setParentItem(window.contentItem());
-        QTRY_VERIFY_WITH_TIMEOUT(pdfPageView(), 10000);
-        QTRY_COMPARE_WITH_TIMEOUT(pdfPageView()->property("status").toInt(), 1, 10000);
+        if (usePdf) {
+            QTRY_VERIFY_WITH_TIMEOUT(pdfPageView(), 10000);
+            QTRY_COMPARE_WITH_TIMEOUT(pdfPageView()->property("status").toInt(), 1, 10000);
+        }
         QTest::qWait(300);
     }
 
     void createPanelScene(const QString &type, bool overPdf = false) {
-        createPdfScene(); QVERIFY(view); QVERIFY(pdfPageView());
-        auto pdfViewer = visualChild(view.get(), "pdfViewer");
-        pdfViewer->setProperty("contentLocked", true);
-        pdfViewer->setVisible(overPdf);
+        createMediaScene({}, {}, overPdf); QVERIFY(view);
+        auto mediaViewer = visualChild(view.get(), "pdfViewer"); QVERIFY(mediaViewer);
+        mediaViewer->setProperty("contentLocked", true);
+        mediaViewer->setVisible(overPdf);
         const QMap<QString, QByteArray> panels = {
             {"launcher", R"(
                 DsContentLauncher {
@@ -301,7 +307,7 @@ class PlaylistTest : public QObject {
                 FullscreenController {
                     id: overlay; objectName: "panel"
                     _placed: true; x: 100; y: 220; shown: true
-                    viewer: host.pdfViewer
+                    viewer: host.mediaViewer
                 }
             )"},
             {"keyboard", R"(
@@ -369,7 +375,7 @@ class PlaylistTest : public QObject {
                 id: host; objectName: "panelHost"
                 anchors.fill: parent
                 required property url asset
-                required property Item pdfViewer
+                required property Item mediaViewer
                 property int actions: 0
                 QtObject {
                     id: playlistStub; objectName: "playlistStub"
@@ -399,7 +405,7 @@ class PlaylistTest : public QObject {
         QVERIFY2(component.isReady(), qPrintable(component.errorString()));
         auto host = qobject_cast<QQuickItem *>(component.createWithInitialProperties({
             {"asset", QUrl::fromLocalFile(QStringLiteral(DSQT_TEST_ASSET_DIR) + "/media/earth.gif")},
-            {"pdfViewer", QVariant::fromValue(pdfViewer)}
+            {"mediaViewer", QVariant::fromValue(mediaViewer)}
         }));
         QVERIFY2(host, qPrintable(component.errorString()));
         host->setParent(view.get());
@@ -426,7 +432,8 @@ class PlaylistTest : public QObject {
         return nullptr;
     }
 
-    void createStagePdfScene(bool pdfCreatedLast, bool locked, bool pdfForeground = false) {
+    void createStageScene(bool pdfCreatedLast, bool locked, bool pdfForeground = false,
+                          const QString &backgroundType = "pdf") {
         createView("DsWaffleStage", R"(({launcher:null,launcherButtonVisible:false,
             glassEnabled:false,controlsIdleMs:0,viewerEnterAnimation:0,viewerExitAnimation:0}))");
         QVERIFY(view);
@@ -446,6 +453,7 @@ class PlaylistTest : public QObject {
         engine.globalObject().setProperty("pdfCreatedLast", pdfCreatedLast);
         engine.globalObject().setProperty("pdfLocked", locked);
         engine.globalObject().setProperty("pdfForeground", pdfForeground);
+        engine.globalObject().setProperty("backgroundType", backgroundType);
         evaluate(R"(
             {
                 const common = {stage:view, minWidth:50, minHeight:50,
@@ -456,15 +464,18 @@ class PlaylistTest : public QObject {
                         filepath:pdfForeground ? pdfUrl : imageUrl}}});
                 const pdf = Object.assign({}, common, {objectName:"pdfViewer",
                     x:80,y:90,viewerWidth:480,viewerHeight:340,contentLocked:pdfLocked,
-                    model:{title:"PDF",media:{type:"pdf",filepath:pdfUrl}}});
+                    model:{title:"Background",media:{type:backgroundType,
+                        filepath:backgroundType === "pdf" ? pdfUrl : imageUrl}}});
                 view.openViewer(pdfCreatedLast ? image : pdf);
                 view.openViewer(pdfCreatedLast ? pdf : image);
                 view.selectViewer(view.getLayer("viewer").children.find(
                     child => child.objectName === "viewerOverlay"));
             }
         )");
-        QTRY_VERIFY_WITH_TIMEOUT(pdfPageView(), 10000);
-        QTRY_COMPARE_WITH_TIMEOUT(pdfPageView()->property("status").toInt(), 1, 10000);
+        if (backgroundType == "pdf") {
+            QTRY_VERIFY_WITH_TIMEOUT(pdfPageView(), 10000);
+            QTRY_COMPARE_WITH_TIMEOUT(pdfPageView()->property("status").toInt(), 1, 10000);
+        }
         if (pdfForeground) {
             QTRY_VERIFY_WITH_TIMEOUT(pdfPageView("viewerOverlay"), 10000);
             QTRY_COMPARE_WITH_TIMEOUT(pdfPageView("viewerOverlay")->property("status").toInt(), 1, 10000);
@@ -746,6 +757,17 @@ class PlaylistTest : public QObject {
 private slots:
     void initTestCase() {
         engine.addUrlInterceptor(&assetUrls);
+        // Probe once. CI requires a working PDF plugin; local kits may omit this optional module.
+        QQmlComponent pdfModule(&engine);
+        pdfModule.setData("import QtQuick.Pdf\nPdfDocument {}", QUrl());
+        QTRY_VERIFY_WITH_TIMEOUT(pdfModule.status() != QQmlComponent::Loading, 10000);
+        pdfAvailable = pdfModule.isReady();
+        pdfUnavailableReason = "Qt Quick PDF is unavailable: " + pdfModule.errorString();
+        // An installed but broken plugin is a setup failure, not an optional-feature skip.
+        QVERIFY2(pdfAvailable || pdfModule.errorString().contains("module \"QtQuick.Pdf\" is not installed"),
+                 qPrintable(pdfUnavailableReason));
+        if (qEnvironmentVariableIntValue("DSQT_TEST_REQUIRE_PDF") != 0)
+            QVERIFY2(pdfAvailable, qPrintable(pdfUnavailableReason));
         window.resize(640, 480);
         window.show();
         QVERIFY(QTest::qWaitForWindowExposed(&window));
@@ -1434,7 +1456,8 @@ private slots:
     }
     void pdfTapRequiresLock() {
         QFETCH(bool, locked); QFETCH(bool, touch);
-        createPdfScene(); QVERIFY(view); QVERIFY(pdfPageView());
+        if (!pdfAvailable) QSKIP(qPrintable(pdfUnavailableReason));
+        createMediaScene(); QVERIFY(view); QVERIFY(pdfPageView());
         auto viewer = visualChild(view.get(), "pdfViewer");
         viewer->setProperty("contentLocked", locked);
         auto pdf = pdfPageView();
@@ -1484,7 +1507,8 @@ private slots:
         QVERIFY(file.open());
         QCOMPARE(file.write(document), document.size());
         QVERIFY(file.flush());
-        createPdfScene({}, QUrl::fromLocalFile(file.fileName())); QVERIFY(view); QVERIFY(pdfPageView());
+        if (!pdfAvailable) QSKIP(qPrintable(pdfUnavailableReason));
+        createMediaScene({}, QUrl::fromLocalFile(file.fileName())); QVERIFY(view); QVERIFY(pdfPageView());
         visualChild(view.get(), "pdfViewer")->setProperty("contentLocked", locked);
         QCOMPARE(pdfPageView()->property("currentPage").toInt(), 0);
         clickAt(QPoint(320, 240), touch);
@@ -1505,7 +1529,8 @@ private slots:
     }
     void pdfLockControlsDragging() {
         QFETCH(bool, locked); QFETCH(bool, touch); QFETCH(bool, title);
-        createPdfScene(); QVERIFY(view); QVERIFY(pdfPageView());
+        if (!pdfAvailable) QSKIP(qPrintable(pdfUnavailableReason));
+        createMediaScene(); QVERIFY(view); QVERIFY(pdfPageView());
         auto viewer = visualChild(view.get(), "pdfViewer");
         viewer->setProperty("contentLocked", locked);
         const auto initial = viewer->position();
@@ -1521,7 +1546,8 @@ private slots:
     }
     void pdfLockControlsPinching() {
         QFETCH(bool, locked);
-        createPdfScene(); QVERIFY(view); QVERIFY(pdfPageView());
+        if (!pdfAvailable) QSKIP(qPrintable(pdfUnavailableReason));
+        createMediaScene(); QVERIFY(view); QVERIFY(pdfPageView());
         auto viewer = visualChild(view.get(), "pdfViewer");
         viewer->setProperty("contentLocked", locked);
         auto pdf = pdfPageView();
@@ -1548,7 +1574,8 @@ private slots:
     }
     void pdfLockControlsWheel() {
         QFETCH(bool, locked); QFETCH(bool, alt);
-        createPdfScene(); QVERIFY(view); QVERIFY(pdfPageView());
+        if (!pdfAvailable) QSKIP(qPrintable(pdfUnavailableReason));
+        createMediaScene(); QVERIFY(view); QVERIFY(pdfPageView());
         auto viewer = visualChild(view.get(), "pdfViewer");
         viewer->setProperty("contentLocked", locked);
         auto pdf = pdfPageView();
@@ -1577,7 +1604,8 @@ private slots:
     }
     void overlaysBlockPdfTaps() {
         QFETCH(QString, overlayType); QFETCH(bool, touch);
-        createPdfScene(overlayType); QVERIFY(view); QVERIFY(pdfPageView());
+        if (!pdfAvailable) QSKIP(qPrintable(pdfUnavailableReason));
+        createMediaScene(overlayType); QVERIFY(view); QVERIFY(pdfPageView());
         visualChild(view.get(), "pdfViewer")->setProperty("contentLocked", true);
         auto pdf = pdfPageView();
         QVERIFY(QMetaObject::invokeMethod(pdf, "selectAll"));
@@ -1598,7 +1626,8 @@ private slots:
     }
     void overlaysBlockPdfGestures() {
         QFETCH(QString, overlayType);
-        createPdfScene(overlayType); QVERIFY(view); QVERIFY(pdfPageView());
+        if (!pdfAvailable) QSKIP(qPrintable(pdfUnavailableReason));
+        createMediaScene(overlayType); QVERIFY(view); QVERIFY(pdfPageView());
         visualChild(view.get(), "pdfViewer")->setProperty("contentLocked", true);
         auto pdf = pdfPageView();
         pdf->setProperty("renderScale", 2.0);
@@ -1636,7 +1665,8 @@ private slots:
     }
     void stageOverlapKeepsFrontViewer() {
         QFETCH(bool, pdfCreatedLast); QFETCH(bool, locked); QFETCH(bool, touch); QFETCH(bool, title);
-        createStagePdfScene(pdfCreatedLast, locked); QVERIFY(view); QVERIFY(pdfPageView());
+        if (!pdfAvailable) QSKIP(qPrintable(pdfUnavailableReason));
+        createStageScene(pdfCreatedLast, locked); QVERIFY(view); QVERIFY(pdfPageView());
         auto foreground = visualChild(view.get(), "viewerOverlay"); QVERIFY(foreground);
         auto background = visualChild(view.get(), "pdfViewer"); QVERIFY(background);
         QVERIFY(foreground->z() > background->z());
@@ -1661,7 +1691,8 @@ private slots:
     void stageOverlappingPdfs_data() { stageOverlapKeepsFrontViewer_data(); }
     void stageOverlappingPdfs() {
         QFETCH(bool, pdfCreatedLast); QFETCH(bool, locked); QFETCH(bool, touch); QFETCH(bool, title);
-        createStagePdfScene(pdfCreatedLast, locked, true); QVERIFY(view); QVERIFY(pdfPageView());
+        if (!pdfAvailable) QSKIP(qPrintable(pdfUnavailableReason));
+        createStageScene(pdfCreatedLast, locked, true); QVERIFY(view); QVERIFY(pdfPageView());
         auto foreground = visualChild(view.get(), "viewerOverlay"); QVERIFY(foreground);
         auto background = visualChild(view.get(), "pdfViewer"); QVERIFY(background);
         auto pdf = pdfPageView();
@@ -1677,7 +1708,8 @@ private slots:
     void stageCanSelectExposedPdf_data() { pdfTapRequiresLock_data(); }
     void stageCanSelectExposedPdf() {
         QFETCH(bool, touch); QFETCH(bool, locked);
-        createStagePdfScene(true, locked); QVERIFY(view); QVERIFY(pdfPageView());
+        if (!pdfAvailable) QSKIP(qPrintable(pdfUnavailableReason));
+        createStageScene(true, locked); QVERIFY(view); QVERIFY(pdfPageView());
         auto pdf = visualChild(view.get(), "pdfViewer");
         auto image = visualChild(view.get(), "viewerOverlay");
         QSignalSpy underneath(visualChild(view.get(), "hotspotBackdrop"), SIGNAL(contentRequested(QVariant)));
@@ -1737,7 +1769,7 @@ private slots:
     }
     void stageIgnoresUnavailableViewers() {
         QFETCH(bool, touch); QFETCH(QString, property);
-        createStagePdfScene(true, true); QVERIFY(view);
+        createStageScene(true, true, false, "image"); QVERIFY(view);
         auto pdf = visualChild(view.get(), "pdfViewer"); QVERIFY(pdf);
         auto image = visualChild(view.get(), "viewerOverlay"); QVERIFY(image);
         pdf->setZ(image->z() + 1);
@@ -1822,11 +1854,7 @@ private slots:
     }
     void stageFullscreenSelectionPreservesStacking() {
         QFETCH(bool, touch); QFETCH(QString, mediaType);
-        if (mediaType == "pdf") {
-            QQmlComponent pdfModule(&engine);
-            pdfModule.setData("import QtQuick.Pdf\nPdfDocument {}", QUrl());
-            if (!pdfModule.isReady()) QSKIP("Qt Quick PDF is not available.");
-        }
+        if (mediaType == "pdf" && !pdfAvailable) QSKIP(qPrintable(pdfUnavailableReason));
         createIdleControlsScene(false, mediaType); QVERIFY(view);
         auto fullscreen = visualChild(view.get(), "pdfViewer"); QVERIFY(fullscreen);
         evaluate(R"(
@@ -1946,6 +1974,7 @@ private slots:
     }
     void panelsBlockPdfGestures() {
         QFETCH(QString, type); QFETCH(QPoint, position);
+        if (!pdfAvailable) QSKIP(qPrintable(pdfUnavailableReason));
         createPanelScene(type, true); QVERIFY(view); QVERIFY(pdfPageView());
         auto pdf = pdfPageView();
         pdf->setProperty("renderScale", 2.0);
@@ -2220,7 +2249,8 @@ private slots:
     }
 
     void touchClusterBlocksPdfGestures() {
-        createPdfScene(); QVERIFY(view); QVERIFY(pdfPageView());
+        if (!pdfAvailable) QSKIP(qPrintable(pdfUnavailableReason));
+        createMediaScene(); QVERIFY(view); QVERIFY(pdfPageView());
         visualChild(view.get(), "pdfViewer")->setProperty("contentLocked", true);
         auto manager = new dsqt::ui::DsQmlClusterManager(view.get());
         manager->setSize(view->size());
@@ -2298,6 +2328,7 @@ private slots:
     }
     void allMediaControlsTimeout() {
         QFETCH(bool, fullscreen); QFETCH(bool, touch); QFETCH(QString, mediaType);
+        if (mediaType == "pdf" && !pdfAvailable) QSKIP(qPrintable(pdfUnavailableReason));
         createIdleControlsScene(fullscreen,mediaType); QVERIFY(view);
         auto viewer = visualChild(view.get(),"pdfViewer"); QVERIFY(viewer);
         auto controller = qobject_cast<QQuickItem *>(qvariant_cast<QObject *>(view->property("_fsController")));

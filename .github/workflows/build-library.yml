@@ -44,7 +44,7 @@ jobs:
       with:
         version: '6.12.0'
         arch: win64_msvc2022_64
-        modules: 'qtcanvaspainter qtshadertools qtmultimedia qtwebsockets qtvirtualkeyboard'
+        modules: 'qtcanvaspainter qtshadertools qtmultimedia qtwebsockets qtvirtualkeyboard qtpdf'
 
     - name: Setup vcpkg
       uses: lukka/run-vcpkg@v11
@@ -93,8 +93,13 @@ jobs:
         $thirdParty = (Resolve-Path Library/build/ci/vcpkg_installed/x64-windows/debug/bin).Path
         foreach ($file in @("$qt/bin/Qt6Cored.dll", "$qt/bin/Qt6Quickd.dll",
                             "$qt/bin/Qt6Multimediad.dll", "$crtDir/msvcp140d.dll",
+                            "$qt/bin/Qt6Pdfd.dll", "$qt/bin/Qt6PdfQuickd.dll",
+                            "$qt/bin/Qt6VirtualKeyboardd.dll",
                             "$crtDir/vcruntime140d.dll", "$thirdParty/tomlplusplus-3.dll",
                             "$qt/plugins/platforms/qwindowsd.dll", "$qt/plugins/imageformats/qsvgd.dll",
+                            "$qt/plugins/platforms/qoffscreend.dll",
+                            "$qt/plugins/platforminputcontexts/qtvirtualkeyboardplugind.dll",
+                            "$qt/qml/QtQuick/Pdf/qmldir", "$qt/qml/QtQuick/Pdf/pdfquickplugind.dll",
                             "$qt/qml/QtCanvas2D/qmldir", "$qt/qml/QtMultimedia/qmldir")) {
           if (!(Test-Path $file)) { throw "Missing runtime dependency: $file" }
         }
@@ -103,6 +108,7 @@ jobs:
         $env:QT_QPA_PLATFORM_PLUGIN_PATH = "$qt/plugins/platforms"
         $env:QML_IMPORT_PATH = "$pwd/Library/build/ci/qml;$qt/qml"
         Remove-Item Env:QML2_IMPORT_PATH -ErrorAction SilentlyContinue
+        $env:DSQT_TEST_REQUIRE_PDF = '1'
         ctest --test-dir Library/build/ci --build-config Debug --output-on-failure --output-junit test-results.xml
         if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 

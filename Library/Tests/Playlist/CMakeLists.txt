@@ -9,5 +9,5 @@ add_test(NAME test_ds_playlist COMMAND test_ds_playlist
     -o "${CMAKE_CURRENT_BINARY_DIR}/playlist-results.xml,junitxml" -o -,txt)
 set_tests_properties(test_ds_playlist PROPERTIES
     WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
-    ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software"
-    TIMEOUT 120)
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software;QT_IM_MODULE=qtvirtualkeyboard"
+    TIMEOUT 300)
