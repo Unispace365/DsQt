@@ -137,6 +137,7 @@ set(TOUCHENGINE_OUTPUT_SOURCES
 )
 
 qt_add_qml_module(TouchEngine
+    PLUGIN_TARGET DsqtTouchEngineplugin
     URI Dsqt.TouchEngine
     VERSION 1.0
     OUTPUT_TARGETS TouchEngineTargets
@@ -193,7 +194,7 @@ target_link_libraries(TouchEngine
         Qt6::Gui
         Qt6::GuiPrivate
         Qt6::ShaderTools
-        TouchEngineplugin
+        DsqtTouchEngineplugin
         # Link to TouchEngine SDK library file directly (not the imported target)
         # The imported target TouchEngineSDK is only used for include directories
         $<BUILD_INTERFACE:${TOUCHENGINE_LIB_DIR}/TouchEngine.lib>
@@ -235,18 +236,31 @@ set_target_properties(TouchEngine PROPERTIES
     MACOSX_BUNDLE TRUE
 )
 
+
+# Prefix the installed library file so it cannot collide with another port in
+# vcpkg's shared prefix. The CMake target name and the Dsqt:: alias are
+# unchanged, so consumer code is unaffected.
+# NOTE: the QML plugin target must NOT use OUTPUT_NAME -- Qt writes the plugin
+# target name into the generated qmldir. It is renamed via PLUGIN_TARGET in
+# qt_add_qml_module() instead.
+set_target_properties(TouchEngine PROPERTIES OUTPUT_NAME DsqtTouchEngine)
+
 # ----------------------------------------------------------------------
 # Installation rules (headers and SDK DLL only - target install is in main CMakeLists.txt)
 # ----------------------------------------------------------------------
 
-# Install TouchEngine SDK files (DLL and import lib)
-# Use $<CONFIG> subdirectories to match the target install layout
+# Install TouchEngine SDK files (DLL and import lib).
+# DSQT_CONFIG_DIR matches the target install layout chosen in the top-level
+# CMakeLists: "/$<CONFIG>" normally, empty under vcpkg.
 install(FILES "${TOUCHENGINE_BIN_DIR}/TouchEngine.dll"
-    DESTINATION ${CMAKE_INSTALL_BINDIR}/$<CONFIG>
+    DESTINATION ${CMAKE_INSTALL_BINDIR}${DSQT_CONFIG_DIR}
 )
+# Prefixed like the rest: this import library is installed by us into vcpkg's
+# shared prefix, so a generic name is a collision risk. (TouchEngine.dll above
+# cannot be renamed -- the import library records the DLL's real name.)
 install(FILES "${TOUCHENGINE_LIB_DIR}/TouchEngine.lib"
-    DESTINATION ${CMAKE_INSTALL_LIBDIR}/$<CONFIG>
-    RENAME TouchEngineSDK.lib
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}${DSQT_CONFIG_DIR}
+    RENAME DsqtTouchEngineSDK.lib
 )
 
 # Install public header files

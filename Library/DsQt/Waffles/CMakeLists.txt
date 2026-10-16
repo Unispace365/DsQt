@@ -30,6 +30,7 @@ add_library(Dsqt::Waffles ALIAS Waffles)
 set_source_files_properties(qml/waffles/DsTheme.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
 
 qt_add_qml_module(Waffles
+    PLUGIN_TARGET DsqtWafflesplugin
     URI Dsqt.Waffles
     VERSION 1.0
     OUTPUT_TARGETS WafflesTargets
@@ -158,7 +159,7 @@ target_link_libraries(Waffles PUBLIC
     $<TARGET_NAME_IF_EXISTS:Qt6::WebEngineQuick>
     $<TARGET_NAME_IF_EXISTS:Qt6::PdfQuick>
     $<TARGET_NAME_IF_EXISTS:Qt6::VirtualKeyboard>
-    Wafflesplugin
+    DsqtWafflesplugin
 )
 
 target_include_directories(Waffles
@@ -172,6 +173,15 @@ target_include_directories(Waffles
         # After installation: use installed location
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
+
+
+# Prefix the installed library file so it cannot collide with another port in
+# vcpkg's shared prefix. The CMake target name and the Dsqt:: alias are
+# unchanged, so consumer code is unaffected.
+# NOTE: the QML plugin target must NOT use OUTPUT_NAME -- Qt writes the plugin
+# target name into the generated qmldir. It is renamed via PLUGIN_TARGET in
+# qt_add_qml_module() instead.
+set_target_properties(Waffles PROPERTIES OUTPUT_NAME DsqtWaffles)
 
 # ----------------------------------------------------------------------
 # Installation rules (headers only - target install is in main CMakeLists.txt)
