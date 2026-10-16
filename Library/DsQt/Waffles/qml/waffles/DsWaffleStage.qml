@@ -312,8 +312,20 @@ Item {
                 anchors.fill: parent
                 enabled: wafflesRoot._scrimShown
                 acceptedButtons: Qt.AllButtons
+                onWheel: event => event.accepted = true
                 onClicked: if (wafflesRoot._fullscreenViewer)
                     wafflesRoot.setFullscreen(wafflesRoot._fullscreenViewer, false)
+            }
+            MultiPointTouchArea {
+                anchors.fill: parent
+                mouseEnabled: false
+                minimumTouchPoints: 2
+                onGestureStarted: gesture => gesture.grab()
+                TapHandler {
+                    acceptedDevices: PointerDevice.TouchScreen
+                    onTapped: if (wafflesRoot._fullscreenViewer)
+                        wafflesRoot.setFullscreen(wafflesRoot._fullscreenViewer, false)
+                }
             }
         }
     }

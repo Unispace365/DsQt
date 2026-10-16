@@ -1985,7 +1985,7 @@ private slots:
         QTest::newRow("whiteboard") << QString("whiteboard") << QPoint(320,200);
         QTest::newRow("whiteboard-toolbar") << QString("whiteboard") << QPoint(320,230);
         QTest::newRow("launcher-button") << QString("launcher-button") << QPoint(88,392);
-        QTest::newRow("fullscreen-backdrop") << QString("fullscreen-stage") << QPoint(110,240);
+        QTest::newRow("fullscreen-scrim") << QString("fullscreen-stage") << QPoint(110,240);
     }
     void panelsBlockHover() {
         QFETCH(QString, type); QFETCH(QPoint, position);
@@ -2035,7 +2035,7 @@ private slots:
         QTest::newRow("viewer-controls") << QString("viewer") << QPoint(320,118);
         QTest::newRow("whiteboard") << QString("whiteboard") << QPoint(320,200);
         QTest::newRow("whiteboard-toolbar") << QString("whiteboard") << QPoint(320,230);
-        QTest::newRow("fullscreen-backdrop") << QString("fullscreen-stage") << QPoint(110,240);
+        QTest::newRow("fullscreen-scrim") << QString("fullscreen-stage") << QPoint(110,240);
     }
     void panelsBlockPdfGestures() {
         QFETCH(QString, type); QFETCH(QPoint, position);
@@ -2044,6 +2044,15 @@ private slots:
         auto pdf = pdfPageView();
         pdf->setProperty("renderScale", 2.0);
         QTest::qWait(100);
+        QTRY_VERIFY(!pdf->property("moving").toBool());
+        if (type == "fullscreen-stage") {
+            auto stage = visualChild(view.get(), "panel"); QVERIFY(stage);
+            QTRY_VERIFY(stage->property("_fullscreenViewer").value<QObject *>());
+            auto fullscreen = qobject_cast<QQuickItem *>(stage->property("_fullscreenViewer").value<QObject *>());
+            QVERIFY(fullscreen);
+            // This row targets the scrim outside the viewer, not the controller bar.
+            QVERIFY(!fullscreen->contains(fullscreen->mapFromItem(view.get(),position)));
+        }
         const auto scale = pdf->property("renderScale").toReal();
         const auto scroll = pdf->property("contentY").toReal();
         wheelAt(position);
@@ -2051,6 +2060,25 @@ private slots:
         pinchAt(position);
         QCOMPARE(pdf->property("renderScale").toReal(), scale);
         QCOMPARE(view->property("underneath").toInt(), 0);
+        if (type == "fullscreen-stage") {
+            auto stage = visualChild(view.get(), "panel"); QVERIFY(stage);
+            QVERIFY(stage->property("_fullscreenViewer").value<QObject *>());
+            engine.globalObject().setProperty("scrimStage",engine.newQObject(stage));
+            evaluate("scrimStage.closeViewer(scrimStage._fullscreenViewer)");
+            QTRY_VERIFY(!stage->property("_fullscreenViewer").value<QObject *>());
+            QTest::qWait(100);
+            wheelAt(position);
+            QVERIFY(pdf->property("contentY").toReal() > scroll);
+        }
+    }
+
+    void fullscreenScrimTouchTapDismisses() {
+        createPanelScene("fullscreen-stage"); QVERIFY(view);
+        auto stage=visualChild(view.get(),"panel"); QVERIFY(stage);
+        QTRY_VERIFY(stage->property("_fullscreenViewer").value<QObject *>());
+        clickAt(QPoint(110,240),true);
+        QTRY_VERIFY(!stage->property("_fullscreenViewer").value<QObject *>());
+        QCOMPARE(view->property("underneath").toInt(),0);
     }
 
     void panelsStillDrag_data() {
