@@ -39,6 +39,7 @@ Item {
     onEnabledChanged: if (!enabled) closeMenus()
     onVisibleChanged: if (!visible) closeMenus()
     onMenuComponentChanged: closeMenus()
+    onParentChanged: closeMenus()
 
     FontMetrics { id: defaultFont }
 

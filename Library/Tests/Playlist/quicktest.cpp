@@ -1940,6 +1940,22 @@ private slots:
         QCOMPARE(fullscreen->z(), fullscreenZ);
     }
 
+    void customMenuSurvivesHostReattachment() {
+        createQuickMenuHostScene(true); QVERIFY(view);
+        evaluate("view.host.openAt(Qt.point(320,240))");
+        auto host = qobject_cast<QQuickItem *>(view->property("host").value<QObject *>());
+        QVERIFY(host);
+        QVERIFY(host->property("mouseMenu").value<QObject *>());
+        host->setParentItem(nullptr);
+        QVERIFY(!host->property("mouseMenu").value<QObject *>());
+        host->setParentItem(view.get());
+        evaluate("view.host.openAt(Qt.point(320,240))");
+        QTest::qWait(50); // Deliver any delayed closed signal from the previous visual.
+        QVERIFY(host->property("mouseMenu").value<QObject *>());
+        clickAt(QPoint(320,240),false);
+        QCOMPARE(view->property("actions").toInt(),1);
+    }
+
     void panelsBlockHover_data() {
         QTest::addColumn<QString>("type");
         QTest::addColumn<QPoint>("position");

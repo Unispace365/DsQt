@@ -26,7 +26,18 @@ Item {
     function closeMenu() {
         if (root.menu)
             root.menu.closeMenu();
+        root.finishClose();
     }
+
+    function finishClose() {
+        if (!menuLoader.active) return;
+        menuLoader.active = false;
+        if (root.clustered) {
+            root.DsClusterView.minimumMet = false;
+            root.DsClusterView.animateOffFinished();
+        }
+    }
+    onParentChanged: if (!parent) root.closeMenu()
 
     // ClusterView's pooled delegate must begin each sequence below the threshold.
     Component.onCompleted: root.DsClusterView.minimumMet = false
@@ -58,18 +69,15 @@ Item {
     Connections {
         target: root.menu
         function onItemSelected(index, position) {
-            if (index < 0 || index >= root.owner.model.length
+            if (!root.owner || !root.owner.enabled || !root.owner.visible || !root.parent
+                    || index < 0 || index >= root.owner.model.length
                     || root.owner.model[index]?.available === false)
                 return;
             root.owner.closeMenus();
             root.owner.itemSelected(index, position);
         }
         function onClosed() {
-            menuLoader.active = false;
-            if (root.clustered) {
-                root.DsClusterView.minimumMet = false;
-                root.DsClusterView.animateOffFinished();
-            }
+            root.finishClose();
         }
     }
 
