@@ -1,4 +1,19 @@
 cmake_minimum_required(VERSION 3.29)
+file(READ "${CMAKE_CURRENT_SOURCE_DIR}/dsqt-project.json" _dsqt_project)
+string(JSON _dsqt_module_count LENGTH "${_dsqt_project}" modules)
+set(DSQT_APP_MODULES Core)
+if(_dsqt_module_count GREATER 0)
+    math(EXPR _last "${_dsqt_module_count} - 1")
+    foreach(_index RANGE 0 ${_last})
+        string(JSON _module GET "${_dsqt_project}" modules ${_index})
+        list(APPEND DSQT_APP_MODULES "${_module}")
+    endforeach()
+endif()
+list(REMOVE_DUPLICATES DSQT_APP_MODULES)
+string(JSON DSQT_APP_MINIMUM_QT GET "${_dsqt_project}" minimumQt)
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/dsqt-project.json")
+include(cmake/DsqtRegistryPackage.cmake)
+include(cmake/DsqtLocalPackage.cmake)
 include(FetchContent)
 
 #project info
@@ -59,11 +74,28 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_INSTALL_PREFIX "${CMAKE_BINARY_DIR}/DEPLOY")
 set(QT_FORCE_CMP0156_TO_VALUE NEW)
 set(QT_QML_GENERATE_QMLLS_INI ON)
-find_package(Qt6 6.12 REQUIRED COMPONENTS Core Quick QuickControls2 Multimedia Gui GuiPrivate ShaderTools Concurrent Sql)
+find_package(Qt6 ${DSQT_APP_MINIMUM_QT} REQUIRED COMPONENTS Core Gui Quick QuickControls2)
 qt_standard_project_setup(REQUIRES 6.12)
 
+if(DSQT_USE_LOCAL_VCPKG OR DSQT_USE_REGISTRY_VCPKG)
+    if(NOT MSVC OR NOT CMAKE_SIZEOF_VOID_P EQUAL 8)
+        message(FATAL_ERROR "The DsQt package requires the x64 MSVC compiler environment.")
+    endif()
+    if(DSQT_USE_LOCAL_VCPKG)
+        set(_dsqt_required_qt_version "${DSQT_LOCAL_QT_VERSION}")
+    else()
+        set(_dsqt_required_qt_version "${DSQT_REGISTRY_QT_VERSION}")
+    endif()
+    if(NOT Qt6_VERSION VERSION_EQUAL _dsqt_required_qt_version)
+        message(FATAL_ERROR "The application must use the package's Qt ${_dsqt_required_qt_version} kit.")
+    endif()
+    if(NOT EXISTS "${Dsqt_DIR}/DsqtConfig.cmake")
+        message(FATAL_ERROR "vcpkg did not install the DsQt package at ${Dsqt_DIR}.")
+    endif()
+endif()
+
 # Find Dsqt from installed package (CMAKE_PREFIX_PATH set via CMakePresets.json)
-find_package(Dsqt REQUIRED COMPONENTS Core Bridge Waffles Qsys OPTIONAL_COMPONENTS TouchEngine Spout Touch)
+find_package(Dsqt REQUIRED COMPONENTS ${DSQT_APP_MODULES})
 
 message("DSQT is at ${Dsqt_DIR}")
 
@@ -95,30 +127,24 @@ set_source_files_properties(Fnt.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
 message(STATUS "DSQT_INSTALL_PREFIX: ${DSQT_INSTALL_PREFIX}")
 message(STATUS "DSQT_QML_IMPORT_PATH: ${DSQT_QML_IMPORT_PATH}")
 
-# The Core app shell loads the optional touch-debug controls dynamically.
-set(_dsqt_optional_qml_dependencies "")
-if(Dsqt_Touch_FOUND)
-    list(APPEND _dsqt_optional_qml_dependencies Dsqt.Touch)
+set(_dsqt_qml_dependencies "")
+set(_dsqt_qml_files Main.qml Fnt.qml qml/MainView.qml qml/CustomClock.qml)
+foreach(_module IN LISTS DSQT_APP_MODULES)
+    list(APPEND _dsqt_qml_dependencies "Dsqt.${_module}")
+endforeach()
+if("TouchEngine" IN_LIST DSQT_APP_MODULES)
+    list(APPEND _dsqt_qml_files qml/TouchDesigner.qml)
+endif()
+if("Waffles" IN_LIST DSQT_APP_MODULES)
+    list(APPEND _dsqt_qml_files qml/WafflesView.qml)
 endif()
 
 qt_add_qml_module(${DS_EXE_NAME}
     URI ${DS_APP_NAME}
     VERSION 1.0
-    QML_FILES
-        Main.qml
-        Fnt.qml
-        qml/MainView.qml
-        qml/CustomClock.qml
-        qml/TouchDesigner.qml
-
+    QML_FILES ${_dsqt_qml_files}
     IMPORT_PATH "${DSQT_QML_IMPORT_PATH}"
-    DEPENDENCIES
-        Dsqt.Core
-        Dsqt.Bridge
-        Dsqt.Waffles
-        ${_dsqt_optional_qml_dependencies}
-        QtQuick
-        #RESOURCES cmake/app.rc.in
+    DEPENDENCIES ${_dsqt_qml_dependencies} QtQuick
 )
 
 
@@ -168,36 +194,17 @@ target_include_directories(${DS_EXE_NAME} PRIVATE
 )
 
 # Provide DSQT_HAS_<MODULE> compile definitions for optional plugin imports
-foreach(_comp Core Bridge Waffles TouchEngine Spout Qsys Touch)
+foreach(_comp IN LISTS DSQT_APP_MODULES)
     if(Dsqt_${_comp}_FOUND)
         target_compile_definitions(${DS_EXE_NAME} PRIVATE DSQT_HAS_${_comp})
     endif()
 endforeach()
 
 
-target_link_libraries(${DS_EXE_NAME}
-    PRIVATE
-        Dsqt::Core
-        Dsqt::Bridge
-        $<$<BOOL:${Dsqt_TouchEngine_FOUND}>:Dsqt::TouchEngine>
-        Dsqt::Waffles
-        $<$<BOOL:${Dsqt_Touch_FOUND}>:Dsqt::Touch>
-        $<$<BOOL:${Dsqt_Spout_FOUND}>:Dsqt::Spout>
-        Dsqt::Qsys
-
-        Qt6::Concurrent
-        Qt6::Core
-        Qt6::Gui
-        Qt6::Multimedia
-        Qt6::Quick
-        Qt6::QuickControls2
-        Qt6::ShaderTools
-        Qt6::GuiPrivate
-        Qt6::Sql
-
-        tomlplusplus::tomlplusplus
-        glm::glm
-)
+foreach(_module IN LISTS DSQT_APP_MODULES)
+    target_link_libraries(${DS_EXE_NAME} PRIVATE Dsqt::${_module})
+endforeach()
+target_link_libraries(${DS_EXE_NAME} PRIVATE Qt6::Quick Qt6::QuickControls2)
 
 if(DSQT_WAFFLES_HAS_WEBENGINE)
     target_compile_definitions(${DS_EXE_NAME} PRIVATE DSQT_HAS_WEBENGINE)
@@ -206,20 +213,7 @@ endif()
 message("HEADERS ${Dsqt_INCLUDES}")
 include(GNUInstallDirs)
 
-if(Dsqt_TouchEngine_FOUND)
-    # TouchEngine SDK DLL location (from installed package, config-specific subdirectory)
-    set(TOUCHENGINE_DLL "${DSQT_BIN_DIR}/$<CONFIG>/TouchEngine.dll")
-
-    # Copy TouchEngine.dll next to the executable during build
-    if(WIN32)
-        add_custom_command(TARGET ${DS_EXE_NAME} POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                "${TOUCHENGINE_DLL}"
-                $<TARGET_FILE_DIR:${DS_EXE_NAME}>
-            COMMENT "Copying TouchEngine.dll to output directory"
-        )
-    endif()
-endif()
+dsqt_deploy_runtime_dlls(${DS_EXE_NAME})
 
 # Must be the first install() rule — appends the config name to the prefix so
 # Release and Debug deployments land in separate subdirectories.
@@ -234,20 +228,17 @@ install(TARGETS ${DS_EXE_NAME}
 install(DIRECTORY "settings/" DESTINATION ${CMAKE_INSTALL_BINDIR}/settings OPTIONAL)
 install(DIRECTORY "data/" DESTINATION ${CMAKE_INSTALL_BINDIR}/data OPTIONAL)
 
-# Install TouchEngine.dll to the deploy directory
-if(WIN32 AND Dsqt_TouchEngine_FOUND)
-    install(FILES "${DSQT_BIN_DIR}/$<CONFIG>/TouchEngine.dll" DESTINATION ${CMAKE_INSTALL_BINDIR} OPTIONAL)
-endif()
+dsqt_install_runtime_dlls(${CMAKE_INSTALL_BINDIR})
 
 # Install vcpkg runtime dependencies — select debug or release DLLs at install time.
 # file(GLOB) runs at configure time so it can't use $<CONFIG>; install(CODE) defers
 # the glob until cmake --install runs, when CMAKE_INSTALL_CONFIG_NAME is known.
-if(WIN32)
+if(WIN32 AND VCPKG_INSTALLED_DIR AND VCPKG_TARGET_TRIPLET)
     install(CODE "
         if(\"\${CMAKE_INSTALL_CONFIG_NAME}\" STREQUAL \"Debug\")
-            set(_vcpkg_bin \"${CMAKE_BINARY_DIR}/vcpkg_installed/x64-windows/debug/bin\")
+            set(_vcpkg_bin \"${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/debug/bin\")
         else()
-            set(_vcpkg_bin \"${CMAKE_BINARY_DIR}/vcpkg_installed/x64-windows/bin\")
+            set(_vcpkg_bin \"${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/bin\")
         endif()
         file(GLOB _dlls \"\${_vcpkg_bin}/*.dll\")
         if(_dlls)

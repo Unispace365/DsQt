@@ -10,7 +10,7 @@ set(QT_QML_GENERATE_QMLLS_INI ON)
 
 set(DS_QT_DLLS_SUBDIR ON CACHE BOOL "Set to ON to copy the Qt dlls to a subdirectory of the install directory. Default is ON.")
 
-find_package(Qt6 REQUIRED COMPONENTS Quick Core)
+find_package(Qt6 6.8 REQUIRED COMPONENTS Quick Core)
 
 qt_standard_project_setup(REQUIRES 6.8)
 
@@ -26,15 +26,22 @@ qt_add_qml_module(appProjectCloner
         ConsoleOutputView.qml
     SOURCES
         cloner.h cloner.cpp
+        packagecatalog.h packagecatalog.cpp
         git_ignore_checker.h git_ignore_checker.cpp
         consoleoutput.h consoleoutput.cpp
     RESOURCES skip.txt
     DEPENDENCIES QtQuick
     RESOURCES images/clone1.gif images/clone2.gif images/clone3.gif images/clone4.gif images/error.gif
-    QML_FILES MainView.qml
+    QML_FILES MainView.qml PackageSelection.qml
 )
 
-configure_file("${CMAKE_CURRENT_SOURCE_DIR}/skip.txt" "${CMAKE_BINARY_DIR}/skip.txt" COPYONLY)
+qt_add_resources(appProjectCloner module_catalog
+    PREFIX "/dsqt"
+    BASE "${CMAKE_CURRENT_SOURCE_DIR}/../../Library"
+    FILES "${CMAKE_CURRENT_SOURCE_DIR}/../../Library/dsqt-modules.json")
+
+configure_file("${CMAKE_CURRENT_SOURCE_DIR}/skip.txt" "${CMAKE_CURRENT_BINARY_DIR}/skip.txt" COPYONLY)
+file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/ProjectSource" DESTINATION "${CMAKE_CURRENT_BINARY_DIR}")
 #add_custom_command(TARGET appProjectCloner POST_BUILD
 #    COMMAND ${CMAKE_COMMAND} -E copy_directory
 #        "${CMAKE_CURRENT_SOURCE_DIR}/ProjectSource"
@@ -76,6 +83,7 @@ install(TARGETS appProjectCloner
 )
 
 install(FILES skip.txt DESTINATION ${PC_INSTALL_PREFIX}${CMAKE_INSTALL_BINDIR})
+install(DIRECTORY ProjectSource DESTINATION ${PC_INSTALL_PREFIX}${CMAKE_INSTALL_BINDIR})
 
 qt_generate_deploy_qml_app_script(
     TARGET appProjectCloner

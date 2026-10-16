@@ -5,7 +5,10 @@
 #endif
 #include <QIcon>
 #include <QtQml/qqmlextensionplugin.h>
+#ifdef DSQT_HAS_Bridge
 #include <dsBridgeQuery.h>
+#endif
+#include <QQmlContext>
 
 #include <dsEnvironment.h>
 #include <dsGuiApplication.h>
@@ -114,14 +117,20 @@ int main(int argc, char *argv[])
     //the root content model.
     //it will also try to start the bridge sync process
     //if it is configured to do so.
+#ifdef DSQT_HAS_Bridge
     dsqt::bridge::DsBridgeSqlQuery query(&engine);
+#endif
 
     //this initalizes and reads in the settings files.
 
     engine.initialize();
 
-    //load waffles settings
+#ifdef DSQT_HAS_Waffles
     dsqt::DsEnvironment::loadSettings("waffles","waffle_settings.toml","qrc:/waffles/settings");
+    engine.rootContext()->setContextProperty("dsqtWafflesEnabled", true);
+#else
+    engine.rootContext()->setContextProperty("dsqtWafflesEnabled", false);
+#endif
 
     /*
     auto prefixes = dsqt::DsEnvironment::engineSettings()->getOr<QVariantList>("engine.reload.prefixes",QVariantList()).toList();

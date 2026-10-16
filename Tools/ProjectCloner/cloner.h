@@ -5,6 +5,8 @@
 #include <QDir>
 #include <QStringList>
 #include "git_ignore_checker.h"
+#include "packagecatalog.h"
+#include <QMap>
 
 class Cloner : public QQuickItem
 {
@@ -22,7 +24,12 @@ class Cloner : public QQuickItem
     Q_PROPERTY(bool usePlatformDir READ usePlatformDir WRITE setUsePlatformDir NOTIFY usePlatformDirChanged FINAL)
     Q_PROPERTY(QStringList detectedQtVersions READ detectedQtVersions NOTIFY detectedQtVersionsChanged FINAL)
     Q_PROPERTY(QStringList selectedQtVersions READ selectedQtVersions WRITE setSelectedQtVersions NOTIFY selectedQtVersionsChanged FINAL)
+    Q_PROPERTY(PackageCatalog* catalog READ catalog CONSTANT)
+    Q_PROPERTY(bool canClone READ canClone NOTIFY configurationChanged)
 public:
+    PackageCatalog *catalog() const { return m_catalog; }
+    bool canClone() const;
+    Q_INVOKABLE bool isQtCompatible(const QString &version) const;
     enum Status {
       PRECLONE,
       CLONING,
@@ -72,6 +79,7 @@ public:
     void setSelectedQtVersions(const QStringList &newSelectedQtVersions);
 
 signals:
+    void configurationChanged();
     void cloned();
     void applicationNameChanged();
     void projectNameChanged();
@@ -110,7 +118,11 @@ private:
     bool replaceInFile(QString file,QString match,QString replacement);
     bool copyIfNotExists(QDir sourceDir, QDir sourceRoot, const QString &destRoot);
     void addPlatformToProjectReadme(const QString &projectDir);
-    QStringList scanForQtInstallations() const;
+    QStringList scanForQtInstallations();
+    bool writeProjectSelection(const QString &destDir);
+    PackageCatalog *m_catalog = nullptr;
+    QJsonObject m_packageSelection;
+    QMap<QString, QString> m_qtKits;
     QByteArray generateCMakePresets(const QStringList &versions) const;
     bool writeCMakePresets(const QString &destDir, const QStringList &versions);
     Status m_status = Status::PRECLONE;

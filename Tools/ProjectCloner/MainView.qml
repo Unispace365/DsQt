@@ -5,317 +5,78 @@ import QtQuick.Dialogs
 import QtCore
 import ProjectCloner
 
-Rectangle {
+Pane {
     id: root
-    visible: true
-
-
-    Window {
-        id:consoleOutputWindow
-        title: "Console Output"
-        width: 600
-        height: 400
-        visible: false
-        ConsoleOutputView {
-            id: consoleOutputView
-            anchors.fill: parent
-            anchors.margins: 5
-            anchors.horizontalCenter: parent.horizontalCenter
-            anchors.verticalCenter: parent.verticalCenter
-        }
-    }
-
-    Item {
-        id: toplevel
-        width: root.width
-        height: root.height
-        property int labelWidth: 150
-
-        ColumnLayout {
-            anchors.fill: toplevel
-            anchors.margins: 10
-            spacing: 10
-            Text {
-                Layout.alignment: Qt.AlignTop
-                id: title
-                text: "DsQt ProjectCloner"
-            }
-            Rectangle {
-                Layout.alignment: Qt.AlignTop
-                Layout.preferredHeight: childrenRect.height
-                Layout.fillWidth: true
-                color: "#f0f0f0"
-                RowLayout {
-
-                    Text {
-                        Layout.preferredWidth: toplevel.labelWidth
-                        text: "Project Directory:"
-                    }
-
-                    TextField {
-                        id: projectRoot
-                        Layout.minimumWidth: 300
-                        placeholderText: "Projects Root Directory"
-                        text: projectRootChooser.currentFolder.toString().replace(/^file:\/\/\//,"");
-
-                    }
-                    Button {
-                        text: "Pick Folder"
-                        onPressed: {
-                            projectRootChooser.open();
-                        }
-                    }
-                }
-            }
-            Rectangle {
-                Layout.preferredHeight: childrenRect.height
-                Layout.fillWidth: true
-                color: "#f0f0f0"
-                RowLayout {
-                    Text {
-                        Layout.preferredWidth: toplevel.labelWidth
-                        text: "Project Name:"
-                    }
-                    TextField {
-                        id: projectName
-                        Layout.alignment: Qt.AlignTop
-                        Layout.minimumWidth: 300
-                        validator: RegularExpressionValidator {
-                            regularExpression: /[0-9A-Za-z\_ ]+/;
-
-                        }
-                        maximumLength: 20
-                        placeholderText: "Project Name"
-                    }
-                }
-            }
-            Rectangle {
-                visible: usePlatformDirCheckBox.checked
-                Layout.preferredHeight: visible ? childrenRect.height : 0
-                Layout.fillWidth: true
-                color: "#f0f0f0"
-                RowLayout {
-                    Text {
-                        Layout.preferredWidth: toplevel.labelWidth
-                        text: "Platform Name:"
-                    }
-                    TextField {
-                        id: platformName
-                        Layout.alignment: Qt.AlignTop
-                        Layout.minimumWidth: 300
-                        validator: RegularExpressionValidator {
-                            regularExpression: /[0-9A-Za-z\_ ]+/;
-
-                        }
-                        maximumLength: 20
-                        placeholderText: "Platform Name"
-                    }
-                }
-            }
-            RowLayout {
-                CheckBox {
-                    id: copyTopLevelCheckBox
-                    text: "Copy top-level project files"
-                    checked: true
-                }
-            }
-            RowLayout {
-                CheckBox {
-                    id: usePlatformDirCheckBox
-                    text: "Use platform subdirectory"
-                    checked: true
-                }
-            }
-            Rectangle {
-                Layout.preferredHeight: childrenRect.height
-                Layout.fillWidth: true
-                color: "#f0f0f0"
-                ColumnLayout {
-                    width: parent.width
-                    Text {
-                        Layout.preferredWidth: toplevel.labelWidth
-                        text: "Qt Versions:"
-                    }
-                    ListView {
-                        id: qtVersionList
-                        Layout.fillWidth: true
-                        Layout.preferredHeight: Math.min(contentHeight, 120)
-                        clip: true
-                        model: cloner.detectedQtVersions
-                        delegate: CheckBox {
-                            text: "Qt " + modelData
-                            checked: cloner.selectedQtVersions.indexOf(modelData) >= 0
-                            onToggled: {
-                                var selected = [...cloner.selectedQtVersions];
-                                if (checked) {
-                                    if (selected.indexOf(modelData) < 0) selected.push(modelData);
-                                } else {
-                                    var idx = selected.indexOf(modelData);
-                                    if (idx >= 0) selected.splice(idx, 1);
-                                }
-                                cloner.selectedQtVersions = selected;
-                            }
-                        }
-                    }
-                    Text {
-                        visible: cloner.detectedQtVersions.length === 0
-                        text: "No Qt installations found in C:/Qt/ or in %QT_DIR%"
-                        color: "#999"
-                        font.italic: true
-                    }
-                }
-            }
-            RowLayout {
-                Text {
-                    Layout.preferredWidth: toplevel.labelWidth
-                    text: "Main Name:"
-                }
-                Text {
-                    id: appName
-                    Layout.alignment: Qt.AlignTop
-                    Layout.minimumWidth: 300
-                    text: usePlatformDirCheckBox.checked
-                          ? platformName.text.replace(/\ /g,"")
-                          : projectName.text.replace(/\ /g,"")
-                }
-            }
-            RowLayout {
-                Text {
-                    Layout.preferredWidth: toplevel.labelWidth
-                    text: "Application Filename:"
-                }
-                Text {
-                    id: appFileName
-                    Layout.alignment: Qt.AlignTop
-                    Layout.minimumWidth: 300
-                    property string inName: usePlatformDirCheckBox.checked
-                                             ? platformName.text.replace(/\ /g,"")
-                                             : projectName.text.replace(/\ /g,"")
-                    text: inName.length>0?"app"+inName.charAt(0).toUpperCase() + inName.slice(1):""
-                }
-            }
-            RowLayout {
-                Text {
-                    Layout.preferredWidth: toplevel.labelWidth
-                    text: "Full Path:"
-                }
-                Text {
-                    id: className
-                    Layout.alignment: Qt.AlignTop
-                    Layout.minimumWidth: 300
-                    text: usePlatformDirCheckBox.checked
-                          ? projectRoot.text+"/" + (projectName.text===""?"<project>":projectName.text) + "/" + (appName.text===""?"<platform>":appName.text)
-                          : projectRoot.text+"/" + (projectName.text===""?"<project>":projectName.text)
-                }
-            }
+    padding: 24
+    ColumnLayout {
+        anchors.fill: parent
+        spacing: 16
+        Label { text: qsTr("Create a DsQt application"); font.pixelSize: 25; font.bold: true }
+        Label { text: qsTr("Choose your package, modules and Qt kit before creating the project."); Layout.fillWidth: true; wrapMode: Text.WordWrap }
+        ScrollView {
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            contentWidth: availableWidth
+            clip: true
             ColumnLayout {
-                Layout.preferredWidth: childrenRect.width
-                Layout.topMargin: 20
-                Layout.alignment: Qt.AlignHCenter
-                Layout.fillHeight: true
-                Layout.verticalStretchFactor: 1
-                AnimatedImage {
-                    id: successImage
-                    property list<url> images: ["images/clone1.gif","images/clone2.gif","images/clone3.gif","images/clone4.gif"]
-                    property int index: 0
-                    source: cloner.lastError=="" ? images[index] : "images/error.gif"
-                    opacity: cloner.status==Cloner.POSTCLONE ? 1 : 0
-                    fillMode: Image.PreserveAspectFit
-                    Layout.preferredWidth: 200
-                    Layout.preferredHeight: 100
-                    Layout.alignment: Qt.AlignVCenter | Qt.AlignHCenter
-                    Behavior on opacity {
-                        NumberAnimation {
-                            duration: 200
-                            easing.type: Easing.Linear
-                        }
+                enabled: projectCloner.status !== Cloner.CLONING
+                width: parent.width
+                spacing: 18
+                GroupBox {
+                    title: qsTr("Project")
+                    Layout.fillWidth: true
+                    GridLayout {
+                        anchors.fill: parent
+                        columns: 3
+                        Label { text: qsTr("Project folder") }
+                        TextField { id: projectRoot; Layout.fillWidth: true; text: settings.projectRootDir; onEditingFinished: settings.projectRootDir = text }
+                        Button { text: qsTr("Browse…"); onClicked: projectFolder.open() }
+                        Label { text: qsTr("Project name") }
+                        TextField { id: projectName; Layout.fillWidth: true; Layout.columnSpan: 2; placeholderText: qsTr("MyApplication"); validator: RegularExpressionValidator { regularExpression: /[A-Za-z][0-9A-Za-z_ ]*/ } maximumLength: 40 }
+                        CheckBox { id: platformToggle; text: qsTr("Use a platform subdirectory"); Layout.columnSpan: 3; checked: false }
+                        Label { text: qsTr("Platform name"); visible: platformToggle.checked }
+                        TextField { id: platformName; visible: platformToggle.checked; Layout.fillWidth: true; Layout.columnSpan: 2; validator: RegularExpressionValidator { regularExpression: /[A-Za-z][0-9A-Za-z_ ]*/ } }
+                        CheckBox { id: topLevel; text: qsTr("Include project-level files"); checked: true; Layout.columnSpan: 3 }
                     }
                 }
-                Text {
-                    id: successText
-                    text: cloner.lastError=="" ? "Project cloned to "+projectRoot.text+"/"+appName.text : cloner.lastError
-                    opacity: cloner.status==Cloner.POSTCLONE ? 1 : 0
-                    Layout.alignment: Qt.AlignHCenter
-                    Layout.maximumWidth: toplevel.width * 0.8
-                    Behavior on opacity {
-                        NumberAnimation {
-                            duration: 200
-                            easing.type: Easing.Linear
-                        }
-                    }
-                }
+                PackageSelection { Layout.fillWidth: true; cloner: projectCloner }
             }
-
-            RowLayout {
-                Layout.alignment: Qt.AlignRight | Qt.AlignBottom
-                Button {
-                    id: consoleBtn
-                    text:"Show Console"
-                    Layout.alignment: Qt.AlignLeft | Qt.AlignBottom
-                    onPressed: {
-                        if(consoleOutputWindow.visible) {
-                            consoleOutputWindow.hide();
-                        } else {
-                            consoleOutputWindow.showNormal();
-                        }
-                    }
-                }
-
-                Button {
-                    id: acceptBtn
-                    text:"Clone"
-                    Layout.alignment: Qt.AlignRight | Qt.AlignBottom
-                    enabled: cloner.status == Cloner.PRECLONE && appName.text != ""
-                    onPressed: {
-                        successImage.index = Math.floor(Math.random()*successImage.images.length);
-                        cloner.clone();
-                    }
-                }
-                Button {
-                    id: resetBtn
-                    text:"Reset"
-                    Layout.alignment: Qt.AlignRight | Qt.AlignBottom
-                    enabled: cloner.status == Cloner.POSTCLONE
-                    onPressed: {
-                        platformName.text=""
-                        cloner.reset();
-                    }
-                }
-                Button {
-                    id: quitBtn
-                    text:"Quit"
-                    Layout.alignment: Qt.AlignRight | Qt.AlignBottom
-                    enabled: cloner.status == Cloner.PRECLONE || cloner.status == Cloner.POSTCLONE
-                    onPressed: {
-                        Qt.callLater(Qt.quit)
-                    }
-                }
-            }
-
-
         }
-
+        Label {
+            Layout.fillWidth: true
+            text: projectCloner.lastError || (projectCloner.status === Cloner.POSTCLONE ? qsTr("Created %1").arg(projectCloner.cloneToDirectory) : qsTr("Destination: %1").arg(projectCloner.cloneToDirectory))
+            wrapMode: Text.WrapAnywhere
+        }
+        RowLayout {
+            Layout.fillWidth: true
+            Button { text: qsTr("Show console"); onClicked: consoleWindow.show() }
+            Item { Layout.fillWidth: true }
+            Button { text: qsTr("Reset"); visible: projectCloner.status === Cloner.POSTCLONE; onClicked: projectCloner.reset() }
+            Button {
+                text: projectCloner.status === Cloner.CLONING ? qsTr("Creating…") : qsTr("Create project")
+                highlighted: true
+                enabled: projectCloner.status === Cloner.PRECLONE && projectCloner.canClone && projectRoot.text.length > 0 && projectName.acceptableInput && (!platformToggle.checked || platformName.acceptableInput)
+                onClicked: projectCloner.clone()
+            }
+        }
     }
-
-    FolderDialog {
-        id: projectRootChooser
-
-    }
-
-    Settings {
-        id: settings
-        property alias projectRootDir: projectRootChooser.currentFolder
-    }
-
     Cloner {
-        id:cloner
-        cloneToDirectory: usePlatformDirCheckBox.checked
-                          ? projectRoot.text+"/"+projectName.text+"/"+appName.text
-                          : projectRoot.text+"/"+projectName.text
+        id: projectCloner
+        readonly property string folderName: projectName.text.replace(/ /g, "")
+        applicationName: platformToggle.checked ? platformName.text.replace(/ /g, "") : folderName
         projectName: projectName.text
-        platformName: usePlatformDirCheckBox.checked ? platformName.text : projectName.text
-        applicationName: appName.text
-        copyTopLevel: copyTopLevelCheckBox.checked
-        usePlatformDir: usePlatformDirCheckBox.checked
+        platformName: platformToggle.checked ? platformName.text : projectName.text
+        cloneToDirectory: projectRoot.text + "/" + folderName + (platformToggle.checked ? "/" + applicationName : "")
+        copyTopLevel: topLevel.checked
+        usePlatformDir: platformToggle.checked
     }
+    Settings { id: settings; property string projectRootDir: "C:/dev" }
+    FolderDialog {
+        id: projectFolder
+        onAccepted: {
+            projectRoot.text = decodeURIComponent(selectedFolder.toString().replace(/^file:\/\//, "").replace(/^\/(?=[A-Za-z]:)/, ""));
+            settings.projectRootDir = projectRoot.text;
+        }
+    }
+    Window { id: consoleWindow; title: qsTr("ProjectCloner console"); width: 760; height: 480; visible: false; ConsoleOutputView { anchors.fill: parent } }
 }

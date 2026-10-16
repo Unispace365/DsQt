@@ -2,6 +2,36 @@
   "version": 6,
   "configurePresets": [
     {
+      "name": "ninja-vcpkg-6.12.0",
+      "displayName": "Ninja - registry DsQt - Qt 6.12.0",
+      "inherits": "vcpkg-base",
+      "generator": "Ninja Multi-Config",
+      "binaryDir": "${sourceDir}/build/ninja-vcpkg-6.12.0",
+      "cacheVariables": {
+        "DSQT_USE_REGISTRY_VCPKG": "ON",
+        "DSQT_REGISTRY_QT_VERSION": "6.12.0",
+        "CMAKE_C_COMPILER": "cl.exe",
+        "CMAKE_CXX_COMPILER": "cl.exe",
+        "CMAKE_CXX_FLAGS_INIT": "/EHsc",
+        "CMAKE_CONFIGURATION_TYPES": "Debug;Release"
+      }
+    },
+    {
+      "name": "ninja-vcpkg-local",
+      "displayName": "Ninja - local DsQt package",
+      "inherits": "vcpkg-base",
+      "generator": "Ninja Multi-Config",
+      "binaryDir": "${sourceDir}/build/ninja-vcpkg-local",
+      "cacheVariables": {
+        "DSQT_USE_LOCAL_VCPKG": "ON",
+        "DSQT_LOCAL_PACKAGE_ROOT": "$env{DSQT_LOCAL_PACKAGE_ROOT}",
+        "CMAKE_C_COMPILER": "cl.exe",
+        "CMAKE_CXX_COMPILER": "cl.exe",
+        "CMAKE_CXX_FLAGS_INIT": "/EHsc",
+        "CMAKE_CONFIGURATION_TYPES": "Debug;Release"
+      }
+    },
+    {
       "name": "vcpkg-base",
       "hidden": true,
       "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
@@ -90,6 +120,26 @@
     }
   ],
   "buildPresets": [
+    {
+      "name": "ninja-vcpkg-6.12.0-debug",
+      "configurePreset": "ninja-vcpkg-6.12.0",
+      "configuration": "Debug"
+    },
+    {
+      "name": "ninja-vcpkg-6.12.0-release",
+      "configurePreset": "ninja-vcpkg-6.12.0",
+      "configuration": "Release"
+    },
+    {
+      "name": "ninja-vcpkg-local-debug",
+      "configurePreset": "ninja-vcpkg-local",
+      "configuration": "Debug"
+    },
+    {
+      "name": "ninja-vcpkg-local-release",
+      "configurePreset": "ninja-vcpkg-local",
+      "configuration": "Release"
+    },
     {
       "name": "vs2022-6.10.0-debug",
       "hidden": true,

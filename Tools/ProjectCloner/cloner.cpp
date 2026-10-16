@@ -7,8 +7,12 @@
 #include <QJsonObject>
 #include <QJsonArray>
 #include <QRegularExpression>
+#include <QVersionNumber>
+#include <QSaveFile>
 
 Cloner::Cloner() {
+    m_catalog = new PackageCatalog(this);
+    connect(m_catalog, &PackageCatalog::changed, this, &Cloner::configurationChanged);
     checker = new GitIgnoreChecker(QCoreApplication::applicationDirPath() + "/skip.txt");
 
     // Resolve ClonerSource location: prefer installed layout relative to exe,
@@ -25,6 +29,12 @@ Cloner::Cloner() {
 void Cloner::clone()
 {
     if(m_status == Status::PRECLONE){
+        if (!canClone()) {
+            setLastError(tr("Select a verified package and at least one compatible Qt kit."));
+            return;
+        }
+        m_packageSelection = m_catalog->selection();
+        setStatus(Status::CLONING);
         QThread* thread = QThread::create([this](){
             //check the destination. It needs to not exist
             //or be empty
@@ -120,6 +130,10 @@ void Cloner::clone()
                 return;
             }
 
+            if (!writeProjectSelection(destDirectory.absolutePath())) {
+                setStatus(Status::POSTCLONE);
+                return;
+            }
             if (!m_selectedQtVersions.isEmpty()) {
                 if (!writeCMakePresets(destDirectory.absolutePath(), m_selectedQtVersions)) {
                     setStatus(Status::POSTCLONE);
@@ -131,6 +145,7 @@ void Cloner::clone()
             emit cloned();
             setStatus(Status::POSTCLONE);
         });
+        connect(thread, &QThread::finished, thread, &QObject::deleteLater);
         thread->start();
     }
 }
@@ -245,6 +260,8 @@ bool Cloner::processDirectory(QDir dir,QDir rootDir)
     auto sourceItems = dir.entryInfoList(QDir::AllEntries | QDir::NoDotAndDotDot);
     for(const auto& item:static_cast<const QFileInfoList>(sourceItems)){
         const auto name = rootDir.relativeFilePath(item.absoluteFilePath());
+        if (!m_packageSelection.value("modules").toArray().contains("Waffles")
+            && name == "data/images/waffles") continue;
         const auto sourceName =  item.absoluteFilePath();
         const auto destName = m_cloneToDirectory+"/"+name;
         if(!checker->isIgnored(name)){
@@ -453,6 +470,7 @@ void Cloner::setSelectedQtVersions(const QStringList &newSelectedQtVersions)
         return;
     m_selectedQtVersions = newSelectedQtVersions;
     emit selectedQtVersionsChanged();
+    emit configurationChanged();
 }
 
 void Cloner::detectQtVersions()
@@ -461,11 +479,13 @@ void Cloner::detectQtVersions()
     emit detectedQtVersionsChanged();
     m_selectedQtVersions = m_detectedQtVersions;
     emit selectedQtVersionsChanged();
+    emit configurationChanged();
 }
 
-QStringList Cloner::scanForQtInstallations() const
+QStringList Cloner::scanForQtInstallations()
 {
     QStringList found;
+    m_qtKits.clear();
     static const QRegularExpression versionRe(QStringLiteral(R"(^\d+\.\d+\.\d+$)"));
 
     QStringList searchRoots = {
@@ -495,6 +515,7 @@ QStringList Cloner::scanForQtInstallations() const
             QDir msvcDir(versionDir.filePath(QStringLiteral("msvc2022_64")));
             if (msvcDir.exists() && !found.contains(entry)) {
                 found.append(entry);
+                m_qtKits.insert(entry, msvcDir.absolutePath());
             }
         }
     }
@@ -515,92 +536,109 @@ QStringList Cloner::scanForQtInstallations() const
     return found;
 }
 
+bool Cloner::isQtCompatible(const QString &version) const
+{
+    return m_catalog->acceptsQt(version);
+}
+
+bool Cloner::canClone() const
+{
+    if (!m_catalog->ready() || m_selectedQtVersions.isEmpty()) return false;
+    for (const auto &version : m_selectedQtVersions)
+        if (m_catalog->acceptsQt(version)) return true;
+    return false;
+}
+
 QByteArray Cloner::generateCMakePresets(const QStringList &versions) const
 {
-    static const QString vcpkgToolchain = QStringLiteral("$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake");
-    static const QString dsqtInstallSuffix = QStringLiteral("$env{USERPROFILE}/Documents/DsQt");
-
-    QJsonArray configurePresets;
-    QJsonArray buildPresets;
-
-    // vcpkg-base hidden preset
-    QJsonObject vcpkgBase;
-    vcpkgBase[QStringLiteral("name")] = QStringLiteral("vcpkg-base");
-    vcpkgBase[QStringLiteral("hidden")] = true;
-    vcpkgBase[QStringLiteral("toolchainFile")] = vcpkgToolchain;
-    configurePresets.append(vcpkgBase);
-
-    for (const auto &ver : versions) {
-        QString qtPresetName = QStringLiteral("qt-") + ver;
-        QString cmakePath = QStringLiteral("C:/Qt/") + ver + QStringLiteral("/msvc2022_64");
-        QString prefixPath = cmakePath + QStringLiteral(";") + dsqtInstallSuffix;
-
-        // Hidden Qt version preset
-        QJsonObject qtPreset;
-        qtPreset[QStringLiteral("name")] = qtPresetName;
-        qtPreset[QStringLiteral("hidden")] = true;
-        qtPreset[QStringLiteral("inherits")] = QStringLiteral("vcpkg-base");
-        QJsonObject qtCache;
-        qtCache[QStringLiteral("CMAKE_PREFIX_PATH")] = prefixPath;
-        qtPreset[QStringLiteral("cacheVariables")] = qtCache;
-        configurePresets.append(qtPreset);
-
-        // VS2022 preset
-        QString vsName = QStringLiteral("vs2022-") + ver;
-        QJsonObject vsPreset;
-        vsPreset[QStringLiteral("name")] = vsName;
-        vsPreset[QStringLiteral("displayName")] = QStringLiteral("VS2022 x64 - Qt ") + ver;
-        vsPreset[QStringLiteral("inherits")] = qtPresetName;
-        vsPreset[QStringLiteral("generator")] = QStringLiteral("Visual Studio 17 2022");
-        vsPreset[QStringLiteral("architecture")] = QStringLiteral("x64");
-        vsPreset[QStringLiteral("binaryDir")] = QStringLiteral("${sourceDir}/build/") + vsName;
-        configurePresets.append(vsPreset);
-
-        // VS2022 build presets
-        for (const auto &config : {std::make_pair("Debug", "debug"),
-                                    std::make_pair("Release", "release"),
-                                    std::make_pair("RelWithDebInfo", "relwithdebinfo")}) {
-            QJsonObject bp;
-            bp[QStringLiteral("name")] = vsName + QStringLiteral("-") + QLatin1String(config.second);
-            bp[QStringLiteral("displayName")] = QLatin1String(config.first);
-            bp[QStringLiteral("configurePreset")] = vsName;
-            bp[QStringLiteral("configuration")] = QLatin1String(config.first);
-            buildPresets.append(bp);
+    const auto selection = m_packageSelection.isEmpty() ? m_catalog->selection() : m_packageSelection;
+    const auto source = selection.value("source").toString();
+    QJsonArray configure, builds;
+    configure.append(QJsonObject{{"name", "vcpkg-base"}, {"hidden", true},
+        {"toolchainFile", "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"}});
+    for (const auto &version : versions) {
+        if (!selection.value("exactQt").toString().isEmpty() && version != selection.value("exactQt").toString()) continue;
+        if (QVersionNumber::fromString(version) < QVersionNumber::fromString(selection.value("minimumQt").toString())) continue;
+        const QString kit = m_qtKits.value(version, "C:/Qt/" + version + "/msvc2022_64");
+        const QString name = source == "local" ? "ninja-vcpkg-local" : source == "registry" ? "ninja-vcpkg-" + version : "ninja-" + version;
+        QJsonObject cache{{"CMAKE_C_COMPILER", "cl.exe"}, {"CMAKE_CXX_COMPILER", "cl.exe"},
+            {"CMAKE_CXX_FLAGS_INIT", "/EHsc"}, {"CMAKE_CONFIGURATION_TYPES", "Debug;Release"}};
+        if (source == "registry") {
+            cache.insert("DSQT_USE_REGISTRY_VCPKG", "ON");
+            cache.insert("DSQT_REGISTRY_QT_VERSION", version);
+            QDir qtRoot(kit); qtRoot.cdUp(); qtRoot.cdUp();
+            cache.insert("DSQT_REGISTRY_QT_ROOT", qtRoot.absolutePath());
+        } else if (source == "local") {
+            cache.insert("DSQT_USE_LOCAL_VCPKG", "ON");
+            cache.insert("DSQT_LOCAL_PACKAGE_ROOT", selection.value("path"));
+        } else {
+            cache.insert("CMAKE_PREFIX_PATH", kit + ";" + selection.value("path").toString());
         }
-
-        // Ninja presets
-        for (const auto &config : {std::make_pair("Debug", "debug"),
-                                    std::make_pair("Release", "release"),
-                                    std::make_pair("RelWithDebInfo", "relwithdebinfo")}) {
-            QString ninjaName = QStringLiteral("ninja-") + ver + QStringLiteral("-") + QLatin1String(config.second);
-
-            QJsonObject ninjaPreset;
-            ninjaPreset[QStringLiteral("name")] = ninjaName;
-            ninjaPreset[QStringLiteral("displayName")] = QStringLiteral("Ninja ") + QLatin1String(config.first) + QStringLiteral(" - Qt ") + ver;
-            ninjaPreset[QStringLiteral("inherits")] = qtPresetName;
-            ninjaPreset[QStringLiteral("generator")] = QStringLiteral("Ninja");
-            ninjaPreset[QStringLiteral("binaryDir")] = QStringLiteral("${sourceDir}/build/") + ninjaName;
-            QJsonObject ninjaCache;
-            ninjaCache[QStringLiteral("CMAKE_BUILD_TYPE")] = QLatin1String(config.first);
-            ninjaCache[QStringLiteral("CMAKE_C_COMPILER")] = QStringLiteral("cl.exe");
-            ninjaCache[QStringLiteral("CMAKE_CXX_COMPILER")] = QStringLiteral("cl.exe");
-            ninjaPreset[QStringLiteral("cacheVariables")] = ninjaCache;
-            configurePresets.append(ninjaPreset);
-
-            QJsonObject ninjaBp;
-            ninjaBp[QStringLiteral("name")] = ninjaName;
-            ninjaBp[QStringLiteral("configurePreset")] = ninjaName;
-            buildPresets.append(ninjaBp);
-        }
+        configure.append(QJsonObject{{"name", name}, {"displayName", "DsQt " + source + " · Qt " + version},
+            {"inherits", "vcpkg-base"}, {"generator", "Ninja Multi-Config"},
+            {"binaryDir", "${sourceDir}/build/" + name}, {"cacheVariables", cache}});
+        for (const auto &config : {QString("Debug"), QString("Release")})
+            builds.append(QJsonObject{{"name", name + "-" + config.toLower()}, {"configurePreset", name}, {"configuration", config}});
+        if (source == "local") break;
     }
+    return QJsonDocument(QJsonObject{{"version", 6}, {"configurePresets", configure}, {"buildPresets", builds}}).toJson();
+}
 
-    QJsonObject root;
-    root[QStringLiteral("version")] = 6;
-    root[QStringLiteral("configurePresets")] = configurePresets;
-    root[QStringLiteral("buildPresets")] = buildPresets;
-
-    QJsonDocument doc(root);
-    return doc.toJson(QJsonDocument::Indented);
+bool Cloner::writeProjectSelection(const QString &destDir)
+{
+    const auto selection = m_packageSelection;
+    const auto modules = selection.value("modules").toArray();
+    auto read = [&](const QString &name) {
+        QFile file(destDir + "/" + name);
+        return file.open(QIODevice::ReadOnly) ? QJsonDocument::fromJson(file.readAll()).object() : QJsonObject();
+    };
+    auto write = [&](const QString &name, const QJsonObject &data) {
+        QSaveFile file(destDir + "/" + name);
+        const auto bytes = QJsonDocument(data).toJson();
+        if (!file.open(QIODevice::WriteOnly) || file.write(bytes) != bytes.size() || !file.commit()) {
+            setLastError(tr("Cannot write %1").arg(name));
+            return false;
+        }
+        return true;
+    };
+    auto project = selection;
+    project.insert("formatVersion", 1);
+    if (!write("dsqt-project.json", project)) return false;
+    auto manifest = read("vcpkg.json");
+    auto features = manifest.value("features").toObject();
+    QJsonArray packageFeatures;
+    const auto specs = selection.value("metadata").toObject().value("modules").toObject();
+    for (const auto &module : modules) {
+        const auto feature = specs.value(module.toString()).toObject().value("feature").toString();
+        if (!feature.isEmpty()) packageFeatures.append(feature);
+    }
+    QJsonObject dependency{{"name", "dsqt"}, {"default-features", false}, {"features", packageFeatures}};
+    for (const auto &mode : {"dsqt-registry", "dsqt-local"}) {
+        auto feature = features.value(mode).toObject();
+        feature.insert("dependencies", QJsonArray{dependency});
+        features.insert(mode, feature);
+    }
+    manifest.insert("features", features);
+    if (selection.value("source") == "registry") {
+        const QString version = selection.value("version").toString() + "#" + QString::number(selection.value("portVersion").toInt());
+        manifest.insert("overrides", QJsonArray{QJsonObject{{"name", "dsqt"}, {"version", version}}});
+        auto config = read("vcpkg-configuration.json");
+        config.insert("registries", QJsonArray{QJsonObject{{"kind", "git"}, {"repository", selection.value("repository")},
+            {"baseline", selection.value("baseline")}, {"packages", QJsonArray{"dsqt"}}}});
+        if (!write("vcpkg-configuration.json", config)) return false;
+    }
+    if (!write("vcpkg.json", manifest)) return false;
+    if (!modules.contains("Waffles")) {
+        QFile::remove(destDir + "/settings/waffles_content.toml");
+        QFile::remove(destDir + "/qml/WafflesView.qml");
+        if (!replaceInFile(destDir + "/settings/engine.toml", "  \"waffles_content.toml\",", "")) return false;
+    }
+    if (!modules.contains("Bridge")) {
+        QFile::remove(destDir + "/settings/bridgesync.toml");
+        if (!replaceInFile(destDir + "/settings/engine.toml", "  \"bridgesync.toml\",", "")) return false;
+    }
+    if (!modules.contains("TouchEngine")) QFile::remove(destDir + "/qml/TouchDesigner.qml");
+    return true;
 }
 
 bool Cloner::writeCMakePresets(const QString &destDir, const QStringList &versions)
