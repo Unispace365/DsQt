@@ -1162,6 +1162,17 @@ private slots:
         QCOMPARE(view->property("actions").toInt(),1);
     }
 
+    void ambientBackgroundCoversForegroundOnlyWhileShown() {
+        createAmbientWakeScene(); QVERIFY(view);
+        auto background=visualChild(view.get(),"ambientBackground"); QVERIFY(background);
+        QVERIFY(background->isVisible());
+        QVERIFY(background->z()>150);
+        QVERIFY(background->z()<evaluate("view.getLayer('ambient').z").toNumber());
+        evaluate("view.hideAmbient()");
+        QTRY_VERIFY(!view->property("ambientShown").toBool());
+        QVERIFY(!background->isVisible());
+    }
+
     void quickMenuHostGestureSelection_data() { quickMenuHostTouchReopens_data(); }
     void quickMenuHostGestureSelection() {
         QFETCH(bool,simulated);

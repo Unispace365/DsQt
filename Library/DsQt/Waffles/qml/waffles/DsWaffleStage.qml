@@ -353,7 +353,9 @@ Item {
 
     Rectangle {
         id: visualBlocker
+        objectName: "ambientBackground"
         anchors.fill: ambient
+        z: ambient.z - 1
         color: "black"
         visible: wafflesRoot.ambientShown
         opacity: ambient.opacity
