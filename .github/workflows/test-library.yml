@@ -111,6 +111,8 @@ jobs:
         path: |
           Library/build/ci/test-results.xml
           Library/build/ci/Tests/**/*.xml
+          Library/build/ci/Tests/**/*-results.txt
+          Library/build/ci/Testing/Temporary/*.log
 
     - name: Test Report
       if: always()
