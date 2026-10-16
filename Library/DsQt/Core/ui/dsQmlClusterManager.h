@@ -58,6 +58,7 @@ signals:
 
     //non property signals
     void clusterUpdated(const QEventPoint::State& state, DsQmlTouchCluster*);
+    void clusterCanceled(DsQmlTouchCluster* cluster);
     void triggerableChanged(bool triggerable,DsQmlTouchCluster*);
     void triggered(DsQmlTouchCluster*);
     void minClusterSeperationChanged();

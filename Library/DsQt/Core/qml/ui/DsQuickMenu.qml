@@ -278,6 +278,7 @@ Item {
             root.openMenu(true)
     }
     DsClusterView.onRemoved: root.closeMenu()
+    DsClusterView.onCanceled: root.closeMenu()
     DsClusterView.onReleased: root.releaseGesture()
     DsClusterView.onUpdated: point => root.updatePoint(point)
 

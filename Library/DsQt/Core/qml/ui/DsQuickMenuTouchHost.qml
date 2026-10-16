@@ -86,4 +86,5 @@ Item {
             root.menu.releaseGesture();
     }
     DsClusterView.onRemoved: root.closeMenu()
+    DsClusterView.onCanceled: root.closeMenu()
 }

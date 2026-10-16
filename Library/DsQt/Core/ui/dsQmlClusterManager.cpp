@@ -1,6 +1,7 @@
 #include "ui/dsQmlClusterManager.h"
 
 #include <QPointerEvent>
+#include <algorithm>
 
 namespace dsqt::ui {
 DsQmlClusterManager::DsQmlClusterManager(QQuickItem* parent):QQuickItem(parent) {
@@ -132,6 +133,11 @@ void DsQmlClusterManager::cancelTouches(bool simulated)
     for (int i = mClusters->rowCount() - 1; i >= 0; --i) {
         const auto cluster = mClusters->cluster(i);
         const auto touches = cluster->mTouches;
+        const bool affected = std::any_of(touches.begin(), touches.end(), [simulated](const auto &touch) {
+            return (touch.mFingerId < 0) == simulated;
+        });
+        if (affected)
+            emit clusterCanceled(cluster);
         for (const auto &touch : touches) {
             if ((touch.mFingerId < 0) != simulated)
                 continue;

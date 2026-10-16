@@ -1124,6 +1124,44 @@ private slots:
     }
 
 
+    void quickMenuCancellationNeverSelects_data() { quickMenuHostTouchReopens_data(); }
+    void quickMenuCancellationNeverSelects() {
+        QFETCH(bool,simulated);
+        createQuickMenuHostScene(); QVERIFY(view);
+        auto sequence=QTest::touchEvent(&window,touchDevice,false);
+        const QPoint center(320,240);
+        if(simulated) QTest::mousePress(&window,Qt::LeftButton,Qt::ShiftModifier,center);
+        else {
+            for(int i=0;i<5;++i) sequence.press(i,center+QPoint((i-2)*10,0),&window);
+            sequence.commit();
+        }
+        QTest::qWait(30);
+        if(simulated) QTest::mouseMove(&window,center+QPoint(90,0));
+        else {
+            for(int i=0;i<5;++i) sequence.move(i,center+QPoint((i-2)*10+90,0),&window);
+            sequence.commit();
+        }
+        QTRY_VERIFY(visualChild(view.get(),"hostVisual"));
+        engine.globalObject().setProperty("cancelMenu",engine.newQObject(visualChild(view.get(),"hostVisual")));
+        evaluate("cancelMenu.updatePoint(Qt.point(cancelMenu.width/2+90,cancelMenu.height/2))");
+        QCOMPARE(visualChild(view.get(),"hostVisual")->property("_clusterIndex").toInt(),0);
+        if(simulated) {
+            auto manager=view->findChild<dsqt::ui::DsQmlClusterManager *>();
+            QVERIFY(manager); manager->ungrabMouse();
+            QTest::mouseRelease(&window,Qt::LeftButton,Qt::NoModifier,center+QPoint(90,0));
+        } else {
+            QTouchEvent cancel(QEvent::TouchCancel,touchDevice);
+            QCoreApplication::sendEvent(&window,&cancel);
+            for(int i=0;i<5;++i) sequence.release(i,center+QPoint((i-2)*10+90,0),&window);
+            sequence.commit();
+        }
+        QCOMPARE(view->property("actions").toInt(),0);
+        QTRY_VERIFY(!visualChild(view.get(),"hostVisual"));
+        evaluate("view.host.openAt(Qt.point(320,240))");
+        clickAt(QPoint(405,240),false);
+        QCOMPARE(view->property("actions").toInt(),1);
+    }
+
     void quickMenuHostGestureSelection_data() { quickMenuHostTouchReopens_data(); }
     void quickMenuHostGestureSelection() {
         QFETCH(bool,simulated);
