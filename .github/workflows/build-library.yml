@@ -71,7 +71,7 @@ jobs:
       shell: cmd
       run: >
         cmake -S Library -B Library/build/ci
-        -G "Visual Studio 17 2022" -A x64
+        -G "Ninja Multi-Config"
         -DCMAKE_TOOLCHAIN_FILE="${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake"
         -DCMAKE_INSTALL_PREFIX="${{ github.workspace }}/install"
         -DDSQT_BUILD_TESTS=ON
@@ -143,7 +143,7 @@ jobs:
       shell: cmd
       run: >
         cmake -S Tools/ProjectCloner -B Tools/ProjectCloner/build/ci
-        -G "Visual Studio 17 2022" -A x64
+        -G "Ninja Multi-Config"
         -DCMAKE_INSTALL_PREFIX="${{ github.workspace }}/install/Tools/ProjectCloner"
 
     - name: Build ProjectCloner
