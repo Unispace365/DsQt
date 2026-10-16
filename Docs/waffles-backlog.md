@@ -1,11 +1,56 @@
 # Waffles backlog
 
 Reconciled against DsQt `af/waffle-glass` and the local ECPresenter integration on
-October 12, 2026. Completed code is distinct from application integration and
+October 12, 2026, with the pre-PR follow-up below updated October 15.
+Completed code is distinct from application integration and
 device acceptance. See the [overview](waffles-overview.md) and
 [implementation guide](waffles-implementation-guide.md).
 
-## Completed framework work
+## Pre-PR follow-up — October 14–15, 2026
+
+These numbers match the current review list in the Waffles development chat;
+the older application-planning item numbers below are a separate list.
+
+| # | Task | Current status and evidence |
+| --- | --- | --- |
+| 1 | Viewer lookup and selection | Implemented and committed. |
+| 2 | Consume ambient wake gestures | Implemented and committed, including disabling the shield's hover handler while inactive. |
+| 3 | Explicit PDF coverage in CI | Implemented and committed. CI requires PDF; local kits may skip only PDF-dependent cases. |
+| 4 | Canceled quick-menu gestures must not execute actions | Fixed locally. Cancellation is signaled separately from release; highlighted-wedge cancellation and reopening pass for five-finger and simulated mouse gestures. |
+| 5 | Ambient black background stacking | Fixed locally. Its explicit z-order is directly beneath the ambient layer and above foreground content; it is hidden when ambient closes. |
+| 6 | Custom menu lifecycle when a host detaches | Fixed locally. Host cleanup does not depend on delayed visual close signals; reattachment, reopening, and action selection pass. |
+| 7 | Fullscreen scrim input | Fixed locally. The scrim consumes wheel and multitouch input without scrolling or zooming the PDF underneath. Pinching leaves fullscreen open; a single-finger tap still dismisses it. Scrolling reaches the underlying PDF again after the fullscreen viewer closes. All 51 focused input checks passed; physical-device acceptance remains part of #10. |
+| 8 | Ambient audio policy | Implemented locally. Ambient suspends foreground video and animated images, including standard playlists and custom layouts, then restores prior playback state. Paused/stopped media stays paused/stopped. Ambient replacements retain suspension; new foreground media loads suspended. Custom templates must forward the separate `playbackSuspended` contract. |
+| 9 | Backlog and deployment validation | Reconciled locally. PDF deployments now explicitly require the matching PDF QML plugin; current evidence is recorded below. |
+| 10 | Hosted CI, live Bridge, and physical device acceptance | Open. Local checks do not establish these results. |
+| 11 | Whole-display darkening during normal browsing | Not currently reproducible in ECPresenter, per the latest user testing. The ambient background fix may have resolved it, but the original cause remains unconfirmed. Recheck normal-browsing brightness during #10 acceptance. |
+| 12 | PDF pinch minimum size | Fixed locally. Pinches cannot shrink the page below fit-to-frame size, preserving aspect ratio; subsequent zoom-in and existing locked/unlocked pinch behavior pass. |
+| 13 | Locked PDF frame blocks input underneath | Existing implementation verified by new mouse/touch margin checks, including clicks, drags, and wheel events. No additional production input layer was needed. |
+
+**Latest local validation:** the Qt 6.12 MSVC x64 Release playlist suite completed
+in 172 seconds on October 15: **300 passed, zero failed, zero skipped**. The
+fullscreen-scrim wheel/pinch regression and single-finger dismissal check pass;
+all 51 focused panel input checks pass. All seven earlier regression cases and
+the 15 audio-policy cases passed. The focused audio-policy
+run passed 17 cases including setup/cleanup, covering prior playing/paused/stopped
+state, animated frames, custom-layout background and tile media, ambient
+replacement, newly loaded foreground media and playlists, preservation of the
+playlist pause setting, a pause requested during suspension, and failed ambient
+creation. The October 14 focused run without PDF passed 12 cases and correctly
+skipped six PDF-dependent cases, with zero failures. The updated deployment
+validator passed against the existing ECPresenter
+Debug deployment, including the PDF plugin and all 58 SVG assets; missing
+`content_settings.toml` and `menu.toml` remain optional-hook warnings. This is
+file validation of that existing deployment, not a smoke test of the newly
+changed framework. The older validation records below are historical evidence.
+
+The content-state CTest suite was rebuilt against the shared media-viewer
+changes and passed on October 15, including its loading, error, and recovery
+checks. The matching WebEngine helper, runtime libraries, plugins, and resources
+were checked before launch. Live Bridge and physical-device acceptance remain
+open.
+
+## Completed framework capabilities
 
 | Capability | Owner and implementation |
 | --- | --- |

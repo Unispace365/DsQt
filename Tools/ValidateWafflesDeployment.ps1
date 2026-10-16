@@ -86,7 +86,10 @@ if ('Web' -in $Features) {
         [void](Require-File (Join-Path $resources "resources/$name"))
     }
 }
-if ('Pdf' -in $Features) { $modules += @('Pdf', 'PdfQuick'); $imports += 'QtQuick/Pdf' }
+if ('Pdf' -in $Features) {
+    $modules += @('Pdf', 'PdfQuick'); $imports += 'QtQuick/Pdf'
+    Check-X64 (Join-Path $qml "QtQuick/Pdf/pdfquickplugin$suffix.dll")
+}
 if ('Keyboard' -in $Features) {
     $modules += 'VirtualKeyboard'
     $imports += @('QtQuick/VirtualKeyboard', 'QtQuick/VirtualKeyboard/Settings')
