@@ -59,6 +59,8 @@ Item {
     // --- Ambient Playlist
     property var _ambientPlaylist: null
     readonly property bool ambientShown: _ambientPlaylist !== null
+    readonly property bool foregroundPlaybackSuspended: _foregroundPlaybackSuspended
+    property bool _foregroundPlaybackSuspended: false
 
     // --- Playlist (presentation / ambient) ---
     // Full-stage playlist viewer, instantiated into the `presentation` layer by openPlaylist().
@@ -724,6 +726,8 @@ Item {
             delete propsForViewer.layer;
 
             let viewerInstance = viewer.createObject(parentLayer, propsForViewer);
+            if (viewerInstance && "playbackSuspended" in viewerInstance)
+                viewerInstance.playbackSuspended = Qt.binding(() => wafflesRoot.foregroundPlaybackSuspended);
             if (viewerInstance == null) {
                 console.log("Error creating viewer");
             } else {
@@ -975,6 +979,7 @@ Item {
         }
 
         wafflesRoot._ambientPlaylist = ambientInst;
+        wafflesRoot._foregroundPlaybackSuspended = true;
 
         // Retire the previous playlist: fade its controller out, keep the viewer opaque under the
         // fading-in new one, then destroy both once the crossfade has covered them.
@@ -1016,6 +1021,7 @@ Item {
             viewer.enabled = false;
             viewer.destroy();
         }
+        wafflesRoot._foregroundPlaybackSuspended = false;
     }
 
     Timer {
@@ -1071,6 +1077,8 @@ Item {
             wafflesRoot._activePresentationController = oldController;
             return null;
         }
+        if ("playbackSuspended" in inst)
+            inst.playbackSuspended = Qt.binding(() => wafflesRoot.foregroundPlaybackSuspended);
         if (inst.closeRequested)
             inst.closeRequested.connect(() => {
                 if (wafflesRoot._activePlaylist === inst)

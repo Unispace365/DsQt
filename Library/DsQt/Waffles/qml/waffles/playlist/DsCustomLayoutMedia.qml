@@ -8,11 +8,13 @@ Item {
     required property var item
     property bool active: true
     property bool paused: false
+    property bool playbackSuspended: false
     readonly property bool _playbackEnabled: root.active && !root.paused && !!root.item.autoplay
 
     function _syncPlayback() {
         const player = mediaView.mediaItem;
         if (!player) return;
+        if (root.playbackSuspended && root._playbackEnabled) return;
         if (mediaView.videoItem) {
             if (root._playbackEnabled) player.play();
             else player.pause();
@@ -45,6 +47,7 @@ Item {
         media: root.media
         fillMode: Image.PreserveAspectFit
         autoPlay: root._playbackEnabled
+        playbackSuspended: root.playbackSuspended
         loops: root.item.loop ? -1 : 1
         page: root.item.pageNumber || 1
         onMediaItemChanged: Qt.callLater(root._syncPlayback)

@@ -25,11 +25,13 @@ Item {
     property var  slide: null
     property bool active: true
     property bool paused: false
+    property bool playbackSuspended: false
     readonly property bool _playbackEnabled: tmpl.active && !tmpl.paused && (!tmpl._rec || tmpl._rec.autoplay !== false)
 
     function _syncPlayback() {
         const player = mv.mediaItem;
         if (!player) return;
+        if (tmpl.playbackSuspended && tmpl._playbackEnabled) return;
         if (mv.videoItem) {
             if (tmpl._playbackEnabled) player.play();
             else player.pause();
@@ -54,6 +56,7 @@ Item {
         media: tmpl._media
         fillMode: tmpl._fill
         autoPlay: tmpl._playbackEnabled
+        playbackSuspended: tmpl.playbackSuspended
         onMediaItemChanged: Qt.callLater(tmpl._syncPlayback)
         onMediaLoaded: tmpl._syncPlayback()
         // Qt 6.12 AnimatedImage treats zero loops as disabled playback.

@@ -57,6 +57,61 @@ Item {
     property int loops: 1
     // auto play time based media
     property bool autoPlay: true
+    // Temporary host suspension preserves transport state independently of autoplay.
+    property bool playbackSuspended: false
+    property var _suspendedBackend: null
+    property bool _resumeAfterSuspension: false
+    property bool _changingSuspension: false
+    function _holdPlayback() {
+        const backend = root.mediaItem;
+        if (!root.playbackSuspended || !backend || root._changingSuspension) return;
+        root._changingSuspension = true;
+        if ("playbackState" in backend) {
+            if (backend.playbackState === 1) {
+                root._resumeAfterSuspension = true;
+                backend.pause();
+            } else if (backend.playbackState === 0) {
+                root._resumeAfterSuspension = false;
+            }
+        } else if ("playing" in backend && "paused" in backend) {
+            if (!backend.playing) root._resumeAfterSuspension = false;
+            else if (!backend.paused) {
+                root._resumeAfterSuspension = true;
+                backend.paused = true;
+            }
+        }
+        root._changingSuspension = false;
+    }
+    onMediaItemChanged: {
+        root._suspendedBackend = root.mediaItem;
+        root._resumeAfterSuspension = false;
+        root._holdPlayback();
+    }
+    onPlaybackSuspendedChanged: {
+        if (playbackSuspended) {
+            root._suspendedBackend = root.mediaItem;
+            root._resumeAfterSuspension = false;
+            root._holdPlayback();
+        } else {
+            const backend = root._suspendedBackend;
+            const resume = root._resumeAfterSuspension;
+            root._resumeAfterSuspension = false;
+            root._suspendedBackend = null;
+            if (resume && backend && backend === root.mediaItem) {
+                if ("playbackState" in backend && backend.playbackState === 2) backend.play();
+                else if ("playing" in backend && backend.playing && "paused" in backend) backend.paused = false;
+            }
+        }
+    }
+    onAutoPlayChanged: if (playbackSuspended && !autoPlay) root._resumeAfterSuspension = false
+    Connections {
+        target: root.mediaItem
+        ignoreUnknownSignals: true
+        function onPlaybackStateChanged() { root._holdPlayback(); }
+        // AnimatedImage completes its timer update after emitting these signals.
+        function onPlayingChanged() { Qt.callLater(root._holdPlayback); }
+        function onPausedChanged() { Qt.callLater(root._holdPlayback); }
+    }
     // pdf page number
     property int page: 1
     // type of content to display. if empty, will determine based on file extension

@@ -30,6 +30,7 @@ Item {
     property bool ambient: false
     // Pauses slide media and ambient auto-advance; navigation and hotspots remain available.
     property bool paused: false
+    property bool playbackSuspended: false
     // typeUid → Component map for slide templates (app-supplied; uids are schema-specific).
     property var templateByTypeUid: ({})
     property Component fallbackTemplate: Component { DsMediaTemplate {} }
@@ -106,6 +107,7 @@ Item {
                 item.slide = Qt.binding(() => slot.slideData);
                 if ("active" in item) item.active = Qt.binding(() => pv.visible && slot.slotActive && !pv._dismissing);
                 if ("paused" in item) item.paused = Qt.binding(() => pv.paused);
+                if ("playbackSuspended" in item) item.playbackSuspended = Qt.binding(() => pv.playbackSuspended);
             }
         }
         Connections {
@@ -234,7 +236,7 @@ Item {
     }
     function _restartAdvance() {
         advanceTimer.stop();
-        if (!pv._dismissing && pv.ambient && pv.visible && !pv.paused && pv.count > 1 && pv.currentSlide)
+        if (!pv._dismissing && pv.ambient && pv.visible && !pv.paused && !pv.playbackSuspended && pv.count > 1 && pv.currentSlide)
             advanceTimer.start();
     }
     onAmbientChanged: pv._restartAdvance()

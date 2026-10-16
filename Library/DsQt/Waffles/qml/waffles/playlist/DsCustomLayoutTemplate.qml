@@ -8,11 +8,13 @@ Item {
     property var slide: null
     property bool active: true
     property bool paused: false
+    property bool playbackSuspended: false
     readonly property bool _playbackEnabled: root.active && !root.paused && !root.missingFrame
 
     function _syncPlayback() {
         const player = background.mediaItem;
         if (!player) return;
+        if (root.playbackSuspended && root._playbackEnabled) return;
         if (background.videoItem) {
             if (root._playbackEnabled) player.play();
             else player.pause();
@@ -71,6 +73,7 @@ Item {
 
         DsMediaViewer {
             id: background
+            playbackSuspended: root.playbackSuspended
             objectName: "background"
             anchors.fill: parent
             media: root.hasBackground ? root.layout.background : null
@@ -140,6 +143,7 @@ Item {
                 item: modelData
                 active: root.active && !root.missingFrame
                 paused: root.paused
+                playbackSuspended: root.playbackSuspended
                 x: modelData.x * canvas.width
                 y: modelData.y * canvas.height
                 width: modelData.w * canvas.width

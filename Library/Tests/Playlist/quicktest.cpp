@@ -816,6 +816,167 @@ private slots:
         QTRY_COMPARE(state(player), QMediaPlayer::PlayingState);
         QTRY_VERIFY(player->property("position").toInt() > position);
     }
+    void ambientRestoresStandalonePlayback_data() {
+        QTest::addColumn<int>("initialState");
+        QTest::newRow("playing") << int(QMediaPlayer::PlayingState);
+        QTest::newRow("paused") << int(QMediaPlayer::PausedState);
+        QTest::newRow("stopped") << int(QMediaPlayer::StoppedState);
+    }
+    void ambientRestoresStandalonePlayback() {
+        QFETCH(int,initialState);
+        createView("DsWaffleStage","({launcher:null,launcherButtonVisible:false,glassEnabled:false,playlistFadeMs:0})");
+        QVERIFY(view);
+        evaluate("view.openViewer({objectName:'foreground',model:{media:videoSlide('v',true).media}})");
+        auto foreground=visualChild(view.get(),"foreground"); QVERIFY(foreground);
+        auto media=foreground->property("mediaViewer").value<QObject *>(); QVERIFY(media);
+        QTRY_VERIFY_WITH_TIMEOUT(media->property("videoItem").value<QObject *>(),10000);
+        auto player=media->property("videoItem").value<QObject *>();
+        player->setProperty("volume",0);
+        QTRY_COMPARE_WITH_TIMEOUT(state(player),QMediaPlayer::PlayingState,10000);
+        QTRY_VERIFY(player->property("position").toInt()>100);
+        if(initialState!=QMediaPlayer::PlayingState)
+            QVERIFY(QMetaObject::invokeMethod(player,initialState==QMediaPlayer::PausedState?"pause":"stop"));
+        QTRY_COMPARE(state(player),initialState);
+        evaluate("view.showAmbient({ambient:true,slides:[]})");
+        QVERIFY(view->property("foregroundPlaybackSuspended").toBool());
+        QTRY_COMPARE(state(player),initialState==QMediaPlayer::PlayingState?int(QMediaPlayer::PausedState):initialState);
+        const auto position=player->property("position").toInt();
+        QTest::qWait(200);
+        QCOMPARE(player->property("position").toInt(),position);
+        // Replacing ambient must not briefly restore foreground playback.
+        QSignalSpy changes(player,SIGNAL(playbackStateChanged()));
+        QVERIFY(changes.isValid());
+        evaluate("view.showAmbient({ambient:true,slides:[]})");
+        QTest::qWait(100);
+        QCOMPARE(changes.count(),0);
+        evaluate("view.hideAmbient()");
+        QTRY_VERIFY(!view->property("ambientShown").toBool());
+        QTRY_COMPARE(state(player),initialState);
+        if(initialState!=QMediaPlayer::PlayingState) {
+            QTest::qWait(100);
+            QCOMPARE(player->property("position").toInt(),position);
+        }
+    }
+
+    void suspensionPreservesTemplatePlayback_data() {
+        QTest::addColumn<QString>("type");
+        QTest::addColumn<int>("initialState");
+        for(const QString &type:{"DsMediaTemplate","DsCustomLayoutTemplate"})
+            for(int state:{int(QMediaPlayer::PlayingState),int(QMediaPlayer::PausedState),int(QMediaPlayer::StoppedState)})
+                QTest::newRow(qPrintable(type+QString::number(state))) << type << state;
+    }
+    void suspensionPreservesTemplatePlayback() {
+        QFETCH(QString,type); QFETCH(int,initialState);
+        createView(type,type=="DsMediaTemplate"?"({slide:videoSlide('v',true)})":"({slide:layoutSlide()})");
+        QVERIFY(view);
+        QList<QObject *> players;
+        for(const char *name:type=="DsMediaTemplate"?QList<const char *>{"mv"}:QList<const char *>{"background","viewer"}) {
+            QTRY_VERIFY_WITH_TIMEOUT(video(name),10000);
+            auto player=video(name); player->setProperty("volume",0);
+            QTRY_COMPARE_WITH_TIMEOUT(state(player),QMediaPlayer::PlayingState,10000);
+            if(initialState!=QMediaPlayer::PlayingState)
+                QVERIFY(QMetaObject::invokeMethod(player,initialState==QMediaPlayer::PausedState?"pause":"stop"));
+            QTRY_COMPARE(state(player),initialState);
+            players.append(player);
+        }
+        view->setProperty("playbackSuspended",true);
+        for(auto player:players)
+            QTRY_COMPARE(state(player),initialState==QMediaPlayer::PlayingState?int(QMediaPlayer::PausedState):initialState);
+        view->setProperty("playbackSuspended",false);
+        for(auto player:players) QTRY_COMPARE(state(player),initialState);
+    }
+
+    void suspensionPreservesAnimatedFrame() {
+        createView("DsMediaTemplate","({slide:{media:{type:'image',filepath:imageUrl},record:{autoplay:true}}})");
+        QVERIFY(view);
+        auto media=visualChild(view.get(),"mv"); QVERIFY(media);
+        QTRY_VERIFY(media->property("mediaItem").value<QObject *>());
+        auto animation=media->property("mediaItem").value<QObject *>();
+        QTRY_VERIFY(animation->property("currentFrame").toInt()>0);
+        view->setProperty("playbackSuspended",true);
+        QTRY_VERIFY(animation->property("paused").toBool());
+        const int frame=animation->property("currentFrame").toInt();
+        QTest::qWait(200); QCOMPARE(animation->property("currentFrame").toInt(),frame);
+        view->setProperty("playbackSuspended",false);
+        QTRY_VERIFY(animation->property("currentFrame").toInt()!=frame);
+        animation->setProperty("paused",true);
+        view->setProperty("playbackSuspended",true);
+        view->setProperty("playbackSuspended",false);
+        QVERIFY(animation->property("paused").toBool());
+    }
+
+    void ambientSuspendsNewForegroundAndPlaylist() {
+        createView("DsWaffleStage","({launcher:null,launcherButtonVisible:false,glassEnabled:false,playlistFadeMs:0})");
+        QVERIFY(view);
+        evaluate("view.showAmbient({ambient:true,slides:[]}); view.openViewer({objectName:'foreground',model:{media:videoSlide('v',true).media}})");
+        auto foreground=visualChild(view.get(),"foreground"); QVERIFY(foreground);
+        auto media=foreground->property("mediaViewer").value<QObject *>(); QVERIFY(media);
+        QTRY_VERIFY_WITH_TIMEOUT(media->property("videoItem").value<QObject *>(),10000);
+        auto player=media->property("videoItem").value<QObject *>(); player->setProperty("volume",0);
+        QTRY_COMPARE_WITH_TIMEOUT(state(player),QMediaPlayer::PausedState,10000);
+        QTest::qWait(200); QCOMPARE(player->property("position").toInt(),0);
+        evaluate("view.openPlaylist({slides:[videoSlide('slide',true)],ambient:false})");
+        QTRY_VERIFY_WITH_TIMEOUT(video("mv"),10000);
+        auto slidePlayer=video("mv"); slidePlayer->setProperty("volume",0);
+        QTRY_COMPARE_WITH_TIMEOUT(state(slidePlayer),QMediaPlayer::PausedState,10000);
+        evaluate("view.hideAmbient()");
+        QTRY_VERIFY(!view->property("ambientShown").toBool());
+        QTRY_COMPARE(state(player),QMediaPlayer::PlayingState);
+        QTRY_COMPARE(state(slidePlayer),QMediaPlayer::PlayingState);
+    }
+
+    void ambientPreservesPlaylistPause_data() {
+        QTest::addColumn<bool>("initiallyPaused");
+        QTest::newRow("playing") << false;
+        QTest::newRow("paused") << true;
+    }
+    void ambientPreservesPlaylistPause() {
+        QFETCH(bool,initiallyPaused);
+        createView("DsWaffleStage","({launcher:null,launcherButtonVisible:false,glassEnabled:false,playlistFadeMs:0})");
+        QVERIFY(view);
+        evaluate("view.openPlaylist({slides:[videoSlide('slide',true)],ambient:false})");
+        auto playlist=view->property("activePlaylist").value<QObject *>(); QVERIFY(playlist);
+        QTRY_VERIFY_WITH_TIMEOUT(video("mv"),10000);
+        auto player=video("mv"); player->setProperty("volume",0);
+        QTRY_COMPARE_WITH_TIMEOUT(state(player),QMediaPlayer::PlayingState,10000);
+        playlist->setProperty("paused",initiallyPaused);
+        QTRY_COMPARE(state(player),initiallyPaused?QMediaPlayer::PausedState:QMediaPlayer::PlayingState);
+        evaluate("view.showAmbient({ambient:true,slides:[]})");
+        QTRY_COMPARE(state(player),QMediaPlayer::PausedState);
+        QCOMPARE(playlist->property("paused").toBool(),initiallyPaused);
+        evaluate("view.hideAmbient()");
+        QTRY_VERIFY(!view->property("ambientShown").toBool());
+        QCOMPARE(playlist->property("paused").toBool(),initiallyPaused);
+        QTRY_COMPARE(state(player),initiallyPaused?QMediaPlayer::PausedState:QMediaPlayer::PlayingState);
+    }
+
+    void pauseDuringSuspensionIsRespected() {
+        createView("DsMediaTemplate","({slide:videoSlide('v',true)})"); QVERIFY(view);
+        QTRY_VERIFY_WITH_TIMEOUT(video("mv"),10000);
+        auto player=video("mv"); player->setProperty("volume",0);
+        QTRY_COMPARE_WITH_TIMEOUT(state(player),QMediaPlayer::PlayingState,10000);
+        view->setProperty("playbackSuspended",true);
+        QTRY_COMPARE(state(player),QMediaPlayer::PausedState);
+        view->setProperty("paused",true);
+        QTest::qWait(50);
+        view->setProperty("playbackSuspended",false);
+        QTest::qWait(100);
+        QCOMPARE(state(player),QMediaPlayer::PausedState);
+        view->setProperty("paused",false);
+        QTRY_COMPARE(state(player),QMediaPlayer::PlayingState);
+    }
+
+    void failedAmbientDoesNotSuspendForeground() {
+        createView("DsWaffleStage","({launcher:null,launcherButtonVisible:false,glassEnabled:false})"); QVERIFY(view);
+        QQmlComponent invalidPlaylist(&engine);
+        invalidPlaylist.setData("import QtQuick\nItem { required property int missing }",QUrl());
+        QVERIFY(invalidPlaylist.isReady());
+        QVERIFY(view->setProperty("playlistViewer",QVariant::fromValue(&invalidPlaylist)));
+        evaluate("view.showAmbient({ambient:true,slides:[]})");
+        QVERIFY(!view->property("ambientShown").toBool());
+        QVERIFY(!view->property("foregroundPlaybackSuspended").toBool());
+    }
+
     void initiallyPausedMediaWaitsForResume() {
         createView("DsMediaTemplate", "({slide:videoSlide('video',true),paused:true})"); QVERIFY(view);
         QTRY_VERIFY_WITH_TIMEOUT(video("mv"), 10000);

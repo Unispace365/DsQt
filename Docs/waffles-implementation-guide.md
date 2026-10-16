@@ -409,6 +409,26 @@ hold interval. Web-page scripts and external capture feeds are not controlled
 by this media transport contract. Custom templates must implement their own
 `paused` behavior. See [playlists and transitions](waffles-tour/playlists.html).
 
+When `stage.showAmbient()` succeeds, the stage suspends foreground video and
+animated images until ambient has finished closing, including its wake-gesture
+shield. Media that was playing resumes from its paused position or frame; media
+already paused or stopped stays that way. Replacing the ambient playlist does
+not briefly resume foreground playback. Foreground media that loads while
+ambient is open is held until ambient closes. Ambient media itself remains free
+to play. A failed ambient creation does not suspend foreground playback.
+
+This uses a separate `playbackSuspended` property, preserving the playlist's
+user-controlled `paused` setting. `DsWaffleStage.foregroundPlaybackSuspended`
+exposes the current stage state. Stage-created viewers that expose
+`playbackSuspended` are bound automatically, including fullscreen viewers.
+`DsPlaylistViewer` forwards the property to loaded templates; built-in media
+and custom-layout templates forward it to every nested `DsMediaViewer`.
+Application-provided templates should expose a `playbackSuspended` boolean
+(default `false`) and forward it to their `DsMediaViewer` instances, or implement equivalent
+pause-and-restore behavior for their own backend. Do not overwrite the user's
+pause setting to implement this temporary suspension. Web-page scripts and
+external capture feeds still require an application-specific transport policy.
+
 ## 6. Add quick-menu actions and whiteboarding
 
 ### Add the standard Waffles menu

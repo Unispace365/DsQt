@@ -12,6 +12,7 @@ DsViewer {
     readonly property var config: configObj
 
     property DsWaffleStage stage: null
+    property bool playbackSuspended: stage ? stage.foregroundPlaybackSuspended : false
     //@brief this defines this objects default config.
     //the keys of theconfig map to the property of the TitledMediaViewers config object which is passed to controlSets.
     //that config object is filled with the values from your model. If you are using custom contolSets that
@@ -491,6 +492,7 @@ DsViewer {
                 media: root.config.media
                 fillMode: root.mediaFillMode
                 autoPlay: true
+                playbackSuspended: root.playbackSuspended
                 // Honour `media.loop` from the bridge media descriptor: when truthy, loop
                 // forever; otherwise play once (including Qt 6.12 AnimatedImage, with the
                 // viewer's KeepLastFrame policy holding the final frame on stop).
