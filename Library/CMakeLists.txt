@@ -85,7 +85,7 @@ find_package(tomlplusplus CONFIG REQUIRED)
 option(DSQT_BUILD_TESTS "Build and run DsQt unit tests" OFF)
 if(DSQT_BUILD_TESTS)
     enable_testing()
-    find_package(Qt6 REQUIRED COMPONENTS Test)
+    find_package(Qt6 REQUIRED COMPONENTS Test QuickTest)
 endif()
 
 #qt_standard_project_setup(REQUIRES 6.9)
@@ -153,6 +153,7 @@ cmake_path(NATIVE_PATH CMAKE_CURRENT_SOURCE_DIR DS_QMLLINT_ROOT)
 if(DSQT_BUILD_TESTS)
     add_subdirectory(Tests/Settings)
     add_subdirectory(Tests/Logging)
+    add_subdirectory(Tests/TouchEngine)
     add_subdirectory(Tests/BridgeTest)
     add_subdirectory(Tests/Effects)
     add_subdirectory(Tests/Qsys)
@@ -188,8 +189,6 @@ if(PROJECT_IS_TOP_LEVEL)
         Bridgeplugin
         Waffles
         Wafflesplugin
-        TouchEngine
-        TouchEngineplugin
         Touch
         Touchplugin
         Qsys
@@ -201,6 +200,27 @@ if(PROJECT_IS_TOP_LEVEL)
         LIBRARY    DESTINATION ${CMAKE_INSTALL_LIBDIR}/$<CONFIG>      # .so / .dylib
         ARCHIVE    DESTINATION ${CMAKE_INSTALL_LIBDIR}/$<CONFIG>      # .a / .lib
         RUNTIME    DESTINATION ${CMAKE_INSTALL_BINDIR}/$<CONFIG>      # .dll / executables
+    )
+
+    # TouchEngine is a static QML module. Qt generates additional object
+    # libraries for QML resources, the static plugin initializer, and shaders;
+    # all of them are part of the backing target's link interface and therefore
+    # have to be installed and exported with it.
+    install(TARGETS
+        TouchEngine
+        TouchEngineplugin
+        ${TouchEngineTargets}
+        EXPORT DsqtTouchEngineTargets
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/$<CONFIG>
+        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}/$<CONFIG>
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}/$<CONFIG>
+        OBJECTS DESTINATION ${CMAKE_INSTALL_LIBDIR}/$<CONFIG>/objects
+    )
+
+    install(EXPORT DsqtTouchEngineTargets
+        FILE DsqtTouchEngineTargets.cmake
+        NAMESPACE Dsqt::
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/Dsqt
     )
 
     # Spout module (Windows only)
