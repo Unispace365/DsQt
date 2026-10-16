@@ -2112,6 +2112,50 @@ private slots:
         QCOMPARE(fullscreen->z(), fullscreenZ);
     }
 
+    void pdfZoomCannotShrinkBelowFit() {
+        if (!pdfAvailable) QSKIP(qPrintable(pdfUnavailableReason));
+        createMediaScene(); QVERIFY(view); QVERIFY(pdfPageView());
+        auto viewer = visualChild(view.get(), "pdfViewer");
+        viewer->setProperty("contentLocked", true);
+        auto pdf = pdfPageView();
+        const qreal minimum = pdf->property("minimumRenderScale").toReal();
+        QVERIFY(minimum > 0);
+        pdf->setProperty("renderScale", minimum / 2);
+        QCOMPARE(pdf->property("renderScale").toReal(), minimum);
+        auto sequence = QTest::touchEvent(&window, touchDevice, false);
+        const QPoint center(320, 220);
+        sequence.press(0, center-QPoint(90,0), &window).press(1, center+QPoint(90,0), &window).commit();
+        for (int distance : {70,50,30,10}) {
+            sequence.move(0,center-QPoint(distance,0),&window).move(1,center+QPoint(distance,0),&window).commit();
+            QTest::qWait(30);
+            QVERIFY(pdf->property("renderScale").toReal() >= minimum - 0.001);
+        }
+        sequence.release(0,center-QPoint(10,0),&window).release(1,center+QPoint(10,0),&window).commit();
+        QVERIFY(pdf->property("renderScale").toReal() >= minimum - 0.001);
+        pinchAt(center);
+        QVERIFY(pdf->property("renderScale").toReal() > minimum);
+    }
+
+    void lockedPdfFrameBlocksInput_data() {
+        QTest::addColumn<bool>("touch");
+        QTest::newRow("mouse") << false;
+        QTest::newRow("touch") << true;
+    }
+    void lockedPdfFrameBlocksInput() {
+        QFETCH(bool, touch);
+        if (!pdfAvailable) QSKIP(qPrintable(pdfUnavailableReason));
+        createMediaScene(); QVERIFY(view); QVERIFY(pdfPageView());
+        auto viewer = visualChild(view.get(), "pdfViewer");
+        viewer->setProperty("contentLocked", true);
+        // The portrait page is fitted inside a wider content frame.
+        const QPoint margin(90,240);
+        clickAt(margin,touch);
+        dragAt(margin,QPoint(25,20),touch);
+        wheelAt(margin);
+        QCOMPARE(view->property("underneath").toInt(),0);
+        QCOMPARE(view->property("underneathWheels").toInt(),0);
+    }
+
     void customMenuSurvivesHostReattachment() {
         createQuickMenuHostScene(true); QVERIFY(view);
         evaluate("view.host.openAt(Qt.point(320,240))");
