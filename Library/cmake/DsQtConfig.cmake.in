@@ -25,6 +25,8 @@ find_dependency(Qt6 6.9
         Multimedia
         MultimediaWidgets
         Sql
+        Network
+        WebSockets
 )
 
 # tomlplusplus is a PRIVATE implementation detail of Dsqt::Core, but on Windows
@@ -141,6 +143,14 @@ set(DSQT_TOUCH_NO_PRIVATE_REINJECT @DSQT_TOUCH_NO_PRIVATE_REINJECT@)
 set_target_properties(Dsqt::Touch PROPERTIES
     INTERFACE_INCLUDE_DIRECTORIES "${_DSQT_INCLUDE_DIR};${_DSQT_INCLUDE_DIR}/touch"
     INTERFACE_LINK_LIBRARIES      "${_dsqt_touch_iface_libs}"
+)
+
+# Create Qsys targets
+_dsqt_create_imported_target(Qsys)
+_dsqt_create_plugin_target(Qsys)
+set_target_properties(Dsqt::Qsys PROPERTIES
+    INTERFACE_INCLUDE_DIRECTORIES "${_DSQT_INCLUDE_DIR};${_DSQT_INCLUDE_DIR}/qsys"
+    INTERFACE_LINK_LIBRARIES "Dsqt::Core;Qt6::Qml;Qt6::Network;Qt6::WebSockets;Dsqt::Qsysplugin"
 )
 
 # The static TouchEngine module contains the Vulkan backend, so its loader is a
@@ -301,7 +311,7 @@ endif()
 # consumers should see only the targets they requested.
 if(NOT Dsqt_FIND_COMPONENTS AND NOT TARGET Dsqt::Dsqt)
     add_library(Dsqt::Dsqt INTERFACE IMPORTED)
-    set(_dsqt_umbrella_libs "Dsqt::Core;Dsqt::Bridge;Dsqt::Waffles;Dsqt::TouchEngine;Dsqt::Touch")
+    set(_dsqt_umbrella_libs "Dsqt::Core;Dsqt::Bridge;Dsqt::Waffles;Dsqt::TouchEngine;Dsqt::Touch;Dsqt::Qsys")
     if(WIN32)
         list(APPEND _dsqt_umbrella_libs "Dsqt::Spout")
     endif()
@@ -313,7 +323,7 @@ endif()
 # ----------------------------------------------------------------------
 # Define the set of known/valid component names
 # ----------------------------------------------------------------------
-set(_Dsqt_known_components Core Bridge Waffles TouchEngine Spout Touch)
+set(_Dsqt_known_components Core Bridge Waffles TouchEngine Spout Touch Qsys)
 
 # ----------------------------------------------------------------------
 # Check requested components (from find_package(Dsqt COMPONENTS ...))

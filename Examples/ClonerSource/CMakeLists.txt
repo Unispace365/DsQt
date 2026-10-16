@@ -77,7 +77,7 @@ find_package(Qt6 6.9 REQUIRED COMPONENTS Core Quick QuickControls2 Multimedia Gu
 qt_standard_project_setup(REQUIRES 6.9)
 
 # Find Dsqt from installed package (CMAKE_PREFIX_PATH set via CMakePresets.json)
-set(_dsqt_components Core Bridge Waffles)
+set(_dsqt_components Core Bridge Waffles Qsys)
 if(DS_APP_ENABLE_TOUCHENGINE)
     list(APPEND _dsqt_components TouchEngine)
 endif()
@@ -185,7 +185,7 @@ find_package(glm CONFIG REQUIRED)
 
 
 # Provide DSQT_HAS_<MODULE> compile definitions for plugin imports
-foreach(_comp Core Bridge Waffles)
+foreach(_comp Core Bridge Waffles Qsys)
     if(Dsqt_${_comp}_FOUND)
         target_compile_definitions(${DS_EXE_NAME} PRIVATE DSQT_HAS_${_comp})
     endif()
@@ -203,6 +203,7 @@ target_link_libraries(${DS_EXE_NAME}
         Dsqt::Core
         Dsqt::Bridge
         Dsqt::Waffles
+        Dsqt::Qsys
 
         Qt6::Concurrent
         Qt6::Core

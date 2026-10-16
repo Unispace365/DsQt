@@ -152,6 +152,8 @@ class DatabaseContent {
     const QStringList& eventUids() const { return m_events; }
     /// Returns a list of record uids for all platform records.
     const QStringList& platformUids() const { return m_platforms; }
+    /// Returns a list of tag uids.
+    const QStringList& tagUids() const { return m_tags; }
 
     /// Returns all records.
     const DatabaseRecordHash& records() const { return m_records; }
@@ -161,6 +163,11 @@ class DatabaseContent {
     DatabaseRecordList events() const { return find(m_events); }
     /// Returns all platform records.
     DatabaseRecordList platforms() const { return find(m_platforms); }
+    /// Returns all tags.
+    DatabaseRecordList tags() const { return find(m_tags); }
+
+    /// Returns distinct tag uids assigned directly to a record or selected in its TAGS fields.
+    QStringList tagUidsForRecord(const QString& recordUid) const { return m_recordTags.value(recordUid); }
 
     /// Returns the ancestor uid chain for the given uid, walking up the tree by prepending each parent uid.
     /// Traversal stops if any record in the chain has 0 or more than 1 parent uid.
@@ -213,6 +220,11 @@ class DatabaseContent {
     friend class DatabaseTree;
     friend class DsBridgeSqlQuery;
 
+    void addRecordTag(const QString& recordUid, const QString& tagUid) {
+        auto& tags = m_recordTags[recordUid];
+        if (!tags.contains(tagUid)) tags.append(tagUid);
+    }
+
     /// Links all records to their parents and all parents to their children.
     void buildTree() {
         // Clear existing list of children.
@@ -251,6 +263,8 @@ class DatabaseContent {
     QStringList        m_content;   // All content records.
     QStringList        m_platforms; // All platform records.
     QStringList        m_events;    // All event records.
+    QStringList        m_tags;      // All tags.
+    QHash<QString, QStringList> m_recordTags; // Record uid -> distinct tags from both assignment sources.
     QStringList        m_sorted;    // All records sorted in order.
     QStringList        m_queue;     // All records in the order in which they need to be processed.
 };
