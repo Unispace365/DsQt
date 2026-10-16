@@ -8,10 +8,13 @@ echo[
 echo Usage: build_and_install.bat [preset] [-test] [-tools] [-no-configure] [-no-install] [-clean]
 echo                              [-hard-clean] [-rebuild] [-hard-rebuild] [-qt ^<ver^|path^>]
 echo                              [-no-private-reinject] [-fresh]
+echo        build_and_install.bat -vcpkg -qt ^<ver^|path^> [-modules Core,Qsys]
 echo[
 echo   preset              : CMake configure preset name ^(default: ninja^)
 echo   -test               : Enable and run unit tests after the Debug build
 echo   -tools              : Build and install ProjectCloner + ClonerSource template
+echo   -vcpkg              : Build a local Debug/Release source package and binary cache
+echo                         Requires -qt; does not update vcpkg or publish a registry
 echo   -fresh / --fresh    : Reset the CMake cache before configuring, keeping build outputs
 echo   -no-configure       : Skip the CMake configure step ^(for fast incremental builds^)
 echo   -no-install         : Skip the install steps entirely
@@ -29,6 +32,7 @@ if defined PRINT_HELP (
 
 :script_start
 
+set "DSQT_SCRIPT_DIR=%~dp0"
 REM vcvarsall can replace VCPKG_ROOT with Visual Studio's bundled vcpkg.
 REM Preserve the dependency installation selected by the caller.
 set "DSQT_REQUESTED_VCPKG_ROOT=%VCPKG_ROOT%"
@@ -50,10 +54,16 @@ set BUILD_TOOLS=0
 set PRINT_HELP=0
 set QT_PATH=
 set NO_PRIVATE_REINJECT=0
+set BUILD_VCPKG=0
+set DSQT_MODULES_REQUESTED=0
+set "DSQT_PACKAGE_MODULES=Core,Bridge,Waffles,Qsys,Spout,Touch,TouchEngine"
+set EXPLICIT_PRESET=0
 
 :: Parse arguments — accept preset and flags in any order
 :parse_args
 if "%~1"=="" goto :args_done
+if /i "%~1"=="-modules" (set DSQT_MODULES_REQUESTED=1& set "DSQT_PACKAGE_MODULES=%~2"& shift & shift & goto :parse_args)
+if /i "%~1"=="-vcpkg"        (set BUILD_VCPKG=1& shift & goto :parse_args)
 if /i "%~1"=="-fresh"         (set FRESH_CONFIGURE=1& shift & goto :parse_args)
 if /i "%~1"=="--fresh"        (set FRESH_CONFIGURE=1& shift & goto :parse_args)
 if /i "%~1"=="/fresh"         (set FRESH_CONFIGURE=1& shift & goto :parse_args)
@@ -82,12 +92,33 @@ if /i "%~1"=="/h"            (set PRINT_HELP=1& shift & goto :parse_args)
 if /i "%~1"=="-?"            (set PRINT_HELP=1& shift & goto :parse_args)
 if /i "%~1"=="/?"            (set PRINT_HELP=1& shift & goto :parse_args)
 set PRESET=%~1
+set EXPLICIT_PRESET=1
 shift
 goto :parse_args
 :args_done
 
 if !PRINT_HELP!==1 (
     goto :usage
+)
+
+if !BUILD_VCPKG!==0 if !DSQT_MODULES_REQUESTED!==1 (
+    echo ERROR: -modules requires -vcpkg.
+    exit /b 2
+)
+
+if !BUILD_VCPKG!==1 (
+    if not defined QT_PATH (
+        echo ERROR: -vcpkg requires -qt, for example: -vcpkg -qt 6.12.0
+        exit /b 2
+    )
+    for %%F in (EXPLICIT_PRESET RUN_TESTS BUILD_TOOLS FRESH_CONFIGURE SKIP_CONFIGURE SKIP_INSTALL DO_CLEAN DO_HARD_CLEAN DO_REBUILD DO_HARD_REBUILD NO_PRIVATE_REINJECT) do (
+        if !%%F!==1 (
+            echo ERROR: -vcpkg supports only -qt and -modules. Run ordinary build/test/tool options separately.
+            exit /b 2
+        )
+    )
+    powershell -NoProfile -ExecutionPolicy Bypass -File "!DSQT_SCRIPT_DIR!vcpkg\Build-DsqtPackage.ps1" -Qt "!QT_PATH!" -Modules "!DSQT_PACKAGE_MODULES!"
+    exit /b !errorlevel!
 )
 
 if !FRESH_CONFIGURE!==1 if !SKIP_CONFIGURE!==1 (

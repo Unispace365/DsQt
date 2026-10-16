@@ -23,3 +23,14 @@ Windows executables that use TouchEngine should call:
 Note: dsqt is compiled against the Qt kit named by your triplet's
 DSQT_QT_VERSION. Building with a different Qt kit means selecting a
 different triplet.
+
+To choose modules explicitly, disable default features in the application manifest:
+
+    { "name": "dsqt", "default-features": false, "features": ["qsys"] }
+
+Core is always included. Optional features are bridge, waffles, qsys, spout,
+touch and touchengine. The default feature set preserves the full package.
+Waffles does not require Bridge; add bridge for CMS content integration.
+Request only the same components in find_package(Dsqt COMPONENTS ...).
+ProjectCloner writes these selections and the package version pin for you.
+Core in this preview requires Qt 6.12, even when Waffles is disabled.

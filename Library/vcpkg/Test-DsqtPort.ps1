@@ -22,7 +22,7 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 if ($CacheTest -and $FromRemote) { throw 'Use working-tree mode for -CacheTest; remote mode deliberately bypasses cache reads.' }
-if ([version]$QtVersion -lt [version]'6.12.0') { throw 'Waffles requires Qt 6.12 or newer.' }
+if ([version]$QtVersion -lt [version]'6.12.0') { throw 'This DsQt Core requires Qt 6.12 or newer.' }
 if (-not $VcpkgRoot) { throw 'Set VCPKG_ROOT or pass -VcpkgRoot.' }
 $vcpkg = Join-Path $VcpkgRoot 'vcpkg.exe'
 if (!(Test-Path -LiteralPath $vcpkg)) { throw "Missing vcpkg: $vcpkg" }
@@ -57,6 +57,7 @@ function Reset-WorkDirectory([string] $Name) {
 }
 $overlay = Reset-WorkDirectory 'overlay/dsqt'
 Copy-Item -Path (Join-Path $PSScriptRoot 'port/*') -Destination $overlay
+Copy-Item -LiteralPath (Join-Path $PSScriptRoot '../dsqt-modules.json') -Destination $overlay
 $portfile = Join-Path $overlay 'portfile.cmake'
 $text = Get-Content -LiteralPath $portfile -Raw -Encoding UTF8
 if ($FromRemote) {

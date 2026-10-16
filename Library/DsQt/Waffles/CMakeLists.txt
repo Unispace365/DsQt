@@ -34,6 +34,7 @@ qt_add_qml_module(Waffles
     URI Dsqt.Waffles
     VERSION 1.0
     OUTPUT_TARGETS WafflesTargets
+    DEPENDENCIES TARGET Core
     SOURCES
         capture/dsCaptureSource.h
         capture/dsCaptureSource.cpp
@@ -150,6 +151,7 @@ qt_add_qml_module(Waffles
 set(WafflesTargets ${WafflesTargets} PARENT_SCOPE)
 
 target_link_libraries(Waffles PUBLIC
+    Dsqt::Core
     Qt6::Core 
     Qt6::Quick 
     Qt6::Gui 

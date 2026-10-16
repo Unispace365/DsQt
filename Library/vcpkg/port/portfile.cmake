@@ -85,9 +85,19 @@ vcpkg_from_git(
 # ─────────────────────────────────────────────────────────────────────────────
 # Build
 # ─────────────────────────────────────────────────────────────────────────────
+vcpkg_check_features(OUT_FEATURE_OPTIONS DSQT_FEATURE_OPTIONS
+    FEATURES
+        bridge DSQT_BUILD_Bridge
+        waffles DSQT_BUILD_Waffles
+        qsys DSQT_BUILD_Qsys
+        spout DSQT_BUILD_Spout
+        touch DSQT_BUILD_Touch
+        touchengine DSQT_BUILD_TouchEngine)
+
 vcpkg_cmake_configure(
     SOURCE_PATH "${SOURCE_PATH}/Library"
     OPTIONS
+        ${DSQT_FEATURE_OPTIONS}
         # vcpkg builds one configuration per prefix, so drop the per-config
         # lib/Debug + lib/Release subdirectories DsQt uses by default.
         -DDSQT_INSTALL_CONFIG_SUBDIR=OFF
