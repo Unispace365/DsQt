@@ -71,6 +71,7 @@ cmake/_deps/
 
 cmake/dsqtimportpath.h
 .vs/
+.vscode/
 .qmlls.ini
 .qmllint.ini
 
