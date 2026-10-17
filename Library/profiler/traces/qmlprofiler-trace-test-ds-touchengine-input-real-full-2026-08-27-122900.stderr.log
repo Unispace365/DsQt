@@ -1,0 +1,22 @@
+QML debugging is enabled. Only use this in a safe environment.
+QML Debugger: Connecting to socket C:/Users/Aubrey Francois/AppData/Local/Temp/qmlprofiler.hJtTtT...
+Starting TouchEngine texture-input test with QSG_RHI_BACKEND= vulkan tox= C:/dev/DsQt/Library/Tests/TouchEngine/fixtures/texture_input_roundtrip.tox benchmark= 11520x2160
+Benchmark texture geometry: physical=11520x2160 logical=4608.00x864.00 DPR=2.50
+TouchEngine state: waitingForRenderer
+TouchEngine graphics API: vulkan
+TouchEngine state: idle
+TouchEngine state: configuring
+dsqt.touchengine.core: instance event 1 result= 0 "Success" state= "configuring" hasFile= true
+dsqt.touchengine.core: configured TouchDesigner path= "C:\\Program Files\\Derivative\\TouchDesigner"
+TouchEngine state: loading
+dsqt.touchengine.core: instance event 2 result= 0 "Success" state= "loading" hasFile= true
+TouchEngine state: ready
+Discovered texture links: input= op/input output= op/output
+before large-texture signature passed; artifact: C:/dev/DsQt/Library/build/qml-profile/Tests/TouchEngine/artifacts/input-performance/vulkan-full-2026-08-27-122900/touchengine-input-performance-vulkan-before-11520x2160.png
+Large-texture warm-up completed: 58 frames in 2.00 seconds
+after large-texture signature passed; artifact: C:/dev/DsQt/Library/build/qml-profile/Tests/TouchEngine/artifacts/input-performance/vulkan-full-2026-08-27-122900/touchengine-input-performance-vulkan-after-11520x2160.png
+TouchEngine input performance: backend=vulkan size=11520x2160 TE=30.43 FPS Qt=60.03 FPS CPU=1.980 ms GPU=1.919 ms dropped=178 peak-TE-CPU=2239.7 MiB peak-TE-GPU=233.6 MiB input-payload=2.82 GiB/s report=C:/dev/DsQt/Library/build/qml-profile/Tests/TouchEngine/artifacts/input-performance/vulkan-full-2026-08-27-122900/touchengine-input-performance-vulkan-11520x2160.json
+dsqt.touchengine.core: begin unload hasFile= true componentLoaded= true inFrame= false retainPendingLoad= false
+dsqt.touchengine.core: instance event 3 result= 0 "Success" state= "unloading" hasFile= true
+TouchEngine state: unloading
+TouchEngine state: idle

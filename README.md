@@ -22,6 +22,8 @@ and [consolidated implementation guide](Docs/waffles-implementation-guide.md).
 The [Source Tour](Docs/waffles-tour/index.html) covers individual components;
 open its HTML locally for the styled walkthrough.
 
+- [DsMultiEffect: alpha masking, edge fades, rounded corners, and adding effects](Docs/articles/multieffect.md)
+
 ## Getting Started
 
 > This version of DsQt has been built and is targeted at Windows. We hope to have Linux and Apple builds.
@@ -263,6 +265,7 @@ For detailed documentation, see the articles in [Docs/articles/](Docs/articles/)
 8. [Waffles Implementation Guide](Docs/waffles-implementation-guide.md) - Build, content routing, presentations, quick menu, whiteboard, settings, and validation
 9. [Waffles Whiteboard](Docs/articles/whiteboard.md) - Drawing API, controls, lifecycle, and PNG export
 10. [Q-Sys Integration](Docs/articles/qsys_usage.md) - Engine settings, QML/C++ updates, and commands through the Elevate plugin
+11. [TouchEngine Rewrite and Multi-Backend Stabilization](Docs/articles/touchengine_rewrite_and_backend_stabilization.html) - Architecture, migration, diagnostics, testing, and graphics-backend stabilization
 
 ## Generating documentation
 

@@ -24,6 +24,22 @@
           "features": []
         }
       ]
+    },
+    "touchengine": {
+      "description": "Dependencies required by the TouchEngine integration",
+      "dependencies": [
+        {
+          "name": "vulkan"
+        }
+      ]
+    },
+    "spout": {
+      "description": "Dependencies required by the Spout integration",
+      "dependencies": [
+        {
+          "name": "vulkan"
+        }
+      ]
     }
   },
   "dependencies": [

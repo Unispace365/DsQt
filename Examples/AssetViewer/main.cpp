@@ -12,11 +12,6 @@
 #include <dsReloadUrlInterceptor.h>
 
 #include <QQuickWindow>
-#ifdef DSQT_HAS_TouchEngine
-#include "dsQmlTouchEngineManager.h"
-#include "dsQmlTouchEngineInstance.h"
-#include "dsQmlTouchEngineTextureOutputView.h"
-#endif
 
 // Import statically linked Dsqt QML plugins
 #ifdef DSQT_HAS_Core
@@ -139,20 +134,6 @@ int main(int argc, char *argv[])
 
     auto mainQml = engine.getAppSettings()->getOr<QString>("app.mainView","Main");
 
-    QObject::connect(&engine,&QQmlApplicationEngine::objectCreated,&app,[mainQml](QObject *obj, const QUrl &objUrl){
-        auto checkFile = objUrl.fileName().replace(".qml","");
-        if(checkFile != mainQml){
-            qDebug()<<checkFile<<" != "<<mainQml;
-            return;
-        }
-
-        // Initialize TouchEngine graphics after window is created
-#ifdef DSQT_HAS_TouchEngine
-        if (auto* window = qobject_cast<QQuickWindow*>(obj)) {
-            DsQmlTouchEngineManager::initializeFromWindow(window);
-        }
-#endif
-    },Qt::DirectConnection);
 
 
     engine.loadFromModule("AssetViewer", mainQml);

@@ -89,7 +89,7 @@ _deps
 CMakeUserPresets.json
 
 #include Touchengine.dll
-!Library/Dsqt/TouchEngine/TouchEngine/bin/TouchEngine.dll
+!Library/DsQt/TouchEngine/sdk/bin/TouchEngine.dll
 .claude/settings.local.json
 Tools/ProjectCloner/.qtcreator
 Examples/ClonerSource/.qtcreator
@@ -102,3 +102,5 @@ build_log.txt
 build_err.txt
 _build.log
 _build.log.err
+
+.tmp.driveupload

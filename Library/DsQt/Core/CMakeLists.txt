@@ -6,7 +6,7 @@ configure_file(
 )
 
 # DsQuickMenuSegment uses the Qt 6.12 Canvas2D QML technology preview.
-find_package(Qt6 6.12 REQUIRED COMPONENTS CanvasPainter)
+find_package(Qt6 6.12 REQUIRED COMPONENTS CanvasPainter ShaderTools)
 qt_standard_project_setup(REQUIRES 6.12)
 
 add_library(Core)
@@ -27,6 +27,7 @@ qt_add_qml_module(Core
         qml/DsCrossFadingLoader.qml
         qml/DsFitView.qml
         qml/DsLoader.qml
+        qml/DsMultiEffect.qml
         qml/DsShortcut.qml
         qml/DsScaleLoader.qml
         qml/DsTextFileViewer.qml
@@ -105,6 +106,20 @@ qt_add_qml_module(Core
         SOURCES core/dsQmlAppHost.h core/dsQmlAppHost.cpp
 )
 
+# qsb tracks shader changes and generates all of Qt Quick's usual RHI variants.
+qt_add_shaders(Core "dsqt_core_effects"
+    PREFIX
+        "/dsqt/core"
+    FILES
+        shaders/dsMultiEffect.frag
+)
+
+# Keep the shader in the QML module resource too. The generated plugin retains
+# that resource when consumers link the installed static Core archives.
+qt_target_qml_sources(Core
+    RESOURCES
+        "${CMAKE_CURRENT_BINARY_DIR}/.qsb/shaders/dsMultiEffect.frag.qsb"
+)
 set(CoreTargets ${CoreTargets} PARENT_SCOPE)
 
 target_link_libraries(Core PUBLIC 

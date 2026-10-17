@@ -6,9 +6,224 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonArray>
+#include <QLibraryInfo>
+#include <QMap>
+#include <QProcess>
 #include <QRegularExpression>
 #include <QVersionNumber>
 #include <QSaveFile>
+#include <QStandardPaths>
+
+namespace {
+
+struct VisualStudioInstallation
+{
+    QString generator;
+    QString displayName;
+    QString presetPrefix;
+    QString installationPath;
+
+    bool isValid() const
+    {
+        return !generator.isEmpty() && !installationPath.isEmpty();
+    }
+};
+
+QString normalizedExistingPath(const QString &path)
+{
+    const QFileInfo info(QDir::cleanPath(path));
+    if (!info.exists())
+        return {};
+
+    const QString canonicalPath = info.canonicalFilePath();
+    return QDir::fromNativeSeparators(canonicalPath.isEmpty() ? info.absoluteFilePath()
+                                                               : canonicalPath);
+}
+
+QMap<QString, QString> discoverQtInstallations()
+{
+    static const QRegularExpression versionRe(QStringLiteral(R"(^\d+\.\d+\.\d+$)"));
+    static const QRegularExpression msvcKitRe(QStringLiteral(R"(^msvc\d+_64$)"),
+                                               QRegularExpression::CaseInsensitiveOption);
+
+    QMap<QString, QString> installations;
+
+    const auto addQtPrefix = [&installations](const QString &path) {
+        const QString prefix = normalizedExistingPath(path);
+        if (prefix.isEmpty())
+            return;
+
+        const QDir prefixDir(prefix);
+        if (!QFileInfo::exists(prefixDir.filePath(QStringLiteral("lib/cmake/Qt6/Qt6Config.cmake")))
+            && !QFileInfo::exists(prefixDir.filePath(QStringLiteral("bin/qmake.exe")))) {
+            return;
+        }
+
+        QDir versionDir(prefixDir);
+        if (!versionDir.cdUp())
+            return;
+
+        const QString version = versionDir.dirName();
+        if (!versionRe.match(version).hasMatch())
+            return;
+
+        // Prefer the first location found. QLibraryInfo and environment-provided
+        // locations are scanned before conventional installation roots.
+        if (!installations.contains(version))
+            installations.insert(version, prefix);
+    };
+
+    const auto scanRoot = [&addQtPrefix](const QString &rootPath) {
+        QDir root(rootPath);
+        if (!root.exists())
+            return;
+
+        // QT_DIR/QTDIR commonly point directly at a compiler-specific Qt prefix.
+        addQtPrefix(root.absolutePath());
+
+        QStringList versionDirectories;
+        if (versionRe.match(root.dirName()).hasMatch()) {
+            versionDirectories.append(root.absolutePath());
+        } else {
+            const auto entries = root.entryList(QDir::Dirs | QDir::NoDotAndDotDot, QDir::Name);
+            for (const auto &entry : entries) {
+                if (versionRe.match(entry).hasMatch())
+                    versionDirectories.append(root.filePath(entry));
+            }
+        }
+
+        for (const auto &versionPath : versionDirectories) {
+            QDir versionDir(versionPath);
+            const auto kitDirectories = versionDir.entryList(QDir::Dirs | QDir::NoDotAndDotDot,
+                                                               QDir::Name);
+            for (const auto &kitDirectory : kitDirectories) {
+                if (msvcKitRe.match(kitDirectory).hasMatch())
+                    addQtPrefix(versionDir.filePath(kitDirectory));
+            }
+        }
+    };
+
+    addQtPrefix(QLibraryInfo::path(QLibraryInfo::PrefixPath));
+
+    for (const auto &variable : {"QT_DIR", "QTDIR"}) {
+        const QString path = qEnvironmentVariable(variable);
+        if (!path.isEmpty())
+            scanRoot(path);
+    }
+
+    scanRoot(QStringLiteral("C:/Qt"));
+    scanRoot(QStringLiteral("/mnt/c/Qt"));
+
+    return installations;
+}
+
+VisualStudioInstallation discoverVisualStudioInstallation()
+{
+    QString vswhere = QStandardPaths::findExecutable(QStringLiteral("vswhere.exe"));
+    if (vswhere.isEmpty()) {
+        const QStringList candidates = {
+            qEnvironmentVariable("ProgramFiles(x86)")
+                + QStringLiteral("/Microsoft Visual Studio/Installer/vswhere.exe"),
+            qEnvironmentVariable("ProgramFiles")
+                + QStringLiteral("/Microsoft Visual Studio/Installer/vswhere.exe")
+        };
+        for (const auto &candidate : candidates) {
+            vswhere = normalizedExistingPath(candidate);
+            if (!vswhere.isEmpty())
+                break;
+        }
+    }
+
+    if (vswhere.isEmpty())
+        return {};
+
+    QProcess process;
+    process.start(vswhere, {
+        QStringLiteral("-products"), QStringLiteral("*"),
+        QStringLiteral("-requires"),
+        QStringLiteral("Microsoft.VisualStudio.Component.VC.Tools.x86.x64"),
+        QStringLiteral("-format"), QStringLiteral("json"),
+        QStringLiteral("-utf8")
+    });
+    if (!process.waitForStarted(3000) || !process.waitForFinished(5000))
+        return {};
+
+    QJsonParseError parseError;
+    const auto document = QJsonDocument::fromJson(process.readAllStandardOutput(), &parseError);
+    if (parseError.error != QJsonParseError::NoError || !document.isArray())
+        return {};
+
+    VisualStudioInstallation selected;
+    int selectedMajor = 0;
+    for (const auto &value : document.array()) {
+        const auto instance = value.toObject();
+        const QString version = instance.value(QStringLiteral("installationVersion")).toString();
+        const int major = version.section('.', 0, 0).toInt();
+
+        QString year;
+        if (major == 16)
+            year = QStringLiteral("2019");
+        else if (major == 17)
+            year = QStringLiteral("2022");
+        else if (major == 18)
+            year = QStringLiteral("2026");
+        else
+            continue;
+
+        const QString installationPath = normalizedExistingPath(
+            instance.value(QStringLiteral("installationPath")).toString());
+        if (installationPath.isEmpty() || major <= selectedMajor)
+            continue;
+
+        selectedMajor = major;
+        selected.generator = QStringLiteral("Visual Studio %1 %2").arg(major).arg(year);
+        selected.displayName = QStringLiteral("VS%1").arg(year);
+        selected.presetPrefix = QStringLiteral("vs%1").arg(year);
+        selected.installationPath = installationPath;
+    }
+
+    return selected;
+}
+
+QString discoverNinjaExecutable(const VisualStudioInstallation &visualStudio,
+                                const QMap<QString, QString> &qtInstallations)
+{
+    QString ninja = QStandardPaths::findExecutable(QStringLiteral("ninja.exe"));
+    if (ninja.isEmpty())
+        ninja = QStandardPaths::findExecutable(QStringLiteral("ninja"));
+    if (!ninja.isEmpty())
+        return normalizedExistingPath(ninja);
+
+    QStringList candidates;
+    for (const auto &qtPrefixPath : qtInstallations) {
+        QDir qtPrefix(qtPrefixPath);
+        candidates.append(qtPrefix.absoluteFilePath(QStringLiteral("../../Tools/Ninja/ninja.exe")));
+    }
+    candidates.append(QStringLiteral("C:/Qt/Tools/Ninja/ninja.exe"));
+
+    for (const auto &variable : {"QT_DIR", "QTDIR"}) {
+        QDir location(qEnvironmentVariable(variable));
+        if (location.exists()) {
+            candidates.append(location.absoluteFilePath(QStringLiteral("Tools/Ninja/ninja.exe")));
+            candidates.append(location.absoluteFilePath(QStringLiteral("../../Tools/Ninja/ninja.exe")));
+        }
+    }
+
+    if (visualStudio.isValid()) {
+        candidates.append(QDir(visualStudio.installationPath).filePath(
+            QStringLiteral("Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe")));
+    }
+
+    for (const auto &candidate : candidates) {
+        ninja = normalizedExistingPath(candidate);
+        if (!ninja.isEmpty())
+            return ninja;
+    }
+
+    return {};
+}
+
+} // namespace
 
 Cloner::Cloner() {
     m_catalog = new PackageCatalog(this);
@@ -484,41 +699,8 @@ void Cloner::detectQtVersions()
 
 QStringList Cloner::scanForQtInstallations()
 {
-    QStringList found;
-    m_qtKits.clear();
-    static const QRegularExpression versionRe(QStringLiteral(R"(^\d+\.\d+\.\d+$)"));
-
-    QStringList searchRoots = {
-        QStringLiteral("C:/Qt"),
-        QStringLiteral("/mnt/c/Qt")
-    };
-
-    // Add QT_DIR from system environment to Qt search roots if it exists
-    const QString envQtDir = qEnvironmentVariable("QT_DIR");
-    if (!envQtDir.isEmpty())
-        searchRoots << envQtDir;
-
-    for (const auto &searchRoot : searchRoots) {
-        QDir rootDir(searchRoot);
-        if (!rootDir.exists())
-            continue;
-
-        auto entries = rootDir.entryList(QDir::Dirs | QDir::NoDotAndDotDot, QDir::Name);
-        for (const auto &entry : entries) {
-            if (!versionRe.match(entry).hasMatch())
-                continue;
-
-            QDir versionDir(rootDir.filePath(entry));
-            if (!versionDir.exists())
-                continue;
-
-            QDir msvcDir(versionDir.filePath(QStringLiteral("msvc2022_64")));
-            if (msvcDir.exists() && !found.contains(entry)) {
-                found.append(entry);
-                m_qtKits.insert(entry, msvcDir.absolutePath());
-            }
-        }
-    }
+    m_qtKits = discoverQtInstallations();
+    QStringList found = m_qtKits.keys();
 
     // Sort by version number
     std::sort(found.begin(), found.end(), [](const QString &a, const QString &b) {
@@ -553,16 +735,24 @@ QByteArray Cloner::generateCMakePresets(const QStringList &versions) const
 {
     const auto selection = m_packageSelection.isEmpty() ? m_catalog->selection() : m_packageSelection;
     const auto source = selection.value("source").toString();
+    const auto visualStudio = discoverVisualStudioInstallation();
+    const QString ninja = discoverNinjaExecutable(visualStudio, m_qtKits);
     QJsonArray configure, builds;
     configure.append(QJsonObject{{"name", "vcpkg-base"}, {"hidden", true},
         {"toolchainFile", "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"}});
+
     for (const auto &version : versions) {
         if (!selection.value("exactQt").toString().isEmpty() && version != selection.value("exactQt").toString()) continue;
         if (QVersionNumber::fromString(version) < QVersionNumber::fromString(selection.value("minimumQt").toString())) continue;
-        const QString kit = m_qtKits.value(version, "C:/Qt/" + version + "/msvc2022_64");
-        const QString name = source == "local" ? "ninja-vcpkg-local" : source == "registry" ? "ninja-vcpkg-" + version : "ninja-" + version;
-        QJsonObject cache{{"CMAKE_C_COMPILER", "cl.exe"}, {"CMAKE_CXX_COMPILER", "cl.exe"},
-            {"CMAKE_CXX_FLAGS_INIT", "/EHsc"}, {"CMAKE_CONFIGURATION_TYPES", "Debug;Release"}};
+        const QString kit = m_qtKits.value(version);
+        if (kit.isEmpty()) {
+            qWarning() << "Skipping Qt" << version << "because its installation path is unavailable";
+            continue;
+        }
+        const QString suffix = source == "local" ? "vcpkg-local"
+            : source == "registry" ? "vcpkg-" + version : version;
+        QJsonObject cache{{"CMAKE_CXX_FLAGS_INIT", "/EHsc"},
+            {"CMAKE_CONFIGURATION_TYPES", "Debug;Release"}};
         if (source == "registry") {
             cache.insert("DSQT_USE_REGISTRY_VCPKG", "ON");
             cache.insert("DSQT_REGISTRY_QT_VERSION", version);
@@ -574,11 +764,33 @@ QByteArray Cloner::generateCMakePresets(const QStringList &versions) const
         } else {
             cache.insert("CMAKE_PREFIX_PATH", kit + ";" + selection.value("path").toString());
         }
-        configure.append(QJsonObject{{"name", name}, {"displayName", "DsQt " + source + " · Qt " + version},
-            {"inherits", "vcpkg-base"}, {"generator", "Ninja Multi-Config"},
-            {"binaryDir", "${sourceDir}/build/" + name}, {"cacheVariables", cache}});
-        for (const auto &config : {QString("Debug"), QString("Release")})
-            builds.append(QJsonObject{{"name", name + "-" + config.toLower()}, {"configurePreset", name}, {"configuration", config}});
+
+        const auto appendPreset = [&](const QString &prefix, const QString &generator,
+                                      const QJsonObject &generatorCache, bool visualStudioPreset) {
+            const QString name = prefix + "-" + suffix;
+            QJsonObject preset{{"name", name},
+                {"displayName", prefix + " · DsQt " + source + " · Qt " + version},
+                {"inherits", "vcpkg-base"}, {"generator", generator},
+                {"binaryDir", "${sourceDir}/build/" + name}, {"cacheVariables", generatorCache}};
+            if (visualStudioPreset)
+                preset.insert("architecture", "x64");
+            configure.append(preset);
+            for (const auto &config : {QString("Debug"), QString("Release")})
+                builds.append(QJsonObject{{"name", name + "-" + config.toLower()},
+                    {"configurePreset", name}, {"configuration", config}});
+        };
+        if (visualStudio.isValid()) {
+            auto vsCache = cache;
+            vsCache.insert("CMAKE_GENERATOR_INSTANCE", visualStudio.installationPath);
+            appendPreset(visualStudio.presetPrefix, visualStudio.generator, vsCache, true);
+        }
+        if (!ninja.isEmpty()) {
+            auto ninjaCache = cache;
+            ninjaCache.insert("CMAKE_C_COMPILER", "cl.exe");
+            ninjaCache.insert("CMAKE_CXX_COMPILER", "cl.exe");
+            ninjaCache.insert("CMAKE_MAKE_PROGRAM", ninja);
+            appendPreset("ninja", "Ninja Multi-Config", ninjaCache, false);
+        }
         if (source == "local") break;
     }
     return QJsonDocument(QJsonObject{{"version", 6}, {"configurePresets", configure}, {"buildPresets", builds}}).toJson();

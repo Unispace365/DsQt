@@ -16,6 +16,18 @@ include(cmake/DsqtRegistryPackage.cmake)
 include(cmake/DsqtLocalPackage.cmake)
 include(FetchContent)
 
+# Module selection also supplies the consumer's Vulkan dependency. vcpkg
+# evaluates manifest features while project() initializes the toolchain.
+foreach(_module TouchEngine Spout)
+    if(_module IN_LIST DSQT_APP_MODULES)
+        string(TOLOWER "${_module}" _feature)
+        list(APPEND VCPKG_MANIFEST_FEATURES "${_feature}")
+    endif()
+endforeach()
+if(VCPKG_MANIFEST_FEATURES)
+    list(REMOVE_DUPLICATES VCPKG_MANIFEST_FEATURES)
+endif()
+
 #project info
 set(DS_APP_NAME ClonerSource)
 set(DS_EXE_NAME app${DS_APP_NAME})
@@ -187,11 +199,6 @@ find_package(tomlplusplus CONFIG REQUIRED)
 find_package(glm CONFIG REQUIRED)
 
 
-
-target_include_directories(${DS_EXE_NAME} PRIVATE
-    ${Dsqt_INCLUDES}
-    $<$<BOOL:${Dsqt_TouchEngine_FOUND}>:${TouchEngineQt_INCLUDES}>
-)
 
 # Provide DSQT_HAS_<MODULE> compile definitions for optional plugin imports
 foreach(_comp IN LISTS DSQT_APP_MODULES)

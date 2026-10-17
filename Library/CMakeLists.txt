@@ -196,7 +196,7 @@ find_package(tomlplusplus CONFIG REQUIRED)
 option(DSQT_BUILD_TESTS "Build and run DsQt unit tests" OFF)
 if(DSQT_BUILD_TESTS)
     enable_testing()
-    find_package(Qt6 REQUIRED COMPONENTS Test)
+    find_package(Qt6 REQUIRED COMPONENTS Test QuickTest)
 endif()
 
 foreach(_module Core Bridge Waffles TouchEngine Spout Touch Qsys)
@@ -260,6 +260,10 @@ if(DSQT_BUILD_TESTS)
     if("Qsys" IN_LIST DSQT_ENABLED_MODULES)
         add_subdirectory(Tests/Qsys)
     endif()
+    add_subdirectory(Tests/Effects)
+    if("TouchEngine" IN_LIST DSQT_ENABLED_MODULES)
+        add_subdirectory(Tests/TouchEngine)
+    endif()
 endif()
 
 # ----------------------------------------------------------------------
@@ -282,9 +286,8 @@ if(PROJECT_IS_TOP_LEVEL)
     include(CMakePackageConfigHelpers)
 
     # Install the built library targets
-    # Note: Qt's qt_add_qml_module creates internal OBJECT library targets that
-    # cannot be exported. We install the libraries without export and create
-    # imported targets manually in DsqtConfig.cmake.
+    # Most modules use manually imported archives. TouchEngine also exports
+    # its Qt-generated resource objects and static plugin initializer.
     # Backing targets keep their short CMake names; only the installed file is
     # prefixed (OUTPUT_NAME, set per module). Plugin targets are renamed
     # outright via PLUGIN_TARGET, because Qt writes the plugin target's name
@@ -296,10 +299,23 @@ if(PROJECT_IS_TOP_LEVEL)
             set(_target DsSpout)
             set(_qmltypes DsSpout)
         endif()
-        install(TARGETS ${_target} Dsqt${_module}plugin
-            LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}${DSQT_CONFIG_DIR}
-            ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}${DSQT_CONFIG_DIR}
-            RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}${DSQT_CONFIG_DIR})
+        if(_module STREQUAL "TouchEngine")
+            install(TARGETS TouchEngine DsqtTouchEngineplugin ${TouchEngineTargets}
+                EXPORT DsqtTouchEngineTargets
+                LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}${DSQT_CONFIG_DIR}
+                ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}${DSQT_CONFIG_DIR}
+                RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}${DSQT_CONFIG_DIR}
+                OBJECTS DESTINATION ${CMAKE_INSTALL_LIBDIR}${DSQT_CONFIG_DIR}/objects)
+            install(EXPORT DsqtTouchEngineTargets
+                FILE DsqtTouchEngineTargets.cmake
+                NAMESPACE Dsqt::
+                DESTINATION ${DSQT_INSTALL_CMAKEDIR})
+        else()
+            install(TARGETS ${_target} Dsqt${_module}plugin
+                LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}${DSQT_CONFIG_DIR}
+                ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}${DSQT_CONFIG_DIR}
+                RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}${DSQT_CONFIG_DIR})
+        endif()
         install(FILES
             "${QT_QML_OUTPUT_DIRECTORY}/Dsqt/${_module}/qmldir"
             "${QT_QML_OUTPUT_DIRECTORY}/Dsqt/${_module}/${_qmltypes}.qmltypes"
@@ -319,9 +335,8 @@ if(PROJECT_IS_TOP_LEVEL)
     install(FILES "${CMAKE_CURRENT_BINARY_DIR}/dsqt-modules.json" DESTINATION ${DSQT_INSTALL_CMAKEDIR})
 
     # Create the main Config.cmake file from our template
-    # Note: We don't use CMake's export() mechanism because Qt's qt_add_qml_module
-    # creates internal OBJECT library dependencies that can't be exported.
-    # Instead, DsqtConfig.cmake.in creates imported targets manually.
+    # The config creates the archive imports and loads TouchEngine's exported
+    # resource graph only when that module is requested.
     configure_package_config_file(
         "${CMAKE_CURRENT_SOURCE_DIR}/cmake/DsqtConfig.cmake.in"
         "${CMAKE_CURRENT_BINARY_DIR}/DsqtConfig.cmake"
