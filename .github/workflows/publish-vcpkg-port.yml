@@ -1,7 +1,7 @@
 name: Publish vcpkg Port
 
 # Manual by design: preparing a port does not publish it or create commits.
-# Preview versions come from the source manifest; main versions reuse a verified Build Library release.
+# Development and main versions both reuse a verified Build Library release.
 on:
   workflow_dispatch:
     inputs:
@@ -10,9 +10,8 @@ on:
         required: true
         type: string
       expected_version:
-        description: 'Preview version from the port, or main version from a successful Build Library release'
+        description: 'Exact development or main version from a successful Build Library release'
         required: true
-        default: '0.3.0-waffles.1'
         type: string
       publish:
         description: 'Commit and push the prepared port to the private registry'
@@ -49,7 +48,7 @@ jobs:
           import os, re
           assert re.fullmatch(r"[0-9a-f]{40}", os.environ["SOURCE_REF"]), "Use a full lowercase source commit SHA."
           number = r"(?:0|[1-9][0-9]*)"
-          assert re.fullmatch(rf"{number}\.{number}\.{number}(?:-waffles\.[1-9][0-9]*|\.[1-9][0-9]*)", os.environ["EXPECTED_VERSION"]), "Use a Waffles preview or four-part main release version."
+          assert re.fullmatch(rf"{number}\.{number}\.{number}(?:-dev\.[1-9][0-9]*\.[a-z0-9]+(?:-[a-z0-9]+)*|\.[1-9][0-9]*)", os.environ["EXPECTED_VERSION"]), "Use a dev.<build-number>.<branch-slug> or four-part main release version."
           if os.environ["PUBLISH"] == "true":
               for name in ("PORT_COMMIT_MESSAGE", "VERSION_COMMIT_MESSAGE"):
                   assert os.environ[name].strip(), f"Supply the approved {name}."
@@ -72,43 +71,58 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Verify main release build
-        if: ${{ !contains(inputs.expected_version, '-waffles.') }}
+      - name: Verify release build
         env:
           GH_TOKEN: ${{ github.token }}
         shell: python
         run: |
-          import json, os, pathlib, subprocess, urllib.request
+          import json, os, pathlib, re, subprocess, urllib.parse, urllib.request
           version = os.environ["EXPECTED_VERSION"]
           base = pathlib.Path("dsqt/Library/VERSION.txt").read_text().strip()
-          assert version.rsplit(".", 1)[0] == base, "Main release and Library base versions differ."
+          match = re.fullmatch(re.escape(base) + r"(?:-dev\.([1-9][0-9]*)\.([a-z0-9]+(?:-[a-z0-9]+)*)|\.([1-9][0-9]*))", version)
+          assert match, "Release and Library base versions differ."
+          prerelease = match[1] is not None
+          run_number = int(match[1] or match[3])
           sha = os.environ["SOURCE_REF"]
           tag = "refs/tags/library/v" + version
           tagged = subprocess.check_output(["git", "-C", "dsqt", "rev-parse", "--verify", tag + "^{commit}"], text=True).strip()
           assert tagged == sha, "The release tag does not identify the requested source commit."
-          subprocess.run(["git", "-C", "dsqt", "merge-base", "--is-ancestor", sha, "refs/remotes/origin/main"], check=True)
-          # The publisher's own run number is never used as a package version.
-          run_number = int(version.rsplit(".", 1)[1])
+          if not prerelease:
+              subprocess.run(["git", "-C", "dsqt", "merge-base", "--is-ancestor", sha, "refs/remotes/origin/main"], check=True)
+          def branch_slug(branch):
+              slug = re.sub(r"[^a-z0-9]+", "-", branch.lower()).strip("-")[:64].rstrip("-")
+              if not slug:
+                  return "branch"
+              return "branch-" + slug if slug.isdigit() else slug
+          # Use the original build's branch and run number, never the publisher's.
           page = 1
           verified = None
           while True:
+              query = urllib.parse.urlencode({"event": "push", "head_sha": sha, "per_page": 100, "page": page})
               url = (f"{os.environ['GITHUB_API_URL']}/repos/{os.environ['GITHUB_REPOSITORY']}"
-                     f"/actions/workflows/build-library.yml/runs?branch=main&event=push&head_sha={sha}&per_page=100&page={page}")
+                     f"/actions/workflows/build-library.yml/runs?{query}")
               request = urllib.request.Request(url, headers={"Authorization": "Bearer " + os.environ["GH_TOKEN"], "Accept": "application/vnd.github+json"})
               with urllib.request.urlopen(request, timeout=30) as response:
                   runs = json.load(response)["workflow_runs"]
-              verified = next((run for run in runs if run["run_number"] == run_number
-                               and run["head_sha"] == sha and run["head_branch"] == "main"
-                               and run["event"] == "push" and run["status"] == "completed"
-                               and run["conclusion"] == "success"), None)
+              for run in runs:
+                  branch = run.get("head_branch")
+                  if not branch or run["run_number"] != run_number or run["head_sha"] != sha:
+                      continue
+                  expected = (base + "." + str(run_number) if branch == "main"
+                              else base + "-dev." + str(run_number) + "." + branch_slug(branch))
+                  if (version == expected and run["event"] == "push" and run["status"] == "completed"
+                          and run["conclusion"] == "success"):
+                      verified = run
+                      break
               if verified or len(runs) < 100:
                   break
               page += 1
-          assert verified, "No successful main Build Library run matches this version and source commit."
+          assert verified, "No successful Build Library push run matches this version, branch and source commit."
           pathlib.Path("publication").mkdir(exist_ok=True)
           pathlib.Path("publication/build.json").write_text(json.dumps({"run-id": verified["id"], "run-number": run_number,
-              "source-commit": sha, "version": version, "tag": tag}, indent=2) + "\n")
-          print(f"Verified main release {version} from Build Library run {run_number}.")
+              "source-commit": sha, "source-branch": verified["head_branch"], "prerelease": prerelease,
+              "version": version, "tag": tag}, indent=2) + "\n")
+          print(f"Verified release {version} from Build Library run {run_number} on {verified['head_branch']}.")
 
       - name: Checkout registry
         uses: actions/checkout@v5
@@ -133,14 +147,10 @@ jobs:
           base = pathlib.Path("dsqt/Library/VERSION.txt").read_text().strip()
           assert manifest["name"] == "dsqt"
           assert not any(key in manifest for key in ("version-semver", "version-string", "version-date")), "Use the version field for preview and main releases."
-          assert re.fullmatch(re.escape(base) + r"-waffles\.[1-9][0-9]*", declared), "Library and port preview versions differ."
-          if "-waffles." in version:
-              assert version == declared, "Source manifest differs from the approved preview version."
-          else:
-              proof = json.loads(pathlib.Path("publication/build.json").read_text())
-              assert proof["version"] == version and proof["source-commit"] == os.environ["SOURCE_REF"], "Main build verification does not match this publication."
-              assert version == base + "." + str(proof["run-number"]), "Main release and Library base versions differ."
-          # The checkout retains its preview template. Only the published port is stamped.
+          assert declared == base, "Library and port base versions differ."
+          proof = json.loads(pathlib.Path("publication/build.json").read_text())
+          assert proof["version"] == version and proof["source-commit"] == os.environ["SOURCE_REF"], "Build verification does not match this publication."
+          # The checkout retains its base version. Only the published port is stamped.
           manifest["version"] = version
           sha = subprocess.check_output(["git", "-C", "dsqt", "rev-parse", "HEAD"], text=True).strip()
           assert sha == os.environ["SOURCE_REF"], "Checkout did not resolve to the approved source commit."
@@ -151,16 +161,17 @@ jobs:
           database = json.loads(database_path.read_text()) if database_path.exists() else {"versions": []}
           for entry in database["versions"]:
               values = [entry.get(key) for key in ("version", "version-semver", "version-string", "version-date")]
-              assert not (version in values and entry.get("port-version", 0) == revision), "This package version/revision already exists; bump the manifest. Published versions are never overwritten."
+              assert not (version in values and entry.get("port-version", 0) == revision), "This package version/revision already exists; select a new successful Build Library release. Published versions are never overwritten."
           baseline_path = registry / "versions/baseline.json"
           baseline = json.loads(baseline_path.read_text()) if baseline_path.exists() else {"default": {}}
           current = baseline["default"].get("dsqt")
-          if current:
+          if proof["prerelease"]:
+              assert current, "Publish a main release first to establish the default registry version."
+          elif current:
               def version_key(value, port_revision):
-                  match = re.fullmatch(r"(\d+)\.(\d+)\.(\d+)(?:-waffles\.(\d+)|\.(\d+))?", value)
+                  match = re.fullmatch(r"([0-9]+(?:\.[0-9]+)*)(?:-([0-9A-Za-z.-]+))?", value)
                   assert match, f"Review the unsupported existing baseline version before publishing: {value}"
-                  core = tuple(map(int, match.group(1, 2, 3)))
-                  return (*core, 0 if match[4] else 1, int(match[4] or match[5] or 0), port_revision)
+                  return (tuple(map(int, match[1].split("."))), match[2] is None, port_revision)
               assert version_key(version, revision) > version_key(current["baseline"], current.get("port-version", 0)), "Publishing would move the default registry baseline backwards."
           destination = registry / "ports/dsqt"
           destination.mkdir(parents=True, exist_ok=True)
@@ -182,6 +193,8 @@ jobs:
           attributes.write_text(text, encoding="utf-8", newline="\n")
           pathlib.Path("publication").mkdir(exist_ok=True)
           details = {"package": "dsqt", "version": version, "port-version": revision,
+                     "prerelease": proof["prerelease"], "source-branch": proof["source-branch"],
+                     "default-version": current["baseline"] if proof["prerelease"] else version,
                      "source-commit": sha, "registry-parent": parent,
                      "port-commit-message": os.environ["PORT_COMMIT_MESSAGE"],
                      "version-commit-message": os.environ["VERSION_COMMIT_MESSAGE"]}
@@ -206,10 +219,14 @@ jobs:
           db_path = pathlib.Path("versions/d-/dsqt.json")
           db = json.loads(db_path.read_text()) if db_path.exists() else {"versions": []}
           db["versions"].insert(0, {"git-tree": os.environ["PORT_TREE"], "version": version, "port-version": revision})
-          baseline_path = pathlib.Path("versions/baseline.json")
-          baseline = json.loads(baseline_path.read_text()) if baseline_path.exists() else {"default": {}}
-          baseline["default"]["dsqt"] = {"baseline": version, "port-version": revision}
-          for path, value in ((db_path, db), (baseline_path, baseline)):
+          proof = json.loads(pathlib.Path("../publication/build.json").read_text())
+          files = [(db_path, db)]
+          if not proof["prerelease"]:
+              baseline_path = pathlib.Path("versions/baseline.json")
+              baseline = json.loads(baseline_path.read_text()) if baseline_path.exists() else {"default": {}}
+              baseline["default"]["dsqt"] = {"baseline": version, "port-version": revision}
+              files.append((baseline_path, baseline))
+          for path, value in files:
               path.parent.mkdir(parents=True, exist_ok=True)
               path.write_text(json.dumps(value, indent=2) + "\n", encoding="utf-8", newline="\n")
           PY
@@ -278,7 +295,7 @@ jobs:
             echo "Source commit: \`$SOURCE_REF\`."
             if [[ "$PUBLISH" == "true" ]]; then
               echo "Published registry baseline: \`$(git -C registry rev-parse HEAD)\`."
-              echo 'Review the dsqt-registry-consumer artifact and update ClonerSource and application baselines before consuming this release.'
+              echo 'Use the new registry commit and select this exact package version in ProjectCloner. Development packages do not change the default version.'
             else
               echo 'Prepared only. No commits were created and nothing was published.'
               echo 'Review the dsqt-registry-preview artifact, then supply the approved commit messages and enable publish.'

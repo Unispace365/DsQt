@@ -36,13 +36,20 @@ jobs:
         base = pathlib.Path("Library/VERSION.txt").read_text().strip()
         number = r"(?:0|[1-9][0-9]*)"
         assert re.fullmatch(rf"{number}\.{number}\.{number}", base), "Library/VERSION.txt must contain major.minor.patch."
-        manifest = json.loads(pathlib.Path("Library/vcpkg/port/vcpkg.json").read_text())
-        preview = manifest.get("version", "")
-        assert not any(key in manifest for key in ("version-semver", "version-string", "version-date")), "Use the version field."
-        assert re.fullmatch(re.escape(base) + r"-waffles\.[1-9][0-9]*", preview), "The port template must declare this Library version's Waffles preview."
+        for path in ("Library/vcpkg.json", "Library/vcpkg/port/vcpkg.json"):
+            manifest = json.loads(pathlib.Path(path).read_text())
+            assert not any(key in manifest for key in ("version-semver", "version-string", "version-date")), "Use the version field."
+            assert manifest.get("version") == base, f"{path} must contain the Library base version."
         assert re.fullmatch(r"[1-9][0-9]*", os.environ["BUILD_NUMBER"]), "Invalid Build Library run number."
-        prerelease = os.environ["SOURCE_BRANCH"] != "main"
-        full = preview if prerelease else base + "." + os.environ["BUILD_NUMBER"]
+        def branch_slug(branch):
+            slug = re.sub(r"[^a-z0-9]+", "-", branch.lower()).strip("-")[:64].rstrip("-")
+            if not slug:
+                return "branch"
+            return "branch-" + slug if slug.isdigit() else slug
+        branch = os.environ["SOURCE_BRANCH"]
+        prerelease = branch != "main"
+        full = (base + "-dev." + os.environ["BUILD_NUMBER"] + "." + branch_slug(branch)
+                if prerelease else base + "." + os.environ["BUILD_NUMBER"])
         with open(os.environ["GITHUB_OUTPUT"], "a") as output:
             output.write(f"version={base}\nfull_version={full}\nprerelease={str(prerelease).lower()}\n")
         print(f"Building Dsqt v{full}")
@@ -57,7 +64,7 @@ jobs:
         TAG="library/v$FULL_VERSION"
         if EXISTING=$(git rev-parse --verify "refs/tags/$TAG^{commit}" 2>/dev/null); then
           if [[ "$EXISTING" != "$GITHUB_SHA" ]]; then
-            echo "::error::$TAG already identifies another commit. Increment the preview version before releasing changed branch code."
+            echo "::error::$TAG already identifies another commit. This build number is already tagged for different source; existing release tags cannot be overwritten."
             exit 1
           fi
         fi
@@ -145,7 +152,7 @@ jobs:
         if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
     - name: Upload Test Results
-      if: always()
+      if: always() && hashFiles('Library/build/ci/test-results.xml', 'Library/build/ci/Tests/**/*.xml', 'Library/build/ci/Tests/**/*-results.txt', 'Library/build/ci/Testing/Temporary/*.log') != ''
       uses: actions/upload-artifact@v4
       with:
         name: test-results
@@ -156,7 +163,7 @@ jobs:
           Library/build/ci/Testing/Temporary/*.log
 
     - name: Test Report
-      if: always()
+      if: always() && hashFiles('Library/build/ci/test-results.xml') != ''
       uses: dorny/test-reporter@v1
       with:
         name: Qt Unit Tests
@@ -222,5 +229,7 @@ jobs:
         body: |
           Automated build of Dsqt Library.
           Version: ${{ steps.version.outputs.full_version }}
+          Branch: ${{ github.ref_name }}
+          Build Library run: ${{ github.run_number }}
           Commit: ${{ github.sha }}
         files: dsqt-${{ steps.version.outputs.full_version }}.zip

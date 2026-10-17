@@ -54,18 +54,26 @@ folder is the easiest way to compare the necessary changes.
 
 ### Building with the published DsQt vcpkg package
 
-Publication status: the Waffles preview must be published and the `dsqt` registry
-baseline in `vcpkg-configuration.json` updated before this mode is usable. The
-currently pinned registry contains `0.2.0.4`; the manifest requires
-`0.3.0-waffles.1` or newer and will reject that older package.
+Generate the application with ProjectCloner and select a published package
+with verified module metadata. It writes the exact version override and
+registry commit needed by this mode. The ungenerated template still pins a
+registry commit containing the old `0.2.0.4` package; it is not a configured
+application. The manifest leaves version selection to ProjectCloner instead
+of naming a synthetic minimum version that does not exist in the registry.
 
-Branch previews use versions such as `0.3.0-waffles.1`; main releases use
-`0.3.0.<Build Library run number>`, for example `0.3.0.241`. Both use vcpkg's
-`version` field. The package, release tag, and ZIP share the same version.
-Registry publication is a separate manual step after the main build succeeds.
-Use ProjectCloner's **Refresh** to see published versions and select the one
-you want; the generated application pins that version and registry commit.
-Merging a branch does not change an existing application's package selection.
+Development releases use `<base>-dev.<Build Library run number>.<branch-slug>`,
+for example `0.3.0-dev.228.af-waffle-glass`. Main releases use
+`<base>.<Build Library run number>`, for example `0.3.0.241`. Both use vcpkg's
+`version` field. The number is automatic; source manifests keep the base version.
+The package, release tag, and ZIP share the same generated version.
+
+Registry publication is a separate manual step after the release build succeeds.
+Only main releases change the registry's default DsQt version. Use ProjectCloner's
+**Refresh** to see published versions: stable releases appear first, followed by
+development builds. Choose development builds explicitly; the generated project
+pins that exact version and registry commit. Updating the registry commit alone
+does not select a development package. Merging a branch does not change an
+existing application's package selection.
 
 Once the preview is published, use a matching x64 MSVC developer prompt:
 

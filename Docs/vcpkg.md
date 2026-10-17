@@ -7,21 +7,36 @@ components, so it cannot represent the main release format used here.
 
 | Source | Published `version` | ZIP and Git tag |
 | --- | --- | --- |
-| Waffles branch | `0.3.0-waffles.1` | `dsqt-0.3.0-waffles.1.zip`, `library/v0.3.0-waffles.1` |
+| `af/waffle-glass`, Build Library run 228 | `0.3.0-dev.228.af-waffle-glass` | `dsqt-0.3.0-dev.228.af-waffle-glass.zip`, `library/v0.3.0-dev.228.af-waffle-glass` |
+| `ph/develop`, Build Library run 229 | `0.3.0-dev.229.ph-develop` | `dsqt-0.3.0-dev.229.ph-develop.zip`, `library/v0.3.0-dev.229.ph-develop` |
 | Main, Build Library run 241 | `0.3.0.241` | `dsqt-0.3.0.241.zip`, `library/v0.3.0.241` |
 
-`Library/VERSION.txt` keeps the numeric CMake project version `0.3.0`. The source
-port manifest keeps `"version": "0.3.0-waffles.1"` as its preview template,
-including after merge. **Build Library** selects the preview on the branch and
-`0.3.0.<Build Library run number>` on main. The publisher stamps only the
-generated registry port; no merge-time manifest edit is needed. The publisher's
-own workflow run number does not affect the version.
+`Library/VERSION.txt`, `Library/vcpkg.json`, and the source port manifest retain
+the base version `0.3.0`. Both manifests use `"version": "0.3.0"`. Update these
+only when deliberately changing the base release; no version edit is needed
+for an ordinary push or merge. Build Library checks that the base values match.
 
-Branch GitHub releases are marked as prereleases. Once a preview is published,
-increment its suffix to `.2`, `.3`, and so on before releasing changed source.
-Release tags cannot be moved to different commits; rerunning the same release
-for the same commit is allowed. Publishing always pins the exact source SHA.
+**Build Library** generates `<base>-dev.<run-number>.<branch-slug>` for branches
+and `<base>.<run-number>` for main. The run number precedes the branch label so
+development builds of the same base order by build number. Slugs are lowercase
+ASCII letters/digits with punctuation collapsed to hyphens, trimmed to 64
+characters; an empty slug becomes `branch`, and a purely numeric slug gets a
+`branch-` prefix. The release and publication evidence retain the original
+branch name and exact source SHA. The existing workflow enable/branch settings
+still control which pushes build and which builds create releases.
+
+New workflow runs get new numbers; retries retain the original number. Branch
+GitHub releases are prereleases. Release tags cannot be moved to another
+commit. The publisher uses the successful **Build Library** run's version,
+never its own run number, and stamps only the generated registry port.
 The source port's zero `REF` is a template replaced during packaging.
+
+Only main releases advance the registry's default DsQt version. Publishing a
+development package adds it to the version catalog and leaves the default
+unchanged; a registry must already have a default before accepting development
+packages. Choose a development version explicitly in ProjectCloner. Existing
+package versions remain immutable, and the earlier `library/v0.3.0-waffles.1`
+tag keeps its original commit.
 
 See the [vcpkg manifest version reference](https://learn.microsoft.com/en-us/vcpkg/reference/vcpkg-json#version-version-semver-version-date-version-string).
 
@@ -34,8 +49,15 @@ This preview is not published merely by building it locally.
 ProjectCloner separates the package source, module selection, and Qt kit.
 Published versions are read from the private Git registry, including each
 version's immutable `dsqt-modules.json`. A generated project pins both the
-selected version/revision and the registry commit. Older packages without
-module metadata remain visible with an explanation; they cannot be used with
+selected version/revision and the registry commit. The list shows stable
+releases first and development packages afterward, with newer versions first
+within each group. Within one base version, the numbered `dev` format precedes
+legacy previews. Stable-first display is independent of vcpkg's version
+ordering: a development build of a higher base version can still compare
+greater than a stable build of an older base. ProjectCloner initially selects
+the newest stable package with supported metadata; if none exists, the user
+must choose a package explicitly. Development packages are labelled clearly.
+Older packages without module metadata remain visible with an explanation; they cannot be used with
 this template until their requirements and template compatibility are verified.
 
 `Library/dsqt-modules.json` declares minimum Qt versions, Qt components, and
@@ -157,9 +179,9 @@ must match; the helper reports a mismatch before dependency installation.
 
 Run the same package command again, then configure and build the application
 again. Each snapshot gets a local version such as
-`0.3.0-waffles.1.local.h0123456789abcdef`; the suffix identifies the source,
+`0.3.0-local.h0123456789abcdef`; the suffix identifies the source,
 recipe, triplet, and baseline. This prevents an already-installed package from
-concealing local source changes. It does not change the committed preview
+concealing local source changes. It does not change the committed base
 version or create a registry release. The local builder uses the `version`
 field too: it appends `.local.h<hash>` to an existing prerelease, or
 `-local.h<hash>` to a numeric version. It uses the source manifest as its base;
@@ -260,9 +282,12 @@ The registry path is prepared but awaits publication of the Waffles preview and
 an updated consumer baseline. `Examples/ClonerSource/vcpkg-configuration.json`
 currently pins the verified registry commit
 `1e1458981aec5e3a653721c1f706949a46a20963`, which contains `0.2.0.4`.
-The registry feature requires `0.3.0-waffles.1` or newer, so it fails instead of
-silently consuming that older package. After publication, replace the `dsqt`
-registry's baseline with the commit reported by the publishing workflow.
+The template does not name a synthetic minimum version: vcpkg requires minimum
+versions to actually exist in the registry. Generate an application through
+ProjectCloner and select a package with verified metadata; it writes both an
+exact published-version override and the registry commit. The ungenerated
+template is not configured to select a current DsQt package by itself. Updating the registry commit alone does not select a development
+package, because development publication preserves the default version.
 The Microsoft `builtin-baseline` in `vcpkg.json` is a separate dependency pin.
 
 With that published baseline installed in a generated application:
@@ -305,18 +330,22 @@ configure/build presets. Either copy the `dsqt-registry` feature or list
 ```json
 {
   "dependencies": [
-    { "name": "dsqt", "version>=": "0.3.0-waffles.1" }
+    "dsqt"
+  ],
+  "overrides": [
+    { "name": "dsqt", "version": "0.3.0-dev.228.af-waffle-glass" }
   ]
 }
 ```
 
-The registry baseline also controls which version resolves; a minimum version
-is not an exact pin. Do not point to the older baseline and expect the preview
-to be present. Preview and main packages both use `version`; the prerelease
-sorts before the corresponding main release. Update the application's minimum
-version and registry baseline together when opting into a published package.
-For development before publication, use the staged overlay
-reported by `Test-DsqtPort.ps1 -StageOnly`.
+Replace the example override with a version actually published in the pinned
+registry commit. The override selects the requested development package even
+when the registry default is older or newer. Do not use a fictional minimum
+such as `0.3.0-0`; vcpkg requires an entry for a requested minimum version.
+ProjectCloner writes these pins automatically. Existing apps
+opt into a new package by updating both their version override and registry
+commit. For development before publication, use the staged overlay reported
+by `Test-DsqtPort.ps1 -StageOnly`.
 
 Select the same Qt prefix and triplet in the application's CMake preset, then:
 
@@ -366,51 +395,72 @@ currently no `build_and_install.sh` in this repository.
 
 `.github/workflows/publish-vcpkg-port.yml` adapts the `ph/develop` publisher.
 It is manually dispatched, with preparation as the default, and requires an
-exact source commit SHA. For a preview it preserves the source manifest's
-`version` (`0.3.0-waffles.1`). For main, supply the four-part version produced
-by a successful **Build Library** run, such as `0.3.0.241`. The publisher checks
-that the release tag identifies that source SHA, that the commit is on main,
-and that the matching main push run completed successfully. It then writes
-that version into the generated port. It never rewrites a published
-version/revision or uses its own run number.
+exact source commit SHA and a release version from a successful **Build
+Library** run. This applies to both development and main releases. The
+publisher verifies the immutable tag, commit, build number, original branch,
+and successful push-run result. For development builds, it recomputes the slug
+from that build's branch; for main, it also verifies ancestry on main. It then
+writes the verified version into the generated port. It never rewrites a
+published version/revision or uses its own run number.
 
 The workflow requires a valid `REGISTRY_PAT` secret with read access to
 `Unispace365/vcpkg-registry`, plus contents write access for publication.
-Its automatic GitHub token has `actions: read` permission to verify the main
+Its automatic GitHub token has `actions: read` permission to verify the release
 build. The source commit must include this consumer configuration. GitHub also
 requires a manually dispatched workflow to be present on the repository's
 default branch before it can be dispatched; the selected execution ref and
 source commit can then be the Waffles branch.
 
-1. Commit and push the approved changes. Record the exact source SHA.
-2. For a main release, first wait for **Build Library** to succeed and record
-   its four-part release version and tagged SHA. Dispatch **Publish vcpkg Port**
-   with the source SHA and expected preview or main version. Leave `publish`
+1. Commit and push the approved changes. Wait for **Build Library** to succeed
+   and record its exact release version and tagged source SHA. Branch releases
+   require `BRANCH_LIBRARY_RELEASE=true` in addition to the build settings.
+2. Dispatch **Publish vcpkg Port** with that SHA and version. Leave `publish`
    false. Review the `dsqt-registry-preview` artifact, including the pinned
-   source REF, version/baseline changes, and `publication/build.json` for main.
-   Preparation creates no commits and pushes nothing.
+   source REF, version database, and `publication/build.json`. A development
+   publication must leave `versions/baseline.json` unchanged. Preparation
+   creates no commits and pushes nothing.
 3. Approve the two exact registry commit messages, then dispatch with the same
-   source SHA/version, those messages, and `publish` true. The workflow checks
-   for duplicate versions, backward baseline changes, and concurrent registry
-   updates before pushing normally to `main`.
-4. Review the `dsqt-registry-consumer` artifact. Its configuration pins the
-   newly published registry commit. Apply that baseline to ClonerSource and
-   consuming apps, then validate a clean registry-based application build.
+   source SHA/version, those messages, and `publish` true. Duplicate versions,
+   backward main-release baseline changes, and concurrent registry changes
+   are rejected.
+4. Refresh ProjectCloner and select the published package. It records an exact
+   version override and the new registry commit. For an existing application,
+   use the `dsqt-registry-consumer` artifact's registry configuration and update
+   the exact version override as well, then validate a clean application build.
 
-Existing applications pinned to older registry commits retain those baselines.
-Publishing changes the registry's default DsQt version at the new commit;
-applications opt into it by updating their registry pin. Bump the preview
-number (or the port revision for recipe-only fixes) before the next publication.
-Main releases use the next successful Build Library run number, so gaps are
-normal. Merging selects the main release format; registry publication remains
-a separate manual action.
+Existing applications keep their selected version and registry commit. Only
+main publication advances the default DsQt version. Development publication
+adds an explicitly selectable version. Both formats get their number from
+Build Library, so gaps are normal and no manual preview increment is needed.
+Registry publication remains a separate manual action.
 
 See the [vcpkg registry documentation](https://learn.microsoft.com/en-us/vcpkg/concepts/registries)
 for version database rules and
 [GitHub workflow dispatch documentation](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#onworkflow_dispatch)
 for manual workflow availability.
 
-## Local validation of this preview
+## Automatic versioning validation
+
+Validated October 17, 2026:
+
+- 45 checks of the actual workflow scripts cover version generation, branch
+  slugs, retries, immutable tags, build evidence, publication rejection, and
+  keeping development packages out of the registry default.
+- Seven real vcpkg resolution cases verify stable defaults and explicit pins
+  for development, future-base, legacy-preview, and local packages. The local
+  builder's actual version block produces `0.3.0-local.h<hash>`.
+- Four public PackageCatalog scenarios verify sorting, metadata association,
+  stable defaults, explicit development selection, and empty registries. The
+  full ProjectCloner Release application builds with Qt 6.12.0 and MSVC x64.
+
+Validation outputs are under `Library/build/version-validation/`. These checks
+use local registry and GitHub API fixtures; they do not publish a release or
+replace a GitHub-hosted run after committing and pushing the changes.
+
+## Historical local validation
+
+These checks describe the earlier implementation and its publication state at
+the time; they are not current release instructions.
 
 Validated October 15-16, 2026 with Qt 6.12.0, MSVC 14.51 x64:
 

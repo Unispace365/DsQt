@@ -10,8 +10,7 @@
         {
           "name": "dsqt",
           "default-features": false,
-          "features": [],
-          "version>=": "0.3.0-waffles.1"
+          "features": []
         }
       ]
     },

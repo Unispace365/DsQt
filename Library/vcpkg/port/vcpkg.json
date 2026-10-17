@@ -1,7 +1,7 @@
 {
   "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
   "name": "dsqt",
-  "version": "0.3.0-waffles.1",
+  "version": "0.3.0",
   "description": "DsQt - Downstream's Qt 6 application framework (Core, Bridge, Waffles, Qsys, Touch, TouchEngine, Spout).",
   "homepage": "https://github.com/Unispace365/DsQt",
   "supports": "windows & x64 & !static",
