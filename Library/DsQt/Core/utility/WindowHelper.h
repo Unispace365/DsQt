@@ -11,7 +11,7 @@
 class WindowHelper : public QObject
 {
     Q_OBJECT
-    QML_ELEMENT
+    QML_NAMED_ELEMENT(DsWindowHelper)
     QML_SINGLETON  // Optional: makes it a singleton so you don't need to instantiate it in QML
 
 public:
