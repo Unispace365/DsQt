@@ -8,6 +8,15 @@ string(STRIP "${DSQT_VERSION_STRING}" DSQT_VERSION_STRING)
 
 project(Dsqt VERSION ${DSQT_VERSION_STRING} LANGUAGES CXX)
 
+# Default install prefix to ~/Documents/DsQt across all platforms if not specified
+if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
+    if(WIN32)
+        set(CMAKE_INSTALL_PREFIX "$ENV{USERPROFILE}/Documents/DsQt" CACHE PATH "Default install prefix" FORCE)
+    else()
+        set(CMAKE_INSTALL_PREFIX "$ENV{HOME}/Documents/DsQt" CACHE PATH "Default install prefix" FORCE)
+    endif()
+endif()
+
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
