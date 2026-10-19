@@ -54,7 +54,7 @@ private:
     void runGit(const QStringList &args, std::function<void(bool, QByteArray)> callback);
     void readVersions();
     void readNextPackage(int index);
-    QString m_source = "installed";
+    QString m_source = "registry";
     QString m_path;
     QStringList m_requested = {"Core"};
     QJsonObject m_bundled, m_local, m_localMetadata;

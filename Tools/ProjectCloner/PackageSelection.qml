@@ -19,8 +19,8 @@ ColumnLayout {
                 Layout.fillWidth: true
                 ComboBox {
                     Layout.preferredWidth: 240
-                    model: [qsTr("Installed library"), qsTr("Local vcpkg package"), qsTr("Published vcpkg package")]
-                    readonly property list<string> keys: ["installed", "local", "registry"]
+                    model: [qsTr("Published vcpkg package"), qsTr("Installed library"), qsTr("Local vcpkg package")]
+                    readonly property list<string> keys: ["registry", "installed", "local"]
                     currentIndex: keys.indexOf(root.catalog.source)
                     enabled: !root.catalog.busy
                     Accessible.name: qsTr("DsQt package source")

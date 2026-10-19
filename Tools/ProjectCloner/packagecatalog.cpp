@@ -99,7 +99,7 @@ PackageCatalog::PackageCatalog(QObject *parent) : QObject(parent)
             if (callback) callback(false, {});
         }
     });
-    inspectPath();
+    if (m_source != "registry") inspectPath();
 }
 
 PackageCatalog::~PackageCatalog()
