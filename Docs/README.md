@@ -1,7 +1,8 @@
 # DsQt documentation guide
 
-For a **new application**, start with [repository setup and ProjectCloner](../README.md#creating-a-new-project).
-For an **existing DsQt application**, follow the integration path in the
+For a **new application**, start with [ProjectCloner and a published vcpkg package](../README.md#creating-a-new-project).
+For an **existing application**, use [switching DsQt packages, versions, and Qt kits](articles/switching_dsqt_packages.md)
+to adopt the registry or update its package selection. To add Waffles, follow the integration path in the
 [Waffles implementation guide](waffles-implementation-guide.md#existing-dsqt-application-integrate-in-place).
 ECPresenter and AssetViewer are reference implementations.
 
@@ -26,8 +27,10 @@ The Source Tour covers [stage](waffles-tour/stage.html), [viewers](waffles-tour/
 | Document | Topic |
 | --- | --- |
 | [Best practices](articles/best_practices.md) | Framework conventions and application structure. |
-| [CMake user presets](articles/cmake_user_presets.md) | Local SDK and installation paths without editing shared configuration. |
-| [Installed-library migration](articles/migration_subdirectory_to_library.md) | Migrating consumers away from source-tree inclusion. |
+| [DsQt vcpkg packages](vcpkg.md) | Recommended registry setup, local packages, caching, versioning, and publication. |
+| [Switching packages, versions, and Qt kits](articles/switching_dsqt_packages.md) | Which CMake, preset, and manifest settings change, with working configuration examples. |
+| [CMake user presets](articles/cmake_user_presets.md) | Machine-specific SDK paths, build configurations, and preset inheritance. |
+| [Installed-library migration](articles/migration_subdirectory_to_library.md) | Legacy source-tree consumers moving to `find_package`; installed-library alternative and registry handoff. |
 | [Settings](articles/settings_guide.md) | TOML loading, layering, overrides, and runtime access. |
 | [Logging](articles/logging_guide.md) | Logging setup, locations, and diagnostics. |
 | [Bridge usage](articles/bridge_usage.md) | Content synchronization and application access. |

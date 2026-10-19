@@ -6,8 +6,9 @@ from **application work**, using AssetViewer and ECPresenter as references.
 Read the [overview](waffles-overview.md) first for terminology and responsibilities.
 
 This guide follows the `af/waffle-glass` working branch and the locally committed
-ECPresenter integration, reviewed October 12, 2026. Rebuild and install the
-updated DsQt package before rebuilding a consumer. See the
+ECPresenter integration, reviewed October 12, 2026. For application setup, use
+a published package through ProjectCloner; the registry instructions below use
+`0.3.0-dev.224.af-waffle-glass` as a verified package example. See the
 [backlog validation record](waffles-backlog.md#validation-record) for completed
 checks and remaining application/device acceptance.
 
@@ -22,21 +23,20 @@ There are two integration paths:
 
 ### New application: use ProjectCloner
 
-1. Complete the [repository setup](../README.md#getting-started). Build and
-   install DsQt and ProjectCloner from `DsQt/Library` using
-   `build_and_install.bat -qt "C:\Qt\6.12.0\msvc2022_64" -tools`, substituting
-   your SDK path. Section 2 explains the build requirements.
-2. Run `%USERPROFILE%\Documents\DsQt\Tools\ProjectCloner\bin\appProjectCloner.exe`
-   for the default installation prefix. Select a destination folder, enter the
-   application name, and click **Clone**.
-3. Work in the generated project. ProjectCloner uses
-   [ClonerSource](../Examples/ClonerSource/) to create its build files, entry
-   point, QML structure, settings, and sample assets.
-4. Select Qt 6.12 in ProjectCloner and check the generated presets using section 2.
-   The template also provides `ninja-6.12.0` and `vs2022-6.12.0` presets. Use a
-   local preset when the SDK or installed DsQt package is in a different location.
-5. Integrate the stage and the features needed by the application using the
-   remaining sections of this guide.
+1. Complete the [Windows setup and ProjectCloner instructions](../README.md#getting-started).
+   A separate DsQt library build/install is unnecessary for a registry consumer.
+2. Run ProjectCloner, choose **Published vcpkg package**, and click **Refresh**.
+   Select a supported published version; development packages require an explicit
+   choice. `0.3.0-dev.224.af-waffle-glass` is a published Waffles example.
+3. Select **Waffles** alongside required **Core**. Add **Bridge** for CMS content
+   and any other modules the application needs. Review the Qt requirements and
+   select a compatible installed kit; this package requires Qt 6.12.0 or newer
+   compatible SDK, including Canvas Painter.
+4. Select a destination folder and application name, then click **Clone**.
+   ProjectCloner uses [ClonerSource](../Examples/ClonerSource/) to create the
+   startup code, settings, assets, exact package pins, and source-specific presets.
+5. Work in the generated application. Inspect its configure/build presets and
+   follow section 2, then add the product features described in the remaining sections.
 
 ### Existing DsQt application: integrate in place
 
@@ -88,29 +88,48 @@ The API names are **Canvas2D** (`import QtCanvas2D`) and **Qt Canvas Painter**,
 not “QCanvas.” See [Qt's module documentation](https://doc-snapshots.qt.io/qt6-6.12/qtcanvas2d-qmlmodule.html)
 and [the API introduction](https://www.qt.io/blog/canvas2d-new-qml-canvas-element-using-qt-canvas-painter).
 
-### Build and install DsQt
+### Use the published package by default
 
-From `DsQt/Library`, run `build_and_install.bat -qt "C:\Qt\6.12.0\msvc2022_64"`,
-substituting the installed SDK path. The helper builds Debug and Release and
-installs to `%USERPROFILE%\Documents\DsQt` by default. Run it again after library
-changes before building an application against that installation.
+The generated registry preset lets vcpkg build DsQt against the selected Qt kit
+or restore compatible binaries from its cache. It does not use a separately
+installed `Documents/DsQt` library. In a matching x64 MSVC developer shell:
 
-The checked-in library configure preset is `ninja`; its build presets are
-`ninja-debug`, `ninja-release`, and `ninja-relwithdebinfo`. For manual setup, supply
-the Qt SDK through `CMAKE_PREFIX_PATH` or a local `CMakeUserPresets.json`. Older
-version numbers in the example user-presets file must be replaced with your SDK.
-See [CMake user presets](articles/cmake_user_presets.md).
+```bat
+set "VCPKG_ROOT=C:\vcpkg"
+cmake --preset ninja-vcpkg-6.12.0
+cmake --build --preset ninja-vcpkg-6.12.0-release
+cmake --install build/ninja-vcpkg-6.12.0 --config Release
+```
+
+These names apply to a generated Ninja/Qt 6.12.0 registry selection. Use the
+actual names listed in your app. For another published version, Qt kit, or
+source mode, follow [Switching DsQt packages, versions, and Qt kits](articles/switching_dsqt_packages.md).
+Existing applications can adopt these helpers and pins without being recreated.
+
+### Local library development alternatives
+
+When changing DsQt itself, use `Library/build_and_install.bat -vcpkg -qt 6.12.0`
+and select its completed local package in ProjectCloner. This uses a local source
+snapshot and binary cache; it does not publish to the registry. See [local package
+setup](vcpkg.md#build-a-local-package-and-use-it-in-a-new-application).
+
+An ordinary installed library remains available through
+`Library/build_and_install.bat -qt 6.12.0`. It builds Debug and Release and installs
+to `%USERPROFILE%\Documents\DsQt` by default. Select **Installed library** in
+ProjectCloner and match its exact Qt kit. Rebuild/reinstall after library changes.
+For local paths, see [CMake user presets](articles/cmake_user_presets.md).
 
 ### Configure the application
 
 For either integration path, ensure the application requests `Core` and `Waffles`
-from the installed package, for example with
+from the selected package, for example with
 `find_package(Dsqt REQUIRED COMPONENTS Core Waffles)`, and links `Dsqt::Core`
 and `Dsqt::Waffles`. Preserve other components the project already uses. For a
 Bridge application, also request `Bridge` and link `Dsqt::Bridge`.
-Keep both the Qt SDK and DsQt install prefix in `CMAKE_PREFIX_PATH`. Follow the
-[library integration guide](articles/migration_subdirectory_to_library.md) for
-plugin imports, QML import paths, and deployment scaffolding.
+Registry and local-package helpers set the package paths automatically. Only the
+ordinary installed-library mode needs both Qt and DsQt prefixes in
+`CMAKE_PREFIX_PATH`. Follow the [library integration guide](articles/migration_subdirectory_to_library.md)
+for plugin imports, QML import paths, and deployment scaffolding.
 
 From your generated or existing application directory, use its actual presets
 and build directory in these commands:
@@ -118,7 +137,7 @@ and build directory in these commands:
 | Step | Command |
 | --- | --- |
 | Inspect available configure/build presets | `cmake --list-presets` / `cmake --list-presets=build` |
-| Configure with the required Qt SDK and DsQt installation | `cmake --preset <configure-preset>` |
+| Configure with the required Qt SDK and selected DsQt package | `cmake --preset <configure-preset>` |
 | Build Release | `cmake --build --preset <release-build-preset>` |
 | Install the runnable package | `cmake --install <build-directory> --config Release` |
 | Run the deployed app | Run your executable from the installed `bin` directory reported by CMake. |

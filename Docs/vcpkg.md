@@ -1,11 +1,47 @@
-# DsQt source package for Waffles
+# DsQt vcpkg packages
+
+## Recommended setup: ProjectCloner and the registry
+
+Start new applications with **ProjectCloner**, using **Published vcpkg package**.
+This is the normal default; an explicit `DSQT_LOCAL_PACKAGE_ROOT` environment
+setting retains the local-package default for library developers. Click
+**Refresh**, choose a supported published version, select modules, and review
+its Qt requirements before cloning. Core is required; Waffles is optional.
+
+The Waffles development package **`0.3.0-dev.224.af-waffle-glass` is published**.
+Its [release](https://github.com/Unispace365/DsQt/releases/tag/library/v0.3.0-dev.224.af-waffle-glass)
+points to source commit `c1f9f1f1bde1d9023b93675a399c3cca7bef6ca5`.
+[Registry commit `40c745a`](https://github.com/Unispace365/vcpkg-registry/commit/40c745a4552ece07cea659933844c858a9d88d59)
+contains its version entry. Select this development package explicitly; the
+registry's stable default at that commit remains `0.2.0.4`, which lacks current
+Waffles and the metadata required by this template. This is a verified example,
+not a floating latest-version recommendation.
+
+For the generated Ninja/Qt 6.12.0 application, use a matching x64 MSVC developer
+shell with `VCPKG_ROOT` set, then configure `ninja-vcpkg-6.12.0`, build
+`ninja-vcpkg-6.12.0-release`, and install its build directory with `--config Release`.
+Use the actual preset names listed by `cmake --list-presets`.
+
+The registry path does not require a separate DsQt library build/install.
+You need a compatible installed Qt SDK, Git LFS, and Git access to both private
+repositories. vcpkg builds the selected source or restores compatible cached
+binaries. It does not download the release ZIP as its dependency implementation.
+
+See [repository setup](../README.md#getting-started) for obtaining ProjectCloner.
+For an existing application or a later package change, use
+[Switching DsQt packages, versions, and Qt kits](articles/switching_dsqt_packages.md).
+It covers CMakeLists, presets, exact version/registry pins, and source-mode changes.
+
+## Package versions
 
 The package name is `dsqt`. Both preview and main releases use the manifest's
 `version` field, which accepts prerelease suffixes and four numeric components.
 `version-semver` accepts the preview but requires exactly three numeric
 components, so it cannot represent the main release format used here.
 
-| Source | Published `version` | ZIP and Git tag |
+The following names illustrate the format; only versions in the registry are selectable.
+
+| Source | Generated `version` | ZIP and Git tag |
 | --- | --- | --- |
 | `af/waffle-glass`, Build Library run 228 | `0.3.0-dev.228.af-waffle-glass` | `dsqt-0.3.0-dev.228.af-waffle-glass.zip`, `library/v0.3.0-dev.228.af-waffle-glass` |
 | `ph/develop`, Build Library run 229 | `0.3.0-dev.229.ph-develop` | `dsqt-0.3.0-dev.229.ph-develop.zip`, `library/v0.3.0-dev.229.ph-develop` |
@@ -42,7 +78,7 @@ See the [vcpkg manifest version reference](https://learn.microsoft.com/en-us/vcp
 
 This integration adapts the source-port work from `ph/develop`. The registry's
 older `0.2.0.4` package does not contain the current Waffles implementation.
-This preview is not published merely by building it locally.
+A local build does not publish a package; registry publication is a separate workflow.
 
 ## Select packages and modules with ProjectCloner
 
@@ -150,8 +186,9 @@ The output is `Library/build/vcpkg-package/qt6.12.0/`:
 | `installed/` | Package builder's Debug and Release installation |
 | `dsqt-local-package.json` | Completed-build metadata read by applications |
 
-Generate your application using ProjectCloner. In an x64 MSVC developer prompt
-matching the package build, configure the **generated application**:
+In ProjectCloner, select **Local vcpkg package**, choose the completed package
+folder, then generate the application with the desired modules. In an x64 MSVC
+developer prompt matching the package build, configure the **generated application**:
 
 ```bat
 set "VCPKG_ROOT=C:\vcpkg"
@@ -269,8 +306,8 @@ builds. Building locally does not automatically upload to a team feed.
 
 ## Application consumption
 
-For a new application, use ProjectCloner. Choose a source in its UI; the
-generated project contains presets for that source:
+For a new application, use ProjectCloner with the published registry source by
+default. The generated project contains presets for the chosen source:
 
 | Preset | DsQt source |
 | --- | --- |
@@ -278,9 +315,8 @@ generated project contains presets for that source:
 | `ninja-vcpkg-local` | Working-tree snapshot from `build_and_install.bat -vcpkg` |
 | Installation-based presets | Ordinary installation in `Documents/DsQt` |
 
-The registry path is prepared but awaits publication of the Waffles preview and
-an updated consumer baseline. `Examples/ClonerSource/vcpkg-configuration.json`
-currently pins the verified registry commit
+The published development package above is available through ProjectCloner.
+The ungenerated `Examples/ClonerSource/vcpkg-configuration.json` still pins registry commit
 `1e1458981aec5e3a653721c1f706949a46a20963`, which contains `0.2.0.4`.
 The template does not name a synthetic minimum version: vcpkg requires minimum
 versions to actually exist in the registry. Generate an application through
@@ -290,7 +326,7 @@ template is not configured to select a current DsQt package by itself. Updating 
 package, because development publication preserves the default version.
 The Microsoft `builtin-baseline` in `vcpkg.json` is a separate dependency pin.
 
-With that published baseline installed in a generated application:
+After ProjectCloner writes the selected version and registry commit into the application:
 
 ```bat
 set "VCPKG_ROOT=C:\vcpkg"
@@ -311,7 +347,8 @@ DsQt binaries.
 under the build directory. Its triplet bytes match `New-DsqtTriplet.ps1` for
 the same kit. ProjectCloner emits registry presets for each selected Qt version
 >= 6.12. For a custom installation root, pass
-`-DDSQT_REGISTRY_QT_ROOT=D:/Qt`; changing a configured kit requires `--fresh`.
+`-DDSQT_REGISTRY_QT_ROOT=D:/Qt`. Prefer a separate preset/build directory for a
+new kit; changing a kit in an existing directory requires `--fresh`.
 Registry mode rejects source overlays so the chosen recipe comes from the
 registry. Select local package mode when generating a working-tree development
 project, or copy the local preset/helper into an existing project.
@@ -333,13 +370,14 @@ configure/build presets. Either copy the `dsqt-registry` feature or list
     "dsqt"
   ],
   "overrides": [
-    { "name": "dsqt", "version": "0.3.0-dev.228.af-waffle-glass" }
+    { "name": "dsqt", "version": "0.3.0-dev.224.af-waffle-glass#0" }
   ]
 }
 ```
 
-Replace the example override with a version actually published in the pinned
-registry commit. The override selects the requested development package even
+This example version exists at registry commit
+`40c745a4552ece07cea659933844c858a9d88d59`. For another version, verify that it is
+published in the registry commit you pin. The override selects the requested development package even
 when the registry default is older or newer. Do not use a fictional minimum
 such as `0.3.0-0`; vcpkg requires an entry for a requested minimum version.
 ProjectCloner writes these pins automatically. Existing apps

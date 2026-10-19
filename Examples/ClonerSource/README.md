@@ -16,8 +16,10 @@
 
 ### Choose a package and modules in ProjectCloner
 
-Select an installed library, a local vcpkg package folder, or a published
-registry version. Use **Refresh** to read published versions with your existing
+Use **Published vcpkg package**, the normal default. An explicit
+`DSQT_LOCAL_PACKAGE_ROOT` environment setting starts ProjectCloner in local mode;
+installed-library and local-package sources are also available in the selector.
+Use **Refresh** to read published versions with your existing
 Git credentials. The cloner shows the package's minimum Qt version and enables
 compatible installed MSVC x64 kits. Local and installed binaries require their
 exact build kit. Registry builds use the kit selected for this project.
@@ -75,7 +77,10 @@ pins that exact version and registry commit. Updating the registry commit alone
 does not select a development package. Merging a branch does not change an
 existing application's package selection.
 
-Once the preview is published, use a matching x64 MSVC developer prompt:
+The development package `0.3.0-dev.224.af-waffle-glass` is published at registry
+commit `40c745a4552ece07cea659933844c858a9d88d59`; it requires Qt 6.12.0 or newer
+compatible SDK. Select it explicitly in ProjectCloner. In the generated project,
+use a matching x64 MSVC developer prompt:
 
 ```bat
 set "VCPKG_ROOT=C:\vcpkg"
@@ -94,6 +99,16 @@ ProjectCloner generates registry presets for selected Qt versions >= 6.12.
 The preset generates a matching triplet in its build directory and installs
 DsQt under that application's `vcpkg_installed` directory. Deployment is under
 `build/ninja-vcpkg-6.12.0/DEPLOY/Release/bin/` (or `Debug/bin/`).
+
+### Changing packages, versions, Qt kits, or modules
+
+Follow [Switching DsQt packages, versions, and Qt kits](https://github.com/Unispace365/DsQt/blob/af/waffle-glass/Docs/articles/switching_dsqt_packages.md).
+A published-version change updates the DsQt override and registry commit together.
+A Qt change updates the kit settings; a source-mode change selects a separate build
+preset. `dsqt-project.json` records the selection, but changing its `source` or
+`version` alone does not change the build. Preserve your application code when
+adopting newer scaffolding. Only presets for the originally selected source are
+generated; the guide shows how to add the other modes to an existing application.
 
 ### Building with a local DsQt vcpkg package
 
@@ -144,7 +159,7 @@ uses the selected build directory's `DEPLOY/Release/bin/` or `DEPLOY/Debug/bin/`
 To see all available presets: `cmake --list-presets`
 
 If your Qt is not installed under `C:\Qt\` or you need a different preset, create a
-`CMakeUserPresets.json` — see the DsQt repo's `Docs/articles/cmake_user_presets.md` for details.
+`CMakeUserPresets.json` — see the [CMake user presets guide](https://github.com/Unispace365/DsQt/blob/af/waffle-glass/Docs/articles/cmake_user_presets.md).
 
 ### Building (Qt Creator)
 

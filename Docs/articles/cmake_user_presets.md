@@ -1,370 +1,149 @@
-# Enabling Additional Build Presets with CMakeUserPresets.json
+# CMake user presets for DsQt applications
 
-The `CMakePresets.json` in both the **DsQt Library** and every **project created via the Project Cloner tool** exposes a single default configure preset — the Ninja Multi-Config build for the current Qt version (e.g., `ninja-6.10.2`). All other presets — older Qt versions, the Visual Studio 2022 generator, and custom paths — are defined but marked `hidden` so they stay out of the way for most builds.
+Use **ProjectCloner + Published vcpkg package** for a new application. It generates
+presets for the selected package source and compatible Qt kits. For an existing
+app, use [Switching DsQt packages, versions, and Qt kits](switching_dsqt_packages.md)
+to update package pins, add a source mode, or integrate the current CMake helpers.
+This guide focuses on machine-specific paths and preset inheritance.
 
-The preset naming convention follows the pattern `<generator>-<qt-version>` (e.g., `ninja-6.10.2`, `vs2022-6.10.1`). As Qt versions are updated over time, new presets are added and the previous current version is hidden. The examples in this document use `6.10.2` as the current version — substitute whatever version suffix appears as the visible preset in your copy of `CMakePresets.json`.
+## Shared settings versus local settings
 
-`CMakeUserPresets.json` is a parallel file you create alongside `CMakePresets.json` in your project root. CMake and all major IDEs load it automatically and merge it with the shared presets. Because it is **not committed to source control** (the project `.gitignore` already excludes it), each developer can maintain their own local configuration without affecting the team.
+`CMakePresets.json` contains the team's shared build configuration and belongs in
+Git. `CMakeUserPresets.json`, beside it, contains local paths and additional
+presets; keep that file ignored. CMake reads both files together. A configure
+preset can inherit from another **configure preset**, including a hidden one.
+Its name must be unique across both files. A build preset refers to a configure
+preset through `configurePreset`; it cannot serve as the parent of one.
+See the [CMake presets reference](https://cmake.org/cmake/help/latest/manual/cmake-presets.7.html).
 
-> **Do not edit `CMakePresets.json` to accommodate your local setup.** That file is committed to source control and shared across the team. All local customisation belongs in `CMakeUserPresets.json`.
+Inspect your app before choosing names:
 
-## Table of Contents
-
-1. [How Inheritance Works](#how-inheritance-works)
-2. [Creating the File](#creating-the-file)
-3. [Scenario: Visual Studio 2022 Generator](#scenario-visual-studio-2022-generator)
-4. [Scenario: Older Qt Version](#scenario-older-qt-version)
-5. [Scenario: Qt at a Non-Standard Path](#scenario-qt-at-a-non-standard-path)
-6. [Scenario: Custom DsQt Install Location](#scenario-custom-dsqt-install-location)
-7. [Adding Build Presets](#adding-build-presets)
-8. [Using with the DsQt Library](#using-with-the-dsqt-library)
-9. [IDE Integration](#ide-integration)
-
----
-
-## How Inheritance Works
-
-User presets can inherit from any named preset in either file — including hidden ones. The hidden presets in `CMakePresets.json` exist specifically to be composed in `CMakeUserPresets.json`. The available base presets follow a consistent pattern across both the Library and projects created via the Project Cloner tool:
-
-| Preset pattern | What it provides |
-|---|---|
-| `vcpkg-base` | vcpkg toolchain file via `$env{VCPKG_ROOT}` |
-| `qt-X.Y.Z` | `CMAKE_PREFIX_PATH` pointing at the standard Qt and DsQt install locations for that version |
-| `vs2022-X.Y.Z` | Visual Studio 17 2022, x64, plus the matching Qt paths |
-| `ninja-base` | Ninja Multi-Config generator with MSVC (`cl.exe`) compilers |
-| `ninja-X.Y.Z` | Ninja + matching Qt paths for that version |
-
-Check the `configurePresets` array in your `CMakePresets.json` to see which specific version presets are available — the list will grow as new Qt versions are added. Any preset marked `"hidden": true` can be inherited in your user presets.
-
-> **Preset names must be unique across both files.** CMake treats `CMakePresets.json` and `CMakeUserPresets.json` as a single merged set — a name that already exists in `CMakePresets.json` cannot be reused in `CMakeUserPresets.json`. Always give your user presets distinct names (the examples below use a `local-` prefix as a convention).
-
----
-
-## Creating the File
-
-Create `CMakeUserPresets.json` at the root of your project (the same directory as `CMakePresets.json`):
-
-```json
-{
-  "version": 6,
-  "configurePresets": [],
-  "buildPresets": []
-}
-```
-
-Replace the empty arrays with the examples below as needed.
-
----
-
-## Scenario: Visual Studio 2022 Generator
-
-The shipped `vs2022-X.Y.Z` configure presets are hidden. Create a new configure preset that inherits from the hidden one, giving it a unique name, then add matching build presets:
-
-```json
-{
-  "version": 6,
-  "configurePresets": [
-    {
-      "name": "local-vs2022-6.10.2",
-      "displayName": "local-vs2022-6.10.2",
-      "inherits": "vs2022-6.10.2"
-    }
-  ],
-  "buildPresets": [
-    {
-      "name": "local-vs2022-6.10.2-debug",
-      "displayName": "Debug",
-      "configurePreset": "local-vs2022-6.10.2",
-      "configuration": "Debug"
-    },
-    {
-      "name": "local-vs2022-6.10.2-release",
-      "displayName": "Release",
-      "configurePreset": "local-vs2022-6.10.2",
-      "configuration": "Release"
-    },
-    {
-      "name": "local-vs2022-6.10.2-relwithdebinfo",
-      "displayName": "RelWithDebInfo",
-      "configurePreset": "local-vs2022-6.10.2",
-      "configuration": "RelWithDebInfo"
-    }
-  ]
-}
-```
-
-After saving, your IDE will show **VS2022 x64 - Qt 6.10.2** alongside the default Ninja preset.
-
-> Replace `6.10.2` with whichever `vs2022-X.Y.Z` preset exists in your `CMakePresets.json`.
-
----
-
-## Scenario: Older Qt Version
-
-All `ninja-X.Y.Z` and `vs2022-X.Y.Z` configure presets except the current one are hidden but fully functional. Create a new preset that inherits from the hidden one and provide your own build presets pointing at it:
-
-```json
-{
-  "version": 6,
-  "configurePresets": [
-    {
-      "name": "local-ninja-6.10.1",
-      "displayName": "local-ninja-6.10.1",
-      "inherits": "ninja-6.10.1"
-    }
-  ],
-  "buildPresets": [
-    {
-      "name": "local-ninja-6.10.1-debug",
-      "displayName": "Debug",
-      "configurePreset": "local-ninja-6.10.1",
-      "configuration": "Debug"
-    },
-    {
-      "name": "local-ninja-6.10.1-release",
-      "displayName": "Release",
-      "configurePreset": "local-ninja-6.10.1",
-      "configuration": "Release"
-    },
-    {
-      "name": "local-ninja-6.10.1-relwithdebinfo",
-      "displayName": "RelWithDebInfo",
-      "configurePreset": "local-ninja-6.10.1",
-      "configuration": "RelWithDebInfo"
-    }
-  ]
-}
-```
-
-> The `local-` prefix here is just a convention to avoid colliding with names already defined in `CMakePresets.json`. You can use any prefix or suffix that makes the name unique.
-
----
-
-## Scenario: Qt at a Non-Standard Path
-
-The `qt-X.Y.Z` base presets assume Qt is installed at `C:/Qt/<version>/msvc2022_64` — the default path the Qt Maintenance Tool suggests on Windows. It is common to install Qt elsewhere: to a secondary drive to keep the system drive lean, to a team-wide network share, or simply because a different root was chosen during Qt Maintenance Tool setup.
-
-### Example: Qt on a secondary drive
-
-```json
-{
-  "version": 6,
-  "configurePresets": [
-    {
-      "name": "local-qt-6.10.2",
-      "hidden": true,
-      "inherits": "vcpkg-base",
-      "cacheVariables": {
-        "CMAKE_PREFIX_PATH": "D:/Qt/6.10.2/msvc2022_64;$env{USERPROFILE}/Documents/DsQt"
-      }
-    },
-    {
-      "name": "local-ninja-6.10.2",
-      "displayName": "local-ninja-6.10.2",
-      "inherits": ["local-qt-6.10.2", "ninja-base"],
-      "binaryDir": "${sourceDir}/build/ninja-6.10.2"
-    }
-  ],
-  "buildPresets": [
-    {
-      "name": "local-ninja-6.10.2-debug",
-      "displayName": "Debug",
-      "configurePreset": "local-ninja-6.10.2",
-      "configuration": "Debug"
-    },
-    {
-      "name": "local-ninja-6.10.2-release",
-      "displayName": "Release",
-      "configurePreset": "local-ninja-6.10.2",
-      "configuration": "Release"
-    },
-    {
-      "name": "local-ninja-6.10.2-relwithdebinfo",
-      "displayName": "RelWithDebInfo",
-      "configurePreset": "local-ninja-6.10.2",
-      "configuration": "RelWithDebInfo"
-    }
-  ]
-}
-```
-
-### Example: Qt installed to a custom directory on C:
-
-```json
-{
-  "version": 6,
-  "configurePresets": [
-    {
-      "name": "local-qt-6.10.2",
-      "hidden": true,
-      "inherits": "vcpkg-base",
-      "cacheVariables": {
-        "CMAKE_PREFIX_PATH": "C:/dev/tools/Qt/6.10.2/msvc2022_64;$env{USERPROFILE}/Documents/DsQt"
-      }
-    },
-    {
-      "name": "local-ninja-6.10.2",
-      "displayName": "local-ninja-6.10.2",
-      "inherits": ["local-qt-6.10.2", "ninja-base"],
-      "binaryDir": "${sourceDir}/build/ninja-6.10.2"
-    }
-  ],
-  "buildPresets": [
-    {
-      "name": "local-ninja-6.10.2-debug",
-      "displayName": "Debug",
-      "configurePreset": "local-ninja-6.10.2",
-      "configuration": "Debug"
-    },
-    {
-      "name": "local-ninja-6.10.2-release",
-      "displayName": "Release",
-      "configurePreset": "local-ninja-6.10.2",
-      "configuration": "Release"
-    },
-    {
-      "name": "local-ninja-6.10.2-relwithdebinfo",
-      "displayName": "RelWithDebInfo",
-      "configurePreset": "local-ninja-6.10.2",
-      "configuration": "RelWithDebInfo"
-    }
-  ]
-}
-```
-
-In both cases only the first segment of `CMAKE_PREFIX_PATH` changes — the rest of the preset structure is identical.
-
-> **`CMAKE_PREFIX_PATH` in Project Cloner projects requires two entries** separated by a semicolon: the Qt kit path and the DsQt install path. DsQt defaults to `$env{USERPROFILE}/Documents/DsQt` (the default `CMAKE_INSTALL_PREFIX` from the Library build). See [Using with the DsQt Library](#using-with-the-dsqt-library) for the difference when working in the Library itself.
-
----
-
-## Scenario: Custom DsQt Install Location
-
-If you built the DsQt Library and installed it somewhere other than `%USERPROFILE%\Documents\DsQt`, update the second path in `CMAKE_PREFIX_PATH`:
-
-```json
-{
-  "version": 6,
-  "configurePresets": [
-    {
-      "name": "local-qt-6.10.2",
-      "hidden": true,
-      "inherits": "vcpkg-base",
-      "cacheVariables": {
-        "CMAKE_PREFIX_PATH": "C:/Qt/6.10.2/msvc2022_64;C:/dev/DsQtInstall"
-      }
-    },
-    {
-      "name": "local-ninja-6.10.2",
-      "displayName": "local-ninja-6.10.2",
-      "inherits": ["local-qt-6.10.2", "ninja-base"],
-      "binaryDir": "${sourceDir}/build/ninja-6.10.2"
-    }
-  ]
-}
-```
-
----
-
-## Adding Build Presets
-
-Build presets tell IDEs which configurations (Debug, Release, RelWithDebInfo) are available for a given configure preset. The pattern is always the same — one entry per configuration:
-
-```json
-"buildPresets": [
-  {
-    "name": "<preset-name>-debug",
-    "displayName": "Debug",
-    "configurePreset": "<preset-name>",
-    "configuration": "Debug"
-  },
-  {
-    "name": "<preset-name>-release",
-    "displayName": "Release",
-    "configurePreset": "<preset-name>",
-    "configuration": "Release"
-  },
-  {
-    "name": "<preset-name>-relwithdebinfo",
-    "displayName": "RelWithDebInfo",
-    "configurePreset": "<preset-name>",
-    "configuration": "RelWithDebInfo"
-  }
-]
-```
-
-Replace `<preset-name>` with the `name` of your configure preset. Build preset names must also be unique across both files.
-
----
-
-## Using with the DsQt Library
-
-The DsQt Library's own `CMakePresets.json` follows the exact same pattern — one visible Ninja preset for the current Qt version, all others hidden — so every scenario in this document applies there too.
-
-The one structural difference is in `CMAKE_PREFIX_PATH`. Projects created via the Project Cloner tool need **two** entries (Qt + the DsQt install location) because they consume DsQt as an installed package. When working in the Library itself you are building DsQt, not consuming it, so `CMAKE_PREFIX_PATH` only needs the Qt path. The Library's hidden `qt-X.Y.Z` presets already reflect this:
-
-```json
-{
-  "name": "qt-6.10.2",
-  "hidden": true,
-  "inherits": "vcpkg-base",
-  "cacheVariables": {
-    "CMAKE_PREFIX_PATH": "C:/Qt/6.10.2/msvc2022_64",
-    "CMAKE_INSTALL_PREFIX": "$env{USERPROFILE}/Documents/DsQt"
-  }
-}
-```
-
-So when writing a `CMakeUserPresets.json` for the Library, inherit from `vcpkg-base` and set only the Qt path, keeping `CMAKE_INSTALL_PREFIX` to control where the Library gets installed:
-
-```json
-{
-  "version": 6,
-  "configurePresets": [
-    {
-      "name": "local-qt-6.10.2",
-      "hidden": true,
-      "inherits": "vcpkg-base",
-      "cacheVariables": {
-        "CMAKE_PREFIX_PATH": "D:/SDKs/Qt/6.10.2/msvc2022_64",
-        "CMAKE_INSTALL_PREFIX": "$env{USERPROFILE}/Documents/DsQt"
-      }
-    },
-    {
-      "name": "local-ninja-6.10.2",
-      "displayName": "local-ninja-6.10.2",
-      "inherits": ["local-qt-6.10.2", "ninja-base"],
-      "binaryDir": "${sourceDir}/build/ninja-6.10.2"
-    }
-  ]
-}
-```
-
----
-
-## IDE Integration
-
-### Visual Studio Code (CMake Tools extension)
-
-The CMake Tools extension picks up `CMakeUserPresets.json` automatically. After saving the file, open the Command Palette and run **CMake: Select Configure Preset** — your user presets appear alongside the shipped ones.
-
-### Visual Studio 2022
-
-Visual Studio reads both preset files when the project is opened. User presets appear in the configuration dropdown in the toolbar. If they do not appear after saving, right-click the project root in Solution Explorer and choose **Delete Cache and Reconfigure**.
-
-### Qt Creator
-
-After adding or modifying `CMakeUserPresets.json`, go to **Build > Run CMake** or re-open the project to pick up the new presets.
-
-### Command Line
-
-```bat
-:: List all available presets (shipped + user)
+```powershell
 cmake --list-presets
-
-:: Configure
-cmake --preset local-ninja-6.10.2
-
-:: Build
-cmake --build --preset local-ninja-6.10.2-debug
+cmake --list-presets=build
+Get-Content CMakePresets.json
 ```
+
+Typical generated configure names for Qt 6.12.0 are `ninja-vcpkg-6.12.0` for the
+registry, `ninja-vcpkg-local` for a local source package, and `ninja-6.12.0` for an
+ordinary installed library. Only the source chosen in ProjectCloner is generated.
+Visual Studio preset names depend on the discovered installation. Older raw
+template presets are historical examples, not proof that the current package
+supports their Qt versions. Current Core and Waffles require Qt 6.12.0 or newer
+compatible SDK, including Canvas Painter.
+
+## Registry package: Qt installed outside C:/Qt
+
+If your shared file has `ninja-vcpkg-6.12.0` and the kit is installed at
+`D:/Qt/6.12.0/msvc2022_64`, use this complete `CMakeUserPresets.json`:
+
+```json
+{
+  "version": 6,
+  "configurePresets": [
+    {
+      "name": "user-registry-d-drive",
+      "inherits": "ninja-vcpkg-6.12.0",
+      "binaryDir": "${sourceDir}/build/user-registry-d-drive",
+      "cacheVariables": {
+        "DSQT_REGISTRY_QT_ROOT": "D:/Qt",
+        "DSQT_REGISTRY_QT_VERSION": "6.12.0"
+      }
+    }
+  ],
+  "buildPresets": [
+    { "name": "user-registry-d-drive-debug", "configurePreset": "user-registry-d-drive", "configuration": "Debug" },
+    { "name": "user-registry-d-drive-release", "configurePreset": "user-registry-d-drive", "configuration": "Release" }
+  ]
+}
+```
+
+The root is `D:/Qt`, not the complete kit directory. The registry helper sets
+`CMAKE_PREFIX_PATH`, `Qt6_DIR`, the triplet, and `Dsqt_DIR` from this selection.
+Do not add a `Documents/DsQt` prefix to a registry preset. To change the Qt version,
+choose an installed compatible version, update `DSQT_REGISTRY_QT_VERSION`, and
+give the preset and its build directory new names. This does not select a new
+DsQt version; update the manifest and registry pins for that separate change.
+
+From the app directory in an x64 MSVC developer shell, with `VCPKG_ROOT` set:
+
+```powershell
+cmake --preset user-registry-d-drive
+cmake --build --preset user-registry-d-drive-release
+cmake --install build/user-registry-d-drive --config Release
+```
+
+## Local source package: another package root
+
+If the shared file has `ninja-vcpkg-local`, a local override can point at a
+completed package produced by `build_and_install.bat -vcpkg`:
+
+```json
+{
+  "version": 6,
+  "configurePresets": [
+    {
+      "name": "user-local-package",
+      "inherits": "ninja-vcpkg-local",
+      "binaryDir": "${sourceDir}/build/user-local-package",
+      "cacheVariables": {
+        "DSQT_LOCAL_PACKAGE_ROOT": "D:/dev/DsQt/Library/build/vcpkg-package/qt6.12.0"
+      }
+    }
+  ],
+  "buildPresets": [
+    { "name": "user-local-package-release", "configurePreset": "user-local-package", "configuration": "Release" }
+  ]
+}
+```
+
+The package's `dsqt-local-package.json` chooses the exact Qt kit and dependency
+baseline. A consumer prefix override cannot substitute a different Qt kit.
+Rebuild the local package for another kit. If both examples are needed, merge
+their configure/build entries into one user file; do not create duplicate keys.
+
+## Ordinary installed library
+
+In this mode, both `DSQT_USE_REGISTRY_VCPKG` and `DSQT_USE_LOCAL_VCPKG` are off.
+Point `CMAKE_PREFIX_PATH` at the matching Qt kit and DsQt installation, and use
+`Dsqt_DIR` to identify that installation explicitly. For example, the relevant
+cache-variable fragment is:
+
+```json
+{
+  "DSQT_USE_REGISTRY_VCPKG": "OFF",
+  "DSQT_USE_LOCAL_VCPKG": "OFF",
+  "CMAKE_PREFIX_PATH": "C:/Qt/6.12.0/msvc2022_64;D:/libs/DsQt-qt6.12.0",
+  "Dsqt_DIR": "D:/libs/DsQt-qt6.12.0/lib/cmake/Dsqt"
+}
+```
+
+Use a separate build directory and ensure that the installation contains the
+requested modules and configuration. The [switching guide](switching_dsqt_packages.md#3-choose-the-source-in-presets)
+contains complete presets for all three modes, independent of generated names.
+
+## Building the DsQt library itself
+
+The library's own `Library/CMakePresets.json` is a different project. Its
+configure preset is `ninja`; it does not use the app's registry-consumer preset
+to build itself. The easiest path is `Library/build_and_install.bat -qt 6.12.0`.
+For manual library work, a local user preset can inherit `ninja`, set the exact
+Qt prefix, and use its own build directory. Replace historical Qt versions in
+`Library/CMakeUserPresets.example.json` with your actual compatible SDK.
+
+## Build configuration and stale caches
+
+Ninja Multi-Config uses the build preset's `configuration` to select Debug or
+Release; changing `CMAKE_BUILD_TYPE` does not select its output configuration.
+Use the same configuration in `cmake --install ... --config ...`. Run the
+installed app with its matching Qt/CRT/plugins or the project's launch setup.
+
+For another generator, use a new configure preset and build directory with an
+installed generator from `cmake --help`; do not assume Visual Studio 2022 is
+installed merely because the Qt kit is named `msvc2022_64`. Ninja builds need
+the matching x64 compiler environment in the shell or IDE configuration.
+
+Prefer separate directories when changing source mode, Qt, architecture, or
+compiler. `cmake --fresh --preset <name>` resets CMake's cache for a preset, but
+does not remove all dependencies or deployed files. Verify `Qt6_DIR`, `Dsqt_DIR`,
+and the active source flags in `CMakeCache.txt` if the result is unexpected.
