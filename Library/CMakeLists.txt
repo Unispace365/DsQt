@@ -102,7 +102,9 @@ endif()
 add_subdirectory("DsQt/Core")
 add_subdirectory("DsQt/Bridge")
 add_subdirectory("DsQt/Waffles")
-add_subdirectory("DsQt/TouchEngine")
+if(WIN32)
+    add_subdirectory("DsQt/TouchEngine")
+endif()
 add_subdirectory("DsQt/Spout")
 add_subdirectory("DsQt/Touch")
 add_subdirectory("DsQt/Qsys")
@@ -119,10 +121,13 @@ target_link_libraries(Dsqt
     Dsqt::Core
     Dsqt::Bridge
     Dsqt::Waffles
-    Dsqt::TouchEngine
     Dsqt::Touch
     Dsqt::Qsys
 )
+
+if(TARGET Dsqt::TouchEngine)
+    target_link_libraries(Dsqt INTERFACE Dsqt::TouchEngine)
+endif()
 
 if(WIN32 AND TARGET Dsqt::Spout)
     target_link_libraries(Dsqt INTERFACE Dsqt::Spout)
@@ -162,7 +167,9 @@ cmake_path(NATIVE_PATH CMAKE_CURRENT_SOURCE_DIR DS_QMLLINT_ROOT)
 if(DSQT_BUILD_TESTS)
     add_subdirectory(Tests/Settings)
     add_subdirectory(Tests/Logging)
-    add_subdirectory(Tests/TouchEngine)
+    if(TARGET Dsqt::TouchEngine)
+        add_subdirectory(Tests/TouchEngine)
+    endif()
     add_subdirectory(Tests/BridgeTest)
     add_subdirectory(Tests/Effects)
     add_subdirectory(Tests/Qsys)
@@ -190,7 +197,7 @@ if(PROJECT_IS_TOP_LEVEL)
     # Install the built library targets
     # Note: Qt's qt_add_qml_module creates internal OBJECT library targets that
     # cannot be exported. We install the libraries without export and create
-    # imported targets manually in DsqtConfig.cmake.
+    # imported targets manually in DsQtConfig.cmake.
     install(TARGETS
         Core
         Coreplugin
@@ -211,26 +218,28 @@ if(PROJECT_IS_TOP_LEVEL)
         RUNTIME    DESTINATION ${CMAKE_INSTALL_BINDIR}/$<CONFIG>      # .dll / executables
     )
 
-    # TouchEngine is a static QML module. Qt generates additional object
+    # TouchEngine is a static QML module (Windows only). Qt generates additional object
     # libraries for QML resources, the static plugin initializer, and shaders;
     # all of them are part of the backing target's link interface and therefore
     # have to be installed and exported with it.
-    install(TARGETS
-        TouchEngine
-        TouchEngineplugin
-        ${TouchEngineTargets}
-        EXPORT DsqtTouchEngineTargets
-        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/$<CONFIG>
-        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}/$<CONFIG>
-        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}/$<CONFIG>
-        OBJECTS DESTINATION ${CMAKE_INSTALL_LIBDIR}/$<CONFIG>/objects
-    )
+    if(TARGET Dsqt::TouchEngine)
+        install(TARGETS
+            TouchEngine
+            TouchEngineplugin
+            ${TouchEngineTargets}
+            EXPORT DsqtTouchEngineTargets
+            LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/$<CONFIG>
+            ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}/$<CONFIG>
+            RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}/$<CONFIG>
+            OBJECTS DESTINATION ${CMAKE_INSTALL_LIBDIR}/$<CONFIG>/objects
+        )
 
-    install(EXPORT DsqtTouchEngineTargets
-        FILE DsqtTouchEngineTargets.cmake
-        NAMESPACE Dsqt::
-        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/Dsqt
-    )
+        install(EXPORT DsqtTouchEngineTargets
+            FILE DsqtTouchEngineTargets.cmake
+            NAMESPACE Dsqt::
+            DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/Dsqt
+        )
+    endif()
 
     # Spout module (Windows only)
     if(WIN32 AND TARGET DsSpout)
@@ -268,11 +277,14 @@ if(PROJECT_IS_TOP_LEVEL)
         "${QT_QML_OUTPUT_DIRECTORY}/Dsqt/Waffles/Waffles.qmltypes"
         DESTINATION "qml/Dsqt/Waffles"
     )
-    install(FILES
-        "${QT_QML_OUTPUT_DIRECTORY}/Dsqt/TouchEngine/qmldir"
-        "${QT_QML_OUTPUT_DIRECTORY}/Dsqt/TouchEngine/TouchEngine.qmltypes"
-        DESTINATION "qml/Dsqt/TouchEngine"
-    )
+    # TouchEngine integration with TouchDesigner (Windows only)
+    if(TARGET Dsqt::TouchEngine)
+        install(FILES
+            "${QT_QML_OUTPUT_DIRECTORY}/Dsqt/TouchEngine/qmldir"
+            "${QT_QML_OUTPUT_DIRECTORY}/Dsqt/TouchEngine/TouchEngine.qmltypes"
+            DESTINATION "qml/Dsqt/TouchEngine"
+        )
+    endif()
     install(FILES
         "${QT_QML_OUTPUT_DIRECTORY}/Dsqt/Touch/qmldir"
         "${QT_QML_OUTPUT_DIRECTORY}/Dsqt/Touch/Touch.qmltypes"
@@ -312,11 +324,13 @@ if(PROJECT_IS_TOP_LEVEL)
         OPTIONAL
         FILES_MATCHING PATTERN "*.qml"
     )
-    install(DIRECTORY "${QT_QML_OUTPUT_DIRECTORY}/Dsqt/TouchEngine/qml"
-        DESTINATION "qml/Dsqt/TouchEngine"
-        OPTIONAL
-        FILES_MATCHING PATTERN "*.qml"
-    )
+    if(TARGET Dsqt::TouchEngine)
+        install(DIRECTORY "${QT_QML_OUTPUT_DIRECTORY}/Dsqt/TouchEngine/qml"
+            DESTINATION "qml/Dsqt/TouchEngine"
+            OPTIONAL
+            FILES_MATCHING PATTERN "*.qml"
+        )
+    endif()
     install(DIRECTORY "${QT_QML_OUTPUT_DIRECTORY}/Dsqt/Touch/qml"
         DESTINATION "qml/Dsqt/Touch"
         OPTIONAL
