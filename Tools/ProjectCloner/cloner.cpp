@@ -22,6 +22,7 @@ struct VisualStudioInstallation
     QString displayName;
     QString presetPrefix;
     QString installationPath;
+    QString toolsetVersion;
 
     bool isValid() const
     {
@@ -180,6 +181,21 @@ VisualStudioInstallation discoverVisualStudioInstallation()
         selected.displayName = QStringLiteral("VS%1").arg(year);
         selected.presetPrefix = QStringLiteral("vs%1").arg(year);
         selected.installationPath = installationPath;
+    }
+
+    if (selected.isValid()) {
+        const QDir installation(selected.installationPath);
+        QFile versionFile(installation.filePath(
+            QStringLiteral("VC/Auxiliary/Build/Microsoft.VCToolsVersion.default.txt")));
+        if (versionFile.open(QIODevice::ReadOnly)) {
+            const QString version = QString::fromUtf8(versionFile.readAll()).trimmed();
+            static const QRegularExpression toolsetVersionRe(QStringLiteral(R"(^\d+\.\d+\.\d+$)"));
+            if (toolsetVersionRe.match(version).hasMatch()
+                && QFileInfo::exists(installation.filePath(
+                    QStringLiteral("VC/Tools/MSVC/%1/bin/Hostx64/x64/cl.exe").arg(version)))) {
+                selected.toolsetVersion = version;
+            }
+        }
     }
 
     return selected;
@@ -798,8 +814,16 @@ QByteArray Cloner::generateCMakePresets(const QStringList &versions) const
                 {"displayName", prefix + " · DsQt " + source + " · Qt " + version},
                 {"inherits", "vcpkg-base"}, {"generator", generator},
                 {"binaryDir", "${sourceDir}/build/" + name}, {"cacheVariables", generatorCache}};
-            if (visualStudioPreset)
+            if (visualStudioPreset) {
                 preset.insert("architecture", "x64");
+            } else {
+                // IDEs initialize MSVC; CMake ignores these fields for Ninja.
+                QString toolset = QStringLiteral("host=x64");
+                if (!visualStudio.toolsetVersion.isEmpty())
+                    toolset += QStringLiteral(",version=") + visualStudio.toolsetVersion;
+                preset.insert("architecture", QJsonObject{{"value", "x64"}, {"strategy", "external"}});
+                preset.insert("toolset", QJsonObject{{"value", toolset}, {"strategy", "external"}});
+            }
             configure.append(preset);
             for (const auto &config : {QString("Debug"), QString("Release")})
                 builds.append(QJsonObject{{"name", name + "-" + config.toLower()},

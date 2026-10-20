@@ -6,6 +6,8 @@
       "displayName": "Ninja - registry DsQt - Qt 6.12.0",
       "inherits": "vcpkg-base",
       "generator": "Ninja Multi-Config",
+      "architecture": { "value": "x64", "strategy": "external" },
+      "toolset": { "value": "host=x64", "strategy": "external" },
       "binaryDir": "${sourceDir}/build/ninja-vcpkg-6.12.0",
       "cacheVariables": {
         "DSQT_USE_REGISTRY_VCPKG": "ON",
@@ -21,6 +23,8 @@
       "displayName": "Ninja - local DsQt package",
       "inherits": "vcpkg-base",
       "generator": "Ninja Multi-Config",
+      "architecture": { "value": "x64", "strategy": "external" },
+      "toolset": { "value": "host=x64", "strategy": "external" },
       "binaryDir": "${sourceDir}/build/ninja-vcpkg-local",
       "cacheVariables": {
         "DSQT_USE_LOCAL_VCPKG": "ON",
@@ -90,6 +94,8 @@
       "name": "ninja-base",
       "hidden": true,
       "generator": "Ninja Multi-Config",
+      "architecture": { "value": "x64", "strategy": "external" },
+      "toolset": { "value": "host=x64", "strategy": "external" },
       "cacheVariables": {
         "CMAKE_C_COMPILER": "cl.exe",
         "CMAKE_CXX_COMPILER": "cl.exe",

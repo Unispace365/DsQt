@@ -182,6 +182,18 @@ If your Qt is not installed under `C:\Qt\` or you need a different preset, creat
 
 ### Building (Qt Creator)
 
+The Ninja presets include x64 MSVC `architecture` and `toolset` fields with
+`strategy: "external"`, allowing Qt Creator to initialize the compiler environment.
+ProjectCloner records the detected MSVC toolset version when available.
+After updating presets in an already-open project, select **Build > Reload CMake
+Presets** and select the updated Ninja preset. Check that its kit has both C and
+C++ compilers before configuring. If the recorded toolset was removed or upgraded,
+see the [MSVC preset example](https://github.com/Unispace365/DsQt/blob/af/waffle-glass/Docs/articles/cmake_user_presets.md#msvc-with-ninja-in-qt-creator).
+
+Command-line CMake ignores these `external` fields; run Ninja commands from a
+matching **x64 MSVC developer prompt**. Setting `CMAKE_CXX_COMPILER` to `cl.exe`
+alone does not initialize the compiler, Windows SDK headers, or libraries.
+
 1. File > Open File or Project, navigate to this project's `CMakeLists.txt`
 2. Select `ninja-vcpkg-6.12.0` for a published package, `ninja-vcpkg-local` with `VCPKG_ROOT` in
    the configure environment (the local package is discovered automatically), or an installation-based preset matching your kit

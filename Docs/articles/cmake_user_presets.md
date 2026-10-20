@@ -159,6 +159,60 @@ For manual library work, a local user preset can inherit `ninja`, set the exact
 Qt prefix, and use its own build directory. Replace historical Qt versions in
 `Library/CMakeUserPresets.example.json` with your actual compatible SDK.
 
+## MSVC with Ninja in Qt Creator
+
+Qt Creator needs the MSVC environment before it can resolve `cl.exe` during
+preset import. ProjectCloner generates both fields below on Ninja presets,
+adding `,version=<detected-toolset-version>` to `toolset.value` when it can
+identify the installed compiler. The template uses `host=x64` without a version
+so Qt Creator can select an installed x64 MSVC toolchain.
+
+For an older clone, or after removing the recorded compiler version, this complete
+`CMakeUserPresets.json` adds a portable local override:
+
+```json
+{
+  "version": 6,
+  "configurePresets": [
+    {
+      "name": "user-msvc-ninja",
+      "inherits": "ninja-vcpkg-local",
+      "binaryDir": "${sourceDir}/build/user-msvc-ninja",
+      "architecture": { "value": "x64", "strategy": "external" },
+      "toolset": { "value": "host=x64", "strategy": "external" }
+    }
+  ],
+  "buildPresets": [
+    { "name": "user-msvc-ninja-release", "configurePreset": "user-msvc-ninja", "configuration": "Release" }
+  ]
+}
+```
+
+Replace `ninja-vcpkg-local` with your app's Ninja configure preset. Merge this
+entry into an existing user file instead of overwriting other overrides. To
+select a specific installed compiler, change `host=x64` to, for example,
+`host=x64,version=14.51.36231`, substituting your installed MSVC tools version
+(the directory name below Visual Studio's `VC/Tools/MSVC`). This is not the Qt
+version or the Visual Studio product version.
+
+Select **Build > Reload CMake Presets** in Qt Creator, then select the new
+`user-msvc-ninja` preset and verify that its kit has C and C++ compilers.
+Both `architecture` and `toolset` must use the `external` strategy for this
+initialization. See [Qt Creator's MSVC example](https://doc.qt.io/qtcreator/creator-build-settings-cmake-presets.html#msvc-example).
+
+CMake itself ignores these external fields. From the app directory in the
+matching **x64 MSVC developer prompt**, with `VCPKG_ROOT` set to your vcpkg checkout:
+
+```bat
+set "VCPKG_ROOT=C:\vcpkg"
+cmake --preset user-msvc-ninja
+cmake --build --preset user-msvc-ninja-release
+```
+
+Replace `C:\vcpkg` with your checkout path. Use the names from your user file if
+you renamed the example presets. A plain terminal with only `cl.exe` named in
+the preset does not provide MSVC's headers, libraries, or Windows SDK environment.
+
 ## Build configuration and stale caches
 
 Ninja Multi-Config uses the build preset's `configuration` to select Debug or
