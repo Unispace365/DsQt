@@ -4,6 +4,7 @@
 #include <QQuickItem>
 #include <QDir>
 #include <QStringList>
+#include <QUrl>
 #include "git_ignore_checker.h"
 #include "packagecatalog.h"
 #include <QMap>
@@ -26,6 +27,7 @@ class Cloner : public QQuickItem
     Q_PROPERTY(QStringList selectedQtVersions READ selectedQtVersions WRITE setSelectedQtVersions NOTIFY selectedQtVersionsChanged FINAL)
     Q_PROPERTY(PackageCatalog* catalog READ catalog CONSTANT)
     Q_PROPERTY(bool canClone READ canClone NOTIFY configurationChanged)
+    Q_PROPERTY(QString defaultProjectDirectory READ defaultProjectDirectory CONSTANT)
 public:
     PackageCatalog *catalog() const { return m_catalog; }
     bool canClone() const;
@@ -42,6 +44,9 @@ public:
     Q_INVOKABLE void clearLastError();
     Q_INVOKABLE void reset();
     Q_INVOKABLE void detectQtVersions();
+    QString defaultProjectDirectory() const;
+    Q_INVOKABLE QString localFolderPath(const QString &path) const;
+    Q_INVOKABLE QUrl folderUrl(const QString &path) const;
 
     QString applicationName() const;
     void setApplicationName(const QString &newApplicationName);

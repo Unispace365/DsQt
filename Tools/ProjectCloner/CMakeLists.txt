@@ -32,7 +32,7 @@ qt_add_qml_module(appProjectCloner
     RESOURCES skip.txt
     DEPENDENCIES QtQuick
     RESOURCES images/clone1.gif images/clone2.gif images/clone3.gif images/clone4.gif images/error.gif
-    QML_FILES MainView.qml PackageSelection.qml
+    QML_FILES MainView.qml PackageSelection.qml CloneResultView.qml
 )
 
 qt_add_resources(appProjectCloner module_catalog

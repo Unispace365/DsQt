@@ -241,6 +241,32 @@ Cloner::Cloner() {
     detectQtVersions();
 }
 
+QString Cloner::defaultProjectDirectory() const
+{
+    return QDir::toNativeSeparators(QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation));
+}
+
+QString Cloner::localFolderPath(const QString &value) const
+{
+    QString path = value.trimmed();
+    const QUrl url(path);
+    if (url.isLocalFile()) {
+        if (!url.isValid())
+            return {};
+        path = url.toLocalFile();
+    }
+    path = QDir::fromNativeSeparators(path);
+    if (path.isEmpty() || !QDir::isAbsolutePath(path))
+        return {};
+    return QDir::toNativeSeparators(QDir::cleanPath(path));
+}
+
+QUrl Cloner::folderUrl(const QString &path) const
+{
+    const auto folder = localFolderPath(path);
+    return folder.isEmpty() ? QUrl() : QUrl::fromLocalFile(folder);
+}
+
 void Cloner::clone()
 {
     if(m_status == Status::PRECLONE){
