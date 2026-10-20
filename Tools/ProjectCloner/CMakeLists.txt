@@ -18,6 +18,17 @@ qt_add_executable(appProjectCloner
     main.cpp
 )
 
+if(WIN32)
+    target_sources(appProjectCloner PRIVATE project-cloner.rc)
+    set_property(SOURCE project-cloner.rc APPEND PROPERTY OBJECT_DEPENDS
+        "${CMAKE_CURRENT_SOURCE_DIR}/images/project-cloner.ico")
+endif()
+
+qt_add_resources(appProjectCloner project_cloner_icon
+    PREFIX "/project-cloner"
+    FILES images/project-cloner.png
+)
+
 qt_add_qml_module(appProjectCloner
     URI ProjectCloner
     VERSION 1.0
