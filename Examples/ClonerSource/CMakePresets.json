@@ -24,7 +24,6 @@
       "binaryDir": "${sourceDir}/build/ninja-vcpkg-local",
       "cacheVariables": {
         "DSQT_USE_LOCAL_VCPKG": "ON",
-        "DSQT_LOCAL_PACKAGE_ROOT": "$env{DSQT_LOCAL_PACKAGE_ROOT}",
         "CMAKE_C_COMPILER": "cl.exe",
         "CMAKE_CXX_COMPILER": "cl.exe",
         "CMAKE_CXX_FLAGS_INIT": "/EHsc",

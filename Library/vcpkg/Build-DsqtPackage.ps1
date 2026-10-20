@@ -4,7 +4,8 @@ Build a local DsQt source package for ProjectCloner applications.
 .DESCRIPTION
 Uses the Library manifest's dependency baseline and a snapshot of the working
 tree. Produces Debug and Release together, using the caller's binary cache.
-Does not update the vcpkg checkout, register a package, or install into Documents.
+Publishes the completed source package under LOCALAPPDATA/DsQt/vcpkg and
+updates its local default. Does not publish to the GitHub registry.
 Run directly from an x64 MSVC developer shell, or through build_and_install.bat.
 #>
 [CmdletBinding()]
@@ -12,6 +13,7 @@ param(
     [Parameter(Mandatory)] [string] $Qt,
     [string] $VcpkgRoot = $env:VCPKG_ROOT,
     [string] $PackageRoot,
+    [string] $PublishRoot,
     [string] $Modules = 'Core,Bridge,Waffles,Qsys,Spout,Touch,TouchEngine'
 )
 $ErrorActionPreference = 'Stop'
@@ -39,6 +41,16 @@ $library = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $buildRoot = [IO.Path]::GetFullPath((Join-Path $library 'build')).TrimEnd('\', '/')
 if (!$PackageRoot) { $PackageRoot = Join-Path $buildRoot "vcpkg-package/qt$qtVersion" }
 $work = [IO.Path]::GetFullPath($PackageRoot).TrimEnd('\', '/')
+if (!$PublishRoot) {
+    if (!$env:LOCALAPPDATA) { throw 'LOCALAPPDATA is unavailable. Supply -PublishRoot.' }
+    $PublishRoot = Join-Path $env:LOCALAPPDATA 'DsQt/vcpkg'
+}
+$store = [IO.Path]::GetFullPath($PublishRoot).TrimEnd('\', '/')
+if ($store -eq $work -or $store.StartsWith($work + '\', [StringComparison]::OrdinalIgnoreCase) -or
+    $work.StartsWith($store + '\', [StringComparison]::OrdinalIgnoreCase) -or
+    $store -eq $VcpkgRoot -or $store.StartsWith($VcpkgRoot.TrimEnd('\') + '\', [StringComparison]::OrdinalIgnoreCase)) {
+    throw 'PublishRoot must be separate from PackageRoot and VCPKG_ROOT.'
+}
 # Staging resets only source/ and overlay/dsqt/. Keep the whole operation in
 # a dedicated build directory, never in the source tree or vcpkg installation.
 if (!$work.StartsWith($buildRoot + '\', [StringComparison]::OrdinalIgnoreCase) -or
@@ -67,6 +79,14 @@ $triplet = 'x64-windows-qt' + $qtVersion.Replace('.', '-')
 $overlay = Join-Path $work 'overlay'
 $triplets = Join-Path $work 'triplets'
 $portManifestPath = Join-Path $overlay 'dsqt/vcpkg.json'
+$portfilePath = Join-Path $overlay 'dsqt/portfile.cmake'
+# Build and publish exactly the same recipe. A checkout-specific SOURCE_PATH
+# would break the published copy and change its vcpkg binary-cache identity.
+$portfile = [IO.File]::ReadAllText($portfilePath)
+$stagedSource = 'set(SOURCE_PATH "' + (Join-Path $work 'source').Replace('\', '/') + '")'
+if (!$portfile.Contains($stagedSource)) { throw 'The staged source path was not found in the port.' }
+$portfile = $portfile.Replace($stagedSource, 'set(SOURCE_PATH "${CMAKE_CURRENT_LIST_DIR}/../../source")')
+[IO.File]::WriteAllText($portfilePath, $portfile, (New-Object Text.UTF8Encoding($false)))
 $portManifest = Get-Content -LiteralPath $portManifestPath -Raw | ConvertFrom-Json
 $libraryManifest = Get-Content -LiteralPath (Join-Path $library 'vcpkg.json') -Raw | ConvertFrom-Json
 $baseline = $libraryManifest.'builtin-baseline'
@@ -127,10 +147,62 @@ Write-Json $metadataPath ([ordered]@{
     triplet = $triplet
     builtinBaseline = $baseline
 })
+
+# Publish only the inputs consumers need. Compiled binaries remain in the
+# caller's vcpkg binary cache; buildtrees/downloads stay in the staging area.
+# Never replace a package directory already selected by another application.
+New-Item -ItemType Directory -Force -Path $store | Out-Null
+$publicationLock = [IO.File]::Open((Join-Path $store 'publication.lock'),
+    [IO.FileMode]::OpenOrCreate, [IO.FileAccess]::ReadWrite, [IO.FileShare]::None)
+try {
+    $packages = Join-Path $store 'packages'
+    New-Item -ItemType Directory -Force -Path $packages | Out-Null
+    $publicationId = [Guid]::NewGuid().ToString('N')
+    $pending = [IO.Path]::GetFullPath((Join-Path $packages ".staging-$publicationId"))
+    $published = [IO.Path]::GetFullPath((Join-Path $packages "$packageVersion-$publicationId"))
+    foreach ($path in @($pending, $published)) {
+        if (!$path.StartsWith($store + '\', [StringComparison]::OrdinalIgnoreCase)) {
+            throw "Publication path escapes PublishRoot: $path"
+        }
+    }
+    New-Item -ItemType Directory -Path $pending | Out-Null
+    foreach ($name in @('source', 'overlay', 'triplets')) {
+        Copy-Item -LiteralPath (Join-Path $work $name) -Destination $pending -Recurse
+    }
+    Copy-Item -LiteralPath $metadataPath -Destination $pending
+    # Check the copied inputs before exposing this publication to consumers.
+    foreach ($name in @('source/Library/CMakeLists.txt', 'source/Library/dsqt-modules.json',
+                        'overlay/dsqt/portfile.cmake', 'overlay/dsqt/vcpkg.json',
+                        "triplets/$triplet.cmake", 'dsqt-local-package.json')) {
+        if (!(Test-Path -LiteralPath (Join-Path $pending $name) -PathType Leaf)) {
+            throw "Incomplete local publication: $name"
+        }
+    }
+    [IO.Directory]::Move($pending, $published)
+    $defaultPath = Join-Path $store 'dsqt-local-default.json'
+    $nextDefault = Join-Path $store "default-$publicationId.tmp"
+    Write-Json $nextDefault ([ordered]@{
+        formatVersion = 1
+        packageRoot = $published.Replace('\', '/')
+    })
+    if (Test-Path -LiteralPath $defaultPath) {
+        [IO.File]::Replace($nextDefault, $defaultPath, (Join-Path $store 'dsqt-local-default.previous.json'))
+    } else {
+        [IO.File]::Move($nextDefault, $defaultPath)
+    }
+} finally {
+    $publicationLock.Dispose()
+}
 Write-Host "`nReady: dsqt $packageVersion (Debug and Release)"
-Write-Host "Local package: $work"
+Write-Host "Local package: $published"
+Write-Host "Local default: $store"
 Write-Host "In a ProjectCloner application, from an x64 MSVC developer prompt:"
-Write-Host "  set `"DSQT_LOCAL_PACKAGE_ROOT=$work`""
-Write-Host '  cmake --preset ninja-vcpkg-local'
+if ($env:LOCALAPPDATA -and $store -eq [IO.Path]::GetFullPath((Join-Path $env:LOCALAPPDATA 'DsQt/vcpkg'))) {
+    Write-Host '  rem The standard LOCALAPPDATA/DsQt/vcpkg store is discovered automatically.'
+} else {
+    Write-Host "  set `"DSQT_LOCAL_PACKAGE_ROOT=$store`""
+}
+Write-Host "  rem To select this exact package: set `"DSQT_LOCAL_PACKAGE_ROOT=$published`""
+Write-Host '  cmake --fresh --preset ninja-vcpkg-local'
 Write-Host '  cmake --build --preset ninja-vcpkg-local-release'
-Write-Host 'This is a local source overlay plus installed binaries. No registry was published.'
+Write-Host 'Published locally. Consumers reuse the binary cache or build from this source package. No GitHub registry was changed.'

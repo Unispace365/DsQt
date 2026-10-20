@@ -75,6 +75,14 @@ cmake --install build/user-registry-d-drive --config Release
 
 ## Local source package: another package root
 
+By default, the local-package helper discovers `%LOCALAPPDATA%\DsQt\vcpkg`.
+Successful `build_and_install.bat -vcpkg` runs update that store's default;
+ProjectCloner's local selection reads it and records the store in the generated
+preset. Selecting an exact snapshot directory pins that snapshot instead.
+To use another store or snapshot, explicitly
+override that path as below. The example `D:/DsQt Packages` must already contain
+a successful publication made with `-publish-root "D:\DsQt Packages"`.
+
 If the shared file has `ninja-vcpkg-local`, a local override can point at a
 completed package produced by `build_and_install.bat -vcpkg`:
 
@@ -87,7 +95,7 @@ completed package produced by `build_and_install.bat -vcpkg`:
       "inherits": "ninja-vcpkg-local",
       "binaryDir": "${sourceDir}/build/user-local-package",
       "cacheVariables": {
-        "DSQT_LOCAL_PACKAGE_ROOT": "D:/dev/DsQt/Library/build/vcpkg-package/qt6.12.0"
+        "DSQT_LOCAL_PACKAGE_ROOT": "D:/DsQt Packages"
       }
     }
   ],
@@ -101,6 +109,26 @@ The package's `dsqt-local-package.json` chooses the exact Qt kit and dependency
 baseline. A consumer prefix override cannot substitute a different Qt kit.
 Rebuild the local package for another kit. If both examples are needed, merge
 their configure/build entries into one user file; do not create duplicate keys.
+
+For this example, publish from a Windows Command Prompt, replacing the checkout,
+vcpkg, Qt, and store paths as needed:
+
+```bat
+set "VCPKG_ROOT=C:\vcpkg"
+C:\dev\DsQt\Library\build_and_install.bat -vcpkg -qt 6.12.0 -publish-root "D:\DsQt Packages"
+```
+
+From the app directory in the matching MSVC developer shell:
+
+```powershell
+cmake --fresh --preset user-local-package
+cmake --build --preset user-local-package-release
+cmake --install build/user-local-package --config Release
+```
+
+These preset/build directory names match the JSON above; substitute the names
+in your application. Fresh configuration is required when a store default moves
+to a different snapshot or Qt kit.
 
 ## Ordinary installed library
 

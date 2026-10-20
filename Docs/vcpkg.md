@@ -44,7 +44,6 @@ The following names illustrate the format; only versions in the registry are sel
 | Source | Generated `version` | ZIP and Git tag |
 | --- | --- | --- |
 | `af/waffle-glass`, Build Library run 228 | `0.3.0-dev.228.af-waffle-glass` | `dsqt-0.3.0-dev.228.af-waffle-glass.zip`, `library/v0.3.0-dev.228.af-waffle-glass` |
-| `ph/develop`, Build Library run 229 | `0.3.0-dev.229.ph-develop` | `dsqt-0.3.0-dev.229.ph-develop.zip`, `library/v0.3.0-dev.229.ph-develop` |
 | Main, Build Library run 241 | `0.3.0.241` | `dsqt-0.3.0.241.zip`, `library/v0.3.0.241` |
 
 `Library/VERSION.txt`, `Library/vcpkg.json`, and the source port manifest retain
@@ -76,8 +75,7 @@ tag keeps its original commit.
 
 See the [vcpkg manifest version reference](https://learn.microsoft.com/en-us/vcpkg/reference/vcpkg-json#version-version-semver-version-date-version-string).
 
-This integration adapts the source-port work from `ph/develop`. The registry's
-older `0.2.0.4` package does not contain the current Waffles implementation.
+The registry's older `0.2.0.4` package does not contain the current Waffles implementation.
 A local build does not publish a package; registry publication is a separate workflow.
 
 ## Select packages and modules with ProjectCloner
@@ -124,11 +122,21 @@ runtime DLL deployment follow the enabled/requested modules.
 To prepare a local subset through the batch wrapper:
 
 ```bat
-Library\build_and_install.bat -vcpkg -qt 6.12.0 -modules Core,Qsys
+Library\build_and_install.bat -vcpkg -qt 6.12.0 -modules "Core,Qsys"
 ```
 
-Or use `Build-DsqtPackage.ps1 -Qt 6.12.0 -Modules 'Core,Qsys'` from the matching
-MSVC developer shell. vcpkg includes the feature set in its binary cache key;
+Run that from the DsQt checkout with `VCPKG_ROOT` set. Replace the Qt version
+and module list for your project. The equivalent PowerShell commands, from a
+matching x64 MSVC developer shell, are:
+
+```powershell
+$env:VCPKG_ROOT = 'C:/vcpkg'
+Set-Location C:/dev/DsQt
+.\Library\vcpkg\Build-DsqtPackage.ps1 -Qt 6.12.0 -Modules 'Core,Qsys'
+```
+
+Replace both paths, the Qt version, and module list as needed.
+vcpkg includes the feature set in its binary cache key;
 a consumer selecting more features may require another build.
 
 The generated `dsqt-project.json`, vcpkg feature list, and CMake presets agree on
@@ -165,38 +173,74 @@ Start new applications with **ProjectCloner**. Build/install the updated tool
 and template with the ordinary `-tools` workflow if your installed copy predates
 the local-package preset. Other examples are references, not project templates.
 
-Set `VCPKG_ROOT` to your bootstrapped vcpkg checkout, then run:
+In a Windows Command Prompt, set `VCPKG_ROOT` to your bootstrapped vcpkg checkout,
+then run. Replace `C:\vcpkg`, `C:\dev\DsQt`, and `6.12.0` with your paths and
+supported installed Qt version:
 
 ```bat
+set "VCPKG_ROOT=C:\vcpkg"
 C:\dev\DsQt\Library\build_and_install.bat -vcpkg -qt 6.12.0
 ```
 
 `-qt` is required; a full kit path such as `D:\Qt\6.12.0\msvc2022_64`
 also works. The batch file prepares MSVC x64 and builds both Debug and Release.
-Package mode supports `-qt` and optional `-modules`; run ordinary test, tool, and install options
-separately. It does not pull/update vcpkg or install into `Documents/DsQt`.
+Package mode also supports `-modules`, `-publish-root`, and `-package-root`;
+run ordinary test, tool, and install options separately. Quote a comma-separated
+module list in batch commands, for example `-modules "Core,Bridge,Waffles"`.
 
-The output is `Library/build/vcpkg-package/qt6.12.0/`:
+Successful builds publish a source package under **`%LOCALAPPDATA%\DsQt\vcpkg`**.
+This per-user location is independent of the DsQt checkout. Each publication has
+its own directory in `packages/`; `dsqt-local-default.json` selects the latest
+successful publication. Previous packages remain available. A failed build or
+publication leaves the previous default intact.
+
+Each published package contains:
 
 | Entry | Purpose |
 | --- | --- |
 | `source/` | Snapshot of tracked and non-ignored Library files, including local edits |
 | `overlay/dsqt/` | Local vcpkg recipe pointing to that snapshot |
 | `triplets/` | Compiler/architecture/Qt selection used by vcpkg |
-| `installed/` | Package builder's Debug and Release installation |
 | `dsqt-local-package.json` | Completed-build metadata read by applications |
 
-In ProjectCloner, select **Local vcpkg package**, choose the completed package
-folder, then generate the application with the desired modules. In an x64 MSVC
+The recipe locates its source relative to its own directory. Build intermediates
+and the builder's `installed/` directory remain under
+`Library/build/vcpkg-package/qt6.12.0/`. Compiled packages are kept in the vcpkg
+binary cache; consumers restore them or build from the published snapshot.
+
+In ProjectCloner, select **Local vcpkg package**. It discovers the default and
+records the store in the generated application's preset. An
+explicit `DSQT_LOCAL_PACKAGE_ROOT` environment setting overrides discovery.
+The normal starting choice remains **Published vcpkg package**.
+In an x64 MSVC
 developer prompt matching the package build, configure the **generated application**:
 
 ```bat
 set "VCPKG_ROOT=C:\vcpkg"
-set "DSQT_LOCAL_PACKAGE_ROOT=C:\dev\DsQt\Library\build\vcpkg-package\qt6.12.0"
 cd C:\dev\MyWafflesApp
 cmake --preset ninja-vcpkg-local
 cmake --build --preset ninja-vcpkg-local-release
 cmake --install build/ninja-vcpkg-local --config Release
+```
+
+Replace the app and vcpkg paths. No `DSQT_LOCAL_PACKAGE_ROOT` environment setting
+is needed. A local preset without an explicit package path discovers the same
+default store. Explicit CMake/preset paths take precedence over the environment.
+
+For another publication store, replace `D:\DsQt Packages` in both commands below.
+The second command runs from the application directory and selects that store:
+
+```bat
+C:\dev\DsQt\Library\build_and_install.bat -vcpkg -qt 6.12.0 -modules "Core,Bridge,Waffles" -publish-root "D:\DsQt Packages"
+cmake --fresh --preset ninja-vcpkg-local -DDSQT_LOCAL_PACKAGE_ROOT="D:\DsQt Packages"
+```
+
+`-package-root` changes only the builder's staging directory, which must remain
+under `Library/build`; `-publish-root` changes the completed-package store. To
+inspect the default and find an exact snapshot path in PowerShell:
+
+```powershell
+Get-Content "$env:LOCALAPPDATA/DsQt/vcpkg/dsqt-local-default.json"
 ```
 
 Use `ninja-vcpkg-local-debug` and `--config Debug` for Debug. Deployment is under
@@ -214,8 +258,20 @@ must match; the helper reports a mismatch before dependency installation.
 
 ### Update an application after editing DsQt
 
-Run the same package command again, then configure and build the application
-again. Each snapshot gets a local version such as
+Run the same package command again, then configure the application fresh to
+adopt the store's latest successful publication. Existing applications with an
+explicit snapshot path retain that selection; the command below switches them
+to the default store too. Run from the app directory in a Windows Command Prompt:
+
+```bat
+cmake --fresh --preset ninja-vcpkg-local -DDSQT_LOCAL_PACKAGE_ROOT="%LOCALAPPDATA%\DsQt\vcpkg"
+cmake --build --preset ninja-vcpkg-local-release
+cmake --install build/ninja-vcpkg-local --config Release
+```
+
+Use your actual preset/build directory names. Replace the store path with an
+exact package directory to select an older snapshot. Each source snapshot gets
+a local version such as
 `0.3.0-local.h0123456789abcdef`; the suffix identifies the source,
 recipe, triplet, and baseline. This prevents an already-installed package from
 concealing local source changes. It does not change the committed base
@@ -225,11 +281,11 @@ field too: it appends `.local.h<hash>` to an existing prerelease, or
 it does not assign a main CI build number. Unchanged inputs reuse the same
 version and cached binaries when the build environment also matches.
 
-Keep the output folder in place: the overlay references its source snapshot
-by absolute path. Do not rebuild that folder while an application is configuring
-or building. A failed package build removes the ready metadata, so consumers
-cannot select an incomplete snapshot. Changing the package root or Qt kit
-requires `cmake --fresh --preset ninja-vcpkg-local` in the application.
+Keep published directories needed by applications in place. Publishing another
+package does not overwrite them. The default pointer is replaced only after
+the build and publication complete. A preset following the store default needs
+`--fresh` when that default moves to a different package directory or Qt kit;
+the helper reports this rather than retaining stale Qt configuration.
 
 ### Is the package local to this machine?
 
@@ -241,7 +297,7 @@ triplet, and dependencies to reuse the compiled DsQt package across apps.
 Different build inputs may correctly cause another compilation.
 
 A team can share a binary cache, but that alone does not distribute this local
-source overlay or its absolute paths. A published, commit-pinned source port in
+source snapshot or the required external Qt kit. A published, commit-pinned source port in
 the private registry is the separate team-distribution workflow. See Microsoft's
 [binary caching guide](https://learn.microsoft.com/en-us/vcpkg/users/binarycaching).
 
@@ -431,7 +487,7 @@ currently no `build_and_install.sh` in this repository.
 
 ## Publish a preview or main release
 
-`.github/workflows/publish-vcpkg-port.yml` adapts the `ph/develop` publisher.
+`.github/workflows/publish-vcpkg-port.yml` publishes to the shared Git registry.
 It is manually dispatched, with preparation as the default, and requires an
 exact source commit SHA and a release version from a successful **Build
 Library** run. This applies to both development and main releases. The

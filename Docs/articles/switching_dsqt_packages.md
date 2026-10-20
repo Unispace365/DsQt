@@ -198,7 +198,7 @@ bootstrapped checkout. Ninja must be available in that shell.
       "cacheVariables": {
         "DSQT_USE_REGISTRY_VCPKG": "OFF",
         "DSQT_USE_LOCAL_VCPKG": "ON",
-        "DSQT_LOCAL_PACKAGE_ROOT": "C:/dev/DsQt/Library/build/vcpkg-package/qt6.12.0"
+        "DSQT_LOCAL_PACKAGE_ROOT": "$env{LOCALAPPDATA}/DsQt/vcpkg"
       }
     },
     {
@@ -248,11 +248,16 @@ Do not carry an old installed `Dsqt_DIR` or `Qt6_DIR` into the new build directo
 Build a completed local package from your DsQt checkout first:
 
 ```bat
-C:\dev\DsQt\Library\build_and_install.bat -vcpkg -qt 6.12.0 -modules Core,Bridge,Waffles
+set "VCPKG_ROOT=C:\vcpkg"
+C:\dev\DsQt\Library\build_and_install.bat -vcpkg -qt 6.12.0 -modules "Core,Bridge,Waffles"
 ```
 
-Select `user-local-6.12.0`. Its local mode switch enables `dsqt-local` and the
-overlay from `DSQT_LOCAL_PACKAGE_ROOT`. The metadata chooses the exact Qt kit;
+Replace the paths, Qt version, and modules for your application. Successful
+builds publish to `%LOCALAPPDATA%\DsQt\vcpkg`. Select `user-local-6.12.0` to use
+that store's default. With no explicit package path, the local helper discovers
+the same store; an explicit CMake/preset path overrides the environment default.
+Its local mode switch enables `dsqt-local` and the selected overlay.
+The metadata chooses the exact Qt kit;
 changing `CMAKE_PREFIX_PATH` cannot override that selection. Check that the
 application's `builtin-baseline` matches `dsqt-local-package.json`. Align the
 dependency baselines deliberately and rebuild as needed.
@@ -264,9 +269,21 @@ published version does not describe the local build. Inspect the local metadata
 and installed package status to identify the snapshot actually used. If retiring
 registry support entirely, remove its unused DsQt override and feature.
 
-After source edits, repeat the package build and reconfigure the app. The package
-root and default binary cache are local to your machine. Keep the package folder
-in place; copying only its `installed/` folder is not a portable source package.
+After source edits, repeat the package build and adopt its new default:
+
+```powershell
+cmake --fresh --preset user-local-6.12.0
+cmake --build --preset user-local-release
+cmake --install build/user-local-6.12.0 --config Release
+```
+
+These names match the complete preset example above; substitute your actual
+names. ProjectCloner's default local selection records the store; selecting an
+exact snapshot directory instead pins that snapshot. To switch an older app to
+the store, set `DSQT_LOCAL_PACKAGE_ROOT` to `$env{LOCALAPPDATA}/DsQt/vcpkg` as shown
+in the JSON example and configure fresh.
+Published snapshots are retained, and failed builds do not replace the default.
+The package and binary cache are local to your machine.
 See the [local package guide](../vcpkg.md#build-a-local-package-and-use-it-in-a-new-application).
 
 ### Registry or local package to an installed library

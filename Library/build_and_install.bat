@@ -10,12 +10,16 @@ echo                              [-force-install] [-clean]
 echo                              [-hard-clean] [-rebuild] [-hard-rebuild] [-qt ^<ver^|path^>]
 echo                              [-no-private-reinject] [-fresh]
 echo        build_and_install.bat -vcpkg -qt ^<ver^|path^> [-modules Core,Qsys]
+echo                              [-publish-root ^<path^>] [-package-root ^<path^>]
 echo[
 echo   preset              : CMake configure preset name ^(default: ninja^)
 echo   -test               : Enable and run unit tests after the Debug build
 echo   -tools              : Build and install ProjectCloner + ClonerSource template
 echo   -vcpkg              : Build a local Debug/Release source package and binary cache
-echo                         Requires -qt; does not update vcpkg or publish a registry
+echo                         Publish locally under %%LOCALAPPDATA%%\DsQt\vcpkg
+echo                         Requires -qt; does not publish to the GitHub registry
+echo   -publish-root       : Override the local publication store ^(-vcpkg only^)
+echo   -package-root       : Override staging below Library\build ^(-vcpkg only^)
 echo   -fresh / --fresh    : Reset the CMake cache before configuring, keeping build outputs
 echo   -no-configure       : Skip the CMake configure step ^(for fast incremental builds^)
 echo   -no-install         : Skip the install steps entirely
@@ -68,11 +72,27 @@ set NO_PRIVATE_REINJECT=0
 set BUILD_VCPKG=0
 set DSQT_MODULES_REQUESTED=0
 set "DSQT_PACKAGE_MODULES=Core,Bridge,Waffles,Qsys,Spout,Touch,TouchEngine"
+set "DSQT_PACKAGE_WORK="
+set "DSQT_PUBLISH_ROOT="
 set EXPLICIT_PRESET=0
 
 :: Parse arguments — accept preset and flags in any order
 :parse_args
 if "%~1"=="" goto :args_done
+if /i "%~1"=="-publish-root" (
+    if "%~2"=="" (echo ERROR: -publish-root requires a path.& exit /b 2)
+    set "DSQT_PUBLISH_ROOT=%~2"
+    shift
+    shift
+    goto :parse_args
+)
+if /i "%~1"=="-package-root" (
+    if "%~2"=="" (echo ERROR: -package-root requires a path.& exit /b 2)
+    set "DSQT_PACKAGE_WORK=%~2"
+    shift
+    shift
+    goto :parse_args
+)
 if /i "%~1"=="-modules" (set DSQT_MODULES_REQUESTED=1& set "DSQT_PACKAGE_MODULES=%~2"& shift & shift & goto :parse_args)
 if /i "%~1"=="-vcpkg"        (set BUILD_VCPKG=1& shift & goto :parse_args)
 if /i "%~1"=="-fresh"         (set FRESH_CONFIGURE=1& shift & goto :parse_args)
@@ -118,6 +138,10 @@ if !BUILD_VCPKG!==0 if !DSQT_MODULES_REQUESTED!==1 (
     echo ERROR: -modules requires -vcpkg.
     exit /b 2
 )
+if !BUILD_VCPKG!==0 (
+    if defined DSQT_PUBLISH_ROOT (echo ERROR: -publish-root requires -vcpkg.& exit /b 2)
+    if defined DSQT_PACKAGE_WORK (echo ERROR: -package-root requires -vcpkg.& exit /b 2)
+)
 
 if !BUILD_VCPKG!==1 (
     if not defined QT_PATH (
@@ -126,11 +150,12 @@ if !BUILD_VCPKG!==1 (
     )
     for %%F in (EXPLICIT_PRESET RUN_TESTS BUILD_TOOLS FRESH_CONFIGURE SKIP_CONFIGURE SKIP_INSTALL DO_CLEAN DO_HARD_CLEAN DO_REBUILD DO_HARD_REBUILD NO_PRIVATE_REINJECT) do (
         if !%%F!==1 (
-            echo ERROR: -vcpkg supports only -qt and -modules. Run ordinary build/test/tool options separately.
+            echo ERROR: incompatible package option: %%F
+            echo ERROR: -vcpkg supports -qt, -modules, -publish-root and -package-root. Run ordinary build/test/tool options separately.
             exit /b 2
         )
     )
-    powershell -NoProfile -ExecutionPolicy Bypass -File "!DSQT_SCRIPT_DIR!vcpkg\Build-DsqtPackage.ps1" -Qt "!QT_PATH!" -Modules "!DSQT_PACKAGE_MODULES!"
+    powershell -NoProfile -ExecutionPolicy Bypass -File "!DSQT_SCRIPT_DIR!vcpkg\Build-DsqtPackage.ps1" -Qt "!QT_PATH!" -Modules "!DSQT_PACKAGE_MODULES!" -PackageRoot "!DSQT_PACKAGE_WORK!" -PublishRoot "!DSQT_PUBLISH_ROOT!"
     exit /b !errorlevel!
 )
 

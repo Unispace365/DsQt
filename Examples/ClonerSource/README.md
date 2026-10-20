@@ -115,14 +115,21 @@ generated; the guide shows how to add the other modes to an existing application
 First, set `VCPKG_ROOT` to a bootstrapped vcpkg checkout and build the package:
 
 ```bat
+set "VCPKG_ROOT=C:\vcpkg"
 C:\dev\DsQt\Library\build_and_install.bat -vcpkg -qt 6.12.0
 ```
+
+Replace the vcpkg/checkout paths and Qt version for your machine. A successful
+build publishes under `%LOCALAPPDATA%\DsQt\vcpkg` and updates its default.
+ProjectCloner's **Local vcpkg package** choice discovers that package automatically
+and records the store in the generated preset. A local preset
+without an explicit path uses the same default store. Explicit CMake/preset
+paths, then `DSQT_LOCAL_PACKAGE_ROOT` in the environment, override discovery.
 
 Then, from this generated application's directory in a matching x64 MSVC developer prompt:
 
 ```bat
 set "VCPKG_ROOT=C:\vcpkg"
-set "DSQT_LOCAL_PACKAGE_ROOT=C:\dev\DsQt\Library\build\vcpkg-package\qt6.12.0"
 cmake --preset ninja-vcpkg-local
 cmake --build --preset ninja-vcpkg-local-release
 cmake --install build/ninja-vcpkg-local --config Release
@@ -135,8 +142,20 @@ The app and DsQt Library must use the same `builtin-baseline` in `vcpkg.json`.
 
 The package and default binary cache are local to your machine. Multiple apps
 can reuse that cache; no registry publication occurs. After changing DsQt,
-repeat the package command, then configure and build this app again. Each source
-snapshot has a distinct local package version so old installed code is replaced.
+repeat the package command, then configure fresh to adopt the latest default.
+Explicit snapshot selections remain unchanged unless switched to the store.
+Run from this app's directory:
+
+```bat
+cmake --fresh --preset ninja-vcpkg-local -DDSQT_LOCAL_PACKAGE_ROOT="%LOCALAPPDATA%\DsQt\vcpkg"
+cmake --build --preset ninja-vcpkg-local-release
+cmake --install build/ninja-vcpkg-local --config Release
+```
+
+Replace the preset/build directory names with those in your app. An exact
+package directory instead of the store path selects a specific snapshot.
+Each changed source snapshot has a distinct local package version. Failed builds
+leave the previous default available.
 Keep the package folder in place. See the
 [DsQt vcpkg guide](https://github.com/Unispace365/DsQt/blob/af/waffle-glass/Docs/vcpkg.md)
 for cache sharing, custom Qt paths, and adopting this in an existing project.
@@ -164,8 +183,8 @@ If your Qt is not installed under `C:\Qt\` or you need a different preset, creat
 ### Building (Qt Creator)
 
 1. File > Open File or Project, navigate to this project's `CMakeLists.txt`
-2. Select `ninja-vcpkg-6.12.0` for a published package, `ninja-vcpkg-local` with `VCPKG_ROOT` and `DSQT_LOCAL_PACKAGE_ROOT` in
-   the configure environment, or an installation-based preset matching your kit
+2. Select `ninja-vcpkg-6.12.0` for a published package, `ninja-vcpkg-local` with `VCPKG_ROOT` in
+   the configure environment (the local package is discovered automatically), or an installation-based preset matching your kit
    (see `cmake --list-presets`), then click Configure Project
 3. Go to **Projects** > **Deploy Settings** and click **Add Deploy Step** > **CMake install**
 4. Go to **Projects** > **Run Settings** and set the **Executable** to

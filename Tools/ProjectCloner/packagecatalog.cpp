@@ -118,7 +118,13 @@ void PackageCatalog::setSource(const QString &value)
     m_source = value;
     m_error.clear();
     if (value == "installed") m_path = QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation) + "/DsQt";
-    else if (value == "local") m_path = qEnvironmentVariable("DSQT_LOCAL_PACKAGE_ROOT");
+    else if (value == "local") {
+        m_path = qEnvironmentVariable("DSQT_LOCAL_PACKAGE_ROOT");
+        if (m_path.isEmpty()) {
+            const auto localAppData = qEnvironmentVariable("LOCALAPPDATA");
+            if (!localAppData.isEmpty()) m_path = QDir::fromNativeSeparators(localAppData) + "/DsQt/vcpkg";
+        }
+    }
     inspectPath();
 }
 
@@ -141,8 +147,23 @@ void PackageCatalog::inspectPath()
     m_local = {};
     m_localMetadata = {};
     if (m_source == "local") {
-        m_local = readJson(m_path + "/dsqt-local-package.json");
-        m_localMetadata = readJson(m_path + "/source/Library/dsqt-modules.json");
+        m_error.clear();
+        auto packagePath = m_path;
+        const auto defaultFile = m_path + "/dsqt-local-default.json";
+        if (QFile::exists(defaultFile)) {
+            const auto localDefault = readJson(defaultFile);
+            const auto packageRoot = localDefault.value("packageRoot").toString();
+            if (localDefault.value("formatVersion").toInt() != 1 || !QDir::isAbsolutePath(packageRoot)) {
+                m_error = tr("Invalid local package default. Run build_and_install.bat -vcpkg -qt <version> again.");
+                emit changed();
+                return;
+            }
+            // Keep the store as the selection; explicit snapshot paths still
+            // pin a package, while the default follows successful local builds.
+            packagePath = QDir::fromNativeSeparators(packageRoot);
+        }
+        m_local = readJson(packagePath + "/dsqt-local-package.json");
+        m_localMetadata = readJson(packagePath + "/source/Library/dsqt-modules.json");
     } else if (m_source == "installed") {
         m_localMetadata = readJson(m_path + "/lib/cmake/Dsqt/dsqt-modules.json");
         if (m_localMetadata.isEmpty()) m_localMetadata = readJson(m_path + "/share/dsqt/dsqt-modules.json");
