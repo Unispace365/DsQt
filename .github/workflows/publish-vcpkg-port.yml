@@ -1,7 +1,9 @@
 name: Publish vcpkg Port
 
-# Manual by design: preparing a port does not publish it or create commits.
-# Development and main versions both reuse a verified Build Library release.
+# Manually triggered; requires an existing verified Build Library release.
+# publish=false (default): prepare a preview without creating commits.
+# publish=true: create and push the registry commits.
+# Build Library creates the GitHub release; this workflow publishes its vcpkg port.
 on:
   workflow_dispatch:
     inputs:
