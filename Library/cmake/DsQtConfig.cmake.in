@@ -13,7 +13,7 @@
 # ----------------------------------------------------------------------
 include(CMakeFindDependencyMacro)
 
-find_dependency(Qt6
+find_dependency(Qt6 6.9
     REQUIRED COMPONENTS
         Core
         Concurrent
@@ -25,6 +25,8 @@ find_dependency(Qt6
         Multimedia
         MultimediaWidgets
         Sql
+        Network
+        WebSockets
 )
 
 # ----------------------------------------------------------------------
@@ -285,7 +287,7 @@ _dsqt_create_imported_target(Touch DsqtTouch)
 _dsqt_create_plugin_target(Touch DsqtTouchplugin)
 set(_dsqt_touch_iface_libs "Qt6::Core;Qt6::Gui;Qt6::Quick;Dsqt::Touchplugin")
 if(NOT @DSQT_TOUCH_NO_PRIVATE_REINJECT@)
-    find_dependency(Qt6 REQUIRED COMPONENTS GuiPrivate)
+    find_dependency(Qt6 6.9 REQUIRED COMPONENTS GuiPrivate)
     string(APPEND _dsqt_touch_iface_libs ";Qt6::GuiPrivate")
 endif()
 set(DSQT_TOUCH_NO_PRIVATE_REINJECT @DSQT_TOUCH_NO_PRIVATE_REINJECT@)
@@ -294,48 +296,129 @@ set_target_properties(Dsqt::Touch PROPERTIES
     INTERFACE_LINK_LIBRARIES      "${_dsqt_touch_iface_libs}"
 )
 
-# Create TouchEngine targets
-_dsqt_create_imported_target(TouchEngine DsqtTouchEngine)
-_dsqt_create_plugin_target(TouchEngine DsqtTouchEngineplugin)
+# Create Qsys targets
+_dsqt_create_imported_target(Qsys DsqtQsys)
+_dsqt_create_plugin_target(Qsys DsqtQsysplugin)
+set_target_properties(Dsqt::Qsys PROPERTIES
+    INTERFACE_INCLUDE_DIRECTORIES "${_DSQT_INCLUDE_DIR};${_DSQT_INCLUDE_DIR}/qsys"
+    INTERFACE_LINK_LIBRARIES "Dsqt::Core;Qt6::Qml;Qt6::Network;Qt6::WebSockets;Dsqt::Qsysplugin"
+)
 
-# TouchEngine SDK library
-if(NOT TARGET Dsqt::TouchEngineSDK)
-    add_library(Dsqt::TouchEngineSDK SHARED IMPORTED)
-    set_target_properties(Dsqt::TouchEngineSDK PROPERTIES
-        IMPORTED_CONFIGURATIONS          "${_DSQT_IMPORTED_CONFIGS}"
-        IMPORTED_LOCATION_DEBUG          "${_DSQT_BINDIR_DEBUG}/TouchEngine.dll"
-        IMPORTED_IMPLIB_DEBUG            "${_DSQT_LIBDIR_DEBUG}/DsqtTouchEngineSDK.lib"
-        IMPORTED_LOCATION_RELEASE        "${_DSQT_BINDIR_RELEASE}/TouchEngine.dll"
-        IMPORTED_IMPLIB_RELEASE          "${_DSQT_LIBDIR_RELEASE}/DsqtTouchEngineSDK.lib"
-        MAP_IMPORTED_CONFIG_MINSIZEREL   Release
-    )
-    if(_DSQT_HAVE_RELWITHDEBINFO)
-        set_target_properties(Dsqt::TouchEngineSDK PROPERTIES
-            IMPORTED_LOCATION_RELWITHDEBINFO "${_DSQT_BINDIR_RELWITHDEBINFO}/TouchEngine.dll"
-            IMPORTED_IMPLIB_RELWITHDEBINFO   "${_DSQT_LIBDIR_RELWITHDEBINFO}/DsqtTouchEngineSDK.lib"
-        )
-    else()
-        set_target_properties(Dsqt::TouchEngineSDK PROPERTIES
-            MAP_IMPORTED_CONFIG_RELWITHDEBINFO Release)
+# The static TouchEngine module contains the Vulkan backend, so its loader is a
+# fixed link-time dependency. Spout only requires Vulkan when its Vulkan backend
+# was enabled in the installed build. Resolve and create these modules only when
+# requested so unrelated QML scans never inspect targets with unavailable
+# private dependencies.
+set(_dsqt_touchengine_requested FALSE)
+set(_dsqt_spout_requested FALSE)
+set(_dsqt_spout_vulkan_enabled @DSQT_SPOUT_VULKAN_ENABLED@)
+
+if(NOT Dsqt_FIND_COMPONENTS OR "TouchEngine" IN_LIST Dsqt_FIND_COMPONENTS)
+    set(_dsqt_touchengine_requested TRUE)
+endif()
+
+if(WIN32)
+    if(NOT Dsqt_FIND_COMPONENTS OR "Spout" IN_LIST Dsqt_FIND_COMPONENTS)
+        set(_dsqt_spout_requested TRUE)
     endif()
 endif()
 
-# Find Vulkan for TouchEngine
-find_package(Vulkan QUIET)
+if(_dsqt_touchengine_requested OR _dsqt_spout_requested)
+    find_dependency(Qt6 6.9 REQUIRED COMPONENTS GuiPrivate)
+endif()
 
-set_target_properties(Dsqt::TouchEngine PROPERTIES
-    INTERFACE_INCLUDE_DIRECTORIES "${_DSQT_INCLUDE_DIR};${_DSQT_INCLUDE_DIR}/src;${_DSQT_INCLUDE_DIR}/TouchEngine/include"
-    INTERFACE_LINK_LIBRARIES "Qt6::Core;Qt6::Quick;Qt6::Gui;Qt6::Concurrent;Qt6::QuickControls2;Dsqt::TouchEngineplugin;Dsqt::TouchEngineSDK;d3d12;dxgi;$<$<BOOL:${Vulkan_FOUND}>:Vulkan::Vulkan>"
-)
+set(_dsqt_vulkan_required ${_dsqt_touchengine_requested})
+if(_dsqt_spout_requested AND _dsqt_spout_vulkan_enabled)
+    set(_dsqt_vulkan_required TRUE)
+endif()
+if(_dsqt_vulkan_required)
+    if(NOT Dsqt_FIND_COMPONENTS)
+        # A no-components lookup creates the all-modules umbrella, so Vulkan
+        # is unconditionally required.
+        find_dependency(Vulkan REQUIRED)
+    else()
+        # Preserve CMake's OPTIONAL_COMPONENTS semantics. Missing Vulkan makes
+        # only the affected optional component unavailable; the final
+        # HANDLE_COMPONENTS check still rejects a required component.
+        find_package(Vulkan QUIET)
+        if(NOT TARGET Vulkan::Vulkan)
+            if(_dsqt_touchengine_requested)
+                set(_dsqt_touchengine_requested FALSE)
+            endif()
+            if(_dsqt_spout_requested AND _dsqt_spout_vulkan_enabled)
+                set(_dsqt_spout_requested FALSE)
+            endif()
+        endif()
+    endif()
+endif()
 
-# Provide a compile definition consumers can use to conditionally include TouchEngine code
-set(DSQT_HAS_TOUCHENGINE TRUE)
+if(_dsqt_touchengine_requested)
+    # TouchEngine SDK library
+    if(NOT TARGET DsqtTouchEngineSDK)
+        add_library(DsqtTouchEngineSDK SHARED IMPORTED)
+        set_property(TARGET DsqtTouchEngineSDK
+            PROPERTY IMPORTED_CONFIGURATIONS ${_DSQT_IMPORTED_CONFIGS})
+        set_target_properties(DsqtTouchEngineSDK PROPERTIES
+            IMPORTED_LOCATION_DEBUG          "${_DSQT_BINDIR_DEBUG}/TouchEngine.dll"
+            IMPORTED_IMPLIB_DEBUG            "${_DSQT_LIBDIR_DEBUG}/DsqtTouchEngineSDK.lib"
+            IMPORTED_LOCATION_RELEASE        "${_DSQT_BINDIR_RELEASE}/TouchEngine.dll"
+            IMPORTED_IMPLIB_RELEASE          "${_DSQT_LIBDIR_RELEASE}/DsqtTouchEngineSDK.lib"
+            MAP_IMPORTED_CONFIG_MINSIZEREL   Release
+        )
+        if(_DSQT_HAVE_RELWITHDEBINFO)
+            set_target_properties(DsqtTouchEngineSDK PROPERTIES
+                IMPORTED_LOCATION_RELWITHDEBINFO "${_DSQT_BINDIR_RELWITHDEBINFO}/TouchEngine.dll"
+                IMPORTED_IMPLIB_RELWITHDEBINFO   "${_DSQT_LIBDIR_RELWITHDEBINFO}/DsqtTouchEngineSDK.lib"
+            )
+        else()
+            set_target_properties(DsqtTouchEngineSDK PROPERTIES
+                MAP_IMPORTED_CONFIG_RELWITHDEBINFO Release)
+        endif()
+    endif()
+    if(NOT TARGET Dsqt::TouchEngineSDK)
+        add_library(Dsqt::TouchEngineSDK ALIAS DsqtTouchEngineSDK)
+    endif()
+
+    # Use CMake's exported target graph for this static QML module. It includes
+    # the Qt-generated resource object libraries, shader resources, and plugin
+    # initializer that cannot be reconstructed by a single imported archive.
+    include("${CMAKE_CURRENT_LIST_DIR}/DsqtTouchEngineTargets.cmake")
+
+    # qt_import_qml_plugins() resolves the unqualified linktarget recorded in
+    # the installed qmldir file (DsqtTouchEngineplugin, set via PLUGIN_TARGET).
+    if(NOT TARGET DsqtTouchEngineplugin)
+        add_library(DsqtTouchEngineplugin ALIAS Dsqt::DsqtTouchEngineplugin)
+    endif()
+    # Namespaced name, matching the other modules (Dsqt::Coreplugin, ...).
+    if(NOT TARGET Dsqt::TouchEngineplugin)
+        add_library(Dsqt::TouchEngineplugin ALIAS Dsqt::DsqtTouchEngineplugin)
+    endif()
+
+    # Match the package's existing multi-config layout when a MinSizeRel
+    # consumer uses the installed Release artifacts.
+    set(_dsqt_touchengine_exported_targets
+        TouchEngine
+        DsqtTouchEngineplugin
+        @TouchEngineTargets@
+    )
+    foreach(_target IN LISTS _dsqt_touchengine_exported_targets)
+        if(TARGET Dsqt::${_target})
+            set_property(TARGET Dsqt::${_target} PROPERTY
+                MAP_IMPORTED_CONFIG_MINSIZEREL Release
+            )
+        endif()
+    endforeach()
+    unset(_dsqt_touchengine_exported_targets)
+
+    # Provide a variable consumers can use to conditionally include code.
+    set(DSQT_HAS_TOUCHENGINE TRUE)
+endif()
 
 # Create Spout targets (Windows only)
 # Note: The library target is named DsSpout (not Spout) to avoid collision
 # with the upstream Spout2 SDK's own "Spout" target during build.
 # Consumers use the canonical Dsqt::Spout alias.
-if(WIN32)
+if(WIN32 AND _dsqt_spout_requested)
     if(NOT TARGET Dsqt::Spout)
         add_library(Dsqt::Spout STATIC IMPORTED)
         _dsqt_set_locations(Dsqt::Spout "DsqtSpout")
@@ -354,17 +437,24 @@ if(WIN32)
         add_library(Dsqt::SpoutDX_static STATIC IMPORTED)
         _dsqt_set_locations(Dsqt::SpoutDX_static "SpoutDX_static")
     endif()
+    set(_dsqt_spout_iface_libs
+        "Qt6::Core;Qt6::Quick;Qt6::Gui;Qt6::GuiPrivate;Dsqt::Spoutplugin;Dsqt::SpoutDX_static;d3d11;d3d12;dxgi;opengl32"
+    )
+    if(_dsqt_spout_vulkan_enabled)
+        list(APPEND _dsqt_spout_iface_libs Vulkan::Vulkan)
+    endif()
     set_target_properties(Dsqt::Spout PROPERTIES
         INTERFACE_INCLUDE_DIRECTORIES "${_DSQT_INCLUDE_DIR};${_DSQT_INCLUDE_DIR}/src"
-        INTERFACE_LINK_LIBRARIES "Qt6::Core;Qt6::Quick;Qt6::Gui;Qt6::GuiPrivate;Dsqt::Spoutplugin;Dsqt::SpoutDX_static;d3d11;d3d12;dxgi;opengl32;$<$<BOOL:${Vulkan_FOUND}>:Vulkan::Vulkan>"
+        INTERFACE_LINK_LIBRARIES "${_dsqt_spout_iface_libs}"
     )
     set(DSQT_HAS_SPOUT TRUE)
 endif()
 
-# Create umbrella target
-if(NOT TARGET Dsqt::Dsqt)
+# Create the all-modules umbrella only for a no-components lookup. Component
+# consumers should see only the targets they requested.
+if(NOT Dsqt_FIND_COMPONENTS AND NOT TARGET Dsqt::Dsqt)
     add_library(Dsqt::Dsqt INTERFACE IMPORTED)
-    set(_dsqt_umbrella_libs "Dsqt::Core;Dsqt::Bridge;Dsqt::Waffles;Dsqt::TouchEngine;Dsqt::Touch")
+    set(_dsqt_umbrella_libs "Dsqt::Core;Dsqt::Bridge;Dsqt::Waffles;Dsqt::TouchEngine;Dsqt::Touch;Dsqt::Qsys")
     if(WIN32)
         list(APPEND _dsqt_umbrella_libs "Dsqt::Spout")
     endif()
@@ -376,7 +466,7 @@ endif()
 # ----------------------------------------------------------------------
 # Define the set of known/valid component names
 # ----------------------------------------------------------------------
-set(_Dsqt_known_components Core Bridge Waffles TouchEngine Spout Touch)
+set(_Dsqt_known_components Core Bridge Waffles TouchEngine Spout Touch Qsys)
 
 # ----------------------------------------------------------------------
 # Check requested components (from find_package(Dsqt COMPONENTS ...))
@@ -401,13 +491,27 @@ endforeach()
 # ----------------------------------------------------------------------
 # Runtime DLL deployment helper
 # Usage: dsqt_deploy_runtime_dlls(myTarget)
-# Adds a post-build command that copies bundled runtime DLLs (TouchEngine) from
-# the DsQt install prefix into the target's output directory.
+# Adds a post-build command that copies bundled runtime DLLs (TouchEngine, and
+# toml++ when it was built as a DLL) into the target's output directory.
 # Call this once per executable target in consumer CMakeLists.txt.
 # ----------------------------------------------------------------------
 set(DSQT_RUNTIME_DLLS "")
+set(DSQT_RUNTIME_TARGETS "")
 if(WIN32)
-    list(APPEND DSQT_RUNTIME_DLLS "TouchEngine.dll")
+    # toml++ only has to ship when it was built as a DLL. The DsQt vcpkg
+    # triplets build it statically, in which case there is nothing to deploy.
+    if(TARGET tomlplusplus::tomlplusplus)
+        get_target_property(_dsqt_toml_type tomlplusplus::tomlplusplus TYPE)
+        if(_dsqt_toml_type STREQUAL "SHARED_LIBRARY")
+            list(APPEND DSQT_RUNTIME_TARGETS tomlplusplus::tomlplusplus)
+        endif()
+        unset(_dsqt_toml_type)
+    endif()
+
+    if(TARGET Dsqt::TouchEngineSDK)
+        list(APPEND DSQT_RUNTIME_DLLS "TouchEngine.dll")
+        list(APPEND DSQT_RUNTIME_TARGETS Dsqt::TouchEngineSDK)
+    endif()
 endif()
 
 # Resolve the runtime directory for the config being built. In the vcpkg and
@@ -425,12 +529,12 @@ endif()
 set(DSQT_RUNTIME_DIR "${_DSQT_RUNTIME_DIR_GENEX}")
 
 macro(dsqt_deploy_runtime_dlls _target)
-    foreach(_dll IN LISTS DSQT_RUNTIME_DLLS)
+    foreach(_runtime_target IN LISTS DSQT_RUNTIME_TARGETS)
         add_custom_command(TARGET ${_target} POST_BUILD
             COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                "${_DSQT_RUNTIME_DIR_GENEX}/${_dll}"
-                "$<TARGET_FILE_DIR:${_target}>/${_dll}"
-            COMMENT "Deploying ${_dll} to $<TARGET_FILE_DIR:${_target}>"
+                "$<TARGET_FILE:${_runtime_target}>"
+                "$<TARGET_FILE_DIR:${_target}>"
+            COMMENT "Deploying $<TARGET_FILE_NAME:${_runtime_target}> to $<TARGET_FILE_DIR:${_target}>"
         )
     endforeach()
 endmacro()
@@ -439,11 +543,12 @@ endmacro()
 # Install-time counterpart
 # Usage: dsqt_install_runtime_dlls(${CMAKE_INSTALL_BINDIR})
 # ----------------------------------------------------------------------
-# Installs the bundled runtime DLLs into <destination>. Layout-aware, so a
+# Installs the bundled runtime DLLs into <destination>. Layout-aware (the
+# paths come from the imported targets), so a
 # consumer never has to know whether the DLLs live in bin/ or bin/$<CONFIG>/.
 macro(dsqt_install_runtime_dlls _destination)
-    foreach(_dll IN LISTS DSQT_RUNTIME_DLLS)
-        install(FILES "${_DSQT_RUNTIME_DIR_GENEX}/${_dll}"
+    foreach(_runtime_target IN LISTS DSQT_RUNTIME_TARGETS)
+        install(FILES "$<TARGET_FILE:${_runtime_target}>"
                 DESTINATION "${_destination}" OPTIONAL)
     endforeach()
 endmacro()
@@ -458,6 +563,12 @@ find_package_handle_standard_args(Dsqt
     VERSION_VAR Dsqt_VERSION
     HANDLE_COMPONENTS
 )
+
+unset(_dsqt_spout_iface_libs)
+unset(_dsqt_spout_vulkan_enabled)
+unset(_dsqt_spout_requested)
+unset(_dsqt_touchengine_requested)
+unset(_dsqt_vulkan_required)
 
 if(_Dsqt_missing AND Dsqt_FIND_REQUIRED)
     message(STATUS "Dsqt missing required component(s):${_Dsqt_missing}")

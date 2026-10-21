@@ -40,6 +40,11 @@ displayIndex = 0
 width = 3840
 height = 2160
 
+# The Q-Sys plugin connects to this app's WebSocket listener.
+[engine.qsys]
+enabled = false
+port = 9988
+
 #need to fix the scaleLoader it is currently broken
 #[engine.scaleLoader]
 #world_dimensions=[{w=3840,h=2160},{type="size"}] #The size of the overall app space.

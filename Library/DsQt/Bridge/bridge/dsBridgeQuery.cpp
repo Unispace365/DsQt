@@ -8,6 +8,7 @@
 
 #include "qqmlcontext.h"
 
+#include <QFuture>
 #include <QSharedPointer>
 #include <QSqlField>
 #include <QString>
@@ -245,6 +246,7 @@ bool DsBridgeSqlQuery::tryLaunchBridgeSync() {
 }
 
 void DsBridgeSqlQuery::stopBridgeSync() {
+#ifndef Q_OS_WASM
     // Disconnect from process events.
     for (const auto& connection : std::as_const(mConnections)) {
         QObject::disconnect(connection);
@@ -253,6 +255,7 @@ void DsBridgeSqlQuery::stopBridgeSync() {
 
     // Make sure our current process is stopped.
     mProcessGuard.reset();
+#endif
 }
 
 // Checks to see if process is started.
@@ -397,11 +400,14 @@ void DsBridgeSqlQuery::onPublishContent() {
     if (!events) events = ContentModel::createNamed("Events", root);
     auto platforms = root->getChildByName("Platforms");
     if (!platforms) platforms = ContentModel::createNamed("Platforms", root);
+    auto tags = root->getChildByName("Tags");
+    if (!tags) tags = ContentModel::createNamed("Tags", root);
 
     // Update root.
     root->setProperty("content_uid", mContent.m_content);
     root->setProperty("event_uid", mContent.m_events);
     root->setProperty("platform_uid", mContent.m_platforms);
+    root->setProperty("tag_uid", mContent.m_tags);
 
     for (const auto& uid : std::as_const(mContent.m_content)) {
         auto val = ContentModel::find(uid);
@@ -419,6 +425,12 @@ void DsBridgeSqlQuery::onPublishContent() {
         auto val = ContentModel::find(uid);
         if (val) {
             val->setParent(platforms);
+        }
+    }
+    for (const auto& uid : std::as_const(mContent.m_tags)) {
+        auto val = ContentModel::find(uid);
+        if (val) {
+            val->setParent(tags);
         }
     }
 
@@ -457,10 +469,32 @@ void DsBridgeSqlQuery::queryDatabase() {
     // We are about to read the database, so anything signalled up to this point is covered by this run.
     mIsPending.storeRelaxed(false);
 
+#if QT_CONFIG(thread)
     // Perform update on a background thread.
     QFuture<DatabaseContent> future = QtConcurrent::run([=, this]() { return queryTables(); });
+#else
+    // No threads to hand it to, so read it here and hand the watcher a future
+    // that is already finished.
+    //
+    // This is not an optimisation, it is the difference between working and not.
+    // QtConcurrent::run puts the task on the global QThreadPool, which starts a
+    // QThread to service it -- and in a build without thread support (Qt for
+    // WebAssembly's single-threaded kit, say) QThread::start() cannot create
+    // one. The runnable is then queued behind a worker that never exists: the
+    // future never finishes, `finished` never fires, and the whole content
+    // pipeline stops before its first step with nothing said about it.
+    //
+    // The read is synchronous here, so it blocks whoever called. That is the
+    // honest cost of having no threads, and queryTables() already expects it --
+    // it says which thread it ran on. The rest of the pipeline is unaffected: it
+    // was always chunked across singleShot timers to stay off the main thread's
+    // back, and it still is.
+    QFuture<DatabaseContent> future = QtFuture::makeReadyValueFuture(queryTables());
+#endif
 
-    // Set the future in the watcher to track completion.
+    // Set the future in the watcher to track completion. A future that is already
+    // finished still reports through the watcher, on the next turn of the event
+    // loop, so onUpdated() is reached the same way either way.
     mFutures.setFuture(future);
 }
 
@@ -513,6 +547,29 @@ DatabaseContent DsBridgeSqlQuery::queryTables() {
                        " FROM lookup"                    //
                        " WHERE lookup.type = 'select'"); //
 
+    // Older databases may not contain tag tables.
+    const auto tables = mDatabase.tables();
+    QString    sTagQuery;
+    if (tables.contains("tags")) {
+        sTagQuery = QStringLiteral("SELECT "                                           //
+                                   " t.uid,"                                           // 0
+                                   " t.tag_class_uid,"                                 // 1
+                                   " t.label,"                                         // 2
+                                   " l.app_key AS tag_class_app_key"                   // 3
+                                   " FROM tags AS t"                                   //
+                                   " LEFT JOIN lookup AS l ON l.uid = t.tag_class_uid" //
+                                   " ORDER BY t.uid;");                                //
+    }
+
+    QString sRecordTagsQuery;
+    if (tables.contains("record_tags")) {
+        sRecordTagsQuery = QStringLiteral("SELECT "                                //
+                                          " rt.tag_uid,"                           // 0
+                                          " rt.record_uid"                         // 1
+                                          " FROM record_tags AS rt"                //
+                                          " ORDER BY rt.record_uid, rt.tag_uid;"); //
+    }
+
     QString sDefaultsQuery =                                                          //
         QStringLiteral("SELECT "                                                      //
                        " record.uid,"                                                 // 0
@@ -541,6 +598,7 @@ DatabaseContent DsBridgeSqlQuery::queryTables() {
     bool       hasDatetime = record.contains("datetime");
     bool       hasDate     = record.contains("date");
     bool       hasTime     = record.contains("time");
+    bool       hasTags     = record.contains("tags");
 
     // Determine the date and time field expression.
     QStringList datetimeSelect;
@@ -601,12 +659,13 @@ DatabaseContent DsBridgeSqlQuery::queryTables() {
                 " v.hotspot_y,"                                // 48
                 " v.hotspot_w,"                                // 49
                 " v.hotspot_h,"                                // 50
-                " res.filename"                                // 51
+                " res.filename,"                               // 51
+                " %2 AS tags"                                  // 52
                 " FROM value AS v"
                 " LEFT JOIN lookup AS l ON l.uid = v.field_uid"
                 " LEFT JOIN resource AS res ON res.hash = v.resource_hash"
                 " LEFT JOIN resource AS preview_res ON preview_res.hash = v.preview_resource_hash;")
-            .arg(datetimeSelect.join(", "));
+            .arg(datetimeSelect.join(", "), hasTags ? "v.tags" : "NULL");
 
     // Create data structures.
     DatabaseQuery slotQuery(mDatabase, sSlotQuery);
@@ -614,6 +673,8 @@ DatabaseContent DsBridgeSqlQuery::queryTables() {
     DatabaseQuery selectQuery(mDatabase, sSelectQuery);
     DatabaseQuery defaultsQuery(mDatabase, sDefaultsQuery);
     DatabaseQuery valueQuery(mDatabase, sValueQuery);
+    DatabaseQuery tagQuery(mDatabase, sTagQuery);
+    DatabaseQuery recordTagsQuery(mDatabase, sRecordTagsQuery);
 
     // Perform queries inside a transaction. This is very important,
     // because it effectively takes a snapshot of the current database,
@@ -632,6 +693,8 @@ DatabaseContent DsBridgeSqlQuery::queryTables() {
         selectQuery.execute();
         defaultsQuery.execute();
         valueQuery.execute();
+        if (!sTagQuery.isEmpty()) tagQuery.execute();
+        if (!sRecordTagsQuery.isEmpty()) recordTagsQuery.execute();
 
         // Commit the transaction (see above).
         if (!mDatabase.commit()) {
@@ -706,6 +769,59 @@ DatabaseContent DsBridgeSqlQuery::queryTables() {
 
         // Store order.
         record.insertOrAssign("rank", ++rank);
+    });
+
+    // Process tag query.
+    tagQuery.process([&](const QSqlRecord& result) {
+        const auto uid = result.value("uid").toString();
+        if (uid.isEmpty() || content.m_records.contains(uid)) {
+            qCWarning(lgBridgeSyncQuery) << "Invalid or duplicate tag uid:" << uid;
+            return;
+        }
+
+        auto& tag = content.m_records[uid];
+        tag.insertOrAssign("uid", uid);
+        tag.insertOrAssign("tag_uid", uid);
+        tag.insertOrAssign("tag_class_uid", result.value("tag_class_uid").toString());
+        tag.insertOrAssign("tag_class_app_key", result.value("tag_class_app_key").toString());
+        tag.insertOrAssign("label", result.value("label").toString());
+        tag.insertOrAssign("record_name", result.value("label").toString());
+        tag.insertOrAssign("variant", "TAG");
+        // An empty parent list includes the tag in the root traversal and processing queue.
+        tag.insertOrAssign("parent_uid", QStringList());
+        tag.insertOrAssign("rank", ++rank);
+        content.m_tags.append(uid);
+    });
+
+    // Process record tags query.
+    recordTagsQuery.process([&](const QSqlRecord& result) {
+        const auto uid     = result.value("record_uid").toString();
+        const auto tag_uid = result.value("tag_uid").toString();
+        // Only attach tags to records included by the record query.
+        if (!content.m_records.contains(uid) || content.m_records[uid].value("variant") == "TAG") return;
+
+        const auto tag = content.m_records.constFind(tag_uid);
+        if (tag == content.m_records.constEnd() || tag->value("variant") != "TAG") {
+            qCWarning(lgBridgeSyncQuery) << "Unknown tag:" << tag_uid << "on record:" << uid;
+            return;
+        }
+        // Keep the association even when the class has no app key for a named record property.
+        content.addRecordTag(uid, tag_uid);
+        const auto app_key = slugifyKey(tag->value("tag_class_app_key").toString());
+        if (app_key.isEmpty()) {
+            qCWarning(lgBridgeSyncQuery) << "Missing tag class app key for tag:" << tag_uid;
+            return;
+        }
+
+        auto& record = content.m_records[uid];
+        auto  uids   = record.value(app_key + "_tag_uids").toStringList();
+        auto  labels = record.value(app_key + "_tags").toStringList();
+        if (!uids.contains(tag_uid)) {
+            uids.append(tag_uid);
+            labels.append(tag->value("label").toString());
+        }
+        record.insertOrAssign(app_key + "_tag_uids", uids);
+        record.insertOrAssign(app_key + "_tags", labels);
     });
 
     // Process select query.
@@ -850,7 +966,7 @@ DatabaseContent DsBridgeSqlQuery::queryTables() {
                     auto res = dsqt::DsResource(
                         previewId, dsqt::DsResource::Id::CMS_TYPE, double(result.value("preview_duration").toFloat()),
                         float(result.value("preview_width").toInt()), float(result.value("preview_height").toInt()),
-                        result.value("filename").toString(), previewUri, -1, cms.getResourcePath() + previewUri);
+                        result.value("filename").toString(), previewUri, -1, cms.getResourcePath() + "/" + previewUri);
                     res.setType(previewType == "FILE_IMAGE" ? dsqt::DsResource::IMAGE_TYPE
                                                             : dsqt::DsResource::VIDEO_TYPE);
 
@@ -889,6 +1005,25 @@ DatabaseContent DsBridgeSqlQuery::queryTables() {
             record.insertOrAssign(field_uid, datetime);
         } else if (field_type == "COLOR") {
             record.insertOrAssign(field_uid, result.value("color").toString());
+        } else if (field_type == "TAGS") {
+            const auto tag_uid = result.value("tags").toString();
+            auto       uids    = record.value(field_uid).toStringList();
+            auto       labels  = record.value(field_uid + "_labels").toStringList();
+            // BridgeSync uses '_' for an empty tag value.
+            if (!tag_uid.isEmpty() && tag_uid != "_") {
+                const auto tag = content.m_records.constFind(tag_uid);
+                if (tag != content.m_records.constEnd() && tag->value("variant") == "TAG") {
+                    content.addRecordTag(uid, tag_uid);
+                    if (!uids.contains(tag_uid)) {
+                        uids.append(tag_uid);
+                        labels.append(tag->value("label").toString());
+                    }
+                } else {
+                    qCWarning(lgBridgeSyncQuery) << "Unknown tag:" << tag_uid << "on field:" << field_uid;
+                }
+            }
+            record.insertOrAssign(field_uid, uids);
+            record.insertOrAssign(field_uid + "_labels", labels);
         } else {
             qWarning() << "Invalid record type" << field_type;
         }
@@ -917,6 +1052,7 @@ QString DsBridgeSqlQuery::slugifyKey(QString appKey) {
     return appKey.replace(badRe, "_");
 }
 
+#ifndef Q_OS_WASM
 BridgeSyncProcessGuard::BridgeSyncProcessGuard(QProcess& process)
     : mProcess(process) {
 #ifdef Q_OS_WIN
@@ -970,6 +1106,7 @@ BridgeSyncProcessGuard::~BridgeSyncProcessGuard() {
     CloseHandle(mJobHandle);
 #endif
 }
+#endif // !Q_OS_WASM
 
 DatabaseGuard::DatabaseGuard(QSqlDatabase& database)
     : mDatabase(database)

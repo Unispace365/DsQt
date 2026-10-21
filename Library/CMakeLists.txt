@@ -144,6 +144,8 @@ find_package(Qt6 6.9
         Qml
         Quick
         Widgets
+        Network
+        WebSockets
 )
 
 find_package(tomlplusplus CONFIG REQUIRED)
@@ -151,7 +153,7 @@ find_package(tomlplusplus CONFIG REQUIRED)
 option(DSQT_BUILD_TESTS "Build and run DsQt unit tests" OFF)
 if(DSQT_BUILD_TESTS)
     enable_testing()
-    find_package(Qt6 REQUIRED COMPONENTS Test)
+    find_package(Qt6 REQUIRED COMPONENTS Test QuickTest)
 endif()
 
 #qt_standard_project_setup(REQUIRES 6.9)
@@ -162,6 +164,7 @@ add_subdirectory("Dsqt/Waffles")
 add_subdirectory("Dsqt/TouchEngine")
 add_subdirectory("Dsqt/Spout")
 add_subdirectory("Dsqt/Touch")
+add_subdirectory("Dsqt/Qsys")
 
 add_library(Dsqt INTERFACE)
 add_library(Dsqt::Dsqt ALIAS Dsqt)
@@ -177,6 +180,7 @@ target_link_libraries(Dsqt
     Dsqt::Waffles
     Dsqt::TouchEngine
     Dsqt::Touch
+    Dsqt::Qsys
 )
 
 if(WIN32 AND TARGET Dsqt::Spout)
@@ -217,7 +221,10 @@ cmake_path(NATIVE_PATH CMAKE_CURRENT_SOURCE_DIR DS_QMLLINT_ROOT)
 if(DSQT_BUILD_TESTS)
     add_subdirectory(Tests/Settings)
     add_subdirectory(Tests/Logging)
+    add_subdirectory(Tests/TouchEngine)
     add_subdirectory(Tests/BridgeTest)
+    add_subdirectory(Tests/Effects)
+    add_subdirectory(Tests/Qsys)
 endif()
 
 # ----------------------------------------------------------------------
@@ -254,10 +261,10 @@ if(PROJECT_IS_TOP_LEVEL)
         DsqtBridgeplugin
         Waffles
         DsqtWafflesplugin
-        TouchEngine
-        DsqtTouchEngineplugin
         Touch
         DsqtTouchplugin
+        Qsys
+        DsqtQsysplugin
 
         # Where to put the different kinds of files.
         # DSQT_CONFIG_DIR is "/$<CONFIG>" in the default layout (so Debug and
@@ -266,6 +273,27 @@ if(PROJECT_IS_TOP_LEVEL)
         LIBRARY    DESTINATION ${CMAKE_INSTALL_LIBDIR}${DSQT_CONFIG_DIR}   # .so / .dylib
         ARCHIVE    DESTINATION ${CMAKE_INSTALL_LIBDIR}${DSQT_CONFIG_DIR}   # .a / .lib
         RUNTIME    DESTINATION ${CMAKE_INSTALL_BINDIR}${DSQT_CONFIG_DIR}   # .dll / executables
+    )
+
+    # TouchEngine is a static QML module. Qt generates additional object
+    # libraries for QML resources, the static plugin initializer, and shaders;
+    # all of them are part of the backing target's link interface and therefore
+    # have to be installed and exported with it.
+    install(TARGETS
+        TouchEngine
+        DsqtTouchEngineplugin
+        ${TouchEngineTargets}
+        EXPORT DsqtTouchEngineTargets
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}${DSQT_CONFIG_DIR}
+        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}${DSQT_CONFIG_DIR}
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}${DSQT_CONFIG_DIR}
+        OBJECTS DESTINATION ${CMAKE_INSTALL_LIBDIR}${DSQT_CONFIG_DIR}/objects
+    )
+
+    install(EXPORT DsqtTouchEngineTargets
+        FILE DsqtTouchEngineTargets.cmake
+        NAMESPACE Dsqt::
+        DESTINATION ${DSQT_INSTALL_CMAKEDIR}
     )
 
     # Spout module (Windows only)
@@ -309,6 +337,13 @@ if(PROJECT_IS_TOP_LEVEL)
         "${QT_QML_OUTPUT_DIRECTORY}/Dsqt/Touch/qmldir"
         "${QT_QML_OUTPUT_DIRECTORY}/Dsqt/Touch/Touch.qmltypes"
         DESTINATION "${DSQT_INSTALL_QMLDIR}/Dsqt/Touch"
+    )
+
+    # Q-Sys QML module metadata
+    install(FILES
+        "${QT_QML_OUTPUT_DIRECTORY}/Dsqt/Qsys/qmldir"
+        "${QT_QML_OUTPUT_DIRECTORY}/Dsqt/Qsys/Qsys.qmltypes"
+        DESTINATION "${DSQT_INSTALL_QMLDIR}/Dsqt/Qsys"
     )
 
     # Spout QML module metadata (Windows only)

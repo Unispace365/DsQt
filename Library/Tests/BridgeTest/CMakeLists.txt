@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.29)
 
-# Unit tests for the generic Bridge types in dsBridgeDatabase.h: DatabaseRecord, DatabaseResource,
+# Unit tests for the Bridge module.
+#
+# tst_database*: the generic Bridge types in dsBridgeDatabase.h: DatabaseRecord, DatabaseResource,
 # DatabaseContent, DatabaseTree and the event helpers. They do not use a database or any project schema; records are
 # built by hand, with the same value types that DsBridgeSqlQuery produces for each CMS field type.
 #
@@ -13,7 +15,7 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
 
-find_package(Qt6 6.9 REQUIRED COMPONENTS Core Test)
+find_package(Qt6 6.9 REQUIRED COMPONENTS Core Sql Test)
 qt_standard_project_setup(REQUIRES 6.9)
 
 enable_testing()
@@ -48,3 +50,21 @@ add_bridge_test(tst_databaseresource)
 add_bridge_test(tst_databaserecord)
 add_bridge_test(tst_databasecontent)
 add_bridge_test(tst_databaseevents)
+
+# BridgeQuery / QmlBridge tests (in-memory SQLite database, so this one also needs Qt6::Sql).
+qt_add_executable(test_ds_bridge_query
+    tst_dsbridgequerytest.cpp
+)
+target_link_libraries(test_ds_bridge_query PRIVATE
+    Dsqt::Bridge Qt6::Sql Qt6::Test
+)
+set_target_properties(test_ds_bridge_query PROPERTIES
+    WIN32_EXECUTABLE FALSE
+)
+add_test(NAME test_ds_bridge_query COMMAND test_ds_bridge_query
+    -o "${CMAKE_CURRENT_BINARY_DIR}/test_ds_bridge_query.xml,junitxml"
+    -o -,txt
+)
+set_tests_properties(test_ds_bridge_query PROPERTIES
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+)

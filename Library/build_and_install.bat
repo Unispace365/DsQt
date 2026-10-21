@@ -5,15 +5,18 @@ goto :script_start
 
 :usage
 echo[
-echo Usage: build_and_install.bat [preset] [-test] [-tools] [-no-configure] [-no-install] [-clean]
+echo Usage: build_and_install.bat [preset] [-test] [-tools] [-no-configure] [-no-install]
+echo                              [-force-install] [-clean]
 echo                              [-hard-clean] [-rebuild] [-hard-rebuild] [-qt ^<ver^|path^>]
-echo                              [-no-private-reinject]
+echo                              [-no-private-reinject] [-fresh]
 echo[
 echo   preset              : CMake configure preset name ^(default: ninja^)
 echo   -test               : Enable and run unit tests after the Debug build
 echo   -tools              : Build and install ProjectCloner + ClonerSource template
+echo   -fresh / --fresh    : Reset the CMake cache before configuring, keeping build outputs
 echo   -no-configure       : Skip the CMake configure step ^(for fast incremental builds^)
 echo   -no-install         : Skip the install steps entirely
+echo   -force-install      : Install even when both builds report no changes
 echo   -clean              : Run cmake --build clean targets and exit
 echo   -hard-clean         : Delete the entire build folder and exit
 echo   -rebuild            : Clean then build ^(cmake clean + full build^)
@@ -28,19 +31,28 @@ if defined PRINT_HELP (
 
 :script_start
 
+REM vcvarsall.bat sets VCPKG_ROOT to Visual Studio's bundled vcpkg. Preserve
+REM the caller's explicitly configured standalone vcpkg root across MSVC setup.
+set "CALLER_VCPKG_ROOT=%VCPKG_ROOT%"
+set "CALLER_VCPKG_ROOT_WAS_DEFINED=0"
+if defined VCPKG_ROOT set "CALLER_VCPKG_ROOT_WAS_DEFINED=1"
+
 REM Set up the MSVC developer environment if not already active
-if not defined VSINSTALLDIR (
-    call "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvarsall.bat" amd64
-    if %errorlevel% neq 0 (
-        echo Failed to set up MSVC environment.
-        exit /b %errorlevel%
-    )
+call :setup_msvc
+if errorlevel 1 exit /b 1
+
+if "%CALLER_VCPKG_ROOT_WAS_DEFINED%"=="1" (
+    set "VCPKG_ROOT=%CALLER_VCPKG_ROOT%"
+) else (
+    set "VCPKG_ROOT="
 )
 
 set PRESET=ninja
 set RUN_TESTS=0
 set SKIP_CONFIGURE=0
+set FRESH_CONFIGURE=0
 set SKIP_INSTALL=0
+set FORCE_INSTALL=0
 set DO_CLEAN=0
 set DO_HARD_CLEAN=0
 set DO_REBUILD=0
@@ -53,6 +65,9 @@ set NO_PRIVATE_REINJECT=0
 :: Parse arguments — accept preset and flags in any order
 :parse_args
 if "%~1"=="" goto :args_done
+if /i "%~1"=="-fresh"         (set FRESH_CONFIGURE=1& shift & goto :parse_args)
+if /i "%~1"=="--fresh"        (set FRESH_CONFIGURE=1& shift & goto :parse_args)
+if /i "%~1"=="/fresh"         (set FRESH_CONFIGURE=1& shift & goto :parse_args)
 if /i "%~1"=="-test"          (set RUN_TESTS=1& shift & goto :parse_args)
 if /i "%~1"=="/test"          (set RUN_TESTS=1& shift & goto :parse_args)
 if /i "%~1"=="-tools"         (set BUILD_TOOLS=1& shift & goto :parse_args)
@@ -61,6 +76,8 @@ if /i "%~1"=="-no-configure"  (set SKIP_CONFIGURE=1& shift & goto :parse_args)
 if /i "%~1"=="/no-configure"  (set SKIP_CONFIGURE=1& shift & goto :parse_args)
 if /i "%~1"=="-no-install"    (set SKIP_INSTALL=1& shift & goto :parse_args)
 if /i "%~1"=="/no-install"    (set SKIP_INSTALL=1& shift & goto :parse_args)
+if /i "%~1"=="-force-install" (set FORCE_INSTALL=1& shift & goto :parse_args)
+if /i "%~1"=="/force-install" (set FORCE_INSTALL=1& shift & goto :parse_args)
 if /i "%~1"=="-clean"         (set DO_CLEAN=1& shift & goto :parse_args)
 if /i "%~1"=="/clean"         (set DO_CLEAN=1& shift & goto :parse_args)
 if /i "%~1"=="-hard-clean"    (set DO_HARD_CLEAN=1& shift & goto :parse_args)
@@ -86,6 +103,11 @@ if !PRINT_HELP!==1 (
     goto :usage
 )
 
+if !FRESH_CONFIGURE!==1 if !SKIP_CONFIGURE!==1 (
+    echo ERROR: --fresh cannot be combined with -no-configure.
+    exit /b 2
+)
+
 :: --- Check if VCPKG is installed ---
 if not defined VCPKG_ROOT (
     powershell -NoProfile -Command "Write-Host 'VCPKG_ROOT is not set. Please make sure VCPKG is properly installed.' -ForegroundColor Red"
@@ -94,6 +116,13 @@ if not defined VCPKG_ROOT (
 if not exist "%VCPKG_ROOT%\vcpkg.exe" (
     powershell -NoProfile -Command "Write-Host 'vcpkg.exe not found in VCPKG_ROOT: %VCPKG_ROOT%' -ForegroundColor Red"
     exit /b 1
+)
+
+git -C "%VCPKG_ROOT%" rev-parse --git-dir >nul 2>&1
+if errorlevel 1 (
+    echo WARNING: vcpkg's Git checkout is unavailable or not trusted by Git; skipping its update.
+    echo          Run git -C "%VCPKG_ROOT%" status to see the reason.
+    goto :after_vcpkg_update
 )
 
 :: --- Pull the latest VCPKG ---
@@ -113,7 +142,23 @@ if %errorlevel% neq 0 (
         powershell -NoProfile -Command "Write-Host 'vcpkg is up to date.' -ForegroundColor Green"
     )
 )
-for /f "delims=" %%H in ('git rev-parse HEAD 2^>nul') do set "VCPKG_HEAD_AFTER=%%H"
+:: Keep vcpkg.exe synchronized with the scripts that were just updated. Newer
+:: script schemas are not necessarily readable by an older executable. Avoid
+:: downloading the tool again when its release already matches the scripts.
+set "VCPKG_REQUIRED_TOOL_VERSION="
+set "VCPKG_CURRENT_TOOL_VERSION="
+for /f "tokens=2 delims==" %%i in ('findstr /b /c:"VCPKG_TOOL_RELEASE_TAG=" "%VCPKG_ROOT%\scripts\vcpkg-tool-metadata.txt"') do set "VCPKG_REQUIRED_TOOL_VERSION=%%i"
+for /f "tokens=6" %%i in ('.\vcpkg.exe version --disable-metrics 2^>nul ^| findstr /b /c:"vcpkg package management program version"') do set "VCPKG_CURRENT_TOOL_VERSION=%%i"
+if not "!VCPKG_CURRENT_TOOL_VERSION:~0,10!"=="!VCPKG_REQUIRED_TOOL_VERSION!" (
+    powershell -NoProfile -Command "Write-Host 'Bootstrapping vcpkg !VCPKG_REQUIRED_TOOL_VERSION!...' -ForegroundColor Yellow"
+    call "%VCPKG_ROOT%\bootstrap-vcpkg.bat" -disableMetrics
+    set VCPKG_BOOTSTRAP_EXIT=!errorlevel!
+    if not "!VCPKG_BOOTSTRAP_EXIT!"=="0" (
+        popd
+        powershell -NoProfile -Command "Write-Host 'Failed to bootstrap the updated vcpkg executable.' -ForegroundColor Red"
+        exit /b !VCPKG_BOOTSTRAP_EXIT!
+    )
+)
 popd
 
 :: --- Re-bootstrap vcpkg.exe when the sources moved ahead of the binary ---
@@ -134,6 +179,8 @@ if "!VCPKG_NEEDS_BOOTSTRAP!"=="1" (
     )
     powershell -NoProfile -Command "Write-Host 'vcpkg.exe re-bootstrapped.' -ForegroundColor Green"
 )
+
+:after_vcpkg_update
 
 :: --- Resolve Qt path ---
 if defined QT_PATH (
@@ -187,8 +234,24 @@ if !DO_CLEAN!==1 (
     goto :eof
 )
 
+:: CMake cannot safely switch toolchains in an existing build tree. Detect a
+:: cache created with Visual Studio's bundled vcpkg (or any other root) and
+:: direct the caller to the existing hard-rebuild option.
+set "EXPECTED_TOOLCHAIN=%VCPKG_ROOT:\=/%/scripts/buildsystems/vcpkg.cmake"
+set "CACHED_TOOLCHAIN="
+if exist "build\%PRESET%\CMakeCache.txt" (
+    for /f "tokens=1,* delims==" %%A in ('findstr /b /c:"CMAKE_TOOLCHAIN_FILE:FILEPATH=" "build\%PRESET%\CMakeCache.txt"') do set "CACHED_TOOLCHAIN=%%B"
+)
+if defined CACHED_TOOLCHAIN if /i not "!CACHED_TOOLCHAIN!"=="!EXPECTED_TOOLCHAIN!" (
+    powershell -NoProfile -Command "Write-Host 'ERROR: The existing build cache uses a different vcpkg toolchain:' -ForegroundColor Red; Write-Host '    Cached:   !CACHED_TOOLCHAIN!' -ForegroundColor Yellow; Write-Host '    Expected: !EXPECTED_TOOLCHAIN!' -ForegroundColor Yellow; Write-Host 'Run build_and_install.bat -hard-rebuild with your usual options.' -ForegroundColor Cyan"
+    exit /b 1
+)
+
 :: Build the cmake configure command
-set CMAKE_CONFIGURE=cmake --preset %PRESET%
+:: Windows Store updates can invalidate vcpkg's cached absolute pwsh.exe path,
+:: so make vcpkg discover PowerShell again on every configure.
+set CMAKE_CONFIGURE=cmake --preset %PRESET% -U Z_VCPKG_PWSH_PATH -U Z_VCPKG_POWERSHELL_PATH -DCMAKE_MAKE_PROGRAM="!NINJA_EXE!"
+if !FRESH_CONFIGURE!==1 set "CMAKE_CONFIGURE=!CMAKE_CONFIGURE! --fresh"
 if %RUN_TESTS%==1 (
     set CMAKE_CONFIGURE=%CMAKE_CONFIGURE% -DDSQT_BUILD_TESTS=ON
 )
@@ -213,9 +276,10 @@ if %SKIP_CONFIGURE%==1 (
     if %NO_PRIVATE_REINJECT%==1 powershell -NoProfile -Command "Write-Host '    Private reinject: DISABLED' -ForegroundColor Yellow"
     call :gettime CONFIGURE_START
     %CMAKE_CONFIGURE%
-    if %errorlevel% neq 0 (
+    if !errorlevel! neq 0 (
+        set "CONFIGURE_EXIT=!errorlevel!"
         powershell -NoProfile -Command "Write-Host 'Configuration failed.' -ForegroundColor Red"
-        exit /b %errorlevel%
+        exit /b !CONFIGURE_EXIT!
     )
     call :gettime CONFIGURE_END
 )
@@ -297,7 +361,7 @@ if !SKIP_INSTALL!==1 (
     goto :timing
 )
 
-if !DEBUG_NOOP!==1 if !RELEASE_NOOP!==1 (
+if !FORCE_INSTALL!==0 if !DEBUG_NOOP!==1 if !RELEASE_NOOP!==1 (
     echo.
     powershell -NoProfile -Command "Write-Host 'No changes detected - skipping install.' -ForegroundColor Yellow"
     goto :timing
@@ -332,7 +396,7 @@ if !BUILD_TOOLS!==1 (
 
     echo.
     call :header "Configuring ProjectCloner"
-    set TOOLS_CMAKE=cmake -S "!TOOLS_DIR!" -B "!TOOLS_BUILD!" -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="!INSTALL_PREFIX!\Tools\ProjectCloner"
+    set TOOLS_CMAKE=cmake -S "!TOOLS_DIR!" -B "!TOOLS_BUILD!" -G Ninja -DCMAKE_MAKE_PROGRAM="!NINJA_EXE!" -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="!INSTALL_PREFIX!\Tools\ProjectCloner"
     if defined QT_PATH (
         set TOOLS_CMAKE=!TOOLS_CMAKE! -DCMAKE_PREFIX_PATH="!QT_PATH!"
     )
@@ -439,4 +503,52 @@ set /a M = %~1 / 60
 set /a S = %~1 %% 60
 set RESULT=%M%m %S%s
 endlocal & set %~2=%RESULT%
+goto :eof
+
+:: Initialize the MSVC x64 developer environment if not already active.
+:: Locates Visual Studio 2022 (v17) or 2026 (v18), any edition, via vswhere
+:: with a path-probe fallback. Also ensures Ninja (bundled with the VS C++
+:: CMake tools) is on PATH.
+:setup_msvc
+set "_VSINSTALL="
+if defined VSINSTALLDIR (
+    set "_VSINSTALL=%VSINSTALLDIR%"
+    if "!_VSINSTALL:~-1!"=="\" set "_VSINSTALL=!_VSINSTALL:~0,-1!"
+    goto :find_ninja
+)
+set "_VSWHERE=%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe"
+if exist "%_VSWHERE%" (
+    for /f "usebackq tokens=*" %%i in (`"%_VSWHERE%" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath`) do set "_VSINSTALL=%%i"
+)
+if not defined _VSINSTALL (
+    for %%V in (18 2026 2022 17) do for %%E in (Community Professional Enterprise BuildTools) do if not defined _VSINSTALL if exist "C:\Program Files\Microsoft Visual Studio\%%V\%%E\VC\Auxiliary\Build\vcvarsall.bat" set "_VSINSTALL=C:\Program Files\Microsoft Visual Studio\%%V\%%E"
+)
+if not defined _VSINSTALL (
+    powershell -NoProfile -Command "Write-Host 'ERROR: Could not find Visual Studio 2022 or 2026 with the C++ x64 toolset. Install the Desktop development with C++ workload.' -ForegroundColor Red"
+    exit /b 1
+)
+if not exist "%_VSINSTALL%\VC\Auxiliary\Build\vcvarsall.bat" (
+    powershell -NoProfile -Command "Write-Host 'ERROR: vcvarsall.bat not found under %_VSINSTALL%.' -ForegroundColor Red"
+    exit /b 1
+)
+powershell -NoProfile -Command "Write-Host '    Visual Studio: %_VSINSTALL%' -ForegroundColor Yellow"
+call "%_VSINSTALL%\VC\Auxiliary\Build\vcvarsall.bat" amd64
+if errorlevel 1 (
+    powershell -NoProfile -Command "Write-Host 'ERROR: Failed to initialize MSVC environment via vcvarsall.bat.' -ForegroundColor Red"
+    exit /b 1
+)
+
+:find_ninja
+REM Resolve Ninja even when the caller already initialized the VS environment.
+set "NINJA_EXE="
+for /f "delims=" %%i in ('where ninja.exe 2^>nul') do if not defined NINJA_EXE set "NINJA_EXE=%%i"
+if not defined NINJA_EXE if exist "%_VSINSTALL%\Common7\IDE\CommonExtensions\Microsoft\CMake\Ninja\ninja.exe" set "NINJA_EXE=%_VSINSTALL%\Common7\IDE\CommonExtensions\Microsoft\CMake\Ninja\ninja.exe"
+if not defined NINJA_EXE if exist "C:\Qt\Tools\Ninja\ninja.exe" set "NINJA_EXE=C:\Qt\Tools\Ninja\ninja.exe"
+if not defined NINJA_EXE (
+    powershell -NoProfile -Command "Write-Host 'ERROR: Ninja was not found in PATH, Visual Studio, or C:\Qt\Tools\Ninja.' -ForegroundColor Red"
+    exit /b 1
+)
+for %%i in ("%NINJA_EXE%") do set "NINJA_DIR=%%~dpi"
+set "PATH=%NINJA_DIR%;%PATH%"
+powershell -NoProfile -Command "Write-Host '    Ninja: %NINJA_EXE%' -ForegroundColor Yellow"
 goto :eof

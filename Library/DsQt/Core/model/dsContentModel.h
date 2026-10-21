@@ -270,10 +270,23 @@ class ContentModel : public QQmlPropertyMap {
      * @param props The properties to set.
      */
     void setProperties(const QVariantHash& props) {
+        // Add or update incoming properties.
         for (auto prop : props.asKeyValueRange()) {
-            bool isDifferent = value(prop.first) != prop.second;
-            insert(prop.first, prop.second); // Emits valueChanged signal.
+            bool exists = contains(prop.first);
+            bool isDifferent = !exists || value(prop.first) != prop.second;
+            insert(prop.first, prop.second);
             if (isDifferent) emit valueChanged(prop.first, prop.second);
+        }
+
+        // Clear properties that no longer have an incoming analog.
+        // Note: QQmlPropertyMap can't remove keys outright — clear() sets
+        // the value to an invalid QVariant but the key remains in keys().
+        const auto currentKeys = keys();
+        for (const auto& key : currentKeys) {
+            if (!props.contains(key)) {
+                clear(key);
+                emit valueChanged(key, QVariant());
+            }
         }
     }
 

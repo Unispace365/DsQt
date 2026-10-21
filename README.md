@@ -14,6 +14,8 @@ CMS backend for rapid prototyping and developemnt.
 Documentation is compiled by Doxygen and can be found here:
 <https://unispace365.github.io/DsQt/>
 
+- [DsMultiEffect: alpha masking, edge fades, rounded corners, and adding effects](Docs/articles/multieffect.md)
+
 ## Getting Started
 
 > This version of DsQt has been built and is targeted at Windows. We hope to have Linux and Apple builds.
@@ -52,9 +54,14 @@ Documentation is compiled by Doxygen and can be found here:
                 * Qt Quick 3d
                 * Qt Quick Effect Maker
                 * Qt WebChannel
+                * Qt WebSockets
                 * (Everything else you can get just to be safe)
     * Qt Creator (check all boxes)
 5. Depending on what you selected this can take a while to download (hours sometimes).
+
+#### Install cmake
+
+On Windows, download the latest cmake x64 installer (.msi) from https://cmake.org/download/
 
 #### Install vcpkg
 
@@ -218,6 +225,8 @@ For detailed documentation, see the articles in [Docs/articles/](Docs/articles/)
 4. [SVG Color Reference](Docs/articles/svg_color_reference.md) - Working with SVG colors
 5. [Installer Guide](Docs/articles/installer_guide.md) - Building Windows installers with Inno Setup
 6. [TouchFilter Guide](Docs/articles/touch_filter.md) - Touch event filtering, jitter smoothing, transient suppression, and debug overlay
+7. [TouchEngine Rewrite and Multi-Backend Stabilization](Docs/articles/touchengine_rewrite_and_backend_stabilization.html) - Architecture, migration, diagnostics, testing, and graphics-backend stabilization
+8. [Q-Sys Integration](Docs/articles/qsys_usage.md) - Engine settings, QML/C++ updates, and commands through the Elevate plugin
 
 ## Generating documentation
 
