@@ -156,10 +156,8 @@ install(DIRECTORY .
 # into the shared prefix itself, and a second copy is a file-conflict error.
 # DsqtConfig.cmake resolves Dsqt::SpoutDX_static from <prefix>/lib either way,
 # because vcpkg puts dependency libraries in that same prefix.
-if(Spout2_Static AND DSQT_BUNDLE_DEPENDENCIES)
-    install(FILES
-        "$<$<CONFIG:Debug>:${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/debug/lib/SpoutDX_static.lib>"
-        "$<$<NOT:$<CONFIG:Debug>>:${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/lib/SpoutDX_static.lib>"
-    DESTINATION ${CMAKE_INSTALL_LIBDIR}${DSQT_CONFIG_DIR}
-            )
+if(DSQT_BUNDLE_DEPENDENCIES)
+    install(FILES "$<TARGET_FILE:${_spout_dx_target}>"
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}${DSQT_CONFIG_DIR}
+    )
 endif()

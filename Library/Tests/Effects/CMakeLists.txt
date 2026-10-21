@@ -12,7 +12,7 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
 
     option(DSQT_EFFECTS_USE_INSTALLED "Test an installed DsQt package" OFF)
     if(DSQT_EFFECTS_USE_INSTALLED)
-        find_package(Dsqt CONFIG REQUIRED)
+        find_package(Dsqt CONFIG REQUIRED COMPONENTS Core)
     else()
         find_package(tomlplusplus CONFIG REQUIRED)
         set(QT_QML_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/qml")

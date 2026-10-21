@@ -13,6 +13,7 @@ idle_timeout=600
 app_settings = [
   "content_settings.toml",
   "menu.toml",
+  "waffles_content.toml",
 ]
 
 engine = [
@@ -52,23 +53,14 @@ port = 9988
 #destination={x=0,y=100,w=3840,h=2160}#,{type="rect"}] #The output window size and position to render.
 
 [engine.resource]
-location = "%LOCAL%/ds_waffles/"
+location = "%LOCAL%/ClonerSource/resources/"
 resource_db = "db.sqlite"
 
 [engine.bridgesync]
 #whether to use the local path to the shared path to find bridgesync.
 app_path = "c:/downstream/bridgesync/bridge_sync_console.exe"
-launch_bridgesync = true
-
-[engine.bridgesync.connection]
-server = "http://api.waffles.localhost"
-#server = "https://app.hpi1.dev.bridge.downstream.com"
-#auth_server = "https://hpi1-api-userpool.auth.us-east-2.amazoncognito.com"
-#client_id = ""
-#client_secret= ""
-directory="%LOCAL%/dsdemo/"
-interval = 5
-verbose = true
+# Enable after configuring this application's Bridge connection.
+launch_bridgesync = false
 
 [engine.logging]
 rules=[[

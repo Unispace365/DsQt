@@ -1,7 +1,7 @@
 
 cmake_minimum_required(VERSION 3.29)
 
-find_package(Qt6 6.9
+find_package(Qt6 6.12
     REQUIRED COMPONENTS
         Concurrent
         Core
@@ -18,7 +18,7 @@ if (NOT TARGET Qt6::Sql)
   return()
 endif()
 
-qt_standard_project_setup(REQUIRES 6.9)
+qt_standard_project_setup(REQUIRES 6.12)
 
 add_library(Bridge)
 add_library(Dsqt::Bridge ALIAS Bridge)
@@ -28,8 +28,11 @@ qt_add_qml_module(Bridge
     URI Dsqt.Bridge
     OUTPUT_TARGETS BridgeTargets
     VERSION 1.0
+    DEPENDENCIES
+        TARGET Core
+        QtQuick
     QML_FILES
-        # qml/DsContentBrowser.qml
+        qml/DsContentLauncherModel.qml
 
     SOURCES
         bridge/dsQmlBridge.h bridge/dsQmlBridge.cpp

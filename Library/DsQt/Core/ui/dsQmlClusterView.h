@@ -27,11 +27,12 @@ signals:
     void created();
     void removed();
     void released();
+    void canceled();
     void minimumMetChanged();
     void animateOffFinished();
     void updated(QPointF location);
 private:
-    bool m_minimumMet;
+    bool m_minimumMet = false;
     DsQmlClusterView* m_clusterView;
 };
 
@@ -50,6 +51,7 @@ public:
     struct DelegateInstance {
         QQuickItem* mItem;
         bool mInUse = false;
+        bool mCanceled = false;
         QMetaObject::Connection mConnection;
     };
     DsQmlClusterView(QQuickItem* parent=nullptr);

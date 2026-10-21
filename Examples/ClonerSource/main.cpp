@@ -1,9 +1,14 @@
 #include <QQmlApplicationEngine>
 #include <QQuickStyle>
-// #include <QtWebEngineQuick/QtWebEngineQuick>  // Uncomment if QtWebEngineQuick::initialize() is needed
+#ifdef DSQT_HAS_WEBENGINE
+#include <QtWebEngineQuick/QtWebEngineQuick>
+#endif
 #include <QIcon>
 #include <QtQml/qqmlextensionplugin.h>
+#ifdef DSQT_HAS_Bridge
 #include <dsBridgeQuery.h>
+#endif
+#include <QQmlContext>
 
 #include <dsEnvironment.h>
 #include <dsGuiApplication.h>
@@ -13,13 +18,16 @@
 
 #include <QQuickWindow>
 // Import statically linked Dsqt QML plugins
+#ifdef DSQT_HAS_Touch
+Q_IMPORT_QML_PLUGIN(Dsqt_TouchPlugin)
+#endif
 #ifdef DSQT_HAS_Core
 Q_IMPORT_QML_PLUGIN(Dsqt_CorePlugin)
 #endif
 #ifdef DSQT_HAS_Bridge
 Q_IMPORT_QML_PLUGIN(Dsqt_BridgePlugin)
 #endif
-#ifdef DSQT_HAS_TOUCHENGINE
+#ifdef DSQT_HAS_TouchEngine
 Q_IMPORT_QML_PLUGIN(Dsqt_TouchEnginePlugin)
 #endif
 #ifdef DSQT_HAS_Waffles
@@ -51,7 +59,7 @@ int main(int argc, char *argv[])
     });
 
 
-    // Note: Resources from Dsqt::Core (data.qrc, keyboard.qrc) are auto-initialized
+    // Note: Resources from Dsqt::Core (data.qrc) are auto-initialized
     // when the QML module is loaded. Explicit Q_INIT_RESOURCE is not needed.
     QLoggingCategory::setFilterRules("*.verbose=false\n"
                                      "reloadUrl.*=false\n"
@@ -64,7 +72,9 @@ int main(int argc, char *argv[])
     qputenv("QT_IM_MODULE", QByteArray("qtvirtualkeyboard"));
     qputenv("QT_ENABLE_HIGHDPI_SCALING", QByteArray("0"));
 
-    //QtWebEngineQuick::initialize();
+#ifdef DSQT_HAS_WEBENGINE
+    QtWebEngineQuick::initialize();
+#endif
 
     DsGuiApplication app(argc, argv);
 
@@ -84,12 +94,8 @@ int main(int argc, char *argv[])
     //create our custom engine.
     dsqt::DsQmlApplicationEngine engine;
 
-    //(@NOTE:KEYBOARD)
-    //add the import path for the keyboard(s).
-    // this is the prefix of the keyboard.qrc file.
-    // the rest of the path for a style needs to
-    // be QtQuick/VirtualKeyboard/Styles/<style name>/
-    engine.addImportPath("qrc:/keyboard");
+    // (Virtual-keyboard style import path is registered centrally by DsQmlApplicationEngine —
+    //  qrc:/qt/qml/Dsqt/Core/res, where the bundled "waffles" style lives. No app-side setup.)
 
     //for debugging imports
     //auto list = engine.importPathList();
@@ -105,14 +111,20 @@ int main(int argc, char *argv[])
     //the root content model.
     //it will also try to start the bridge sync process
     //if it is configured to do so.
+#ifdef DSQT_HAS_Bridge
     dsqt::bridge::DsBridgeSqlQuery query(&engine);
+#endif
 
     //this initalizes and reads in the settings files.
 
     engine.initialize();
 
-    //load waffles settings
+#ifdef DSQT_HAS_Waffles
     dsqt::DsEnvironment::loadSettings("waffles","waffle_settings.toml","qrc:/waffles/settings");
+    engine.rootContext()->setContextProperty("dsqtWafflesEnabled", true);
+#else
+    engine.rootContext()->setContextProperty("dsqtWafflesEnabled", false);
+#endif
 
     /*
     auto prefixes = dsqt::DsEnvironment::engineSettings()->getOr<QVariantList>("engine.reload.prefixes",QVariantList()).toList();
@@ -137,14 +149,6 @@ int main(int argc, char *argv[])
 
     auto mainQml = engine.getAppSettings()->getOr<QString>("app.mainView","Main");
 
-    QObject::connect(&engine,&QQmlApplicationEngine::objectCreated,&app,[mainQml](QObject *obj, const QUrl &objUrl){
-        auto checkFile = objUrl.fileName().replace(".qml","");
-        if(checkFile != mainQml){
-            qDebug()<<checkFile<<" != "<<mainQml;
-            return;
-        }
-
-    },Qt::DirectConnection);
 
 
     engine.loadFromModule("ClonerSource", mainQml);

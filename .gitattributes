@@ -11,6 +11,8 @@
 *.ogg filter=lfs diff=lfs merge=lfs -text
 *.vorbis filter=lfs diff=lfs merge=lfs -text
 .pdf filter=lfs diff=lfs merge=lfs -text
+*.gif filter=lfs diff=lfs merge=lfs -text
+*.pdf filter=lfs diff=lfs merge=lfs -text
 
 # ── vcpkg: byte-stable checkouts ─────────────────────────────────────────────
 # vcpkg's ABI hash covers the *byte content* of the triplet file and every file

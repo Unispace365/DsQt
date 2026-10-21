@@ -1,18 +1,11 @@
 {
   "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
   "name": "dsqt",
-  "version": "0.0.0",
-  "description": "DsQt — Downstream's Qt 6 application framework (Core, Bridge, Waffles, Touch, TouchEngine, Spout).",
+  "version": "0.3.0",
+  "description": "DsQt - Downstream's Qt 6 application framework (Core, Bridge, Waffles, Qsys, Touch, TouchEngine, Spout).",
   "homepage": "https://github.com/Unispace365/DsQt",
   "supports": "windows & x64 & !static",
   "dependencies": [
-    {
-      "name": "spout2",
-      "features": [
-        "dx"
-      ],
-      "version>=": "2.007.010"
-    },
     {
       "name": "tomlplusplus",
       "version>=": "3.4.0"
@@ -24,7 +17,53 @@
     {
       "name": "vcpkg-cmake-config",
       "host": true
+    }
+  ],
+  "default-features": [
+    "bridge",
+    "waffles",
+    "qsys",
+    "spout",
+    "touch",
+    "touchengine"
+  ],
+  "features": {
+    "bridge": {
+      "description": "CMS content, local database and Bridge Sync",
+      "dependencies": []
     },
-    "vulkan"
-  ]
+    "waffles": {
+      "description": "Content launcher, media viewers, presentations and whiteboard",
+      "dependencies": []
+    },
+    "qsys": {
+      "description": "Q-SYS device control and feedback",
+      "dependencies": []
+    },
+    "spout": {
+      "description": "Share GPU textures with other Windows applications",
+      "dependencies": [
+        {
+          "name": "spout2",
+          "features": [
+            "dx"
+          ],
+          "version>=": "2.007.010"
+        },
+        "vulkan"
+      ],
+      "supports": "windows"
+    },
+    "touch": {
+      "description": "Touch routing, event reinjection and diagnostics",
+      "dependencies": []
+    },
+    "touchengine": {
+      "description": "Run TouchDesigner components inside the application",
+      "dependencies": [
+        "vulkan"
+      ],
+      "supports": "windows"
+    }
+  }
 }

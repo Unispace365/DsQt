@@ -6,9 +6,7 @@ string(STRIP "${DSQT_VERSION_STRING}" DSQT_VERSION_STRING)
 
 project(Dsqt VERSION ${DSQT_VERSION_STRING} LANGUAGES CXX)
 
-set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
-set(CMAKE_AUTOUIC ON)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -136,17 +134,62 @@ if(WIN32 AND NOT Qt6_DIR)
 endif()
 # ---------------------------------------------------------------------------------
 
-find_package(Qt6 6.9
-    REQUIRED COMPONENTS
-        Core
-        Concurrent
-        Gui
-        Qml
-        Quick
-        Widgets
-        Network
-        WebSockets
-)
+# Module metadata is shared by the build, package publisher and ProjectCloner.
+file(READ "${CMAKE_CURRENT_SOURCE_DIR}/dsqt-modules.json" DSQT_MODULE_METADATA)
+set(DSQT_ALL_MODULES Core Bridge Waffles Qsys Spout Touch TouchEngine)
+set(DSQT_ENABLED_MODULES Core)
+foreach(_module IN LISTS DSQT_ALL_MODULES)
+    if(_module STREQUAL "Core")
+        continue()
+    endif()
+    option(DSQT_BUILD_${_module} "Build the ${_module} module" ON)
+    if(DSQT_BUILD_${_module})
+        if(NOT WIN32 AND (_module STREQUAL "Spout" OR _module STREQUAL "TouchEngine"))
+            continue()
+        endif()
+        list(APPEND DSQT_ENABLED_MODULES ${_module})
+    endif()
+endforeach()
+# Resolve dependencies in metadata order until the set is stable.
+foreach(_pass RANGE 0 6)
+    foreach(_module IN LISTS DSQT_ENABLED_MODULES)
+        string(JSON _count LENGTH "${DSQT_MODULE_METADATA}" modules ${_module} requires)
+        if(_count GREATER 0)
+            math(EXPR _last "${_count} - 1")
+            foreach(_index RANGE 0 ${_last})
+                string(JSON _dependency GET "${DSQT_MODULE_METADATA}" modules ${_module} requires ${_index})
+                list(APPEND DSQT_ENABLED_MODULES ${_dependency})
+            endforeach()
+        endif()
+    endforeach()
+    list(REMOVE_DUPLICATES DSQT_ENABLED_MODULES)
+endforeach()
+set(DSQT_REQUIRED_QT_COMPONENTS "")
+string(JSON DSQT_MINIMUM_QT GET "${DSQT_MODULE_METADATA}" minimumQt)
+foreach(_module IN LISTS DSQT_ENABLED_MODULES)
+    string(JSON _minimum GET "${DSQT_MODULE_METADATA}" modules ${_module} minimumQt)
+    if(_minimum VERSION_GREATER DSQT_MINIMUM_QT)
+        set(DSQT_MINIMUM_QT "${_minimum}")
+    endif()
+    string(JSON _count LENGTH "${DSQT_MODULE_METADATA}" modules ${_module} qtComponents)
+    if(_count GREATER 0)
+        math(EXPR _last "${_count} - 1")
+        foreach(_index RANGE 0 ${_last})
+            string(JSON _qt_component GET "${DSQT_MODULE_METADATA}" modules ${_module} qtComponents ${_index})
+            list(APPEND DSQT_REQUIRED_QT_COMPONENTS "${_qt_component}")
+        endforeach()
+    endif()
+endforeach()
+list(REMOVE_DUPLICATES DSQT_REQUIRED_QT_COMPONENTS)
+message(STATUS "DsQt modules: ${DSQT_ENABLED_MODULES}; minimum Qt: ${DSQT_MINIMUM_QT}")
+find_package(Qt6 ${DSQT_MINIMUM_QT} REQUIRED COMPONENTS ${DSQT_REQUIRED_QT_COMPONENTS})
+qt_standard_project_setup(REQUIRES 6.12)
+
+if(DSQT_QT_VERSION AND NOT Qt6_VERSION VERSION_EQUAL DSQT_QT_VERSION)
+    message(FATAL_ERROR
+        "DsQt: triplet pins Qt ${DSQT_QT_VERSION}, but CMake selected Qt ${Qt6_VERSION}. "
+        "Set Qt6_DIR or CMAKE_PREFIX_PATH to the pinned kit before building this package.")
+endif()
 
 find_package(tomlplusplus CONFIG REQUIRED)
 
@@ -156,38 +199,16 @@ if(DSQT_BUILD_TESTS)
     find_package(Qt6 REQUIRED COMPONENTS Test QuickTest)
 endif()
 
-#qt_standard_project_setup(REQUIRES 6.9)
-
-add_subdirectory("Dsqt/Core")
-add_subdirectory("Dsqt/Bridge")
-add_subdirectory("Dsqt/Waffles")
-add_subdirectory("Dsqt/TouchEngine")
-add_subdirectory("Dsqt/Spout")
-add_subdirectory("Dsqt/Touch")
-add_subdirectory("Dsqt/Qsys")
-
+foreach(_module Core Bridge Waffles TouchEngine Spout Touch Qsys)
+    if(_module IN_LIST DSQT_ENABLED_MODULES)
+        add_subdirectory("Dsqt/${_module}")
+    endif()
+endforeach()
 add_library(Dsqt INTERFACE)
 add_library(Dsqt::Dsqt ALIAS Dsqt)
-
-#set_target_properties(Core PROPERTIES FOLDER Core)
-#set_target_properties(Bridge PROPERTIES FOLDER Bridge)
-#set_target_properties(Waffles PROPERTIES FOLDER Waffles)
-
-target_link_libraries(Dsqt
-  INTERFACE
-    Dsqt::Core
-    Dsqt::Bridge
-    Dsqt::Waffles
-    Dsqt::TouchEngine
-    Dsqt::Touch
-    Dsqt::Qsys
-)
-
-if(WIN32 AND TARGET Dsqt::Spout)
-    target_link_libraries(Dsqt INTERFACE Dsqt::Spout)
-endif()
-
-
+foreach(_module IN LISTS DSQT_ENABLED_MODULES)
+    target_link_libraries(Dsqt INTERFACE Dsqt::${_module})
+endforeach()
 
 # set_target_properties(DsQt PROPERTIES
 #     MACOSX_BUNDLE_GUI_IDENTIFIER my.example.com
@@ -221,10 +242,28 @@ cmake_path(NATIVE_PATH CMAKE_CURRENT_SOURCE_DIR DS_QMLLINT_ROOT)
 if(DSQT_BUILD_TESTS)
     add_subdirectory(Tests/Settings)
     add_subdirectory(Tests/Logging)
-    add_subdirectory(Tests/TouchEngine)
-    add_subdirectory(Tests/BridgeTest)
+    if("Bridge" IN_LIST DSQT_ENABLED_MODULES)
+        add_subdirectory(Tests/BridgeTest)
+    endif()
+    if("Waffles" IN_LIST DSQT_ENABLED_MODULES)
+        add_subdirectory(Tests/Whiteboard)
+    endif()
+    if("Waffles" IN_LIST DSQT_ENABLED_MODULES)
+        add_subdirectory(Tests/Playlist)
+    endif()
+    if("Waffles" IN_LIST DSQT_ENABLED_MODULES)
+        add_subdirectory(Tests/ContentState)
+    endif()
+    if("Waffles" IN_LIST DSQT_ENABLED_MODULES)
+        add_subdirectory(Tests/Capture)
+    endif()
+    if("Qsys" IN_LIST DSQT_ENABLED_MODULES)
+        add_subdirectory(Tests/Qsys)
+    endif()
     add_subdirectory(Tests/Effects)
-    add_subdirectory(Tests/Qsys)
+    if("TouchEngine" IN_LIST DSQT_ENABLED_MODULES)
+        add_subdirectory(Tests/TouchEngine)
+    endif()
 endif()
 
 # ----------------------------------------------------------------------
@@ -247,155 +286,57 @@ if(PROJECT_IS_TOP_LEVEL)
     include(CMakePackageConfigHelpers)
 
     # Install the built library targets
-    # Note: Qt's qt_add_qml_module creates internal OBJECT library targets that
-    # cannot be exported. We install the libraries without export and create
-    # imported targets manually in DsqtConfig.cmake.
+    # Most modules use manually imported archives. TouchEngine also exports
+    # its Qt-generated resource objects and static plugin initializer.
     # Backing targets keep their short CMake names; only the installed file is
     # prefixed (OUTPUT_NAME, set per module). Plugin targets are renamed
     # outright via PLUGIN_TARGET, because Qt writes the plugin target's name
     # into the generated qmldir and forbids OUTPUT_NAME on it.
-    install(TARGETS
-        Core
-        DsqtCoreplugin
-        Bridge
-        DsqtBridgeplugin
-        Waffles
-        DsqtWafflesplugin
-        Touch
-        DsqtTouchplugin
-        Qsys
-        DsqtQsysplugin
-
-        # Where to put the different kinds of files.
-        # DSQT_CONFIG_DIR is "/$<CONFIG>" in the default layout (so Debug and
-        # Release can coexist in one prefix) and empty under vcpkg, which keeps
-        # the two configurations in separate prefixes already.
-        LIBRARY    DESTINATION ${CMAKE_INSTALL_LIBDIR}${DSQT_CONFIG_DIR}   # .so / .dylib
-        ARCHIVE    DESTINATION ${CMAKE_INSTALL_LIBDIR}${DSQT_CONFIG_DIR}   # .a / .lib
-        RUNTIME    DESTINATION ${CMAKE_INSTALL_BINDIR}${DSQT_CONFIG_DIR}   # .dll / executables
-    )
-
-    # TouchEngine is a static QML module. Qt generates additional object
-    # libraries for QML resources, the static plugin initializer, and shaders;
-    # all of them are part of the backing target's link interface and therefore
-    # have to be installed and exported with it.
-    install(TARGETS
-        TouchEngine
-        DsqtTouchEngineplugin
-        ${TouchEngineTargets}
-        EXPORT DsqtTouchEngineTargets
-        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}${DSQT_CONFIG_DIR}
-        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}${DSQT_CONFIG_DIR}
-        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}${DSQT_CONFIG_DIR}
-        OBJECTS DESTINATION ${CMAKE_INSTALL_LIBDIR}${DSQT_CONFIG_DIR}/objects
-    )
-
-    install(EXPORT DsqtTouchEngineTargets
-        FILE DsqtTouchEngineTargets.cmake
-        NAMESPACE Dsqt::
-        DESTINATION ${DSQT_INSTALL_CMAKEDIR}
-    )
-
-    # Spout module (Windows only)
-    if(WIN32 AND TARGET DsSpout)
-        set(_spout_install_targets DsSpout DsqtSpoutplugin)
-
-        install(TARGETS ${_spout_install_targets}
-            LIBRARY    DESTINATION ${CMAKE_INSTALL_LIBDIR}${DSQT_CONFIG_DIR}
-            ARCHIVE    DESTINATION ${CMAKE_INSTALL_LIBDIR}${DSQT_CONFIG_DIR}
-            RUNTIME    DESTINATION ${CMAKE_INSTALL_BINDIR}${DSQT_CONFIG_DIR}
-        )
-    endif()
-
-    # ----------------------------------------------------------------------
-    # Install QML modules (qmldir, qmltypes, plugins)
-    # Standard Qt location: ${prefix}/qml/Module/Name/
-    # ----------------------------------------------------------------------
-
-    # Install QML module metadata files (qmldir and qmltypes) for each module
-    install(FILES
-        "${QT_QML_OUTPUT_DIRECTORY}/Dsqt/Core/qmldir"
-        "${QT_QML_OUTPUT_DIRECTORY}/Dsqt/Core/Core.qmltypes"
-        DESTINATION "${DSQT_INSTALL_QMLDIR}/Dsqt/Core"
-    )
-    install(FILES
-        "${QT_QML_OUTPUT_DIRECTORY}/Dsqt/Bridge/qmldir"
-        "${QT_QML_OUTPUT_DIRECTORY}/Dsqt/Bridge/Bridge.qmltypes"
-        DESTINATION "${DSQT_INSTALL_QMLDIR}/Dsqt/Bridge"
-    )
-    install(FILES
-        "${QT_QML_OUTPUT_DIRECTORY}/Dsqt/Waffles/qmldir"
-        "${QT_QML_OUTPUT_DIRECTORY}/Dsqt/Waffles/Waffles.qmltypes"
-        DESTINATION "${DSQT_INSTALL_QMLDIR}/Dsqt/Waffles"
-    )
-    install(FILES
-        "${QT_QML_OUTPUT_DIRECTORY}/Dsqt/TouchEngine/qmldir"
-        "${QT_QML_OUTPUT_DIRECTORY}/Dsqt/TouchEngine/TouchEngine.qmltypes"
-        DESTINATION "${DSQT_INSTALL_QMLDIR}/Dsqt/TouchEngine"
-    )
-    install(FILES
-        "${QT_QML_OUTPUT_DIRECTORY}/Dsqt/Touch/qmldir"
-        "${QT_QML_OUTPUT_DIRECTORY}/Dsqt/Touch/Touch.qmltypes"
-        DESTINATION "${DSQT_INSTALL_QMLDIR}/Dsqt/Touch"
-    )
-
-    # Q-Sys QML module metadata
-    install(FILES
-        "${QT_QML_OUTPUT_DIRECTORY}/Dsqt/Qsys/qmldir"
-        "${QT_QML_OUTPUT_DIRECTORY}/Dsqt/Qsys/Qsys.qmltypes"
-        DESTINATION "${DSQT_INSTALL_QMLDIR}/Dsqt/Qsys"
-    )
-
-    # Spout QML module metadata (Windows only)
-    if(WIN32 AND TARGET DsSpout)
+    foreach(_module IN LISTS DSQT_ENABLED_MODULES)
+        set(_target "${_module}")
+        set(_qmltypes "${_module}")
+        if(_module STREQUAL "Spout")
+            set(_target DsSpout)
+            set(_qmltypes DsSpout)
+        endif()
+        if(_module STREQUAL "TouchEngine")
+            install(TARGETS TouchEngine DsqtTouchEngineplugin ${TouchEngineTargets}
+                EXPORT DsqtTouchEngineTargets
+                LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}${DSQT_CONFIG_DIR}
+                ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}${DSQT_CONFIG_DIR}
+                RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}${DSQT_CONFIG_DIR}
+                OBJECTS DESTINATION ${CMAKE_INSTALL_LIBDIR}${DSQT_CONFIG_DIR}/objects)
+            install(EXPORT DsqtTouchEngineTargets
+                FILE DsqtTouchEngineTargets.cmake
+                NAMESPACE Dsqt::
+                DESTINATION ${DSQT_INSTALL_CMAKEDIR})
+        else()
+            install(TARGETS ${_target} Dsqt${_module}plugin
+                LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}${DSQT_CONFIG_DIR}
+                ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}${DSQT_CONFIG_DIR}
+                RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}${DSQT_CONFIG_DIR})
+        endif()
         install(FILES
-            "${QT_QML_OUTPUT_DIRECTORY}/Dsqt/Spout/qmldir"
-            "${QT_QML_OUTPUT_DIRECTORY}/Dsqt/Spout/DsSpout.qmltypes"
-            DESTINATION "${DSQT_INSTALL_QMLDIR}/Dsqt/Spout"
-        )
-    endif()
-
-    # Install QML source files for each module
-    # These are needed by qmlimportscanner which looks for files referenced in qmldir
-    install(DIRECTORY "${QT_QML_OUTPUT_DIRECTORY}/Dsqt/Core/qml"
-        DESTINATION "${DSQT_INSTALL_QMLDIR}/Dsqt/Core"
-        OPTIONAL
-        FILES_MATCHING PATTERN "*.qml"
-    )
-    install(DIRECTORY "${QT_QML_OUTPUT_DIRECTORY}/Dsqt/Bridge/qml"
-        DESTINATION "${DSQT_INSTALL_QMLDIR}/Dsqt/Bridge"
-        OPTIONAL
-        FILES_MATCHING PATTERN "*.qml"
-    )
-    install(DIRECTORY "${QT_QML_OUTPUT_DIRECTORY}/Dsqt/Waffles/qml"
-        DESTINATION "${DSQT_INSTALL_QMLDIR}/Dsqt/Waffles"
-        OPTIONAL
-        FILES_MATCHING PATTERN "*.qml"
-    )
-    install(DIRECTORY "${QT_QML_OUTPUT_DIRECTORY}/Dsqt/TouchEngine/qml"
-        DESTINATION "${DSQT_INSTALL_QMLDIR}/Dsqt/TouchEngine"
-        OPTIONAL
-        FILES_MATCHING PATTERN "*.qml"
-    )
-    install(DIRECTORY "${QT_QML_OUTPUT_DIRECTORY}/Dsqt/Touch/qml"
-        DESTINATION "${DSQT_INSTALL_QMLDIR}/Dsqt/Touch"
-        OPTIONAL
-        FILES_MATCHING PATTERN "*.qml"
-    )
-
-    # Spout QML files (Windows only)
-    if(WIN32 AND TARGET DsSpout)
-        install(DIRECTORY "${QT_QML_OUTPUT_DIRECTORY}/Dsqt/Spout/qml"
-            DESTINATION "${DSQT_INSTALL_QMLDIR}/Dsqt/Spout"
-            OPTIONAL
-            FILES_MATCHING PATTERN "*.qml"
-        )
-    endif()
+            "${QT_QML_OUTPUT_DIRECTORY}/Dsqt/${_module}/qmldir"
+            "${QT_QML_OUTPUT_DIRECTORY}/Dsqt/${_module}/${_qmltypes}.qmltypes"
+            DESTINATION "${DSQT_INSTALL_QMLDIR}/Dsqt/${_module}")
+        install(DIRECTORY "${QT_QML_OUTPUT_DIRECTORY}/Dsqt/${_module}/qml"
+            DESTINATION "${DSQT_INSTALL_QMLDIR}/Dsqt/${_module}"
+            OPTIONAL FILES_MATCHING PATTERN "*.qml")
+    endforeach()
+    string(JSON _installed_metadata SET "${DSQT_MODULE_METADATA}" builtModules "[]")
+    set(_index 0)
+    foreach(_module IN LISTS DSQT_ENABLED_MODULES)
+        string(JSON _installed_metadata SET "${_installed_metadata}" builtModules ${_index} "\"${_module}\"")
+        math(EXPR _index "${_index} + 1")
+    endforeach()
+    string(JSON _installed_metadata SET "${_installed_metadata}" builtQtVersion "\"${Qt6_VERSION}\"")
+    file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/dsqt-modules.json" "${_installed_metadata}\n")
+    install(FILES "${CMAKE_CURRENT_BINARY_DIR}/dsqt-modules.json" DESTINATION ${DSQT_INSTALL_CMAKEDIR})
 
     # Create the main Config.cmake file from our template
-    # Note: We don't use CMake's export() mechanism because Qt's qt_add_qml_module
-    # creates internal OBJECT library dependencies that can't be exported.
-    # Instead, DsqtConfig.cmake.in creates imported targets manually.
+    # The config creates the archive imports and loads TouchEngine's exported
+    # resource graph only when that module is requested.
     configure_package_config_file(
         "${CMAKE_CURRENT_SOURCE_DIR}/cmake/DsqtConfig.cmake.in"
         "${CMAKE_CURRENT_BINARY_DIR}/DsqtConfig.cmake"

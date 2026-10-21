@@ -33,7 +33,7 @@
 
 .EXAMPLE
     .\New-DsqtTriplet.ps1
-    Writes x64-windows-qt6-10-2.cmake (etc) for every kit found under C:\Qt.
+    Writes x64-windows-qt6-12-0.cmake (etc) for every kit found under C:\Qt.
     Dots are flattened to hyphens because vcpkg triplet names may only contain
     lowercase alphanumerics and hyphens.
 
@@ -45,18 +45,25 @@
 param(
     [string] $QtRoot = 'C:\Qt',
     [string] $Arch = 'msvc2022_64',
+    [string] $QtVersion,
     [string] $OutputDirectory = (Join-Path $PSScriptRoot 'triplets')
 )
 
 $ErrorActionPreference = 'Stop'
 
+if ($Arch -ne 'msvc2022_64') {
+    throw 'The dsqt port currently supports Windows x64 MSVC kits only.'
+}
+
 if (-not (Test-Path -LiteralPath $QtRoot)) {
     throw "Qt root '$QtRoot' does not exist. Pass -QtRoot if Qt is installed elsewhere."
 }
 
-# A kit directory looks like C:\Qt\6.10.2\msvc2022_64
+# A kit directory looks like C:\Qt\6.12.0\msvc2022_64
 $kits = Get-ChildItem -LiteralPath $QtRoot -Directory |
-    Where-Object { $_.Name -match '^\d+\.\d+' } |
+    Where-Object { $_.Name -match '^\d+\.\d+\.\d+$' } |
+    Where-Object { [version]$_.Name -ge [version]'6.12.0' } |
+    Where-Object { -not $QtVersion -or $_.Name -eq $QtVersion } |
     Where-Object { Test-Path (Join-Path $_.FullName $Arch) } |
     Sort-Object { [version]($_.Name -replace '[^\d.].*$', '') }
 
@@ -67,7 +74,7 @@ if (-not $kits) {
 New-Item -ItemType Directory -Force -Path $OutputDirectory | Out-Null
 
 # vcpkg triplet names are restricted to lowercase alphanumerics and hyphens, so
-# the dots in a Qt version have to be flattened: 6.10.2 -> qt6-10-2.
+# the dots in a Qt version have to be flattened: 6.12.0 -> qt6-12-0.
 # DSQT_QT_VERSION inside the file keeps the real dotted version.
 function Get-TripletName([string] $Version) {
     return 'x64-windows-qt' + ($Version -replace '\.', '-')
@@ -119,7 +126,7 @@ foreach ($kit in $kits) {
 
     # ASCII + LF, so the file is byte-stable across machines and git settings.
     # The bytes matter: they feed vcpkg's ABI hash.
-    $bytes = [Text.Encoding]::ASCII.GetBytes(($content -replace "`r`n", "`n"))
+    $bytes = [Text.Encoding]::ASCII.GetBytes(($content -replace "`r`n", "`n").TrimEnd("`n") + "`n")
     [IO.File]::WriteAllBytes($path, $bytes)
     Write-Host "Wrote $path"
 }

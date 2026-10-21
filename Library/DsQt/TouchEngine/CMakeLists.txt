@@ -51,6 +51,7 @@ set_target_properties(DsqtTouchEngineSDK PROPERTIES
 
 add_library(TouchEngine STATIC)
 add_library(Dsqt::TouchEngine ALIAS TouchEngine)
+set_target_properties(TouchEngine PROPERTIES OUTPUT_NAME DsqtTouchEngine)
 
 set(_touchengine_public_headers
     include/Dsqt/TouchEngine/DsTouchEngineSession.h
@@ -95,6 +96,9 @@ qt_add_qml_module(TouchEngine
     DEPENDENCIES
         QtQuick
 )
+
+# Keep the public imported name stable while avoiding file-name collisions.
+set_target_properties(DsqtTouchEngineplugin PROPERTIES EXPORT_NAME TouchEngineplugin)
 
 qt_add_shaders(TouchEngine "dsqt_touchengine_shaders"
     PREFIX "/dsqt/touchengine/shaders"

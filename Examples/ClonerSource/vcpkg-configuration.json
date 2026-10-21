@@ -4,13 +4,8 @@
     {
       "kind": "git",
       "repository": "https://github.com/Unispace365/vcpkg-registry",
-      "baseline": "fef0af737e47d42cf0f347b68863c3737d6419d8",
-      "packages": [
-        "dsqt"
-      ]
+      "baseline": "1e1458981aec5e3a653721c1f706949a46a20963",
+      "packages": ["dsqt"]
     }
-  ],
-  "overlay-triplets": [
-    "./triplets"
   ]
 }

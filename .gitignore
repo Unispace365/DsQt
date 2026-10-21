@@ -1,3 +1,6 @@
+# Cloud-sync temp folder (Google Drive / similar) that appears at the repo root
+.tmp.driveupload/
+
 # C++ objects and libs
 *.slo
 *.lo
@@ -68,6 +71,7 @@ cmake/_deps/
 
 cmake/dsqtimportpath.h
 .vs/
+.vscode/
 .qmlls.ini
 .qmllint.ini
 
@@ -92,4 +96,11 @@ Examples/ClonerSource/.qtcreator
 /**/.claude
 /**/.qtcreator
 Tools/__pycache__
+
+# Transient build logs from build_and_install.bat / local build helpers
+build_log.txt
+build_err.txt
+_build.log
+_build.log.err
+
 .tmp.driveupload
