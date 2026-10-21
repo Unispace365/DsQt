@@ -264,6 +264,34 @@ if(DSQT_BUILD_TESTS)
     if("TouchEngine" IN_LIST DSQT_ENABLED_MODULES)
         add_subdirectory(Tests/TouchEngine)
     endif()
+
+    # Make tests independent of the calling shell: Qt DLLs are not deployed next
+    # to the test executables, and an inherited QT_QUICK_BACKEND=software (etc.)
+    # breaks the pixel checks of the Effects and Whiteboard tests.
+    set(_dsqt_test_isolated_vars
+        QT_QPA_PLATFORM QT_QUICK_BACKEND QSG_RHI_BACKEND QT_IM_MODULE QT_QUICK_CONTROLS_STYLE)
+    function(_dsqt_tests_isolate_environment _dir)
+        if(_dir MATCHES "/Tests/")
+            get_property(_tests DIRECTORY "${_dir}" PROPERTY TESTS)
+            foreach(_test IN LISTS _tests)
+                get_property(_env TEST "${_test}" DIRECTORY "${_dir}" PROPERTY ENVIRONMENT)
+                set(_mods "PATH=path_list_prepend:$<TARGET_FILE_DIR:Qt6::Core>")
+                foreach(_var IN LISTS _dsqt_test_isolated_vars)
+                    # Applied after ENVIRONMENT, so keep what a test sets itself.
+                    if(NOT _env MATCHES "(^|;)${_var}=")
+                        list(APPEND _mods "${_var}=unset:")
+                    endif()
+                endforeach()
+                set_property(TEST "${_test}" DIRECTORY "${_dir}" APPEND PROPERTY
+                    ENVIRONMENT_MODIFICATION ${_mods})
+            endforeach()
+        endif()
+        get_property(_subdirs DIRECTORY "${_dir}" PROPERTY SUBDIRECTORIES)
+        foreach(_subdir IN LISTS _subdirs)
+            _dsqt_tests_isolate_environment("${_subdir}")
+        endforeach()
+    endfunction()
+    _dsqt_tests_isolate_environment("${CMAKE_CURRENT_SOURCE_DIR}")
 endif()
 
 # ----------------------------------------------------------------------
