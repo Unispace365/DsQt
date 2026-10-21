@@ -73,10 +73,6 @@ qt_add_qml_module(Core
         utility/dsUrlImageLoader.cpp utility/dsUrlImageLoader.h
         utility/WindowHelper.h
 
-    #DEPENDENCIES
-    #     QtQuick
-    #     Dsqtplugin
-    
     RESOURCES
         res/quick_menu/close.svg
         res/quick_menu/close_pressed.svg
@@ -102,8 +98,7 @@ qt_add_qml_module(Core
         res/QtQuick/VirtualKeyboard/Styles/waffles/images/textmode-fff.svg
         res/data.qrc
 
-        QML_FILES
-        SOURCES core/dsQmlAppHost.h core/dsQmlAppHost.cpp
+    SOURCES core/dsQmlAppHost.h core/dsQmlAppHost.cpp
 )
 
 # qsb tracks shader changes and generates all of Qt Quick's usual RHI variants.
@@ -122,11 +117,11 @@ qt_target_qml_sources(Core
 )
 set(CoreTargets ${CoreTargets} PARENT_SCOPE)
 
-target_link_libraries(Core PUBLIC 
-    Qt6::Core 
-    Qt6::Quick 
-    Qt6::Gui 
-    Qt6::Qml 
+target_link_libraries(Core PUBLIC
+    Qt6::Core
+    Qt6::Quick
+    Qt6::Gui
+    Qt6::Qml
     Qt6::Widgets
     DsqtCoreplugin
     $<$<PLATFORM_ID:Windows>:user32> # For WindowHelper
@@ -151,7 +146,6 @@ target_include_directories(Core
 
 target_link_libraries(Core PRIVATE tomlplusplus::tomlplusplus)
 
-
 # Prefix the installed library file so it cannot collide with another port in
 # vcpkg's shared prefix. The CMake target name and the Dsqt:: alias are
 # unchanged, so consumer code is unaffected.
@@ -162,7 +156,7 @@ set_target_properties(Core PROPERTIES OUTPUT_NAME DsqtCore)
 
 # ----------------------------------------------------------------------
 # Installation rules (headers only - target install is in main CMakeLists.txt)
-# ----------------------------------
+# ----------------------------------------------------------------------
 
 include(GNUInstallDirs)
 
@@ -170,7 +164,7 @@ include(GNUInstallDirs)
 install(DIRECTORY .
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
     FILES_MATCHING
-        PATTERN "*.h" 
+        PATTERN "*.h"
         PATTERN "*.hpp"
     # Optional: exclude internal/private headers if needed
     # PATTERN "internal/*" EXCLUDE

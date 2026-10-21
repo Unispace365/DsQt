@@ -1,5 +1,4 @@
 cmake_minimum_required(VERSION 3.29)
-include(FetchContent)
 
 # Project info
 set(DS_APP_NAME TouchFilter)
@@ -56,7 +55,7 @@ qt_standard_project_setup(REQUIRES 6.9)
 # Find Dsqt from installed package (CMAKE_PREFIX_PATH set via CMakePresets.json)
 find_package(Dsqt REQUIRED COMPONENTS Core Touch)
 
-message("DSQT is at ${Dsqt_DIR}")
+message(STATUS "DSQT is at ${Dsqt_DIR}")
 
 # Set QML import path for Qt Creator
 set(QML_TMP_PATH "${CMAKE_SOURCE_DIR};${CMAKE_SOURCE_DIR}/qml;${QML_IMPORT_PATH}")
@@ -93,12 +92,10 @@ qt_add_qml_module(${DS_EXE_NAME}
 
     IMPORT_PATH "${DSQT_QML_IMPORT_PATH}"
     DEPENDENCIES
-        Dsqt::Core
-        Dsqt::Touch
+        Dsqt.Core
+        Dsqt.Touch
         QtQuick
 )
-
-LIST(APPEND DIR_FOR_INSTALL "./settings/" "./data/")
 
 # Get the settings to show up in the IDE
 file(GLOB_RECURSE DS_SETTINGS LIST_DIRECTORIES false ./settings/*)
@@ -122,8 +119,6 @@ set_target_properties(${DS_EXE_NAME} PROPERTIES
     MACOSX_BUNDLE TRUE
     WIN32_EXECUTABLE TRUE
 )
-
-target_include_directories(${DS_EXE_NAME} PRIVATE ${Dsqt_INCLUDES})
 
 # Provide DSQT_HAS_<MODULE> compile definitions for conditional plugin imports
 foreach(_comp Core Touch)

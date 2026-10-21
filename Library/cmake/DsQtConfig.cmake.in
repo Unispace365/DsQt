@@ -1,4 +1,4 @@
-# DsqtConfig.cmake.in
+# DsQtConfig.cmake.in
 # ────────────────────────────────────────────────────────────────
 # Template file used by configure_package_config_file() in the main
 # CMakeLists.txt to generate the final DsqtConfig.cmake that gets
@@ -204,7 +204,7 @@ endif()
 
 # Point every imported target at the right file for each configuration, and
 # map the configurations we do not ship onto Release.
-#   _dsqt_set_locations(<target> <basename> <libdir-var-prefix>)
+#   _dsqt_set_locations(<target> <basename>)
 function(_dsqt_set_locations _target _basename)
     # IMPORTED_CONFIGURATIONS is a list, so it is set on its own: expanding a
     # semicolon-separated value through a PROPERTIES key/value list would
@@ -451,7 +451,7 @@ if(_dsqt_touchengine_requested)
     # consumer uses the installed Release artifacts.
     set(_dsqt_touchengine_exported_targets
         TouchEngine
-        DsqtTouchEngineplugin
+        TouchEngineplugin
         @TouchEngineTargets@
     )
     foreach(_target IN LISTS _dsqt_touchengine_exported_targets)

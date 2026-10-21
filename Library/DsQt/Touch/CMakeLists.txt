@@ -59,7 +59,6 @@ target_include_directories(Touch PUBLIC
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
 
-
 # Prefix the installed library file so it cannot collide with another port in
 # vcpkg's shared prefix. The CMake target name and the Dsqt:: alias are
 # unchanged, so consumer code is unaffected.

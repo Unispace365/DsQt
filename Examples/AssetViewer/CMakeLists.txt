@@ -1,5 +1,4 @@
 cmake_minimum_required(VERSION 3.29)
-include(FetchContent)
 
 #project info
 set(DS_APP_NAME AssetViewer)
@@ -46,8 +45,8 @@ else()
 endif()
 
 # Convert to comma form and pad to 4 parts for the Windows version resource
-string(REGEX REPLACE "^([0-9]+)(\\.[0-9]+)?(\\.[0-9]+)?(\\.[0-9]+)?.*" 
-                     "\\1\\2\\3\\4" 
+string(REGEX REPLACE "^([0-9]+)(\\.[0-9]+)?(\\.[0-9]+)?(\\.[0-9]+)?.*"
+                     "\\1\\2\\3\\4"
                      TMP_VERSION "${DS_APP_VERSION}.0.0.0")
 string(REGEX REPLACE "\\." "," DS_APP_VERSION_COMMA "${TMP_VERSION}")
 
@@ -65,7 +64,7 @@ qt_standard_project_setup(REQUIRES 6.9)
 # Find Dsqt from installed package (CMAKE_PREFIX_PATH set via CMakePresets.json)
 find_package(Dsqt REQUIRED COMPONENTS Core Bridge Waffles OPTIONAL_COMPONENTS Spout)
 
-message("DSQT is at ${Dsqt_DIR}")
+message(STATUS "DSQT is at ${Dsqt_DIR}")
 
 #set qml import path. This is used by Qt Creator to find the QML files.
 set(QML_TMP_PATH
@@ -107,16 +106,11 @@ qt_add_qml_module(${DS_EXE_NAME}
 
     IMPORT_PATH "${DSQT_QML_IMPORT_PATH}"
     DEPENDENCIES
-        Dsqt::Core
-        Dsqt::Bridge
-        Dsqt::Waffles
+        Dsqt.Core
+        Dsqt.Bridge
+        Dsqt.Waffles
         QtQuick
-        #RESOURCES cmake/app.rc.in
 )
-
-
-
-LIST(APPEND DIR_FOR_INSTALL "./settings/" "./data/")
 
 #get the settings to show up in the IDE
 file(GLOB_RECURSE DS_SETTINGS LIST_DIRECTORIES false ./settings/*)
@@ -148,16 +142,8 @@ set_target_properties(${DS_EXE_NAME} PROPERTIES
     WIN32_EXECUTABLE TRUE
 )
 
-#find_package(PkgConfig REQUIRED)
-#pkg_check_modules(tomlplusplus REQUIRED IMPORTED_TARGET tomlplusplus)
 find_package(tomlplusplus CONFIG REQUIRED)
 find_package(glm CONFIG REQUIRED)
-
-
-
-target_include_directories(${DS_EXE_NAME} PRIVATE
-    ${Dsqt_INCLUDES}
-)
 
 # Provide DSQT_HAS_<MODULE> compile definitions for optional plugin imports
 foreach(_comp Core Bridge Waffles Spout)
@@ -165,7 +151,6 @@ foreach(_comp Core Bridge Waffles Spout)
         target_compile_definitions(${DS_EXE_NAME} PRIVATE DSQT_HAS_${_comp})
     endif()
 endforeach()
-
 
 target_link_libraries(${DS_EXE_NAME}
     PRIVATE
@@ -189,7 +174,6 @@ target_link_libraries(${DS_EXE_NAME}
         glm::glm
 )
 
-message("HEADERS ${Dsqt_INCLUDES}")
 include(GNUInstallDirs)
 
 # Must be the first install() rule — appends the config name to the prefix so

@@ -4,7 +4,6 @@ qt_standard_project_setup(REQUIRES 6.9)
 add_library(Qsys STATIC)
 add_library(Dsqt::Qsys ALIAS Qsys)
 qt_add_qml_module(Qsys
-    PLUGIN_TARGET DsqtQsysplugin
     URI Dsqt.Qsys
     PLUGIN_TARGET DsqtQsysplugin
     VERSION 1.0
@@ -26,5 +25,3 @@ set_target_properties(Qsys PROPERTIES OUTPUT_NAME DsqtQsys)
 
 include(GNUInstallDirs)
 install(FILES qsys/dsQsys.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/qsys)
-
-set_target_properties(Qsys PROPERTIES OUTPUT_NAME DsqtQsys)

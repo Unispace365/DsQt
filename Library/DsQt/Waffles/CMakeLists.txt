@@ -1,4 +1,3 @@
-
 cmake_minimum_required(VERSION 3.29)
 
 find_package(Qt6 6.12
@@ -152,10 +151,10 @@ set(WafflesTargets ${WafflesTargets} PARENT_SCOPE)
 
 target_link_libraries(Waffles PUBLIC
     Dsqt::Core
-    Qt6::Core 
-    Qt6::Quick 
-    Qt6::Gui 
-    Qt6::Qml 
+    Qt6::Core
+    Qt6::Quick
+    Qt6::Gui
+    Qt6::Qml
     Qt6::Multimedia
     Qt6::CanvasPainter
     $<TARGET_NAME_IF_EXISTS:Qt6::WebEngineQuick>
@@ -171,11 +170,9 @@ target_include_directories(Waffles
         # Subdirectories needed for Qt's metatype system to find headers
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/whiteboard>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/capture>
-        
         # After installation: use installed location
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
-
 
 # Prefix the installed library file so it cannot collide with another port in
 # vcpkg's shared prefix. The CMake target name and the Dsqt:: alias are
@@ -187,7 +184,7 @@ set_target_properties(Waffles PROPERTIES OUTPUT_NAME DsqtWaffles)
 
 # ----------------------------------------------------------------------
 # Installation rules (headers only - target install is in main CMakeLists.txt)
-# ----------------------------------
+# ----------------------------------------------------------------------
 
 include(GNUInstallDirs)
 
@@ -195,7 +192,7 @@ include(GNUInstallDirs)
 install(DIRECTORY .
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
     FILES_MATCHING
-        PATTERN "*.h" 
+        PATTERN "*.h"
         PATTERN "*.hpp"
     # Optional: exclude internal/private headers if needed
     # PATTERN "internal/*" EXCLUDE

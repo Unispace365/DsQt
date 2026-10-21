@@ -84,7 +84,7 @@ if(PROJECT_IS_TOP_LEVEL)
         set(DOXYGEN_USE_MDFILE_AS_MAINPAGE doc/main.md)
 
         doxygen_add_docs(doxy
-          "Dsqt"
+          "DsQt"
         )
     endif()
 endif()
@@ -201,7 +201,7 @@ endif()
 
 foreach(_module Core Bridge Waffles TouchEngine Spout Touch Qsys)
     if(_module IN_LIST DSQT_ENABLED_MODULES)
-        add_subdirectory("Dsqt/${_module}")
+        add_subdirectory("DsQt/${_module}")
     endif()
 endforeach()
 add_library(Dsqt INTERFACE)
@@ -209,35 +209,6 @@ add_library(Dsqt::Dsqt ALIAS Dsqt)
 foreach(_module IN LISTS DSQT_ENABLED_MODULES)
     target_link_libraries(Dsqt INTERFACE Dsqt::${_module})
 endforeach()
-
-# set_target_properties(DsQt PROPERTIES
-#     MACOSX_BUNDLE_GUI_IDENTIFIER my.example.com
-#     MACOSX_BUNDLE_BUNDLE_VERSION ${PROJECT_VERSION}
-#     MACOSX_BUNDLE_SHORT_VERSION_STRING ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}
-#     MACOSX_BUNDLE TRUE
-#     WIN32_EXECUTABLE TRUE
-# )
-
-# target_compile_definitions(DsQt
-#     PRIVATE $<$<OR:$<CONFIG:Debug>,$<CONFIG:RelWithDebInfo>>:QT_QML_DEBUG>)
-# target_link_libraries(DsQt
-#     PRIVATE
-#         Qt6::Quick
-#         Qt6::Core
-#         Qt6::Concurrent
-#         Qt6::Gui
-#         Qt6::GuiPrivate
-#         Qt6::ShaderTools
-#         Qt6::ShaderToolsPrivate
-#         Qt6::Sql
-# )
-
-# target_include_directories(DsQt PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} ${imgui_base})
-
-cmake_path(NATIVE_PATH CMAKE_CURRENT_SOURCE_DIR DS_QMLLINT_ROOT)
-# set_target_properties(DsQt PROPERTIES FOLDER DsQt-Framework)
-# set_target_properties(WafflesUx PROPERTIES FOLDER WafflesUx)
-# set_target_properties(TouchEngineQt PROPERTIES FOLDER TouchEngineQt)
 
 if(DSQT_BUILD_TESTS)
     add_subdirectory(Tests/Settings)
@@ -247,14 +218,8 @@ if(DSQT_BUILD_TESTS)
     endif()
     if("Waffles" IN_LIST DSQT_ENABLED_MODULES)
         add_subdirectory(Tests/Whiteboard)
-    endif()
-    if("Waffles" IN_LIST DSQT_ENABLED_MODULES)
         add_subdirectory(Tests/Playlist)
-    endif()
-    if("Waffles" IN_LIST DSQT_ENABLED_MODULES)
         add_subdirectory(Tests/ContentState)
-    endif()
-    if("Waffles" IN_LIST DSQT_ENABLED_MODULES)
         add_subdirectory(Tests/Capture)
     endif()
     if("Qsys" IN_LIST DSQT_ENABLED_MODULES)
@@ -297,9 +262,6 @@ endif()
 # ----------------------------------------------------------------------
 # Installation rules
 # ----------------------------------------------------------------------
-
-
-
 if(PROJECT_IS_TOP_LEVEL)
     option(DSQT_BUILD_TOOLS "Build and install DsQt tools (ProjectCloner)" OFF)
 
@@ -366,7 +328,7 @@ if(PROJECT_IS_TOP_LEVEL)
     # The config creates the archive imports and loads TouchEngine's exported
     # resource graph only when that module is requested.
     configure_package_config_file(
-        "${CMAKE_CURRENT_SOURCE_DIR}/cmake/DsqtConfig.cmake.in"
+        "${CMAKE_CURRENT_SOURCE_DIR}/cmake/DsQtConfig.cmake.in"
         "${CMAKE_CURRENT_BINARY_DIR}/DsqtConfig.cmake"
         INSTALL_DESTINATION ${DSQT_INSTALL_CMAKEDIR}
     )

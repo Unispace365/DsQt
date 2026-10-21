@@ -51,7 +51,6 @@ set_target_properties(DsqtTouchEngineSDK PROPERTIES
 
 add_library(TouchEngine STATIC)
 add_library(Dsqt::TouchEngine ALIAS TouchEngine)
-set_target_properties(TouchEngine PROPERTIES OUTPUT_NAME DsqtTouchEngine)
 
 set(_touchengine_public_headers
     include/Dsqt/TouchEngine/DsTouchEngineSession.h

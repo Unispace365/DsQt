@@ -69,16 +69,19 @@ set_tests_properties(test_ds_bridge_query PROPERTIES
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
 )
 
-find_package(Qt6 6.12 REQUIRED COMPONENTS Qml Quick)
-qt_add_executable(test_ds_content_launcher tst_dscontentlauncher.cpp)
-target_link_libraries(test_ds_content_launcher PRIVATE
-    Dsqt::Bridge Dsqt::Waffles Qt6::Qml Qt6::Quick Qt6::Test)
-target_compile_definitions(test_ds_content_launcher PRIVATE
-    DSQT_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../../..")
-set_target_properties(test_ds_content_launcher PROPERTIES WIN32_EXECUTABLE FALSE)
-add_test(NAME test_ds_content_launcher COMMAND test_ds_content_launcher
-    -o "${CMAKE_CURRENT_BINARY_DIR}/content-launcher-results.xml,junitxml" -o -,txt)
-set_tests_properties(test_ds_content_launcher PROPERTIES
-    WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
-    ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software"
-    TIMEOUT 120)
+# The content launcher test also needs the Waffles module.
+if(TARGET Dsqt::Waffles)
+    find_package(Qt6 6.12 REQUIRED COMPONENTS Qml Quick)
+    qt_add_executable(test_ds_content_launcher tst_dscontentlauncher.cpp)
+    target_link_libraries(test_ds_content_launcher PRIVATE
+        Dsqt::Bridge Dsqt::Waffles Qt6::Qml Qt6::Quick Qt6::Test)
+    target_compile_definitions(test_ds_content_launcher PRIVATE
+        DSQT_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../../..")
+    set_target_properties(test_ds_content_launcher PROPERTIES WIN32_EXECUTABLE FALSE)
+    add_test(NAME test_ds_content_launcher COMMAND test_ds_content_launcher
+        -o "${CMAKE_CURRENT_BINARY_DIR}/content-launcher-results.xml,junitxml" -o -,txt)
+    set_tests_properties(test_ds_content_launcher PROPERTIES
+        WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
+        ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software"
+        TIMEOUT 120)
+endif()

@@ -120,18 +120,21 @@
     },
     {
       "name": "vs2022-6.12.0-debug",
+      "hidden": true,
       "displayName": "Debug",
       "configurePreset": "vs2022-6.12.0",
       "configuration": "Debug"
     },
     {
       "name": "vs2022-6.12.0-release",
+      "hidden": true,
       "displayName": "Release",
       "configurePreset": "vs2022-6.12.0",
       "configuration": "Release"
     },
     {
       "name": "vs2022-6.12.0-relwithdebinfo",
+      "hidden": true,
       "displayName": "RelWithDebInfo",
       "configurePreset": "vs2022-6.12.0",
       "configuration": "RelWithDebInfo"

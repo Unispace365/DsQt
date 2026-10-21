@@ -5,7 +5,7 @@ if(NOT WIN32)
     return()
 endif()
 
-SET(QT_NO_PRIVATE_MODULE_WARNING ON)
+set(QT_NO_PRIVATE_MODULE_WARNING ON)
 
 find_package(Qt6 REQUIRED COMPONENTS
     GuiPrivate
@@ -23,7 +23,6 @@ qt_standard_project_setup(REQUIRES 6.9)
 find_package(Spout2 CONFIG REQUIRED)
 message(STATUS "DsQt/Spout: Using installed Spout2 ${Spout2_VERSION}")
 set(_spout_dx_target Spout2::SpoutDX_static)
-set(Spout2_Static "true")
 
 # ----------------------------------------------------------------------
 # Vulkan (optional — enables Vulkan backend for Spout texture import)
@@ -78,7 +77,7 @@ qt_add_qml_module(DsSpout
     DEPENDENCIES QtQuick
 )
 
-qt6_add_shaders(DsSpout "dsqt_spout_shaders"
+qt_add_shaders(DsSpout "dsqt_spout_shaders"
     PREFIX "/"
     HLSL 50
     PRECOMPILE
@@ -116,22 +115,11 @@ target_include_directories(DsSpout
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
 )
 
-if(Spout2_FOUND)
-    # vcpkg installs SpoutDX headers under include/SpoutDX/ — add the subdirectory
-    get_target_property(_spout_include_dir Spout2::SpoutDX_static INTERFACE_INCLUDE_DIRECTORIES)
-    target_include_directories(DsSpout PRIVATE "${_spout_include_dir}/SpoutDX")
-else()
-    target_include_directories(DsSpout PRIVATE
-        $<BUILD_INTERFACE:${spout2_SOURCE_DIR}/SPOUTSDK/SpoutDirectX/SpoutDX>
-    )
-endif()
+# vcpkg installs SpoutDX headers under include/SpoutDX/ — add the subdirectory
+get_target_property(_spout_include_dir ${_spout_dx_target} INTERFACE_INCLUDE_DIRECTORIES)
+target_include_directories(DsSpout PRIVATE "${_spout_include_dir}/SpoutDX")
 
 target_compile_definitions(DsSpout PRIVATE NOMINMAX)
-
-set_target_properties(DsSpout PROPERTIES
-    WIN32_EXECUTABLE TRUE
-)
-
 
 # Prefix the installed library file so it cannot collide with another port in
 # vcpkg's shared prefix. The CMake target name and the Dsqt:: alias are

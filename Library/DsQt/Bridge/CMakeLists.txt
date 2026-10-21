@@ -1,4 +1,3 @@
-
 cmake_minimum_required(VERSION 3.29)
 
 find_package(Qt6 6.12
@@ -12,11 +11,6 @@ find_package(Qt6 6.12
         Sql
         Widgets
 )
-
-if (NOT TARGET Qt6::Sql)
-  message(STATUS "Bridge disabled: Qt Sql not available in this Qt build")
-  return()
-endif()
 
 qt_standard_project_setup(REQUIRES 6.12)
 
@@ -43,11 +37,10 @@ qt_add_qml_module(Bridge
         bridge/dsContentTreeModel.cpp bridge/dsContentTreeModel.h
         bridge/dsContentBrowserWidget.cpp bridge/dsContentBrowserWidget.h
         bridge/dsQmlContentBrowserHelper.cpp bridge/dsQmlContentBrowserHelper.h
-        
+
         model/dsContentModelItemModel.cpp model/dsContentModelItemModel.h
         model/dsQmlEventSchedule.cpp model/dsQmlEventSchedule.h
         model/dsQmlPlaylist.cpp model/dsQmlPlaylist.h
-        
 )
 
 set(BridgeTargets ${BridgeTargets} PARENT_SCOPE)
@@ -80,9 +73,6 @@ target_include_directories(Bridge
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
 
-
-
-
 # Prefix the installed library file so it cannot collide with another port in
 # vcpkg's shared prefix. The CMake target name and the Dsqt:: alias are
 # unchanged, so consumer code is unaffected.
@@ -93,7 +83,7 @@ set_target_properties(Bridge PROPERTIES OUTPUT_NAME DsqtBridge)
 
 # ----------------------------------------------------------------------
 # Installation rules (headers only - target install is in main CMakeLists.txt)
-# ----------------------------------
+# ----------------------------------------------------------------------
 
 include(GNUInstallDirs)
 
@@ -101,7 +91,7 @@ include(GNUInstallDirs)
 install(DIRECTORY .
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
     FILES_MATCHING
-        PATTERN "*.h" 
+        PATTERN "*.h"
         PATTERN "*.hpp"
     # Optional: exclude internal/private headers if needed
     # PATTERN "internal/*" EXCLUDE

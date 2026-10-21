@@ -29,7 +29,7 @@ qt_add_executable(${DS_EXE_NAME}
 if(DSQT_SETTINGS_TEST_STANDALONE)
     # Standalone build: compile settings sources and fetch dependencies
     set(DS_QT_PLATFORM_100 "${CMAKE_CURRENT_SOURCE_DIR}/../../..")
-    set(DS_QT_PLATFORM_100_LIBRARY "${DS_QT_PLATFORM_100}/Library/Dsqt/Core")
+    set(DS_QT_PLATFORM_100_LIBRARY "${DS_QT_PLATFORM_100}/Library/DsQt/Core")
 
     find_package(Qt6 REQUIRED COMPONENTS Gui Sql Qml)
 

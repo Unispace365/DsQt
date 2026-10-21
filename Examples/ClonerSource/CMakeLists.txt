@@ -14,7 +14,6 @@ string(JSON DSQT_APP_MINIMUM_QT GET "${_dsqt_project}" minimumQt)
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/dsqt-project.json")
 include(cmake/DsqtRegistryPackage.cmake)
 include(cmake/DsqtLocalPackage.cmake)
-include(FetchContent)
 
 # Module selection also supplies the consumer's Vulkan dependency. vcpkg
 # evaluates manifest features while project() initializes the toolchain.
@@ -73,8 +72,8 @@ else()
 endif()
 
 # Convert to comma form and pad to 4 parts for the Windows version resource
-string(REGEX REPLACE "^([0-9]+)(\\.[0-9]+)?(\\.[0-9]+)?(\\.[0-9]+)?.*" 
-                     "\\1\\2\\3\\4" 
+string(REGEX REPLACE "^([0-9]+)(\\.[0-9]+)?(\\.[0-9]+)?(\\.[0-9]+)?.*"
+                     "\\1\\2\\3\\4"
                      TMP_VERSION "${DS_APP_VERSION}.0.0.0")
 string(REGEX REPLACE "\\." "," DS_APP_VERSION_COMMA "${TMP_VERSION}")
 
@@ -109,7 +108,7 @@ endif()
 # Find Dsqt from installed package (CMAKE_PREFIX_PATH set via CMakePresets.json)
 find_package(Dsqt REQUIRED COMPONENTS ${DSQT_APP_MODULES})
 
-message("DSQT is at ${Dsqt_DIR}")
+message(STATUS "DSQT is at ${Dsqt_DIR}")
 
 #set qml import path. This is used by Qt Creator to find the QML files.
 set(QML_TMP_PATH
@@ -159,10 +158,6 @@ qt_add_qml_module(${DS_EXE_NAME}
     DEPENDENCIES ${_dsqt_qml_dependencies} QtQuick
 )
 
-
-
-LIST(APPEND DIR_FOR_INSTALL "./settings/" "./data/")
-
 #get the settings to show up in the IDE
 file(GLOB_RECURSE DS_SETTINGS LIST_DIRECTORIES false ./settings/*)
 #LIST(APPEND DS_SETTINGS qt.conf)
@@ -193,12 +188,8 @@ set_target_properties(${DS_EXE_NAME} PROPERTIES
     WIN32_EXECUTABLE TRUE
 )
 
-#find_package(PkgConfig REQUIRED)
-#pkg_check_modules(tomlplusplus REQUIRED IMPORTED_TARGET tomlplusplus)
 find_package(tomlplusplus CONFIG REQUIRED)
 find_package(glm CONFIG REQUIRED)
-
-
 
 # Provide DSQT_HAS_<MODULE> compile definitions for optional plugin imports
 foreach(_comp IN LISTS DSQT_APP_MODULES)
@@ -206,7 +197,6 @@ foreach(_comp IN LISTS DSQT_APP_MODULES)
         target_compile_definitions(${DS_EXE_NAME} PRIVATE DSQT_HAS_${_comp})
     endif()
 endforeach()
-
 
 foreach(_module IN LISTS DSQT_APP_MODULES)
     target_link_libraries(${DS_EXE_NAME} PRIVATE Dsqt::${_module})
@@ -217,7 +207,6 @@ if(DSQT_WAFFLES_HAS_WEBENGINE)
     target_compile_definitions(${DS_EXE_NAME} PRIVATE DSQT_HAS_WEBENGINE)
 endif()
 
-message("HEADERS ${Dsqt_INCLUDES}")
 include(GNUInstallDirs)
 
 dsqt_deploy_runtime_dlls(${DS_EXE_NAME})

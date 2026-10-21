@@ -8,8 +8,6 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(QT_QML_GENERATE_QMLLS_INI ON)
 
-set(DS_QT_DLLS_SUBDIR ON CACHE BOOL "Set to ON to copy the Qt dlls to a subdirectory of the install directory. Default is ON.")
-
 find_package(Qt6 6.8 REQUIRED COMPONENTS Quick Core)
 
 qt_standard_project_setup(REQUIRES 6.8)
@@ -53,11 +51,6 @@ qt_add_resources(appProjectCloner module_catalog
 
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/skip.txt" "${CMAKE_CURRENT_BINARY_DIR}/skip.txt" COPYONLY)
 file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/ProjectSource" DESTINATION "${CMAKE_CURRENT_BINARY_DIR}")
-#add_custom_command(TARGET appProjectCloner POST_BUILD
-#    COMMAND ${CMAKE_COMMAND} -E copy_directory
-#        "${CMAKE_CURRENT_SOURCE_DIR}/ProjectSource"
-#        "$<TARGET_FILE_DIR:appProjectCloner>/ProjectSource"
-#)
 
 # Qt for iOS sets MACOSX_BUNDLE_GUI_IDENTIFIER automatically since Qt 6.1.
 # If you are developing for iOS or macOS you should consider setting an
@@ -113,15 +106,3 @@ install(CODE "
     set(QT_DEPLOY_TRANSLATIONS_DIR \"${PC_INSTALL_PREFIX}translations\")
 ")
 install(SCRIPT ${deploy_script})
-
-
-IF (WIN32 AND DS_QT_DLLS_SUBDIR)
-add_definitions(-DDS_QT_DLLS_SUBDIR)
-# set the path to the dlls in the install directory
-set(nativeDllPath "${CMAKE_INSTALL_PREFIX}/${PC_INSTALL_PREFIX}${CMAKE_INSTALL_BINDIR}")
-# convert to a cmake path
-cmake_path(CONVERT "${nativeDllPath}" TO_CMAKE_PATH_LIST cmakeDllPath)
-
-# process the dlls
-
-ENDIF()
