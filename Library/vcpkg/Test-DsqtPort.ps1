@@ -483,7 +483,7 @@ try {
 
     # toml++ should be static, so no DLL anywhere in the tree.
     $tomlDll = Get-ChildItem $prefix -Recurse -Filter 'tomlplusplus*.dll' -ErrorAction SilentlyContinue
-    if ($tomlDll) { Warn ('toml++ built as a DLL: ' + $tomlDll[0].FullName) }
+    if ($tomlDll) { Fail ('toml++ built as a DLL (it must be static): ' + $tomlDll[0].FullName) }
     else { Pass 'toml++ linked statically (no tomlplusplus DLL in the tree)' }
 
     # --- Cache test ---------------------------------------------------------

@@ -156,6 +156,5 @@ install(DIRECTORY .
 # empty, so the old install() block was silently doing nothing anyway.
 # Downstream consumers are instead expected to locate tomlplusplus themselves,
 # which DsqtConfig.cmake handles via find_dependency(tomlplusplus). This keeps
-# the build and install sides of the toml++ ABI consistent (critical: if the
-# vcpkg port is dynamic, its headers mark symbols __declspec(dllimport), and
-# both Dsqt and the consumer must see the same config to avoid LNK4217/LNK2019).
+# the build and install sides of the toml++ ABI consistent. toml++ is always
+# linked statically.

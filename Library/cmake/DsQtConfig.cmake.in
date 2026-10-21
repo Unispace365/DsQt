@@ -103,11 +103,6 @@ endif()
 # final link has to satisfy. So consumers must link tomlplusplus even though they
 # never touch its API. We surface that here rather than making them do it.
 #
-# The DsQt triplets build toml++ statically (see the PORT override in
-# Library/vcpkg/triplets/), which means nothing extra to deploy at runtime. If
-# you build DsQt against a triplet that makes it a DLL instead, the imported
-# target below carries the matching dllimport definitions and the DLL has to
-# ship next to the executable.
 find_dependency(tomlplusplus CONFIG)
 
 # ----------------------------------------------------------------------
@@ -491,23 +486,13 @@ endforeach()
 # ----------------------------------------------------------------------
 # Runtime DLL deployment helper
 # Usage: dsqt_deploy_runtime_dlls(myTarget)
-# Adds a post-build command that copies bundled runtime DLLs (TouchEngine, and
-# toml++ when it was built as a DLL) into the target's output directory.
+# Adds a post-build command that copies bundled runtime DLLs (TouchEngine) from
+# the DsQt install prefix into the target's output directory.
 # Call this once per executable target in consumer CMakeLists.txt.
 # ----------------------------------------------------------------------
 set(DSQT_RUNTIME_DLLS "")
 set(DSQT_RUNTIME_TARGETS "")
 if(WIN32)
-    # toml++ only has to ship when it was built as a DLL. The DsQt vcpkg
-    # triplets build it statically, in which case there is nothing to deploy.
-    if(TARGET tomlplusplus::tomlplusplus)
-        get_target_property(_dsqt_toml_type tomlplusplus::tomlplusplus TYPE)
-        if(_dsqt_toml_type STREQUAL "SHARED_LIBRARY")
-            list(APPEND DSQT_RUNTIME_TARGETS tomlplusplus::tomlplusplus)
-        endif()
-        unset(_dsqt_toml_type)
-    endif()
-
     if(TARGET Dsqt::TouchEngineSDK)
         list(APPEND DSQT_RUNTIME_DLLS "TouchEngine.dll")
         list(APPEND DSQT_RUNTIME_TARGETS Dsqt::TouchEngineSDK)
