@@ -59,14 +59,15 @@ void DsGuiApplication::initializeLogging()
         QDir().mkpath(defaultLogDir);
         logger->configure(defaultLogPath, 1048576, 5,
                           QtLogger::RotatingFileSink::RotationOnStartup, true);
-    }
-
 #if defined(Q_OS_WIN) && defined(QT_DEBUG)
-    // In debug builds, add OutputDebugString so Qt Creator's Application Output
-    // receives messages when the MSVC debugger is attached.  stdout/stderr are
-    // not reliably piped for WIN32-subsystem apps in that mode.
-    logger->sendToWinDebug();
+        // Fallback only when no logging.ini drives the sinks: add OutputDebugString so Qt
+        // Creator's Application Output sees messages when the MSVC debugger is attached.
+        // When a logging.ini IS present its stderr / platform_std_log sinks already deliver
+        // output to the IDE; adding OutputDebugString in addition makes Qt Creator capture
+        // stderr AND OutputDebugString simultaneously in Debug, doubling every line.
+        logger->sendToWinDebug();
 #endif
+    }
 
     printStartupBanner();
 }

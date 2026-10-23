@@ -24,6 +24,7 @@ add_library(Touch)
 add_library(Dsqt::Touch ALIAS Touch)
 
 qt_add_qml_module(Touch
+    PLUGIN_TARGET DsqtTouchplugin
     URI Dsqt.Touch
     VERSION 1.0
     OUTPUT_TARGETS TouchTargets
@@ -43,7 +44,7 @@ target_link_libraries(Touch PUBLIC
     Qt6::Quick
     Qt6::QuickControls2
     Core
-    Touchplugin
+    DsqtTouchplugin
 )
 
 if(NOT DSQT_TOUCH_NO_PRIVATE_REINJECT)
@@ -57,6 +58,15 @@ target_include_directories(Touch PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/touch>
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
+
+
+# Prefix the installed library file so it cannot collide with another port in
+# vcpkg's shared prefix. The CMake target name and the Dsqt:: alias are
+# unchanged, so consumer code is unaffected.
+# NOTE: the QML plugin target must NOT use OUTPUT_NAME -- Qt writes the plugin
+# target name into the generated qmldir. It is renamed via PLUGIN_TARGET in
+# qt_add_qml_module() instead.
+set_target_properties(Touch PROPERTIES OUTPUT_NAME DsqtTouch)
 
 # ----------------------------------------------------------------------
 # Installation rules (headers only — target install is in main CMakeLists.txt)

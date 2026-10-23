@@ -11,192 +11,131 @@ CMS backend for rapid prototyping and developemnt.
 
 ## Documentation
 
-Documentation is compiled by Doxygen and can be found here:
+Use the [documentation index](Docs/README.md) to find setup, Waffles, Bridge,
+settings, deployment, and module guides.
+
+The generated Doxygen reference is published here:
 <https://unispace365.github.io/DsQt/>
+
+For Waffles applications, start with the [Waffles overview](Docs/waffles-overview.md)
+and [consolidated implementation guide](Docs/waffles-implementation-guide.md).
+The [Source Tour](Docs/waffles-tour/index.html) covers individual components;
+open its HTML locally for the styled walkthrough.
 
 - [DsMultiEffect: alpha masking, edge fades, rounded corners, and adding effects](Docs/articles/multieffect.md)
 
 ## Getting Started
 
-> This version of DsQt has been built and is targeted at Windows. We hope to have Linux and Apple builds.
+The recommended application setup is **ProjectCloner + a published DsQt vcpkg
+package from the registry**. vcpkg fetches the selected DsQt source and builds it
+against your Qt kit, or restores compatible cached binaries. Application
+developers do not need to build/install the DsQt library separately.
 
-### Windows
+For an existing application, use the
+[package and version switching guide](Docs/articles/switching_dsqt_packages.md).
+It explains the changes to `CMakeLists.txt`, presets, manifests, and package pins.
+The [vcpkg guide](Docs/vcpkg.md) covers local packages and publication.
 
-#### Install Visual Studio 2022 - Community Edition
+### Windows prerequisites
 
-1. Download here: <https://www.visualstudio.com/>
-2. Install it!
-        - Make sure to select C++ development and ensure you have the latest windows SDK and visual studio updates!
+- An x64 MSVC C++ toolchain compatible with your Qt kit, including the Windows SDK.
+  Run Ninja builds in its x64 developer shell.
+- A Qt MSVC x64 SDK meeting the selected package's requirements. The published
+  `0.3.0-dev.224.af-waffle-glass` package needs **Qt 6.12.0** or newer compatible
+  SDK, including Canvas Painter. Install the Qt components shown by ProjectCloner
+  for your selected modules; add PDF, WebEngine, or Virtual Keyboard when your
+  application uses those features. Qt itself is not installed by this DsQt port.
+- CMake 3.29 or newer, Ninja, Git, and Git LFS.
+- A bootstrapped vcpkg checkout. Set `VCPKG_ROOT` in your build environment to its
+  root, for example `C:/vcpkg`.
+- Git credentials with access to both private repositories:
+  [DsQt](https://github.com/Unispace365/DsQt) and
+  [vcpkg-registry](https://github.com/Unispace365/vcpkg-registry).
 
-#### Install Qt 6.10
+If vcpkg is not installed, clone [Microsoft/vcpkg](https://github.com/microsoft/vcpkg)
+into your chosen directory and run `bootstrap-vcpkg.bat`. Preserve your project's
+checked-in dependency baselines. Updating the vcpkg executable does not update
+those pins, and moving all dependencies to the latest baseline is not a general
+fix for build errors.
 
-1. Create a Qt.io account if you don't have one. <https://login.qt.io/register>
-2. Go to <https://www.qt.io/download-qt-installer-oss> and download Qt for x64
-3. Run the online installer.
-4. You don't need to install everything. In fact I'd strongly recommend against it. But also it's hard to know what your going to need. I think the following are the important ones:
+### Build and Run ProjectCloner
 
-    * Extensions:
-        * Qt PDF:
-            * Qt 6.10.1:
-                * MSVC 2022 x64
-        * Qt WebEngine:
-            * Qt 6.10.1:
-                * MSVC 2022 x64
-    * Qt:
-        * Qt 6.10.1:
-            * MSVC 2022 64-bit
-            * Additional Libraries:
-                * Qt Multimedia
-                * Qt Image Formats
-                * Qt Language Server
-                * Qt Positioning
-                * Qt Virtual Keyboard
-                * Qt Quick 3d
-                * Qt Quick Effect Maker
-                * Qt WebChannel
-                * Qt WebSockets
-                * (Everything else you can get just to be safe)
-    * Qt Creator (check all boxes)
-5. Depending on what you selected this can take a while to download (hours sometimes).
+Use a current ProjectCloner. To build the tool from this checkout without
+building the DsQt library, run the following in an x64 MSVC developer shell.
+Substitute your installed Qt kit and repository paths:
 
-#### Install cmake
-
-On Windows, download the latest cmake x64 installer (.msi) from https://cmake.org/download/
-
-#### Install vcpkg
-
-1. Clone vcpkg: `git clone https://github.com/microsoft/vcpkg.git C:\vcpkg`
-⚠️ Note that if vcpkg is/was already on your machine you may need to do a `git pull` before running the bootstrap script ⚠️
-2. Run bootstrap: `cd C:\vcpkg && .\bootstrap-vcpkg.bat`
-3. Add environment variable `VCPKG_ROOT` pointing to `C:\vcpkg`:
-    1. Open the Start menu and type "Advanced System Settings"
-    2. Click "Environment Variables"
-    3. Under "System variables", select "New..."
-    4. Variable name: `VCPKG_ROOT`
-    5. Variable value: `C:\vcpkg`
-    6. Ok, Ok, Ok
-
-#### Updating vcpkg Baseline
-
-If you encounter build errors related to `tomlplusplus` (e.g. missing headers, version
-conflicts, or compilation failures), your vcpkg baseline is likely too old. Update it:
-
-```bash
-cd C:\vcpkg
-git pull
-.\bootstrap-vcpkg.bat
+```powershell
+Set-Location C:/dev/DsQt
+cmake -S Tools/ProjectCloner -B Tools/ProjectCloner/build/setup -G "Ninja Multi-Config" -DCMAKE_PREFIX_PATH=C:/Qt/6.12.0/msvc2022_64 -DCMAKE_INSTALL_PREFIX=C:/dev/DsQt/Tools/ProjectCloner/build/setup/install
+cmake --build Tools/ProjectCloner/build/setup --config Release
+cmake --install Tools/ProjectCloner/build/setup --config Release
+& C:/dev/DsQt/Tools/ProjectCloner/build/setup/install/bin/appProjectCloner.exe
 ```
 
-Then update the baseline hash in your project's `vcpkg.json`:
+Keep the checkout available: the standalone tool can use its compiled-in
+`Examples/ClonerSource` path. Run the installed tool so its deployed Qt DLLs,
+plugins, and QML imports are available. The generated registry application
+fetches DsQt independently of this checkout.
 
-```bash
-vcpkg x-update-baseline
-```
-
-This updates the `builtin-baseline` field to the latest vcpkg commit, which ensures
-you get compatible package versions.
-
-#### Download and Configure DsQt
-
-1. Download and install Git and ensure you have git-lfs available
-2. Run `git clone https://github.com/Unispace365/DsQt.git`
-3. `cd DsQt`
-4. Run: `git lfs install`
-5. Run: `git lfs fetch --all`
-6. Add platform environment variable (used by ProjectCloner to locate templates)
-    1. Open the Start menu and type "Advanced System Settings"
-    2. Click "Environment Variables"
-    3. Under "System variables", select "New..."
-    4. Variable name: `DS_QT_PLATFORM_100`
-    5. Variable value: the path of this downloaded repo (e.g `C:\Users\YourNameHere\Documents\DsQt`)
-    6. Ok, Ok, Ok
-
-#### Build the DsQt Library
-
-**Preferred (command-line):**
-
-1. `cd Library`
-2. *(First time, optional)* If your Qt is **not** installed under `C:\Qt\`, copy
-   `CMakeUserPresets.example.json` → `CMakeUserPresets.json` and edit the Qt path inside.
-   If Qt is in `C:\Qt\` the build auto-discovers the latest version — no config needed.
-3. Run `build_and_install.bat` — configures, builds Debug + Release, and installs to
-   `%USERPROFILE%\Documents\DsQt`
-4. To target a specific Qt version: `build_and_install.bat -qt 6.10.2`
-5. To also build and install ProjectCloner + ClonerSource: `build_and_install.bat -tools`
-
-**Alternative (Qt Creator):**
-
-1. Open Qt Creator
-2. File > Open File or Project, navigate to `DsQt/Library/CMakeLists.txt`
-3. Qt Creator will detect the CMakePresets.json — select the `ninja` preset (or a
-   version-pinned preset from your `CMakeUserPresets.json`)
-4. Click Configure Project, then Build > Install
-
-#### Build and Run ProjectCloner
-
-**Preferred (command-line):**
-
-1. `cd Library`
-2. Run `build_and_install.bat -tools` — this builds and installs ProjectCloner and
-   copies the ClonerSource template to `%USERPROFILE%\Documents\DsQt\Tools\`
-3. Run: `%USERPROFILE%\Documents\DsQt\Tools\ProjectCloner\bin\appProjectCloner.exe`
-
-**Alternative (Qt Creator):**
-
-1. Open Qt Creator
-2. File > Open File or Project, navigate to `DsQt/Tools/ProjectCloner/CMakeLists.txt`
-3. Select the `ninja` preset (or a version-pinned preset) and click Configure Project
-4. Build the project (Ctrl+B), then Build > Install
-5. Run: `%DS_QT_PLATFORM_100%\Tools\deploy\ProjectCloner\bin\appProjectCloner.exe`
+If you also develop the library, `Library/build_and_install.bat -qt 6.12.0 -tools`
+is the combined library/tool build alternative. `-vcpkg` is a separate local
+source-package workflow; see [the package guide](Docs/vcpkg.md).
 
 ## Creating a New Project
 
-### Using ProjectCloner (Recommended)
+Always create a new DsQt application with **ProjectCloner**. AssetViewer and
+ECPresenter are reference implementations. For adding Waffles to an existing
+application, use the [existing-project path](#adding-waffles-to-an-existing-dsqt-project).
 
-1. Run `appProjectCloner.exe` from `DsQt\Tools\deploy\ProjectCloner\bin\`
-2. Select destination folder
-3. Enter project name (alphanumeric and underscores only)
-4. Click "Clone"
+### Using ProjectCloner
 
-The tool creates a complete project from the ClonerSource template with:
+1. [Build and run ProjectCloner](#build-and-run-projectcloner).
+2. Select **Published vcpkg package**, the normal default, then **Refresh**.
+   An explicit `DSQT_LOCAL_PACKAGE_ROOT` environment setting instead starts the
+   tool in local-package mode. Older installed tool versions may require selecting
+   the published source manually.
+3. Choose a compatible published version. Stable packages appear first;
+   development builds require explicit selection. For this Waffles branch,
+   `0.3.0-dev.224.af-waffle-glass` is a published example. Older packages without
+   supported module metadata are shown as unavailable for this template.
+4. Choose the modules the application needs. Core is required; Waffles, Bridge,
+   Qsys, Spout, Touch, and TouchEngine are optional. Add Bridge for CMS content.
+5. Review the Qt requirements and select a compatible installed kit. Choose the
+   destination folder and application name, then click **Clone**.
 
-* CMakeLists.txt configured for DsQt
-* CMakePresets.json for easy building
-* QML application structure
-* Settings files (TOML configuration)
-* Sample assets and fonts
+ProjectCloner creates the application's CMake files, QML/C++ startup, settings,
+and module-specific assets. It also writes `dsqt-project.json`, matching vcpkg
+features, an exact DsQt version override, and the registry commit containing it.
+Existing projects keep those pins until deliberately updated. The ungenerated
+ClonerSource template is not itself a configured registry application.
 
 ### Building Your New Project
 
-**Command-line (CMake presets):**
+From the generated application directory, in a matching x64 MSVC developer shell:
 
-1. `cd <your-project>`
-2. Configure Debug: `cmake --preset ninja-6.10.2-debug`
-3. Configure Release: `cmake --preset ninja-6.10.2-release`
-4. Build: `cmake --build --preset ninja-6.10.2-debug` (or `-release`, `-relwithdebinfo`)
-5. Install: `cmake --build --preset ninja-6.10.2-release --target install`
-6. Run from: `build/ninja-6.10.2/DEPLOY/bin/`
+```powershell
+$env:VCPKG_ROOT = 'C:/vcpkg'
+cmake --list-presets
+cmake --list-presets=build
+cmake --preset ninja-vcpkg-6.12.0
+cmake --build --preset ninja-vcpkg-6.12.0-release
+cmake --install build/ninja-vcpkg-6.12.0 --config Release
+```
 
-To see all available presets: `cmake --list-presets`
+These are example names for a generated Ninja/Qt 6.12.0 registry selection;
+use the names actually listed in your project. Run the application from
+`build/ninja-vcpkg-6.12.0/DEPLOY/Release/bin/`. Use the `-debug` build preset and
+`--config Debug` for a Debug deployment.
 
-If your Qt is not installed under `C:\Qt\` or you need a different preset, see the
-[CMake User Presets Guide](Docs/articles/cmake_user_presets.md).
+For **Qt Creator**, open the generated `CMakeLists.txt`, select the corresponding
+preset and Qt kit, and configure. Add a **CMake install** deploy step. Set the run
+executable and working directory to the installed application's `bin` directory,
+and deploy after building. Ensure the configure environment contains `VCPKG_ROOT`
+and can authenticate to the private Git repositories.
 
-**Qt Creator:**
-
-1. Open Qt Creator
-2. File > Open File or Project, navigate to your project's `CMakeLists.txt`
-3. Select the `ninja-6.10.2` preset (or a version-pinned preset from your
-   `CMakeUserPresets.json`) and click Configure Project
-4. Go to **Projects** > **Deploy Settings** and click **Add Deploy Step** > **CMake install**
-5. Go to **Projects** > **Run Settings** and set the **Executable** to
-   `build/ninja-6.10.2/DEPLOY/bin/<your-exe>.exe` and the **Working directory** to the
-   same `DEPLOY/bin/` directory
-6. Build the project (Ctrl+B), then use **Build > Deploy** to install
-
-> **Note:** The **Always deploy before running** checkbox in **Edit > Preferences > Build & Run**
-> is enabled by default. If this is unchecked, running the project will not automatically build
-> and deploy — you will have to manually build and deploy before each run.
+For a different package, Qt kit, or source mode, follow
+[Switching DsQt packages, versions, and Qt kits](Docs/articles/switching_dsqt_packages.md).
+For local path overrides, see [CMake user presets](Docs/articles/cmake_user_presets.md).
 
 ### Building a Windows Installer
 
@@ -215,6 +154,18 @@ DsQt projects include an Inno Setup-based installer system. After building your 
 For full details on adding installer support to an existing project, customizing flags,
 and DSAppHost configuration, see the [Installer Guide](Docs/articles/installer_guide.md).
 
+## Adding Waffles to an Existing DsQt Project
+
+Integrate Waffles directly into the existing application. Check its Qt/DsQt
+compatibility, add missing module links and QML plugin imports, and connect the
+stage to its existing content and application services. Merge the required
+settings and assets into its deployment, and verify its existing workflows
+alongside the added features.
+
+Follow the [Waffles implementation guide](Docs/waffles-implementation-guide.md)
+for the full integration steps. AssetViewer and ECPresenter provide reference
+patterns for both existing projects and new projects created with ProjectCloner.
+
 ## Getting to know DsQt
 
 For detailed documentation, see the articles in [Docs/articles/](Docs/articles/):
@@ -225,8 +176,11 @@ For detailed documentation, see the articles in [Docs/articles/](Docs/articles/)
 4. [SVG Color Reference](Docs/articles/svg_color_reference.md) - Working with SVG colors
 5. [Installer Guide](Docs/articles/installer_guide.md) - Building Windows installers with Inno Setup
 6. [TouchFilter Guide](Docs/articles/touch_filter.md) - Touch event filtering, jitter smoothing, transient suppression, and debug overlay
-7. [TouchEngine Rewrite and Multi-Backend Stabilization](Docs/articles/touchengine_rewrite_and_backend_stabilization.html) - Architecture, migration, diagnostics, testing, and graphics-backend stabilization
-8. [Q-Sys Integration](Docs/articles/qsys_usage.md) - Engine settings, QML/C++ updates, and commands through the Elevate plugin
+7. [Waffles Overview](Docs/waffles-overview.md) - Components, capabilities, and the DsQt/application boundary
+8. [Waffles Implementation Guide](Docs/waffles-implementation-guide.md) - Build, content routing, presentations, quick menu, whiteboard, settings, and validation
+9. [Waffles Whiteboard](Docs/articles/whiteboard.md) - Drawing API, controls, lifecycle, and PNG export
+10. [Q-Sys Integration](Docs/articles/qsys_usage.md) - Engine settings, QML/C++ updates, and commands through the Elevate plugin
+11. [TouchEngine Rewrite and Multi-Backend Stabilization](Docs/articles/touchengine_rewrite_and_backend_stabilization.html) - Architecture, migration, diagnostics, testing, and graphics-backend stabilization
 
 ## Generating documentation
 

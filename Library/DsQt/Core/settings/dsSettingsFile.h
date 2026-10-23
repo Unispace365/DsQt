@@ -231,9 +231,14 @@ public:
     T find(const QString &key, const T &defaultValue = {}) const
     {
         const QVariant v = value(key);
-        if (!v.isValid() || !v.canConvert<T>())
-            return defaultValue;
-        return v.value<T>();
+        if constexpr (std::is_same_v<T, QVariant>) {
+            // Preserve the container; its payload need not convert to QVariant.
+            return v.isValid() ? v : defaultValue;
+        } else {
+            if (!v.isValid() || !v.canConvert<T>())
+                return defaultValue;
+            return v.value<T>();
+        }
     }
 
     // Registers a default for key so that if it is absent after a reload, this value is used.

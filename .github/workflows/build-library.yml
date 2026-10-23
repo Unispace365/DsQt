@@ -6,6 +6,7 @@ on:
       - 'Library/**'
       - 'Tools/ProjectCloner/**'
       - 'Examples/ClonerSource/**'
+      - '.github/workflows/build-library.yml'
 
 permissions:
   contents: write
@@ -20,16 +21,53 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v4
+      with:
+        lfs: true
+        fetch-depth: 0
 
     - name: Read version
       id: version
-      shell: bash
+      shell: python
+      env:
+        SOURCE_BRANCH: ${{ github.ref_name }}
+        BUILD_NUMBER: ${{ github.run_number }}
       run: |
-        VERSION=$(cat Library/VERSION.txt | tr -d '[:space:]')
-        FULL_VERSION="${VERSION}.${{ github.run_number }}"
-        echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-        echo "full_version=$FULL_VERSION" >> "$GITHUB_OUTPUT"
-        echo "Building Dsqt v${FULL_VERSION}"
+        import json, os, pathlib, re
+        base = pathlib.Path("Library/VERSION.txt").read_text().strip()
+        number = r"(?:0|[1-9][0-9]*)"
+        assert re.fullmatch(rf"{number}\.{number}\.{number}", base), "Library/VERSION.txt must contain major.minor.patch."
+        for path in ("Library/vcpkg.json", "Library/vcpkg/port/vcpkg.json"):
+            manifest = json.loads(pathlib.Path(path).read_text())
+            assert not any(key in manifest for key in ("version-semver", "version-string", "version-date")), "Use the version field."
+            assert manifest.get("version") == base, f"{path} must contain the Library base version."
+        assert re.fullmatch(r"[1-9][0-9]*", os.environ["BUILD_NUMBER"]), "Invalid Build Library run number."
+        def branch_slug(branch):
+            slug = re.sub(r"[^a-z0-9]+", "-", branch.lower()).strip("-")[:64].rstrip("-")
+            if not slug:
+                return "branch"
+            return "branch-" + slug if slug.isdigit() else slug
+        branch = os.environ["SOURCE_BRANCH"]
+        prerelease = branch != "main"
+        full = (base + "-dev." + os.environ["BUILD_NUMBER"] + "." + branch_slug(branch)
+                if prerelease else base + "." + os.environ["BUILD_NUMBER"])
+        with open(os.environ["GITHUB_OUTPUT"], "a") as output:
+            output.write(f"version={base}\nfull_version={full}\nprerelease={str(prerelease).lower()}\n")
+        print(f"Building Dsqt v{full}")
+
+    - name: Check release tag
+      if: github.ref_name == 'main' || vars.BRANCH_LIBRARY_RELEASE == 'true'
+      shell: bash
+      env:
+        FULL_VERSION: ${{ steps.version.outputs.full_version }}
+      run: |
+        set -euo pipefail
+        TAG="library/v$FULL_VERSION"
+        if EXISTING=$(git rev-parse --verify "refs/tags/$TAG^{commit}" 2>/dev/null); then
+          if [[ "$EXISTING" != "$GITHUB_SHA" ]]; then
+            echo "::error::$TAG already identifies another commit. This build number is already tagged for different source; existing release tags cannot be overwritten."
+            exit 1
+          fi
+        fi
 
     - name: Setup MSVC
       uses: ilammy/msvc-dev-cmd@v1
@@ -39,9 +77,13 @@ jobs:
     - name: Setup Qt
       uses: jurplel/install-qt-action@v4
       with:
-        version: '6.10.*'
+        version: '6.12.0'
         arch: win64_msvc2022_64
-        modules: 'qtshadertools qtmultimedia qtwebsockets'
+        # Pinned upstream Qt 6.12 repository-layout and versioned-extension fixes:
+        # https://github.com/miurahr/aqtinstall/pull/1048
+        aqtsource: 'git+https://github.com/jdpurcell/aqtinstall.git@6f0f842da47c744cdc814cd94da9828d934d7bf0'
+        py7zrversion: '==1.1.4'
+        modules: 'qtcanvaspainter qtshadertools qtmultimedia qtwebsockets qtvirtualkeyboard qtpdf@6.140.0'
 
     - name: Setup vcpkg
       uses: lukka/run-vcpkg@v11
@@ -64,7 +106,7 @@ jobs:
       shell: cmd
       run: >
         cmake -S Library -B Library/build/ci
-        -G "Visual Studio 17 2022" -A x64
+        -G "Ninja Multi-Config"
         -DCMAKE_TOOLCHAIN_FILE="${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake"
         -DCMAKE_INSTALL_PREFIX="${{ github.workspace }}/install"
         -DDSQT_BUILD_TESTS=ON
@@ -78,22 +120,54 @@ jobs:
       run: cmake --build Library/build/ci --config Debug
 
     - name: Run Tests
-      shell: cmd
-      run: ctest --test-dir Library/build/ci --build-config Debug --output-on-failure --output-junit test-results.xml
+      shell: pwsh
+      run: |
+        $ErrorActionPreference = 'Stop'
+        $cache = Get-Content Library/build/ci/CMakeCache.txt -Raw
+        if ($cache -notmatch '(?m)^Qt6_DIR:[^=]+=(.+)$') { throw 'Qt kit missing from CMake cache' }
+        $qt = (Resolve-Path (Join-Path $Matches[1].Trim() '../../..')).Path
+        $crt = @(Get-ChildItem "$env:VCToolsRedistDir/debug_nonredist/x64/Microsoft.VC*.DebugCRT" -Directory)
+        if ($crt.Count -ne 1) { throw 'Cannot identify the configured compiler Debug runtime' }
+        $crtDir = $crt[0].FullName
+        $thirdParty = (Resolve-Path Library/build/ci/vcpkg_installed/x64-windows/debug/bin).Path
+        foreach ($file in @("$qt/bin/Qt6Cored.dll", "$qt/bin/Qt6Quickd.dll",
+                            "$qt/bin/Qt6Multimediad.dll", "$crtDir/msvcp140d.dll",
+                            "$qt/bin/Qt6Pdfd.dll", "$qt/bin/Qt6PdfQuickd.dll",
+                            "$qt/bin/Qt6VirtualKeyboardd.dll",
+                            "$crtDir/vcruntime140d.dll", "$thirdParty/tomlplusplus-3.dll",
+                            "$qt/plugins/platforms/qwindowsd.dll", "$qt/plugins/imageformats/qsvgd.dll",
+                            "$qt/plugins/platforms/qoffscreend.dll",
+                            "$qt/plugins/platforminputcontexts/qtvirtualkeyboardplugind.dll",
+                            "$qt/qml/QtQuick/Pdf/qmldir", "$qt/qml/QtQuick/Pdf/pdfquickplugind.dll",
+                            "$qt/qml/QtCanvas2D/qmldir", "$qt/qml/QtMultimedia/qmldir")) {
+          if (!(Test-Path $file)) { throw "Missing runtime dependency: $file" }
+        }
+        $env:PATH = "$qt/bin;$crtDir;$thirdParty;" + $env:PATH
+        $env:QT_PLUGIN_PATH = "$qt/plugins"
+        $env:QT_QPA_PLATFORM_PLUGIN_PATH = "$qt/plugins/platforms"
+        $env:QML_IMPORT_PATH = "$pwd/Library/build/ci/qml;$qt/qml"
+        Remove-Item Env:QML2_IMPORT_PATH -ErrorAction SilentlyContinue
+        $env:DSQT_TEST_REQUIRE_PDF = '1'
+        ctest --test-dir Library/build/ci --build-config Debug --output-on-failure --output-junit test-results.xml
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
     - name: Upload Test Results
-      if: always()
+      if: always() && hashFiles('Library/build/ci/test-results.xml', 'Library/build/ci/Tests/**/*.xml', 'Library/build/ci/Tests/**/*-results.txt', 'Library/build/ci/Testing/Temporary/*.log') != ''
       uses: actions/upload-artifact@v4
       with:
         name: test-results
-        path: Library/build/ci/test-results.xml
+        path: |
+          Library/build/ci/test-results.xml
+          Library/build/ci/Tests/**/*.xml
+          Library/build/ci/Tests/**/*-results.txt
+          Library/build/ci/Testing/Temporary/*.log
 
     - name: Test Report
-      if: always()
+      if: always() && hashFiles('Library/build/ci/test-results.xml') != ''
       uses: dorny/test-reporter@v1
       with:
         name: Qt Unit Tests
-        path: Library/build/ci/Tests/**/test_*.xml
+        path: Library/build/ci/test-results.xml
         reporter: java-junit
 
     - name: Install Release
@@ -108,7 +182,7 @@ jobs:
       shell: cmd
       run: >
         cmake -S Tools/ProjectCloner -B Tools/ProjectCloner/build/ci
-        -G "Visual Studio 17 2022" -A x64
+        -G "Ninja Multi-Config"
         -DCMAKE_INSTALL_PREFIX="${{ github.workspace }}/install/Tools/ProjectCloner"
 
     - name: Build ProjectCloner
@@ -136,8 +210,13 @@ jobs:
       run: |
         git config user.name "github-actions[bot]"
         git config user.email "github-actions[bot]@users.noreply.github.com"
-        git tag "library/v${{ steps.version.outputs.full_version }}"
-        git push origin "library/v${{ steps.version.outputs.full_version }}"
+        TAG="library/v${{ steps.version.outputs.full_version }}"
+        if EXISTING=$(git rev-parse --verify "refs/tags/$TAG^{commit}" 2>/dev/null); then
+          test "$EXISTING" = "$GITHUB_SHA"
+        else
+          git tag "$TAG" "$GITHUB_SHA"
+        fi
+        git push origin "refs/tags/$TAG"
 
     - name: Create GitHub Release
       if: github.ref_name == 'main' || vars.BRANCH_LIBRARY_RELEASE == 'true'
@@ -145,8 +224,12 @@ jobs:
       with:
         tag_name: "library/v${{ steps.version.outputs.full_version }}"
         name: "Dsqt Library v${{ steps.version.outputs.full_version }}"
+        prerelease: ${{ steps.version.outputs.prerelease == 'true' }}
+        make_latest: ${{ github.ref_name == 'main' && 'true' || 'false' }}
         body: |
           Automated build of Dsqt Library.
           Version: ${{ steps.version.outputs.full_version }}
+          Branch: ${{ github.ref_name }}
+          Build Library run: ${{ github.run_number }}
           Commit: ${{ github.sha }}
         files: dsqt-${{ steps.version.outputs.full_version }}.zip

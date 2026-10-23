@@ -1,0 +1,38 @@
+#colors
+id = "generic waffles"
+base = "amsterdam"
+scale = 1
+
+[five-finger-menu]
+radius = "100px"
+finger_min = 3
+finger_max = 5
+double_tap = false #defaults to true
+hold = true #defaults to false
+
+[[five-finger-menu.item]]
+icon = ""
+[[five-finger-menu.item]]
+[[five-finger-menu.item]]
+[[five-finger-menu.item]]
+
+[ui]
+background = {r=0,g=0.56,b=0.78,a=1.0}
+foreground = {r=0,g=0.56,b=0.78,a=1.0}
+
+[ui.inactive]
+
+[ui.active]
+
+[ui.hover]
+
+[ui.pressed]
+
+[colors.fancy]
+box = {r=0,g=0.56,b=0.78,a=1.0}
+
+[colors.superFancy]
+box = {r=0,g=0.56,b=0.78,a=1.0}
+
+[platform]
+id = "CniWJvnMsq3d"

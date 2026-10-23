@@ -1,7 +1,7 @@
 
 cmake_minimum_required(VERSION 3.29)
 
-find_package(Qt6 6.9
+find_package(Qt6 6.12
     REQUIRED COMPONENTS
         Concurrent
         Core
@@ -18,17 +18,21 @@ if (NOT TARGET Qt6::Sql)
   return()
 endif()
 
-qt_standard_project_setup(REQUIRES 6.9)
+qt_standard_project_setup(REQUIRES 6.12)
 
 add_library(Bridge)
 add_library(Dsqt::Bridge ALIAS Bridge)
 
 qt_add_qml_module(Bridge
+    PLUGIN_TARGET DsqtBridgeplugin
     URI Dsqt.Bridge
     OUTPUT_TARGETS BridgeTargets
     VERSION 1.0
+    DEPENDENCIES
+        TARGET Core
+        QtQuick
     QML_FILES
-        # qml/DsContentBrowser.qml
+        qml/DsContentLauncherModel.qml
 
     SOURCES
         bridge/dsQmlBridge.h bridge/dsQmlBridge.cpp
@@ -61,7 +65,7 @@ target_link_libraries(Bridge
         Qt6::Widgets
 
         Core
-        Bridgeplugin
+        DsqtBridgeplugin
 )
 
 target_include_directories(Bridge
@@ -77,6 +81,15 @@ target_include_directories(Bridge
 )
 
 
+
+
+# Prefix the installed library file so it cannot collide with another port in
+# vcpkg's shared prefix. The CMake target name and the Dsqt:: alias are
+# unchanged, so consumer code is unaffected.
+# NOTE: the QML plugin target must NOT use OUTPUT_NAME -- Qt writes the plugin
+# target name into the generated qmldir. It is renamed via PLUGIN_TARGET in
+# qt_add_qml_module() instead.
+set_target_properties(Bridge PROPERTIES OUTPUT_NAME DsqtBridge)
 
 # ----------------------------------------------------------------------
 # Installation rules (headers only - target install is in main CMakeLists.txt)

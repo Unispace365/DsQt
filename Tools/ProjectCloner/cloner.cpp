@@ -10,6 +10,8 @@
 #include <QMap>
 #include <QProcess>
 #include <QRegularExpression>
+#include <QVersionNumber>
+#include <QSaveFile>
 #include <QStandardPaths>
 
 namespace {
@@ -20,6 +22,7 @@ struct VisualStudioInstallation
     QString displayName;
     QString presetPrefix;
     QString installationPath;
+    QString toolsetVersion;
 
     bool isValid() const
     {
@@ -180,6 +183,21 @@ VisualStudioInstallation discoverVisualStudioInstallation()
         selected.installationPath = installationPath;
     }
 
+    if (selected.isValid()) {
+        const QDir installation(selected.installationPath);
+        QFile versionFile(installation.filePath(
+            QStringLiteral("VC/Auxiliary/Build/Microsoft.VCToolsVersion.default.txt")));
+        if (versionFile.open(QIODevice::ReadOnly)) {
+            const QString version = QString::fromUtf8(versionFile.readAll()).trimmed();
+            static const QRegularExpression toolsetVersionRe(QStringLiteral(R"(^\d+\.\d+\.\d+$)"));
+            if (toolsetVersionRe.match(version).hasMatch()
+                && QFileInfo::exists(installation.filePath(
+                    QStringLiteral("VC/Tools/MSVC/%1/bin/Hostx64/x64/cl.exe").arg(version)))) {
+                selected.toolsetVersion = version;
+            }
+        }
+    }
+
     return selected;
 }
 
@@ -224,6 +242,8 @@ QString discoverNinjaExecutable(const VisualStudioInstallation &visualStudio,
 } // namespace
 
 Cloner::Cloner() {
+    m_catalog = new PackageCatalog(this);
+    connect(m_catalog, &PackageCatalog::changed, this, &Cloner::configurationChanged);
     checker = new GitIgnoreChecker(QCoreApplication::applicationDirPath() + "/skip.txt");
 
     // Resolve ClonerSource location: prefer installed layout relative to exe,
@@ -237,9 +257,41 @@ Cloner::Cloner() {
     detectQtVersions();
 }
 
+QString Cloner::defaultProjectDirectory() const
+{
+    return QDir::toNativeSeparators(QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation));
+}
+
+QString Cloner::localFolderPath(const QString &value) const
+{
+    QString path = value.trimmed();
+    const QUrl url(path);
+    if (url.isLocalFile()) {
+        if (!url.isValid())
+            return {};
+        path = url.toLocalFile();
+    }
+    path = QDir::fromNativeSeparators(path);
+    if (path.isEmpty() || !QDir::isAbsolutePath(path))
+        return {};
+    return QDir::toNativeSeparators(QDir::cleanPath(path));
+}
+
+QUrl Cloner::folderUrl(const QString &path) const
+{
+    const auto folder = localFolderPath(path);
+    return folder.isEmpty() ? QUrl() : QUrl::fromLocalFile(folder);
+}
+
 void Cloner::clone()
 {
     if(m_status == Status::PRECLONE){
+        if (!canClone()) {
+            setLastError(tr("Select a verified package and at least one compatible Qt kit."));
+            return;
+        }
+        m_packageSelection = m_catalog->selection();
+        setStatus(Status::CLONING);
         QThread* thread = QThread::create([this](){
             //check the destination. It needs to not exist
             //or be empty
@@ -335,6 +387,10 @@ void Cloner::clone()
                 return;
             }
 
+            if (!writeProjectSelection(destDirectory.absolutePath())) {
+                setStatus(Status::POSTCLONE);
+                return;
+            }
             if (!m_selectedQtVersions.isEmpty()) {
                 if (!writeCMakePresets(destDirectory.absolutePath(), m_selectedQtVersions)) {
                     setStatus(Status::POSTCLONE);
@@ -346,6 +402,7 @@ void Cloner::clone()
             emit cloned();
             setStatus(Status::POSTCLONE);
         });
+        connect(thread, &QThread::finished, thread, &QObject::deleteLater);
         thread->start();
     }
 }
@@ -460,6 +517,8 @@ bool Cloner::processDirectory(QDir dir,QDir rootDir)
     auto sourceItems = dir.entryInfoList(QDir::AllEntries | QDir::NoDotAndDotDot);
     for(const auto& item:static_cast<const QFileInfoList>(sourceItems)){
         const auto name = rootDir.relativeFilePath(item.absoluteFilePath());
+        if (!m_packageSelection.value("modules").toArray().contains("Waffles")
+            && name == "data/images/waffles") continue;
         const auto sourceName =  item.absoluteFilePath();
         const auto destName = m_cloneToDirectory+"/"+name;
         if(!checker->isIgnored(name)){
@@ -668,6 +727,7 @@ void Cloner::setSelectedQtVersions(const QStringList &newSelectedQtVersions)
         return;
     m_selectedQtVersions = newSelectedQtVersions;
     emit selectedQtVersionsChanged();
+    emit configurationChanged();
 }
 
 void Cloner::detectQtVersions()
@@ -676,11 +736,13 @@ void Cloner::detectQtVersions()
     emit detectedQtVersionsChanged();
     m_selectedQtVersions = m_detectedQtVersions;
     emit selectedQtVersionsChanged();
+    emit configurationChanged();
 }
 
-QStringList Cloner::scanForQtInstallations() const
+QStringList Cloner::scanForQtInstallations()
 {
-    QStringList found = discoverQtInstallations().keys();
+    m_qtKits = discoverQtInstallations();
+    QStringList found = m_qtKits.keys();
 
     // Sort by version number
     std::sort(found.begin(), found.end(), [](const QString &a, const QString &b) {
@@ -698,123 +760,147 @@ QStringList Cloner::scanForQtInstallations() const
     return found;
 }
 
+bool Cloner::isQtCompatible(const QString &version) const
+{
+    return m_catalog->acceptsQt(version);
+}
+
+bool Cloner::canClone() const
+{
+    if (!m_catalog->ready() || m_selectedQtVersions.isEmpty()) return false;
+    for (const auto &version : m_selectedQtVersions)
+        if (m_catalog->acceptsQt(version)) return true;
+    return false;
+}
+
 QByteArray Cloner::generateCMakePresets(const QStringList &versions) const
 {
-    static const QString vcpkgToolchain = QStringLiteral("$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake");
-    static const QString dsqtInstallSuffix = QStringLiteral("$env{USERPROFILE}/Documents/DsQt");
-
-    QJsonArray configurePresets;
-    QJsonArray buildPresets;
-    const auto qtInstallations = discoverQtInstallations();
+    const auto selection = m_packageSelection.isEmpty() ? m_catalog->selection() : m_packageSelection;
+    const auto source = selection.value("source").toString();
     const auto visualStudio = discoverVisualStudioInstallation();
-    const QString ninjaExecutable = discoverNinjaExecutable(visualStudio, qtInstallations);
+    const QString ninja = discoverNinjaExecutable(visualStudio, m_qtKits);
+    QJsonArray configure, builds;
+    configure.append(QJsonObject{{"name", "vcpkg-base"}, {"hidden", true},
+        {"toolchainFile", "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"}});
 
-    // vcpkg-base hidden preset
-    QJsonObject vcpkgBase;
-    vcpkgBase[QStringLiteral("name")] = QStringLiteral("vcpkg-base");
-    vcpkgBase[QStringLiteral("hidden")] = true;
-    vcpkgBase[QStringLiteral("toolchainFile")] = vcpkgToolchain;
-    configurePresets.append(vcpkgBase);
-
-    if (!ninjaExecutable.isEmpty()) {
-        QJsonObject ninjaBase;
-        ninjaBase[QStringLiteral("name")] = QStringLiteral("ninja-base");
-        ninjaBase[QStringLiteral("hidden")] = true;
-        ninjaBase[QStringLiteral("generator")] = QStringLiteral("Ninja Multi-Config");
-        QJsonObject ninjaCache;
-        ninjaCache[QStringLiteral("CMAKE_C_COMPILER")] = QStringLiteral("cl.exe");
-        ninjaCache[QStringLiteral("CMAKE_CXX_COMPILER")] = QStringLiteral("cl.exe");
-        ninjaCache[QStringLiteral("CMAKE_CXX_FLAGS_INIT")] = QStringLiteral("/EHsc");
-        ninjaCache[QStringLiteral("CMAKE_CONFIGURATION_TYPES")]
-            = QStringLiteral("Debug;Release;RelWithDebInfo");
-        ninjaCache[QStringLiteral("CMAKE_MAKE_PROGRAM")] = ninjaExecutable;
-        ninjaBase[QStringLiteral("cacheVariables")] = ninjaCache;
-        configurePresets.append(ninjaBase);
-    }
-
-    for (const auto &ver : versions) {
-        const QString cmakePath = qtInstallations.value(ver);
-        if (cmakePath.isEmpty()) {
-            qWarning() << "Skipping Qt" << ver << "because its installation path is unavailable";
+    for (const auto &version : versions) {
+        if (!selection.value("exactQt").toString().isEmpty() && version != selection.value("exactQt").toString()) continue;
+        if (QVersionNumber::fromString(version) < QVersionNumber::fromString(selection.value("minimumQt").toString())) continue;
+        const QString kit = m_qtKits.value(version);
+        if (kit.isEmpty()) {
+            qWarning() << "Skipping Qt" << version << "because its installation path is unavailable";
             continue;
         }
+        const QString suffix = source == "local" ? "vcpkg-local"
+            : source == "registry" ? "vcpkg-" + version : version;
+        QJsonObject cache{{"CMAKE_CXX_FLAGS_INIT", "/EHsc"},
+            {"CMAKE_CONFIGURATION_TYPES", "Debug;Release"}};
+        if (source == "registry") {
+            cache.insert("DSQT_USE_REGISTRY_VCPKG", "ON");
+            cache.insert("DSQT_REGISTRY_QT_VERSION", version);
+            QDir qtRoot(kit); qtRoot.cdUp(); qtRoot.cdUp();
+            cache.insert("DSQT_REGISTRY_QT_ROOT", qtRoot.absolutePath());
+        } else if (source == "local") {
+            cache.insert("DSQT_USE_LOCAL_VCPKG", "ON");
+            cache.insert("DSQT_LOCAL_PACKAGE_ROOT", selection.value("path"));
+        } else {
+            cache.insert("CMAKE_PREFIX_PATH", kit + ";" + selection.value("path").toString());
+        }
 
-        QString qtPresetName = QStringLiteral("qt-") + ver;
-        QString prefixPath = cmakePath + QStringLiteral(";") + dsqtInstallSuffix;
-
-        // Hidden Qt version preset
-        QJsonObject qtPreset;
-        qtPreset[QStringLiteral("name")] = qtPresetName;
-        qtPreset[QStringLiteral("hidden")] = true;
-        qtPreset[QStringLiteral("inherits")] = QStringLiteral("vcpkg-base");
-        QJsonObject qtCache;
-        qtCache[QStringLiteral("CMAKE_PREFIX_PATH")] = prefixPath;
-        qtPreset[QStringLiteral("cacheVariables")] = qtCache;
-        configurePresets.append(qtPreset);
-
+        const auto appendPreset = [&](const QString &prefix, const QString &generator,
+                                      const QJsonObject &generatorCache, bool visualStudioPreset) {
+            const QString name = prefix + "-" + suffix;
+            QJsonObject preset{{"name", name},
+                {"displayName", prefix + " · DsQt " + source + " · Qt " + version},
+                {"inherits", "vcpkg-base"}, {"generator", generator},
+                {"binaryDir", "${sourceDir}/build/" + name}, {"cacheVariables", generatorCache}};
+            if (visualStudioPreset) {
+                preset.insert("architecture", "x64");
+            } else {
+                // IDEs initialize MSVC; CMake ignores these fields for Ninja.
+                QString toolset = QStringLiteral("host=x64");
+                if (!visualStudio.toolsetVersion.isEmpty())
+                    toolset += QStringLiteral(",version=") + visualStudio.toolsetVersion;
+                preset.insert("architecture", QJsonObject{{"value", "x64"}, {"strategy", "external"}});
+                preset.insert("toolset", QJsonObject{{"value", toolset}, {"strategy", "external"}});
+            }
+            configure.append(preset);
+            for (const auto &config : {QString("Debug"), QString("Release")})
+                builds.append(QJsonObject{{"name", name + "-" + config.toLower()},
+                    {"configurePreset", name}, {"configuration", config}});
+        };
         if (visualStudio.isValid()) {
-            const QString vsName = visualStudio.presetPrefix + QStringLiteral("-") + ver;
-            QJsonObject vsPreset;
-            vsPreset[QStringLiteral("name")] = vsName;
-            vsPreset[QStringLiteral("displayName")] = visualStudio.displayName
-                                                              + QStringLiteral(" x64 - Qt ") + ver;
-            vsPreset[QStringLiteral("inherits")] = qtPresetName;
-            vsPreset[QStringLiteral("generator")] = visualStudio.generator;
-            vsPreset[QStringLiteral("architecture")] = QStringLiteral("x64");
-            vsPreset[QStringLiteral("binaryDir")] = QStringLiteral("${sourceDir}/build/") + vsName;
-            QJsonObject vsCache;
-            vsCache[QStringLiteral("CMAKE_GENERATOR_INSTANCE")] = visualStudio.installationPath;
-            vsPreset[QStringLiteral("cacheVariables")] = vsCache;
-            configurePresets.append(vsPreset);
-
-            for (const auto &config : {std::make_pair("Debug", "debug"),
-                                        std::make_pair("Release", "release"),
-                                        std::make_pair("RelWithDebInfo", "relwithdebinfo")}) {
-                QJsonObject bp;
-                bp[QStringLiteral("name")] = vsName + QStringLiteral("-")
-                                                     + QLatin1String(config.second);
-                bp[QStringLiteral("displayName")] = QLatin1String(config.first);
-                bp[QStringLiteral("configurePreset")] = vsName;
-                bp[QStringLiteral("configuration")] = QLatin1String(config.first);
-                buildPresets.append(bp);
-            }
+            auto vsCache = cache;
+            vsCache.insert("CMAKE_GENERATOR_INSTANCE", visualStudio.installationPath);
+            appendPreset(visualStudio.presetPrefix, visualStudio.generator, vsCache, true);
         }
-
-        if (!ninjaExecutable.isEmpty()) {
-            const QString ninjaName = QStringLiteral("ninja-") + ver;
-            QJsonObject ninjaPreset;
-            ninjaPreset[QStringLiteral("name")] = ninjaName;
-            ninjaPreset[QStringLiteral("displayName")] = QStringLiteral("Ninja Multi-Config - Qt ")
-                                                          + ver;
-            ninjaPreset[QStringLiteral("inherits")] = QJsonArray{
-                qtPresetName,
-                QStringLiteral("ninja-base")
-            };
-            ninjaPreset[QStringLiteral("binaryDir")] = QStringLiteral("${sourceDir}/build/")
-                                                        + ninjaName;
-            configurePresets.append(ninjaPreset);
-
-            for (const auto &config : {std::make_pair("Debug", "debug"),
-                                        std::make_pair("Release", "release"),
-                                        std::make_pair("RelWithDebInfo", "relwithdebinfo")}) {
-                QJsonObject ninjaBp;
-                ninjaBp[QStringLiteral("name")] = ninjaName + QStringLiteral("-")
-                                                            + QLatin1String(config.second);
-                ninjaBp[QStringLiteral("displayName")] = QLatin1String(config.first);
-                ninjaBp[QStringLiteral("configurePreset")] = ninjaName;
-                ninjaBp[QStringLiteral("configuration")] = QLatin1String(config.first);
-                buildPresets.append(ninjaBp);
-            }
+        if (!ninja.isEmpty()) {
+            auto ninjaCache = cache;
+            ninjaCache.insert("CMAKE_C_COMPILER", "cl.exe");
+            ninjaCache.insert("CMAKE_CXX_COMPILER", "cl.exe");
+            ninjaCache.insert("CMAKE_MAKE_PROGRAM", ninja);
+            appendPreset("ninja", "Ninja Multi-Config", ninjaCache, false);
         }
+        if (source == "local") break;
     }
+    return QJsonDocument(QJsonObject{{"version", 6}, {"configurePresets", configure}, {"buildPresets", builds}}).toJson();
+}
 
-    QJsonObject root;
-    root[QStringLiteral("version")] = 6;
-    root[QStringLiteral("configurePresets")] = configurePresets;
-    root[QStringLiteral("buildPresets")] = buildPresets;
-
-    QJsonDocument doc(root);
-    return doc.toJson(QJsonDocument::Indented);
+bool Cloner::writeProjectSelection(const QString &destDir)
+{
+    const auto selection = m_packageSelection;
+    const auto modules = selection.value("modules").toArray();
+    auto read = [&](const QString &name) {
+        QFile file(destDir + "/" + name);
+        return file.open(QIODevice::ReadOnly) ? QJsonDocument::fromJson(file.readAll()).object() : QJsonObject();
+    };
+    auto write = [&](const QString &name, const QJsonObject &data) {
+        QSaveFile file(destDir + "/" + name);
+        const auto bytes = QJsonDocument(data).toJson();
+        if (!file.open(QIODevice::WriteOnly) || file.write(bytes) != bytes.size() || !file.commit()) {
+            setLastError(tr("Cannot write %1").arg(name));
+            return false;
+        }
+        return true;
+    };
+    auto project = selection;
+    project.insert("formatVersion", 1);
+    if (!write("dsqt-project.json", project)) return false;
+    auto manifest = read("vcpkg.json");
+    auto features = manifest.value("features").toObject();
+    QJsonArray packageFeatures;
+    const auto specs = selection.value("metadata").toObject().value("modules").toObject();
+    for (const auto &module : modules) {
+        const auto feature = specs.value(module.toString()).toObject().value("feature").toString();
+        if (!feature.isEmpty()) packageFeatures.append(feature);
+    }
+    QJsonObject dependency{{"name", "dsqt"}, {"default-features", false}, {"features", packageFeatures}};
+    for (const auto &mode : {"dsqt-registry", "dsqt-local"}) {
+        auto feature = features.value(mode).toObject();
+        feature.insert("dependencies", QJsonArray{dependency});
+        features.insert(mode, feature);
+    }
+    manifest.insert("features", features);
+    if (selection.value("source") == "registry") {
+        const QString version = selection.value("version").toString() + "#" + QString::number(selection.value("portVersion").toInt());
+        manifest.insert("overrides", QJsonArray{QJsonObject{{"name", "dsqt"}, {"version", version}}});
+        auto config = read("vcpkg-configuration.json");
+        config.insert("registries", QJsonArray{QJsonObject{{"kind", "git"}, {"repository", selection.value("repository")},
+            {"baseline", selection.value("baseline")}, {"packages", QJsonArray{"dsqt"}}}});
+        if (!write("vcpkg-configuration.json", config)) return false;
+    }
+    if (!write("vcpkg.json", manifest)) return false;
+    if (!modules.contains("Waffles")) {
+        QFile::remove(destDir + "/settings/waffles_content.toml");
+        QFile::remove(destDir + "/qml/WafflesView.qml");
+        if (!replaceInFile(destDir + "/settings/engine.toml", "  \"waffles_content.toml\",", "")) return false;
+    }
+    if (!modules.contains("Bridge")) {
+        QFile::remove(destDir + "/settings/bridgesync.toml");
+        if (!replaceInFile(destDir + "/settings/engine.toml", "  \"bridgesync.toml\",", "")) return false;
+    }
+    if (!modules.contains("TouchEngine")) QFile::remove(destDir + "/qml/TouchDesigner.qml");
+    return true;
 }
 
 bool Cloner::writeCMakePresets(const QString &destDir, const QStringList &versions)

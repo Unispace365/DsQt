@@ -51,6 +51,7 @@ set_target_properties(DsqtTouchEngineSDK PROPERTIES
 
 add_library(TouchEngine STATIC)
 add_library(Dsqt::TouchEngine ALIAS TouchEngine)
+set_target_properties(TouchEngine PROPERTIES OUTPUT_NAME DsqtTouchEngine)
 
 set(_touchengine_public_headers
     include/Dsqt/TouchEngine/DsTouchEngineSession.h
@@ -83,6 +84,7 @@ set(_touchengine_sources
 )
 
 qt_add_qml_module(TouchEngine
+    PLUGIN_TARGET DsqtTouchEngineplugin
     URI Dsqt.TouchEngine
     VERSION 1.0
     OUTPUT_TARGETS TouchEngineQmlTargets
@@ -94,6 +96,9 @@ qt_add_qml_module(TouchEngine
     DEPENDENCIES
         QtQuick
 )
+
+# Keep the public imported name stable while avoiding file-name collisions.
+set_target_properties(DsqtTouchEngineplugin PROPERTIES EXPORT_NAME TouchEngineplugin)
 
 qt_add_shaders(TouchEngine "dsqt_touchengine_shaders"
     PREFIX "/dsqt/touchengine/shaders"
@@ -158,11 +163,11 @@ install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/include/"
     FILES_MATCHING PATTERN "*.h"
 )
 install(FILES "${TOUCHENGINE_RUNTIME}"
-    DESTINATION "${CMAKE_INSTALL_BINDIR}/$<CONFIG>"
+    DESTINATION "${CMAKE_INSTALL_BINDIR}${DSQT_CONFIG_DIR}"
 )
 install(FILES "${TOUCHENGINE_LIBRARY}"
-    DESTINATION "${CMAKE_INSTALL_LIBDIR}/$<CONFIG>"
-    RENAME TouchEngineSDK.lib
+    DESTINATION "${CMAKE_INSTALL_LIBDIR}${DSQT_CONFIG_DIR}"
+    RENAME DsqtTouchEngineSDK.lib
 )
 install(FILES
     "${TOUCHENGINE_SDK_ROOT}/LICENSE.md"

@@ -5,17 +5,21 @@ configure_file(
     ${CMAKE_CURRENT_BINARY_DIR}/core/dsVersion.h
 )
 
-find_package(Qt6 6.9 REQUIRED COMPONENTS ShaderTools)
-qt_standard_project_setup(REQUIRES 6.9)
+# DsQuickMenuSegment uses the Qt 6.12 Canvas2D QML technology preview.
+find_package(Qt6 6.12 REQUIRED COMPONENTS CanvasPainter ShaderTools)
+qt_standard_project_setup(REQUIRES 6.12)
 
 add_library(Core)
 add_library(Dsqt::Core ALIAS Core)
 
 qt_add_qml_module(Core
+    PLUGIN_TARGET DsqtCoreplugin
     URI Dsqt.Core
     VERSION 1.0
     OUTPUT_TARGETS CoreTargets
     QML_FILES
+        qml/ui/DsQuickMenuHost.qml
+        qml/ui/DsQuickMenuTouchHost.qml
         #qml/bridge/DsBridgeQueryControls.qml
         qml/DsAppBase.qml
         qml/DsAppMenuBar.qml
@@ -31,6 +35,7 @@ qt_add_qml_module(Core
         qml/ui/DsMediaViewer.qml
         qml/ui/DsPlaylistView.qml
         qml/ui/DsQuickMenu.qml
+        qml/ui/DsQuickMenuSegment.qml
 
     SOURCES
         core/dsEnvironment.cpp core/dsEnvironment.h
@@ -73,7 +78,28 @@ qt_add_qml_module(Core
     #     Dsqtplugin
     
     RESOURCES
-        res/keyboard.qrc
+        res/quick_menu/close.svg
+        res/quick_menu/close_pressed.svg
+        res/quick_menu/quickMenuSelectionArrowwt.svg
+        # Bundled Qt Virtual Keyboard "waffles" style — listed as INDIVIDUAL files, NOT via a .qrc.
+        # A .qrc compiles to a separate resource object whose initializer the linker dead-strips
+        # from this STATIC lib (so the style was missing at runtime → VK fell back to "default").
+        # Individual files merge into the module's QML resource, which is always linked via the
+        # module registration. These land at qrc:/qt/qml/Dsqt/Core/res/QtQuick/VirtualKeyboard/
+        # Styles/waffles/...; DsQmlApplicationEngine adds qrc:/qt/qml/Dsqt/Core/res to the import
+        # path and QT_VIRTUALKEYBOARD_STYLE=waffles selects it.
+        res/QtQuick/VirtualKeyboard/Styles/waffles/style.qml
+        res/QtQuick/VirtualKeyboard/Styles/waffles/images/backspace-fff.svg
+        res/QtQuick/VirtualKeyboard/Styles/waffles/images/check-fff.svg
+        res/QtQuick/VirtualKeyboard/Styles/waffles/images/enter-fff.svg
+        res/QtQuick/VirtualKeyboard/Styles/waffles/images/globe-fff.svg
+        res/QtQuick/VirtualKeyboard/Styles/waffles/images/handwriting-fff.svg
+        res/QtQuick/VirtualKeyboard/Styles/waffles/images/hidekeyboard-fff.svg
+        res/QtQuick/VirtualKeyboard/Styles/waffles/images/search-fff.svg
+        res/QtQuick/VirtualKeyboard/Styles/waffles/images/selectionhandle-bottom.svg
+        res/QtQuick/VirtualKeyboard/Styles/waffles/images/settings-fff.svg
+        res/QtQuick/VirtualKeyboard/Styles/waffles/images/shift-fff.svg
+        res/QtQuick/VirtualKeyboard/Styles/waffles/images/textmode-fff.svg
         res/data.qrc
 
         QML_FILES
@@ -102,7 +128,7 @@ target_link_libraries(Core PUBLIC
     Qt6::Gui 
     Qt6::Qml 
     Qt6::Widgets
-    Coreplugin
+    DsqtCoreplugin
     $<$<PLATFORM_ID:Windows>:user32> # For WindowHelper
 )
 
@@ -124,6 +150,15 @@ target_include_directories(Core
 )
 
 target_link_libraries(Core PRIVATE tomlplusplus::tomlplusplus)
+
+
+# Prefix the installed library file so it cannot collide with another port in
+# vcpkg's shared prefix. The CMake target name and the Dsqt:: alias are
+# unchanged, so consumer code is unaffected.
+# NOTE: the QML plugin target must NOT use OUTPUT_NAME -- Qt writes the plugin
+# target name into the generated qmldir. It is renamed via PLUGIN_TARGET in
+# qt_add_qml_module() instead.
+set_target_properties(Core PROPERTIES OUTPUT_NAME DsqtCore)
 
 # ----------------------------------------------------------------------
 # Installation rules (headers only - target install is in main CMakeLists.txt)
