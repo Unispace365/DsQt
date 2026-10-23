@@ -132,6 +132,41 @@ you get compatible package versions.
    version-pinned preset from your `CMakeUserPresets.json`)
 4. Click Configure Project, then Build > Install
 
+**Platform presets:**
+
+The library's shared `ninja-base` preset contains only platform-neutral settings.
+Use the preset for your build platform:
+
+| Platform | Configure preset | Build presets |
+|----------|------------------|---------------|
+| Windows / MSVC | `ninja` | `ninja-debug`, `ninja-release`, `ninja-relwithdebinfo` |
+| Linux | `linux` | `linux-debug`, `linux-release`, `linux-relwithdebinfo` |
+| macOS | `macos` | `macos-debug`, `macos-release`, `macos-relwithdebinfo` |
+| iOS | `ios-device`, `ios-simulator`, `ios-simulator-intel` | Add `-debug`, `-release`, or `-relwithdebinfo` to the configure preset name |
+
+On Windows, `ninja` explicitly selects `cl.exe` for C and C++. The library
+enables `/EHsc` when using MSVC. `build_and_install.bat` prepares the MSVC x64
+developer environment; when invoking CMake directly, use an x64 Developer
+Command Prompt or an IDE configured with the matching MSVC/Qt kit.
+
+On Linux, set `VCPKG_ROOT` to your vcpkg checkout and configure from `Library`
+with the path to your Linux Qt kit:
+
+```bash
+cmake --preset linux -DCMAKE_PREFIX_PATH="/path/to/your/Qt/kit"
+cmake --build --preset linux-debug
+cmake --build --preset linux-release
+```
+
+The Linux preset uses `build/linux` and lets CMake select the native compiler.
+For a specific GCC or Clang toolchain, set `CC` and `CXX` before the first
+configure, or specify the compilers in a local `CMakeUserPresets.json` preset
+that inherits from `linux`. Use a new build directory when changing compilers;
+an existing CMake cache retains the previous compiler selection.
+
+The Apple presets retain their own toolchains; see the
+[Apple build guide](Library/BUILDING-APPLE.md) for Qt paths and iOS setup.
+
 #### Build and Run ProjectCloner
 
 **Preferred (command-line):**

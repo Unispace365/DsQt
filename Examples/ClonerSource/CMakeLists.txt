@@ -99,13 +99,14 @@ set(QML_IMPORT_PATH
      CACHE PATH "QT creator qml import path" FORCE
 )
 
-#setup windows resource file
-configure_file("cmake/app.rc.in" "app.rc")
-
-qt_add_executable(${DS_EXE_NAME}
-    main.cpp
-    app.rc
-)
+qt_add_executable(${DS_EXE_NAME} main.cpp)
+if(WIN32)
+    configure_file("cmake/app.rc.in" "app.rc")
+    target_sources(${DS_EXE_NAME} PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/app.rc")
+endif()
+if(IOS)
+    qt_add_ios_ffmpeg_libraries(${DS_EXE_NAME})
+endif()
 
 target_link_libraries(${DS_EXE_NAME} PRIVATE Qt6::Quick)
 qt_add_resources(${DS_EXE_NAME} "icon" FILES newds.ico)
@@ -163,7 +164,41 @@ qt_add_resources(${DS_EXE_NAME} data
 )
 
 add_custom_target(ds-data SOURCES ${DS_DATA_TARGET})
-add_custom_target(aux SOURCES Readme.md)
+
+# DsEnvironment searches next to the executable for settings and data.
+# Include them in the bundle so installed apps do not depend on the source tree.
+if(APPLE)
+    foreach(_file IN LISTS DS_SETTINGS DS_DATA_TARGET)
+        if(NOT IS_ABSOLUTE "${_file}")
+            continue()
+        endif()
+        file(RELATIVE_PATH _relative "${CMAKE_CURRENT_SOURCE_DIR}" "${_file}")
+        get_filename_component(_directory "${_relative}" DIRECTORY)
+        if(IOS)
+            set(_bundle_directory "${_directory}")
+        else()
+            set(_bundle_directory "MacOS/${_directory}")
+        endif()
+        if(_relative STREQUAL "settings/engine.toml")
+            file(READ "${_file}" _engine_settings)
+            # Bundled apps load compiled QML; source-tree reload paths are unavailable.
+            string(REPLACE "[engine.reload]\nactive = true"
+                "[engine.reload]\nactive = false" _engine_settings "${_engine_settings}")
+            if(IOS)
+                string(REPLACE "launch_bridgesync = true" "launch_bridgesync = false"
+                    _engine_settings "${_engine_settings}")
+            endif()
+            set(_file "${CMAKE_CURRENT_BINARY_DIR}/bundle-settings/engine.toml")
+            file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/bundle-settings")
+            file(WRITE "${_file}" "${_engine_settings}")
+        endif()
+        set_source_files_properties("${_file}" PROPERTIES
+            MACOSX_PACKAGE_LOCATION "${_bundle_directory}")
+        target_sources(${DS_EXE_NAME} PRIVATE "${_file}")
+    endforeach()
+endif()
+
+add_custom_target(aux SOURCES README.md)
 
 
 # Qt for iOS sets MACOSX_BUNDLE_GUI_IDENTIFIER automatically since Qt 6.1.
@@ -284,6 +319,7 @@ if(WIN32)
     ")
 endif()
 
+if(NOT IOS)
 qt_generate_deploy_qml_app_script(
     TARGET ${DS_EXE_NAME}
     OUTPUT_SCRIPT deploy_script
@@ -292,7 +328,9 @@ qt_generate_deploy_qml_app_script(
 )
 
 install(SCRIPT ${deploy_script})
+endif()
 
+if(WIN32)
 # --- DSAppHost configuration ---
 # Read settings from install/apphost_flags (KEY=VALUE format)
 # Values can still be overridden via cmake -D flags
@@ -349,3 +387,5 @@ configure_file(
     "${CMAKE_CURRENT_SOURCE_DIR}/install/${DS_APP_NAME}_dev.iss"
     @ONLY
 )
+
+endif() # WIN32 installer generation
