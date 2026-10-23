@@ -71,3 +71,55 @@ If your Qt is not installed under `C:\Qt\` or you need a different preset, creat
 * **Name in project file:** APP_NAME_
 
 [//]: # (This is a comment)
+
+## macOS and iOS
+
+Install Xcode, CMake 3.29+, a bootstrapped vcpkg checkout, and a complete Qt kit
+including Multimedia and the modules required by DsQt. Build and install DsQt
+for the same Qt version, SDK, and architecture as the app. The manifest supplies
+compiled toml++ and glm; do not substitute a header-only toml++ shim.
+
+| Configure preset | Target | Build presets |
+| --- | --- | --- |
+| `macos` | Native macOS | `macos-debug`, `macos-release` |
+| `ios-device` | arm64 iOS device | `ios-device-debug`, `ios-device-release` |
+| `ios-simulator` | arm64 iOS simulator | `ios-simulator-debug`, `ios-simulator-release` |
+| `ios-simulator-intel` | x86_64 iOS simulator | `ios-simulator-intel-debug`, `ios-simulator-intel-release` |
+
+All Apple presets use Xcode with Debug and Release in separate configuration
+outputs within one build directory per target. Select a Qt kit whose FFmpeg
+XCFrameworks contain the requested simulator architecture. Some older Qt kits
+only include x86_64 simulator FFmpeg binaries.
+
+Set `VCPKG_ROOT`, `QT_APPLE_ROOT` (the macos or ios Qt kit), and `DSQT_ROOT`
+(the matching DsQt installation prefix). iOS also needs `QT_HOST_PATH` pointing
+to the matching macOS Qt kit. No developer-specific paths belong in shared presets.
+
+```sh
+cmake --preset ios-simulator-intel
+cmake --build --preset ios-simulator-intel-debug
+cmake --build --preset ios-simulator-intel-release
+```
+
+For Qt Creator, copy `CMakeUserPresets.json.example` to `CMakeUserPresets.json`,
+replace the example paths with your local installations, and use Build > Reload
+CMake Presets. Select `local-macos` or `local-ios-simulator-intel`. Add local
+presets inheriting `ios-device` or `ios-simulator` with matching DsQt paths as
+needed. User presets are ignored by Git and excluded from newly cloned projects.
+Use a fresh build directory when changing Qt versions, SDKs, or toolchains.
+Empty variables expand into invalid paths, so fill in all required paths before
+importing the presets. Local Debug and Release build presets are included.
+
+For macOS distribution, run `cmake --install build/macos --config Release`;
+the app and Qt deployment are placed under `build/macos/DEPLOY/Release`.
+For iOS, select the matching simulator or device in Qt Creator/Xcode and deploy
+the generated app bundle. Device deployment needs your bundle identifier,
+Apple development team, and provisioning configured locally in Xcode or CMake.
+The template does not embed a team ID or disable device signing.
+
+Apple builds use Metal, include settings/data in the app bundle, and disable
+source-tree QML hot reload in the bundled engine settings. iOS uses the native
+keyboard and disables launching the desktop BridgeSync subprocess. Database
+content must be supplied separately to the app's writable storage. Windows-only
+TouchDesigner QML and installers are excluded. Qt's iOS helper links and embeds
+FFmpeg from the selected Qt kit; macOS uses Qt's QML deployment helper.

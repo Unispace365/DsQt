@@ -177,7 +177,7 @@ set(_dsqt_touchengine_requested FALSE)
 set(_dsqt_spout_requested FALSE)
 set(_dsqt_spout_vulkan_enabled @DSQT_SPOUT_VULKAN_ENABLED@)
 
-if(NOT Dsqt_FIND_COMPONENTS OR "TouchEngine" IN_LIST Dsqt_FIND_COMPONENTS)
+if(WIN32 AND (NOT Dsqt_FIND_COMPONENTS OR "TouchEngine" IN_LIST Dsqt_FIND_COMPONENTS))
     set(_dsqt_touchengine_requested TRUE)
 endif()
 
@@ -326,8 +326,11 @@ endif()
 # consumers should see only the targets they requested.
 if(NOT Dsqt_FIND_COMPONENTS AND NOT TARGET Dsqt::Dsqt)
     add_library(Dsqt::Dsqt INTERFACE IMPORTED)
-    set(_dsqt_umbrella_libs "Dsqt::Core;Dsqt::Bridge;Dsqt::Waffles;Dsqt::TouchEngine;Dsqt::Touch;Dsqt::Qsys")
-    if(WIN32)
+    set(_dsqt_umbrella_libs "Dsqt::Core;Dsqt::Bridge;Dsqt::Waffles;Dsqt::Touch;Dsqt::Qsys")
+    if(TARGET Dsqt::TouchEngine)
+        list(APPEND _dsqt_umbrella_libs "Dsqt::TouchEngine")
+    endif()
+    if(TARGET Dsqt::Spout)
         list(APPEND _dsqt_umbrella_libs "Dsqt::Spout")
     endif()
     set_target_properties(Dsqt::Dsqt PROPERTIES

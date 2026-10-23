@@ -1,0 +1,110 @@
+{
+  "version": 6,
+  "configurePresets": [
+    {
+      "name": "apple-base",
+      "hidden": true,
+      "generator": "Xcode",
+      "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Darwin"
+      },
+      "cacheVariables": {
+        "CMAKE_CONFIGURATION_TYPES": "Debug;Release",
+        "CMAKE_PREFIX_PATH": "$env{QT_APPLE_ROOT}",
+        "Dsqt_DIR": "$env{DSQT_ROOT}/lib/cmake/Dsqt"
+      }
+    },
+    {
+      "name": "ios-app-base",
+      "hidden": true,
+      "inherits": "apple-base",
+      "cacheVariables": {
+        "CMAKE_SYSTEM_NAME": "iOS",
+        "VCPKG_CHAINLOAD_TOOLCHAIN_FILE": "$env{QT_APPLE_ROOT}/lib/cmake/Qt6/qt.toolchain.cmake",
+        "QT_HOST_PATH": "$env{QT_HOST_PATH}",
+        "VCPKG_OVERLAY_TRIPLETS": "${sourceDir}/cmake/triplets"
+      }
+    },
+    {
+      "name": "macos",
+      "inherits": "apple-base",
+      "binaryDir": "${sourceDir}/build/macos",
+      "cacheVariables": {}
+    },
+    {
+      "name": "ios-device",
+      "inherits": "ios-app-base",
+      "binaryDir": "${sourceDir}/build/ios-device",
+      "cacheVariables": {
+        "CMAKE_OSX_ARCHITECTURES": "arm64",
+        "VCPKG_TARGET_TRIPLET": "arm64-ios",
+        "CMAKE_OSX_SYSROOT": "iphoneos"
+      }
+    },
+    {
+      "name": "ios-simulator",
+      "inherits": "ios-app-base",
+      "binaryDir": "${sourceDir}/build/ios-simulator",
+      "cacheVariables": {
+        "CMAKE_OSX_ARCHITECTURES": "arm64",
+        "VCPKG_TARGET_TRIPLET": "arm64-ios-simulator",
+        "CMAKE_OSX_SYSROOT": "iphonesimulator"
+      }
+    },
+    {
+      "name": "ios-simulator-intel",
+      "inherits": "ios-app-base",
+      "binaryDir": "${sourceDir}/build/ios-simulator-intel",
+      "cacheVariables": {
+        "CMAKE_OSX_ARCHITECTURES": "x86_64",
+        "VCPKG_TARGET_TRIPLET": "x64-ios",
+        "CMAKE_OSX_SYSROOT": "iphonesimulator"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "macos-debug",
+      "configurePreset": "macos",
+      "configuration": "Debug"
+    },
+    {
+      "name": "macos-release",
+      "configurePreset": "macos",
+      "configuration": "Release"
+    },
+    {
+      "name": "ios-device-debug",
+      "configurePreset": "ios-device",
+      "configuration": "Debug"
+    },
+    {
+      "name": "ios-device-release",
+      "configurePreset": "ios-device",
+      "configuration": "Release"
+    },
+    {
+      "name": "ios-simulator-debug",
+      "configurePreset": "ios-simulator",
+      "configuration": "Debug"
+    },
+    {
+      "name": "ios-simulator-release",
+      "configurePreset": "ios-simulator",
+      "configuration": "Release"
+    },
+    {
+      "name": "ios-simulator-intel-debug",
+      "configurePreset": "ios-simulator-intel",
+      "configuration": "Debug"
+    },
+    {
+      "name": "ios-simulator-intel-release",
+      "configurePreset": "ios-simulator-intel",
+      "configuration": "Release"
+    }
+  ]
+}
