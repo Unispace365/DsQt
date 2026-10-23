@@ -1,6 +1,6 @@
 #include "bridge/dsQmlBridge.h"
 
-#include <QCoreApplication.h>
+#include <QCoreApplication>
 #include <QSet>
 
 namespace dsqt::bridge {
