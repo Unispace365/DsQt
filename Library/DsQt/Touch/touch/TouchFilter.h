@@ -27,9 +27,9 @@ class QTouchEvent;
 /// Usage
 /// -----
 ///   1. Add TouchFilter.h / TouchFilter.cpp to your target.
-///   2. Declare a TouchFilter in QML and set its window property:
+///   2. Declare a DsTouchFilter in QML and set its window property:
 ///
-///        TouchFilter {
+///        DsTouchFilter {
 ///            id: filter
 ///            window: root.Window.window   // or bind onWindowChanged
 ///        }
@@ -80,7 +80,7 @@ class QTouchEvent;
 class TouchFilter : public QObject
 {
     Q_OBJECT
-    QML_ELEMENT
+    QML_NAMED_ELEMENT(DsTouchFilter)
 
     Q_PROPERTY(QQuickWindow* window READ window WRITE setWindow
                    NOTIFY windowChanged FINAL)

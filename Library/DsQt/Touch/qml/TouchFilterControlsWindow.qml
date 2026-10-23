@@ -24,7 +24,7 @@ Window {
 
     /// The filter to control.  Set DsAppBase.touchFilterForDebug instead of
     /// wiring this directly if you want the menu to manage the window.
-    property TouchFilter touchFilter: null
+    property DsTouchFilter touchFilter: null
 
     // ── Internal stats (tracked independently of any overlay) ─────────────────
     property int _pending:  0

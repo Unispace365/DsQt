@@ -11,7 +11,7 @@ namespace dsqt {
 class DsQmlAppHost : public QObject {
     Q_OBJECT
     QML_SINGLETON
-    QML_NAMED_ELEMENT(AppHost)
+    QML_NAMED_ELEMENT(DsAppHost)
   public:
     explicit DsQmlAppHost(QObject* parent = nullptr);
 

@@ -23,8 +23,8 @@ import Dsqt.Touch
 Item {
     id: root
 
-    /// The filter to observe.  Assign your TouchFilter instance here.
-    property TouchFilter touchFilter: null
+    /// The filter to observe.  Assign your DsTouchFilter instance here.
+    property DsTouchFilter touchFilter: null
 
     /// Show the EMA-smoothed trail alongside the raw trail for accepted touches.
     property bool showSmoothed: true
