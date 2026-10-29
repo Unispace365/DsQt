@@ -6,8 +6,8 @@
 #include <QRegularExpression>
 #include <QRegularExpressionMatch>
 #include <QStandardPaths>
-#include <QString>
 #include <qapplicationstatic.h>
+#include <mutex>
 
 Q_LOGGING_CATEGORY(lgEnv, "core.environment");
 Q_LOGGING_CATEGORY(lgEnvVerbose, "core.environment.verbose");
@@ -98,8 +98,65 @@ QString DsEnvironment::contract(QString path) {
 bool DsEnvironment::loadEngineSettings() {
     qCInfo(lgEnv) << "\nLoad Settings >>>>>>>>>>>>>>>>>>>>>>>>";
 
+#ifdef Q_OS_IOS
+    const QString baseSettings = QStringLiteral(":/settings");
+#else
+    const QString baseSettings = QStringLiteral("%APP%/settings");
+#endif
+
+    // Set the search path BEFORE loading any settings.
+    Settings::instance().setSearchPaths({baseSettings});
+
+
+#ifdef Q_OS_IOS
+    // At this point the settings search path is %APP%/settings.
+    Settings::add("app_settings");
+
+    auto* appSettings =
+        Settings::instance().settingsFile("app_settings");
+
+    if (!appSettings) {
+        qCCritical(lgEnv) << "Cannot load app_settings.toml";
+        return false;
+    }
+
+    const QString appName =
+        appSettings->getOr<QString>("app.name", "").trimmed();
+
+    if (appName.isEmpty()
+        || appName == "."
+        || appName == ".."
+        || appName.contains('/')
+        || appName.contains('\\')) {
+        qCCritical(lgEnv) << "Invalid application directory name:" << appName;
+        return false;
+    }
+
+    const QString appData = QStandardPaths::writableLocation(
+        QStandardPaths::AppDataLocation);
+
+    if (appData.isEmpty()) {
+        qCCritical(lgEnv) << "Cannot determine application data directory";
+        return false;
+    }
+
+    //sDocumentsDownstream = QDir(appData).filePath(appName);
+    qCInfo(lgEnv) << "AppDataLocation:" << appData;
+    sDocumentsDownstream = QDir::cleanPath(appData);
+    sSharedFolder = sDocumentsDownstream;
+
+    if (!QDir().mkpath(sDocumentsDownstream)) {
+        qCCritical(lgEnv)
+            << "Cannot create application directory:"
+            << sDocumentsDownstream;
+        return false;
+    }
+
+    qCInfo(lgEnv) << "%LOCAL%:" << sDocumentsDownstream;
+#endif
+    
     // Make sure the default settings path is used to find the settings.
-    Settings::instance().setSearchPaths({"%APP%/settings"});
+    //Settings::instance().setSearchPaths({baseSettings});
 
     // Make sure the engine settings are loaded.
     qCInfo(lgEnv) << "loading main engine.toml";
@@ -112,7 +169,7 @@ bool DsEnvironment::loadEngineSettings() {
         qCDebug(lgEnv) << "Project Path:" << sProjectPath;
 
         // Append to search paths.
-        Settings::instance().setSearchPaths({"%APP%/settings", "%LOCAL%/settings/%PP%"});
+        Settings::instance().setSearchPaths({baseSettings, "%LOCAL%/settings/%PP%"});
     }
 
     // Setup config folder path (%CFG_FOLDER%).
@@ -124,8 +181,10 @@ bool DsEnvironment::loadEngineSettings() {
         qCDebug(lgEnv) << "Config Folder:" << sConfigFolder;
 
         // Append to search paths.
-        Settings::instance().setSearchPaths({"%APP%/settings", "%APP%/settings/%CFG_FOLDER%", "%LOCAL%/settings/%PP%",
-                                             "%LOCAL%/settings/%PP%/%CFG_FOLDER%"});
+        Settings::instance().setSearchPaths({baseSettings,
+            baseSettings+ QStringLiteral("/%CFG_FOLDER%"),
+            "%LOCAL%/settings/%PP%",
+            "%LOCAL%/settings/%PP%/%CFG_FOLDER%"});
     }
 
     sResourceFolder = Settings::find<QString>("engine", "engine.resource.location");
@@ -145,8 +204,10 @@ bool DsEnvironment::loadEngineSettings() {
                                    QDir::fromNativeSeparators(projectPath));
     }
 
+    #ifndef Q_OS_IOS
     qCInfo(lgEnv) << "loading main app_settings.toml";
     Settings::add("app_settings");
+    #endif
 
     auto *engineSettings = Settings::instance().settingsFile("engine");
     if (engineSettings) {
@@ -188,12 +249,46 @@ SettingsFile* DsEnvironment::loadSettings(const QString& settingsName, const QSt
 void DsEnvironment::initialize() {
     static std::once_flag initFlag;
     std::call_once(initFlag, []() {
+        
+#ifdef Q_OS_IOS
+    sDocuments = QStandardPaths::writableLocation(
+        QStandardPaths::DocumentsLocation);
+
+    const QString appData = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+
+    if (appData.isEmpty())
+        qFatal("Cannot determine application data directory");
+
+    // %LOCAL%: writable, persistent sandbox storage.
+    //sDocumentsDownstream =
+    //    QDir(appData).filePath("downstream");
+    sDocumentsDownstream = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+
+    // Must match the directory used by your Bridge cloner.
+    //sDocumentsDownstream = QDir(appData).filePath("WindowActivation");
+    //sSharedFolder = sDocumentsDownstream;
+
+    // iOS has no desktop-style shared Downstream directory.
+    sSharedFolder = sDocumentsDownstream;
+
+    // %APP%: bundled settings and data.
+    sAppRootFolder = QCoreApplication::applicationDirPath();
+
+    if (!QDir().mkpath(sDocumentsDownstream))
+        qFatal("Cannot create Downstream data directory");
+#else
         // documents
-        sDocuments = QStandardPaths::locate(QStandardPaths::HomeLocation, "Documents", QStandardPaths::LocateDirectory);
+    sDocuments = QStandardPaths::locate(
+        QStandardPaths::HomeLocation,
+        "Documents",
+        QStandardPaths::LocateDirectory);
 
         // documents/downstream
-        QDir documents(sDocuments);
-        sDocumentsDownstream = QDir::cleanPath(documents.filePath("downstream"));
+    QDir documents(sDocuments);
+    sDocumentsDownstream =
+        QDir::cleanPath(documents.filePath("downstream"));
+#endif
+
 
         // programData/Downstream ifAvailable
         const QStringList dataPaths = QStandardPaths::standardLocations(QStandardPaths::GenericDataLocation);

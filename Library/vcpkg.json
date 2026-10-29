@@ -9,10 +9,12 @@
       "version>=": "3.4.0"
     },
     {
-      "name": "vulkan"
+      "name": "vulkan",
+      "platform": "windows"
     },
     {
       "name": "spout2",
+      "platform": "windows",
       "version>=": "2.007.010",
       "features": ["dx"]
     }
