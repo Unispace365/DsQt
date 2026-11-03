@@ -6,10 +6,79 @@
 
 #include <QDateTime>
 #include <QDir>
+#include <QFile>
 #include <QFileInfo>
 #include <QQuickWindow>
 #include <QSettings>
 #include <QStandardPaths>
+#ifdef Q_OS_WIN
+#include <qt_windows.h>
+#endif
+
+namespace {
+
+#ifdef Q_OS_WIN
+// Use a single destination even when the debugger captures both console and
+// debug events. Checking per message also handles attaching/detaching later.
+class WindowsConsoleSink : public QtLogger::Sink
+{
+public:
+    explicit WindowsConsoleSink(QtLogger::SinkPtr console) : m_console(std::move(console)) {}
+
+    void send(const QtLogger::LogMessage &message) override
+    {
+        if (IsDebuggerPresent())
+            m_debug.send(message);
+        else
+            m_console->send(message);
+    }
+
+    bool flush() override { return m_console->flush(); }
+
+private:
+    QtLogger::SinkPtr m_console;
+    QtLogger::WinDebugSink m_debug;
+};
+#endif
+
+void routePlatformConsole(const QtLogger::SimplePipelinePtr &pipeline, bool platformEnabled)
+{
+#ifdef Q_OS_WIN
+    if (!platformEnabled)
+        return;
+
+    // QtLogger appends the platform sink after any explicit stderr sink. Replace
+    // only that last platform sink, preserving formatter/filter/sink order.
+    const auto handlers = static_cast<const QtLogger::Pipeline &>(*pipeline).handlers();
+    QtLogger::HandlerPtr platform;
+    for (const auto &handler : handlers) {
+        if (handler.dynamicCast<QtLogger::PlatformStdSink>())
+            platform = handler;
+    }
+    pipeline->clear();
+    for (const auto &handler : handlers) {
+        if (handler == platform)
+            pipeline->append(QSharedPointer<WindowsConsoleSink>::create(platform.dynamicCast<QtLogger::Sink>()));
+        else
+            pipeline->append(handler);
+    }
+#else
+    Q_UNUSED(pipeline)
+    Q_UNUSED(platformEnabled)
+#endif
+}
+
+QString prepareLogFile(const QString &path)
+{
+    if (!QDir().mkpath(QFileInfo(path).absolutePath()))
+        return QStringLiteral("Cannot create log directory for %1").arg(path);
+    QFile file(path);
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Append))
+        return QStringLiteral("Cannot open log file %1: %2").arg(path, file.errorString());
+    return {};
+}
+
+} // namespace
 
 DsGuiApplication::DsGuiApplication(int &argc, char **argv):QApplication(argc,argv)
 {
@@ -29,6 +98,12 @@ void DsGuiApplication::initializeLogging()
     const QString iniPath = DsEnv::expandq(QStringLiteral("%APP%/settings/logging.ini"));
 
     auto *logger = QtLogger::Logger::instance();
+    // Build the pipeline before starting its worker or installing the message
+    // handler, so configuration errors cannot feed back into a failing file sink.
+    const auto pipeline = QtLogger::SimplePipelinePtr::create();
+    bool async = true;
+    bool platformEnabled = true;
+    QString fileError;
 
     if (QFileInfo::exists(iniPath)) {
         QSettings settings(iniPath, QSettings::IniFormat);
@@ -41,11 +116,20 @@ void DsGuiApplication::initializeLogging()
             expandedPath = DsEnv::expandq(rawPath);
         }
         QString logPath = resolveLogPath(expandedPath, defaultLogName, defaultLogPath);
-        settings.setValue(QStringLiteral("logger/path"), logPath);
-        QDir().mkpath(QFileInfo(logPath).absolutePath());
-
-        m_logPath = logPath;
-        logger->configure(settings, QStringLiteral("logger"));
+        fileError = prepareLogFile(logPath);
+        m_logPath = fileError.isEmpty() ? logPath : QString();
+        settings.setValue(QStringLiteral("logger/path"), m_logPath);
+        async = settings.value(QStringLiteral("logger/async"), false).toBool();
+        platformEnabled = settings.value(QStringLiteral("logger/platform_std_log"), true).toBool();
+        QtLogger::configure(pipeline.data(), settings, QStringLiteral("logger"));
+        if (!fileError.isEmpty() && !platformEnabled
+            && !settings.value(QStringLiteral("logger/stdout"), false).toBool()
+            && !settings.value(QStringLiteral("logger/stdout_color"), false).toBool()
+            && !settings.value(QStringLiteral("logger/stderr"), false).toBool()
+            && !settings.value(QStringLiteral("logger/stderr_color"), false).toBool()) {
+            pipeline->sendToPlatformStdLog();
+            platformEnabled = true;
+        }
         if(removePath){
             settings.remove("logger/path");
 
@@ -55,19 +139,20 @@ void DsGuiApplication::initializeLogging()
         }
         settings.sync();
     } else {
-        m_logPath = defaultLogPath;
-        QDir().mkpath(defaultLogDir);
-        logger->configure(defaultLogPath, 1048576, 5,
-                          QtLogger::RotatingFileSink::RotationOnStartup, true);
-#if defined(Q_OS_WIN) && defined(QT_DEBUG)
-        // Fallback only when no logging.ini drives the sinks: add OutputDebugString so Qt
-        // Creator's Application Output sees messages when the MSVC debugger is attached.
-        // When a logging.ini IS present its stderr / platform_std_log sinks already deliver
-        // output to the IDE; adding OutputDebugString in addition makes Qt Creator capture
-        // stderr AND OutputDebugString simultaneously in Debug, doubling every line.
-        logger->sendToWinDebug();
-#endif
+        fileError = prepareLogFile(defaultLogPath);
+        m_logPath = fileError.isEmpty() ? defaultLogPath : QString();
+        QtLogger::configure(pipeline.data(), m_logPath, 1048576, 5,
+                            QtLogger::RotatingFileSink::RotationOnStartup, false);
     }
+
+    routePlatformConsole(pipeline, platformEnabled);
+    logger->append(pipeline);
+    if (async)
+        logger->moveToOwnThread();
+    logger->installMessageHandler();
+
+    if (!fileError.isEmpty())
+        qWarning().noquote() << "DsQt file logging disabled:" << fileError;
 
     printStartupBanner();
 }
