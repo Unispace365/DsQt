@@ -1,0 +1,11 @@
+{
+  "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg-configuration.schema.json",
+  "registries": [
+    {
+      "kind": "git",
+      "repository": "https://github.com/Unispace365/vcpkg-registry",
+      "baseline": "1e1458981aec5e3a653721c1f706949a46a20963",
+      "packages": ["dsqt"]
+    }
+  ]
+}

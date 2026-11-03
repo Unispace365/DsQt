@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Waffles — Source Tour</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="layout">
+  <nav class="sidebar">
+    <div class="brand"><span class="logo">Waffles</span><span class="sub">source tour</span></div>
+    <div class="nav-group">
+      <h4>Start here</h4>
+      <a href="index.html" class="active">Overview &amp; architecture</a>
+    </div>
+    <div class="nav-group">
+      <h4>The pieces</h4>
+      <a href="stage.html">1 · The Stage</a>
+      <a href="viewers.html">2 · Viewers</a>
+      <a href="media.html">3 · Media</a>
+      <a href="controls.html">4 · Controls</a>
+      <a href="glass-and-theming.html">5 · Glass &amp; theming</a>
+    </div>
+    <div class="nav-group">
+      <h4>Practical</h4>
+      <a href="demo-and-recipes.html">6 · Demo &amp; recipes</a>
+    </div>
+    <div class="nav-group">
+      <h4>Presentations</h4>
+      <a href="playlists.html">7 · Playlists &amp; transitions</a>
+    </div>
+    <div class="nav-group">
+      <h4>Data &amp; input</h4>
+      <a href="content-launcher.html">8 · Content launcher</a>
+    </div>
+  </nav>
+
+  <main class="content"><div class="col">
+    <h1>The Waffles module</h1>
+    <p class="lede">A Qt/QML library with a C++ drawing backend for building touch-table / large-screen "stage" apps: a full-screen
+      surface onto which you open draggable media <em>viewers</em> (image, video, web, pdf) with
+      frosted-glass chrome, per-type controls, and a fullscreen mode.</p>
+
+    <p>This tour walks the source top-down — the mental model first, then each layer with the real
+      files, classes, and properties you'll touch. It assumes you know Qt&nbsp;6 / QML basics
+      (items, properties, bindings, signals). By the end you should be able to add a viewer, add a
+      control, theme the UI, and wire new media into the demo.</p>
+
+    <div class="callout tip">
+      <span class="tag">Start with the application guides</span>
+      <p>The <a href="../waffles-overview.md">Waffles overview</a> explains the division between
+      DsQt components and ECPresenter. The <a href="../waffles-implementation-guide.md">consolidated
+      implementation guide</a> covers setup, content routing, quick-menu actions, whiteboarding,
+      startup/idle behavior, and validation. Always use <strong>ProjectCloner</strong> for a new
+      application; add Waffles in place when working on an existing DsQt application.
+      AssetViewer and ECPresenter are references for either path. This tour provides the
+      component-level detail.</p>
+    </div>
+
+    <div class="callout concept">
+      <span class="tag">The one-sentence model</span>
+      <p>A <strong>stage</strong> (<code>DsWaffleStage</code>) owns a layer of <strong>viewers</strong>;
+      each viewer wraps a piece of <strong>media</strong> plus edge-mounted <strong>control sets</strong>;
+      and a shared <strong>glass</strong> system lets any surface sample &amp; blur whatever sits behind it,
+      themed by <strong>DsTheme</strong> tokens.</p>
+    </div>
+
+    <h2>Module facts</h2>
+    <table>
+      <tr><th>Item</th><th>Value</th></tr>
+      <tr><td>QML import URI</td><td><code>import Dsqt.Waffles</code> (version 1.0)</td></tr>
+      <tr><td>Language</td><td>QML components plus the C++ <code>DsWhiteboardCanvas</code> drawing engine in Waffles. Core supplies engine/settings services and the circular quick-menu components.</td></tr>
+      <tr><td>Source root</td><td><span class="path">Library/DsQt/Waffles/qml/</span></td></tr>
+      <tr><td>Build</td><td><code>qt_add_qml_module</code> in <span class="path">Library/DsQt/Waffles/CMakeLists.txt</span> — <strong>every new <code>.qml</code> must be added to <code>QML_FILES</code></strong></td></tr>
+      <tr><td>Qt deps</td><td>Qt 6.12: Core, Gui, Qml, Quick, Multimedia, CanvasPainter. The quick menu imports <code>QtCanvas2D</code>. WebEngineQuick, Pdf, and VirtualKeyboard are optional build discoveries but required for their respective features.</td></tr>
+      <tr><td>Reference apps</td><td><strong>AssetViewer</strong> for local/sample media; <strong>ECPresenter</strong> for Bridge content and application lifecycle integration.</td></tr>
+    </table>
+
+    <h2>Source layout</h2>
+    <p>The QML is grouped by role. Knowing which folder a file lives in tells you what it is:</p>
+    <div class="diagram">Library/DsQt/Waffles/qml/
+├── waffles/                  the core runtime types
+│   ├── DsWaffleStage.qml       the stage: owns viewers, glass slots, fullscreen
+│   ├── DsViewer.qml            base type for everything the stage hosts
+│   ├── DsGlassBackground.qml   reusable frosted-glass element
+│   ├── DsTheme.qml             design-token singleton (colors, glass params)
+│   ├── media_viewer/
+│   │   ├── DsTitledMediaViewer.qml   the media viewer (glass + media + controls)
+│   │   └── DsControlSet.qml          base type for an edge-mounted control group
+│   ├── menu_launcher/          content launcher (DsContentLauncher…)
+│   ├── playlist/               playback, media and custom-layout templates
+│   └── whiteboard/             drawing host (C++ canvas is in Waffles/whiteboard/)
+├── ui/                       thin per-type media wrappers
+│   ├── DsVideoViewer.qml  DsWebViewer.qml  DsPdfViewer.qml
+│   └── (DsMediaViewer.qml itself lives in Dsqt.Core: Core/qml/ui/)
+└── ux/                       concrete, swappable chrome (the "skin")
+    ├── TitledMediaViewer.qml        assembles a media viewer + its control sets
+    ├── FullscreenController.qml      the docked fullscreen control bar
+    ├── DsMediaControls.qml           per-type transport/nav controls
+    ├── TopOuterControls.qml  RightOuterControls.qml  …
+    └── IconButton.qml  DsCtrlIcon.qml  CloseButton.qml  FullscreenButton.qml</div>
+
+    <div class="callout concept">
+      <span class="tag">waffles vs ui vs ux</span>
+      <p><strong><code>waffles/</code></strong> = the engine (stable runtime contracts).
+         <strong><code>ui/</code></strong> = thin adapters around Qt media elements.
+         <strong><code>ux/</code></strong> = the visual chrome you re-skin per brand. When you "design" a
+         viewer you mostly edit <code>ux/</code>; when you change behavior you edit <code>waffles/</code>.</p>
+    </div>
+
+    <h2>The render stack (what's drawn, bottom to top)</h2>
+    <div class="diagram">DsWaffleStage — named layers, bottom to top
+background   (z:0)  application backgroundContent
+presentation (z:1)  active playlist
+viewer       (z:2)  floating media windows
+modal1       (z:3)  launcher and presentation controller
+modal2       (z:4)  fullscreen scrim, viewer, and controller
+modal3       (z:5)  floating keyboard / overlays above fullscreen
+
+The retained whiteboard is a separate overlay at z:100.
+glassSlotHolder maintains the backing composite textures.</div>
+    <p>Each viewer's glass samples a <em>slot</em> — a live texture of everything beneath that viewer in
+      z-order — so a viewer's frosted chrome shows the backdrop <em>and</em> lower viewers, refracted.
+      That chain is the trickiest idea in the codebase; it gets its own page (<a href="glass-and-theming.html">Glass &amp; theming</a>).</p>
+
+    <h2>Where to go next</h2>
+    <div class="cards">
+      <a class="card" href="stage.html"><span class="num">01</span><h3>The Stage</h3><p>Creating, selecting, closing &amp; arranging viewers; layers and z-order; fullscreen orchestration.</p></a>
+      <a class="card" href="viewers.html"><span class="num">02</span><h3>Viewers</h3><p>The <code>DsViewer</code> contract and <code>DsTitledMediaViewer</code>: sizing, capture, animations, fullscreen, lock.</p></a>
+      <a class="card" href="media.html"><span class="num">03</span><h3>Media</h3><p>How a model becomes the right element; local vs network sources; loading; video/pdf/web specifics.</p></a>
+      <a class="card" href="controls.html"><span class="num">04</span><h3>Controls</h3><p>Control sets &amp; edges, per-type media controls, the fullscreen controller, idle auto-hide.</p></a>
+      <a class="card" href="glass-and-theming.html"><span class="num">05</span><h3>Glass &amp; theming</h3><p>The slot chain, <code>DsGlassBackground</code>, <code>DsTheme</code> tokens, palette, settings.</p></a>
+      <a class="card" href="demo-and-recipes.html"><span class="num">06</span><h3>Demo &amp; recipes</h3><p>The AssetViewer app, and copy-paste recipes for the things you'll actually do.</p></a>
+      <a class="card" href="playlists.html"><span class="num">07</span><h3>Playlists &amp; transitions</h3><p>Ambient vs interactive playlists, slide templates, the presentation controller, and built-in / custom / RHI-shader transitions.</p></a>
+      <a class="card" href="content-launcher.html"><span class="num">08</span><h3>Content launcher</h3><p>The bridge adapter (schema → items), the launcher panel, drill vs open, search, and the docked / floating on-screen keyboards.</p></a>
+    </div>
+
+    <div class="pager">
+      <span></span>
+      <a class="next" href="stage.html"><span class="dir">Next →</span>1 · The Stage</a>
+    </div>
+  </div></main>
+</div>
+</body>
+</html>

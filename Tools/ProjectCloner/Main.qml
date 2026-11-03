@@ -7,8 +7,10 @@ import ProjectCloner
 
 Window {
     id: root
-    width: 640
-    height: 480
+    width: Math.min(980, Screen.desktopAvailableWidth - 48)
+    minimumWidth: 720
+    height: Math.min(900, Screen.desktopAvailableHeight - 64)
+    minimumHeight: 480
     visible: true
     title: qsTr("Project Cloner")
 

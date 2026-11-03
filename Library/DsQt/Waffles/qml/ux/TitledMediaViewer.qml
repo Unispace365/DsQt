@@ -14,10 +14,17 @@ DsTitledMediaViewer {
                     model: viewer.model
                     DragHandler {
                         target: viewer
+                        enabled: viewer.viewerDragEnabled
                     }
                 },
                 RightOuterControls {
                     id: rightButtons
+                    signalObject: viewer.signalObject
+                },
+                DsMediaControls {
+                    id: mediaControls
+                    edge: DsControlSet.Edge.BottomInner
+                    offset: DsTheme.dp(40)
                     signalObject: viewer.signalObject
                 }
             ]

@@ -1,0 +1,3 @@
+name: ClonerSource
+qt_modules: "qtshadertools qtwebengine qtpdf qtmultimedia"
+vcpkg_commit: "a7b6122f6b6504d16d96117336a0562693579933"

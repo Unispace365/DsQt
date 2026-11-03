@@ -1,0 +1,107 @@
+{
+  "formatVersion": 1,
+  "source": "installed",
+  "modules": [
+    "Core"
+  ],
+  "minimumQt": "6.12.0",
+  "metadata": {
+    "formatVersion": 1,
+    "templateApi": 1,
+    "minimumQt": "6.12.0",
+    "modules": {
+      "Core": {
+        "label": "Core",
+        "description": "Application shell, settings, logging and shared controls",
+        "minimumQt": "6.12.0",
+        "requires": [],
+        "qtComponents": [
+          "Core",
+          "Concurrent",
+          "Gui",
+          "Qml",
+          "Quick",
+          "Widgets",
+          "Network",
+          "QuickControls2",
+          "ShaderTools",
+          "CanvasPainter",
+          "Multimedia"
+        ]
+      },
+      "Bridge": {
+        "label": "Bridge",
+        "description": "CMS content, local database and Bridge Sync",
+        "minimumQt": "6.12.0",
+        "feature": "bridge",
+        "requires": [
+          "Core"
+        ],
+        "qtComponents": [
+          "Sql",
+          "MultimediaWidgets"
+        ]
+      },
+      "Waffles": {
+        "label": "Waffles",
+        "description": "Content launcher, media viewers, presentations and whiteboard",
+        "minimumQt": "6.12.0",
+        "feature": "waffles",
+        "requires": [
+          "Core"
+        ],
+        "qtComponents": []
+      },
+      "Qsys": {
+        "label": "Qsys",
+        "description": "Q-SYS device control and feedback",
+        "minimumQt": "6.9.0",
+        "feature": "qsys",
+        "requires": [
+          "Core"
+        ],
+        "qtComponents": [
+          "WebSockets"
+        ]
+      },
+      "Spout": {
+        "label": "Spout",
+        "description": "Share GPU textures with other Windows applications",
+        "minimumQt": "6.9.0",
+        "feature": "spout",
+        "requires": [
+          "Core"
+        ],
+        "qtComponents": [
+          "GuiPrivate"
+        ],
+        "platform": "windows"
+      },
+      "Touch": {
+        "label": "Touch",
+        "description": "Touch routing, event reinjection and diagnostics",
+        "minimumQt": "6.9.0",
+        "feature": "touch",
+        "requires": [
+          "Core"
+        ],
+        "qtComponents": [
+          "GuiPrivate"
+        ]
+      },
+      "TouchEngine": {
+        "label": "TouchEngine",
+        "description": "Run TouchDesigner components inside the application",
+        "minimumQt": "6.9.0",
+        "feature": "touchengine",
+        "requires": [
+          "Core"
+        ],
+        "qtComponents": [
+          "GuiPrivate"
+        ],
+        "platform": "windows"
+      }
+    }
+  }
+}

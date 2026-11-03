@@ -1,0 +1,29 @@
+{
+  "PreventSleep": @APPHOST_PREVENT_SLEEP@,
+  "Kiosk": @APPHOST_KIOSK@,
+  "RestartApps": {
+    "Enabled": @APPHOST_RESTART_APPS@,
+    "Hour": @APPHOST_RESTART_APPS_HOUR@,
+    "Minute": @APPHOST_RESTART_APPS_MINUTE@
+  },
+  "RestartSystem": {
+    "Enabled": @APPHOST_RESTART_SYSTEM@,
+    "Hour": @APPHOST_RESTART_SYSTEM_HOUR@,
+    "Minute": @APPHOST_RESTART_SYSTEM_MINUTE@
+  },
+  "Profiles": [
+    {
+      "Name": "@DS_APP_NAME@",
+      "Apps": [
+        {
+          "Path": "%PROGRAMFILES%/Downstream/@DS_APP_NAME@/bin/@DS_EXE_NAME@.exe",
+          "Args": "@APPHOST_APP_ARGS@",
+          "StartDelay": @APPHOST_START_DELAY@,
+          "RestartDelay": @APPHOST_RESTART_DELAY@,
+          "EnableMonitor": @APPHOST_ENABLE_MONITOR@,
+          "MemoryLimit": @APPHOST_MEMORY_LIMIT@
+        }
+      ]
+    }
+  ]
+}

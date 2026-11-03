@@ -3,17 +3,27 @@
   "name": "clonersource",
   "version": "1.0.0",
   "builtin-baseline": "4b77da7fed37817f124936239197833469f1b9a8",
-  "dependencies": [
-    {
-      "name": "tomlplusplus",
-      "version>=": "3.4.0"
-    },
-    {
-      "name": "glm",
-      "version>=": "1.0.1"
-    }
-  ],
   "features": {
+    "dsqt-registry": {
+      "description": "Use the published DsQt package with selected modules",
+      "dependencies": [
+        {
+          "name": "dsqt",
+          "default-features": false,
+          "features": []
+        }
+      ]
+    },
+    "dsqt-local": {
+      "description": "Use the local DsQt package with selected modules",
+      "dependencies": [
+        {
+          "name": "dsqt",
+          "default-features": false,
+          "features": []
+        }
+      ]
+    },
     "touchengine": {
       "description": "Dependencies required by the TouchEngine integration",
       "dependencies": [
@@ -30,5 +40,15 @@
         }
       ]
     }
-  }
+  },
+  "dependencies": [
+    {
+      "name": "tomlplusplus",
+      "version>=": "3.4.0"
+    },
+    {
+      "name": "glm",
+      "version>=": "1.0.1"
+    }
+  ]
 }

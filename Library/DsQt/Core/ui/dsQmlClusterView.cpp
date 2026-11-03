@@ -37,6 +37,19 @@ void DsQmlClusterView::setManager(DsQmlClusterManager *newManager)
     //connect to signals
     auto conn=connect(mManager,&DsQmlClusterManager::clusterUpdated,this,&DsQmlClusterView::onClusterUpdated);
     mManagerConnections.push_back(conn);
+    mManagerConnections.push_back(connect(mManager, &DsQmlClusterManager::clusterCanceled, this,
+        [this](DsQmlTouchCluster *cluster) {
+            const auto it = mInstanceMap.find(cluster->mClusterId);
+            if (it == mInstanceMap.end()) return;
+            auto instance = it->second;
+            instance->mCanceled = true;
+            auto attached = qobject_cast<DsQmlClusterAttachedType *>(
+                qmlAttachedPropertiesObject<DsQmlClusterView>(instance->mItem));
+            if (attached) {
+                emit attached->canceled();
+                emit attached->removed();
+            }
+        }));
     mMinimumTouchesNeeded = mManager->minClusterTouchCount();
     emit managerChanged();
 }
@@ -89,6 +102,7 @@ void DsQmlClusterView::onClusterUpdated(const QEventPoint::State &state, DsQmlTo
 
                 mInstanceMap[cluster->mClusterId] = instance;
                 instance->mInUse = true;
+                instance->mCanceled = false;
                 instance->mItem->setParentItem(this);
                 DsQmlClusterAttachedType* attached = qobject_cast<DsQmlClusterAttachedType*>(qmlAttachedPropertiesObject<DsQmlClusterView>(instance->mItem));
                 if(attached){
@@ -118,7 +132,7 @@ void DsQmlClusterView::onClusterUpdated(const QEventPoint::State &state, DsQmlTo
             if(cluster && mInstanceMap.find(cluster->mClusterId)!=mInstanceMap.end()){
                 DelegateInstance *instance = mInstanceMap.at(cluster->mClusterId);
 
-                if(instance){
+                if(instance && !instance->mCanceled){
                     DsQmlClusterAttachedType* attached = qobject_cast<DsQmlClusterAttachedType*>(qmlAttachedPropertiesObject<DsQmlClusterView>(instance->mItem));
                     emit attached->released();
                     if(!mManager->holdOpenOnTouch()){
@@ -138,7 +152,7 @@ void DsQmlClusterView::onClusterUpdated(const QEventPoint::State &state, DsQmlTo
         {
             if(cluster && mInstanceMap.find(cluster->mClusterId)!=mInstanceMap.end()){
                 DelegateInstance *instance = mInstanceMap.at(cluster->mClusterId);
-                if(instance){
+                if(instance && !instance->mCanceled){
                     updateInstanceFromCluster(instance,cluster);
                 }
             }

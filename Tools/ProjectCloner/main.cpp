@@ -1,5 +1,6 @@
 
 #include <QGuiApplication>
+#include <QIcon>
 #include <QQmlApplicationEngine>
 
 int main(int argc, char *argv[])
@@ -9,6 +10,7 @@ int main(int argc, char *argv[])
     app.setOrganizationName("Downstream");
     app.setOrganizationDomain("downstream.com");
     app.setApplicationName("Project Cloner");
+    app.setWindowIcon(QIcon(QStringLiteral(":/project-cloner/images/project-cloner.png")));
 
     QQmlApplicationEngine engine;
     QObject::connect(

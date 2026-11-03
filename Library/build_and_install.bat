@@ -9,10 +9,17 @@ echo Usage: build_and_install.bat [preset] [-test] [-tools] [-no-configure] [-no
 echo                              [-force-install] [-clean]
 echo                              [-hard-clean] [-rebuild] [-hard-rebuild] [-qt ^<ver^|path^>]
 echo                              [-no-private-reinject] [-fresh]
+echo        build_and_install.bat -vcpkg -qt ^<ver^|path^> [-modules Core,Qsys]
+echo                              [-publish-root ^<path^>] [-package-root ^<path^>]
 echo[
 echo   preset              : CMake configure preset name ^(default: ninja^)
 echo   -test               : Enable and run unit tests after the Debug build
 echo   -tools              : Build and install ProjectCloner + ClonerSource template
+echo   -vcpkg              : Build a local Debug/Release source package and binary cache
+echo                         Publish locally under %%LOCALAPPDATA%%\DsQt\vcpkg
+echo                         Requires -qt; does not publish to the GitHub registry
+echo   -publish-root       : Override the local publication store ^(-vcpkg only^)
+echo   -package-root       : Override staging below Library\build ^(-vcpkg only^)
 echo   -fresh / --fresh    : Reset the CMake cache before configuring, keeping build outputs
 echo   -no-configure       : Skip the CMake configure step ^(for fast incremental builds^)
 echo   -no-install         : Skip the install steps entirely
@@ -31,6 +38,7 @@ if defined PRINT_HELP (
 
 :script_start
 
+set "DSQT_SCRIPT_DIR=%~dp0"
 REM vcvarsall.bat sets VCPKG_ROOT to Visual Studio's bundled vcpkg. Preserve
 REM the caller's explicitly configured standalone vcpkg root across MSVC setup.
 set "CALLER_VCPKG_ROOT=%VCPKG_ROOT%"
@@ -61,10 +69,32 @@ set BUILD_TOOLS=0
 set PRINT_HELP=0
 set QT_PATH=
 set NO_PRIVATE_REINJECT=0
+set BUILD_VCPKG=0
+set DSQT_MODULES_REQUESTED=0
+set "DSQT_PACKAGE_MODULES=Core,Bridge,Waffles,Qsys,Spout,Touch,TouchEngine"
+set "DSQT_PACKAGE_WORK="
+set "DSQT_PUBLISH_ROOT="
+set EXPLICIT_PRESET=0
 
 :: Parse arguments — accept preset and flags in any order
 :parse_args
 if "%~1"=="" goto :args_done
+if /i "%~1"=="-publish-root" (
+    if "%~2"=="" (echo ERROR: -publish-root requires a path.& exit /b 2)
+    set "DSQT_PUBLISH_ROOT=%~2"
+    shift
+    shift
+    goto :parse_args
+)
+if /i "%~1"=="-package-root" (
+    if "%~2"=="" (echo ERROR: -package-root requires a path.& exit /b 2)
+    set "DSQT_PACKAGE_WORK=%~2"
+    shift
+    shift
+    goto :parse_args
+)
+if /i "%~1"=="-modules" (set DSQT_MODULES_REQUESTED=1& set "DSQT_PACKAGE_MODULES=%~2"& shift & shift & goto :parse_args)
+if /i "%~1"=="-vcpkg"        (set BUILD_VCPKG=1& shift & goto :parse_args)
 if /i "%~1"=="-fresh"         (set FRESH_CONFIGURE=1& shift & goto :parse_args)
 if /i "%~1"=="--fresh"        (set FRESH_CONFIGURE=1& shift & goto :parse_args)
 if /i "%~1"=="/fresh"         (set FRESH_CONFIGURE=1& shift & goto :parse_args)
@@ -95,12 +125,38 @@ if /i "%~1"=="/h"            (set PRINT_HELP=1& shift & goto :parse_args)
 if /i "%~1"=="-?"            (set PRINT_HELP=1& shift & goto :parse_args)
 if /i "%~1"=="/?"            (set PRINT_HELP=1& shift & goto :parse_args)
 set PRESET=%~1
+set EXPLICIT_PRESET=1
 shift
 goto :parse_args
 :args_done
 
 if !PRINT_HELP!==1 (
     goto :usage
+)
+
+if !BUILD_VCPKG!==0 if !DSQT_MODULES_REQUESTED!==1 (
+    echo ERROR: -modules requires -vcpkg.
+    exit /b 2
+)
+if !BUILD_VCPKG!==0 (
+    if defined DSQT_PUBLISH_ROOT (echo ERROR: -publish-root requires -vcpkg.& exit /b 2)
+    if defined DSQT_PACKAGE_WORK (echo ERROR: -package-root requires -vcpkg.& exit /b 2)
+)
+
+if !BUILD_VCPKG!==1 (
+    if not defined QT_PATH (
+        echo ERROR: -vcpkg requires -qt, for example: -vcpkg -qt 6.12.0
+        exit /b 2
+    )
+    for %%F in (EXPLICIT_PRESET RUN_TESTS BUILD_TOOLS FRESH_CONFIGURE SKIP_CONFIGURE SKIP_INSTALL DO_CLEAN DO_HARD_CLEAN DO_REBUILD DO_HARD_REBUILD NO_PRIVATE_REINJECT) do (
+        if !%%F!==1 (
+            echo ERROR: incompatible package option: %%F
+            echo ERROR: -vcpkg supports -qt, -modules, -publish-root and -package-root. Run ordinary build/test/tool options separately.
+            exit /b 2
+        )
+    )
+    powershell -NoProfile -ExecutionPolicy Bypass -File "!DSQT_SCRIPT_DIR!vcpkg\Build-DsqtPackage.ps1" -Qt "!QT_PATH!" -Modules "!DSQT_PACKAGE_MODULES!" -PackageRoot "!DSQT_PACKAGE_WORK!" -PublishRoot "!DSQT_PUBLISH_ROOT!"
+    exit /b !errorlevel!
 )
 
 if !FRESH_CONFIGURE!==1 if !SKIP_CONFIGURE!==1 (
@@ -128,9 +184,6 @@ if errorlevel 1 (
 :: --- Pull the latest VCPKG ---
 call :header "Updating VCPKG"
 pushd "%VCPKG_ROOT%"
-set "VCPKG_HEAD_BEFORE="
-set "VCPKG_HEAD_AFTER="
-for /f "delims=" %%H in ('git rev-parse HEAD 2^>nul') do set "VCPKG_HEAD_BEFORE=%%H"
 git fetch -q
 if %errorlevel% neq 0 (
     powershell -NoProfile -Command "Write-Host 'WARNING: git fetch failed for vcpkg - build may fail if baseline is missing.' -ForegroundColor Yellow"
@@ -160,25 +213,6 @@ if not "!VCPKG_CURRENT_TOOL_VERSION:~0,10!"=="!VCPKG_REQUIRED_TOOL_VERSION!" (
     )
 )
 popd
-
-:: --- Re-bootstrap vcpkg.exe when the sources moved ahead of the binary ---
-:: A plain `git pull` can bring in a newer scripts\vcpkg-tools.json than the installed
-:: vcpkg.exe understands, e.g. "document schema version 2 is not supported by this
-:: version of vcpkg", which then cascades into a missing Ninja / CMAKE_MAKE_PROGRAM.
-set "VCPKG_NEEDS_BOOTSTRAP=0"
-if not "!VCPKG_HEAD_AFTER!"=="!VCPKG_HEAD_BEFORE!" set "VCPKG_NEEDS_BOOTSTRAP=1"
-for /f %%S in ('powershell -NoProfile -Command "$t='%VCPKG_ROOT%\scripts\vcpkg-tools.json'; $e='%VCPKG_ROOT%\vcpkg.exe'; if ((Test-Path $t) -and (Test-Path $e) -and ((Get-Item $t).LastWriteTimeUtc -gt (Get-Item $e).LastWriteTimeUtc)) { '1' } else { '0' }"') do set "VCPKG_TOOLS_STALE=%%S"
-if "!VCPKG_TOOLS_STALE!"=="1" set "VCPKG_NEEDS_BOOTSTRAP=1"
-
-if "!VCPKG_NEEDS_BOOTSTRAP!"=="1" (
-    powershell -NoProfile -Command "Write-Host 'vcpkg sources are newer than vcpkg.exe - re-bootstrapping...' -ForegroundColor Yellow"
-    call "%VCPKG_ROOT%\bootstrap-vcpkg.bat" -disableMetrics
-    if !errorlevel! neq 0 (
-        powershell -NoProfile -Command "Write-Host 'bootstrap-vcpkg.bat failed - cannot continue.' -ForegroundColor Red"
-        exit /b 1
-    )
-    powershell -NoProfile -Command "Write-Host 'vcpkg.exe re-bootstrapped.' -ForegroundColor Green"
-)
 
 :after_vcpkg_update
 

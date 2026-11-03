@@ -11,14 +11,107 @@ Item {
 
     // The media resource, containing file path and crop information, among other things.
     property var media: undefined
-    // The file path of the media as reported by the CMS.
+    // The file path of the media as reported by the CMS (raw; used for type/extension detection).
     readonly property string source: media && media.filepath ? media.filepath : ""
+    // The source resolved to a loadable URL: network URLs (http/https) pass through, while local
+    // and %VAR%-prefixed paths are expanded into proper file URLs. This is what the actual media
+    // elements load, so both local and network images/videos work.
+    readonly property url resolvedSource: mediaType !== "capture" && source !== "" ? Ds.env.expandUrl(source) : ""
+    // The currently loaded content item (video/web/pdf/image element); lets controls drive it.
+    readonly property var mediaItem: contentLoader.item
+    // Resolved media kind ("video" | "image" | "web" | "pdf" | "vector" | ""), from the explicit
+    // contentType, else the model type, else the file extension. Drives which controls to show.
+    readonly property string mediaType: {
+        let ct = contentType.toLowerCase().trim()
+        if (!ct) ct = (media && media.type) ? String(media.type).toLowerCase() : ""
+        if (ct === "video" || ct === "video stream") return "video"
+        if (ct === "capture") return "capture"
+        if (ct === "image" || ct === "image sequence") return "image"
+        if (ct === "vector" || ct === "vector sequence") return "vector"
+        if (ct === "web" || ct === "youtube") return "web"
+        if (ct === "pdf") return "pdf"
+        if (source) {
+            let ext = source.toLowerCase().split('.').pop()
+            if (['mp4','avi','mov','mkv','webm'].indexOf(ext) !== -1) return "video"
+            if (['jpg','jpeg','png','gif','bmp','webp'].indexOf(ext) !== -1) return "image"
+            if (['svg','lottie'].indexOf(ext) !== -1) return "vector"
+            if (['html','htm'].indexOf(ext) !== -1 || source.startsWith("http")) return "web"
+            if (ext === 'pdf') return "pdf"
+        }
+        return ""
+    }
+    // Video transport handle: the loaded item when it is a video (exposes position/duration/
+    // playbackState/volume/loops + play/pause/seek), otherwise null. Lets controls drive playback.
+    readonly property bool isVideo: contentLoader.item ? ("playbackState" in contentLoader.item) : false
+    readonly property var videoItem: isVideo ? contentLoader.item : null
+    // A backend-neutral status contract. Presentation and recovery controls belong to the host.
+    readonly property string loadState: _loadState // empty | loading | ready | error
+    readonly property bool loading: loadState === "loading"
+    readonly property string errorString: _errorString
+    property string _loadState: "empty"
+    property string _errorString: ""
+    property bool _acceptStatus: false
     // Preferred fill mode.
     property int fillMode: Image.PreserveAspectCrop
     // Preferred loop mode.
-    property int loops: 0
+    property int loops: 1
     // auto play time based media
     property bool autoPlay: true
+    // Temporary host suspension preserves transport state independently of autoplay.
+    property bool playbackSuspended: false
+    property var _suspendedBackend: null
+    property bool _resumeAfterSuspension: false
+    property bool _changingSuspension: false
+    function _holdPlayback() {
+        const backend = root.mediaItem;
+        if (!root.playbackSuspended || !backend || root._changingSuspension) return;
+        root._changingSuspension = true;
+        if ("playbackState" in backend) {
+            if (backend.playbackState === 1) {
+                root._resumeAfterSuspension = true;
+                backend.pause();
+            } else if (backend.playbackState === 0) {
+                root._resumeAfterSuspension = false;
+            }
+        } else if ("playing" in backend && "paused" in backend) {
+            if (!backend.playing) root._resumeAfterSuspension = false;
+            else if (!backend.paused) {
+                root._resumeAfterSuspension = true;
+                backend.paused = true;
+            }
+        }
+        root._changingSuspension = false;
+    }
+    onMediaItemChanged: {
+        root._suspendedBackend = root.mediaItem;
+        root._resumeAfterSuspension = false;
+        root._holdPlayback();
+    }
+    onPlaybackSuspendedChanged: {
+        if (playbackSuspended) {
+            root._suspendedBackend = root.mediaItem;
+            root._resumeAfterSuspension = false;
+            root._holdPlayback();
+        } else {
+            const backend = root._suspendedBackend;
+            const resume = root._resumeAfterSuspension;
+            root._resumeAfterSuspension = false;
+            root._suspendedBackend = null;
+            if (resume && backend && backend === root.mediaItem) {
+                if ("playbackState" in backend && backend.playbackState === 2) backend.play();
+                else if ("playing" in backend && backend.playing && "paused" in backend) backend.paused = false;
+            }
+        }
+    }
+    onAutoPlayChanged: if (playbackSuspended && !autoPlay) root._resumeAfterSuspension = false
+    Connections {
+        target: root.mediaItem
+        ignoreUnknownSignals: true
+        function onPlaybackStateChanged() { root._holdPlayback(); }
+        // AnimatedImage completes its timer update after emitting these signals.
+        function onPlayingChanged() { Qt.callLater(root._holdPlayback); }
+        function onPausedChanged() { Qt.callLater(root._holdPlayback); }
+    }
     // pdf page number
     property int page: 1
     // type of content to display. if empty, will determine based on file extension
@@ -44,6 +137,7 @@ Item {
 
     // Lazy-loaded components from Dsqt.Waffles (resolved at runtime)
     property Component _videoComponent: null
+    property Component _captureComponent: null
     property Component _webComponent: null
     property Component _pdfComponent: null
 
@@ -61,15 +155,53 @@ Item {
         return root[prop]
     }
 
-    onSourceChanged: {
-        contentLoader.sourceComponent = root.getComponentForContent();
+    onMediaChanged: _scheduleReload()
+    onResolvedSourceChanged: _scheduleReload()
+    onContentTypeChanged: _scheduleReload()
+    onIsCroppedChanged: _scheduleReload()
+    Component.onCompleted: _scheduleReload()
+
+    function _scheduleReload() {
+        // Coalesce dependent bindings and ignore signals from the outgoing backend.
+        _acceptStatus = false;
+        Qt.callLater(root._reload);
     }
-    onContentTypeChanged: {
-        contentLoader.sourceComponent = root.getComponentForContent();
+
+    function retry() { _scheduleReload(); }
+
+    function _reload() {
+        contentLoader.sourceComponent = null;
+        _errorString = "";
+        _loadState = "empty";
+        if (!source && mediaType !== "capture") return;
+        _loadState = "loading";
+        _acceptStatus = true;
+        const component = getComponentForContent();
+        if (!component) {
+            _failed(qsTr("This type of content is not available in this application."));
+            return;
+        }
+        contentLoader.sourceComponent = component;
+    }
+
+    function _ready() {
+        if (!_acceptStatus || _loadState === "ready") return;
+        _errorString = "";
+        _loadState = "ready";
+        mediaLoaded();
+    }
+
+    function _failed(detail) {
+        if (!_acceptStatus) return;
+        _errorString = detail || qsTr("The content could not be loaded.");
+        _loadState = "error";
+        console.warn("DsMediaViewer:", source, _errorString);
+        mediaFailed(_errorString);
     }
 
     //SIGNALS
     signal mediaLoaded()
+    signal mediaFailed(string detail)
     signal videoFinished()
 
     // TODO add additional signals for image load, video start, etc.
@@ -103,7 +235,9 @@ Item {
             ctype = media && media.type ? media.type : "";
         }
 
-        if(ctype === "video" || ctype === "video stream" ) {
+        if(ctype === "capture") {
+            return _lazyLoad("_captureComponent", "DsCaptureViewer");
+        } else if(ctype === "video" || ctype === "video stream" ) {
             return _lazyLoad("_videoComponent", "DsVideoViewer");
         } else if(ctype === "image") {
             return isCropped ? imageComponent : animatedImageComponent;
@@ -144,21 +278,33 @@ Item {
         return item.height
     }
 
-    // Loader to dynamically load the appropriate component
+    // Assign imperatively: lazy component caching would cause a sourceComponent binding loop.
     Loader {
         id: contentLoader
         anchors.fill: parent
-        sourceComponent: root.getComponentForContent()
         asynchronous: true
+        onStatusChanged: if (status === Loader.Error) root._failed(qsTr("The viewer could not be opened."))
         onLoaded: {
             if (item) {
-                if ('source' in item) item.source = Qt.binding(() => root.source)
+                // Connect before assigning a source: local assets may finish synchronously.
+                const backend = item;
+                if ('mediaLoaded' in item) item.mediaLoaded.connect(() => {
+                    if (contentLoader.item === backend) root._ready();
+                })
+                if ('mediaFailed' in item) item.mediaFailed.connect(detail => {
+                    if (contentLoader.item === backend) root._failed(detail);
+                })
+                if ('videoFinished' in item) item.videoFinished.connect(() => {
+                    if (contentLoader.item === backend) root.videoFinished();
+                })
+                if ('captureMedia' in item) item.captureMedia = Qt.binding(() => root.media || ({}))
                 if ('fillMode' in item) item.fillMode = Qt.binding(() => root.fillMode)
                 if ('loops' in item) item.loops = Qt.binding(() => root.loops)
                 if ('autoPlay' in item) item.autoPlay = Qt.binding(() => root.autoPlay)
                 if ('page' in item) item.page = Qt.binding(() => root.page)
-                if ('mediaLoaded' in item) item.mediaLoaded.connect(root.mediaLoaded)
-                if ('videoFinished' in item) item.videoFinished.connect(root.videoFinished)
+                if ('source' in item) item.source = Qt.binding(() => root.resolvedSource)
+                if ('errorString' in item && item.errorString) root._failed(item.errorString)
+                else if ('ready' in item && item.ready) root._ready()
             }
         }
     }
@@ -218,7 +364,7 @@ Item {
         Image {
             id: image
             anchors.fill: parent
-            source: root.source
+            source: root.resolvedSource
             fillMode: root.fillMode
             retainWhileLoading: true
             visible: root.isCropped
@@ -228,18 +374,8 @@ Item {
             sourceClipRect: root.cropOverlay ? undefined : Qt.rect(root.cropX * root.mediaWidth, root.cropY * root.mediaHeight, root.cropW * root.mediaWidth, root.cropH * root.mediaHeight)
 
             onStatusChanged: {
-                if (status === Image.Error) {
-                    console.log("Image loading error")
-                }
-            }
-
-            property bool loading: true
-            onProgressChanged: {
-                if (loading && image.progress >= 1) {
-                    loading = false
-                    root.mediaLoaded()
-                    console.log("Image loaded: ", image.source)
-                }
+                if (status === Image.Ready) root._ready()
+                else if (status === Image.Error) root._failed(qsTr("The image could not be loaded."))
             }
 
             readonly property real renderedOffsetX: (width - renderedWidth) / 2
@@ -256,26 +392,16 @@ Item {
         AnimatedImage {
             id: animatedImage
             anchors.fill: parent
-            source: root.source
+            source: root.resolvedSource
             fillMode: root.fillMode
             retainWhileLoading: true
             playing: false
             visible: !root.isCropped
 
             onStatusChanged: {
-                if (status === AnimatedImage.Error) {
-                    console.log("AnimatedImage loading error")
-                }
+                if (status === AnimatedImage.Ready) root._ready()
+                else if (status === AnimatedImage.Error) root._failed(qsTr("The image could not be loaded."))
                 playing = (status == AnimatedImage.Ready) && root.autoPlay
-            }
-
-            property bool loading: true
-            onProgressChanged: {
-                if (loading && animatedImage.progress >= 1) {
-                    loading = false
-                    root.mediaLoaded()
-                    console.log("AnimatedImage loaded: ", animatedImage.source)
-                }
             }
 
             readonly property real renderedOffsetX: (width - renderedWidth) / 2
@@ -292,17 +418,12 @@ Item {
         VectorImage {
             id: vectorImage
             preferredRendererType: VectorImage.CurveRenderer
-            source: root.source
+            source: root.resolvedSource
             fillMode: root.fillMode === Image.PreserveAspectFit ? VectorImage.PreserveAspectFit : root.fillMode === Image.PreserveAspectCrop ? VectorImage.PreserveAspectCrop : undefined
 
-            property bool loading: true
-            Component.onCompleted: {
-                if (status === VectorImage.Ready) {
-                    if(loading){
-                        loading = false
-                        root.mediaLoaded()
-                    }
-                }
+            onStatusChanged: {
+                if (status === VectorImage.Ready) root._ready()
+                else if (status === VectorImage.Error) root._failed(qsTr("The illustration could not be loaded."))
             }
 
             readonly property real renderedOffsetX: (width - renderedWidth) / 2

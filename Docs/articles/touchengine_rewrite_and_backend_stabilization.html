@@ -917,9 +917,12 @@
                     because its static module contains the Vulkan backend.
                 </p>
                 <p>
-                    ClonerSource provides <code>DS_APP_ENABLE_TOUCHENGINE</code> and
-                    <code>DS_APP_ENABLE_SPOUT</code>, both defaulting to <code>OFF</code>. When
-                    TouchEngine is disabled, its QML file, plugin import, libraries, runtime copy,
+                    Select TouchEngine and Spout alongside the other optional modules in
+                    ProjectCloner. It records the selection in <code>dsqt-project.json</code>,
+                    which ClonerSource uses to configure the required CMake components, plugin
+                    imports, QML files, runtime deployment, and vcpkg features automatically.
+                    Selecting either module also enables its Vulkan dependency. When TouchEngine
+                    is not selected, its example QML file, plugin import, libraries, runtime copy,
                     and vcpkg feature are all omitted.
                 </p>
                 <div class="table-wrap">

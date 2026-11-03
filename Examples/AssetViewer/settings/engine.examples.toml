@@ -1,0 +1,66 @@
+
+#TOML settings file thoughts. (in TOML!)
+
+#headings create objects and below them key = value or key = [value,{metadata}]
+#doing it bothways allows for a simpler settings file but also allows to give hints on
+#conversions or visualization metadata. 
+[engine]
+project_path=["dsqt_development",{type="string", test="", restart="full"}]
+
+[engine.window]
+world_dimensions=[{w=3840,h=2160},{type="size"}] #The size of the overall app space.
+source={x=0,y=540,w=500,h=1080} #the rectangle of the world space to render.
+destination={x=0,y=0,w=1920,h=1080}#,{type="rect"}] #The output window size and position to render.
+
+[engine.resource]
+location="%LOCAL%/linkedin/resources/"
+resource_db="../db/db.sqlite"
+
+[engine.bridgesync]
+#whether to use the local path to the shared path to find downsync.
+launch_bridgesync=true
+app_path="%SHARE%/bridgesync/bridge_sync_console.exe"
+
+#unimplemented, but the idea is to allow these settings to live is seperate
+#toml files
+#use_settings_file=false
+#settings_file="bridgesync.toml"
+
+[engine.bridgesync.connection]
+server = "https://app.hpi1.dev.bridge.downstream.com"
+#auth_server = "https://hpi1-api-userpool.auth.us-east-2.amazoncognito.com"
+#client_id = ""
+#client_secret= ""
+directory="%LOCAL%/hpi1/"
+interval = 5
+verbose = true
+
+
+
+
+[engine.examples]
+#this is the same as example_simple = [450,{}] and should take the same code path
+example_simple = 450 #simple example makes an int
+
+example_full = ["450",{type="int",max=700,min=0,step=10,name="Example Full",desc="An example of a full value with meta data for a stepped slider"}]
+example_string = "450" #simple format, will read as string, but you can convert to a number ofcourse
+
+#an array. note the double brackets
+example_array = [["fe","fi","fo","fum"]] 
+
+#this is not valid as it conflicts with value as array pattern. 
+#We could probably make this work by analyzing the content, but
+#for simplicity sake I say we just don't allow it. 
+example_array_bad = [{object="one"},{issue="nice"},"fo","fum"] 
+
+#These should all produce a 100x100 rectangle with an x and y value at 10,5
+example_rect_1 = {x=10,y=5,w=100,h=100} #will read as an object, but can try to convert to a rect
+example_rect_2 = [[10,5,100,100]] #will read as a simple array, but can try to convert to a rect (or a color or vec4)
+example_rect_3 = {x1=10,y1=5,x2=110,y2=105} #will read as an object, but can try to convert to a rect
+example_rect_4 = [{x=10,y=5,w=100,h=100},{type="rect",x_min=0,x_max=500,y_min=0,y_max=500}] #the meta data is TBD
+
+#colors
+example_color_1 = {r=0.5,g=0.5,b=0.5,a=1.0}
+example_color_2 = [{r=0.5,g=0.5,b=0.5,a=1.0},{type="color"}]
+example_color_3 = [[0.5,0.5,0.5,1.0],{type="color"}]
+example_color_4 = [[0.5,0.5,0.5],{type="color"}] 

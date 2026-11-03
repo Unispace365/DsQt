@@ -1,0 +1,77 @@
+# Waffles configuration.
+#
+# Loaded into the "app_settings" collection via engine.toml's [engine.extra].app_settings, so it
+# is reachable from QML with a DsSettingsProxy { target: "app_settings"; prefix: "waffles" }.
+# Every waffles setting lives under the [waffles] table.
+
+[waffles]
+# Controls fade out after this many seconds of no interaction with the viewer, and return on
+# touch/interaction. 0 disables auto-hide.
+controlsIdleSeconds = 4
+
+# On-screen (Qt Virtual Keyboard) settings. Read by DsVirtualKeyboard.
+[waffles.keyboard]
+# Keyboard style name. "waffles" is the bundled dark theme; swap to another style on the QML
+# import path (no recompile). Overrides the QT_VIRTUALKEYBOARD_STYLE env bootstrap in main.cpp.
+style = "waffles"
+# Active keyboard locales (multilingual). Default Latin set. Add CJK/Arabic etc. (e.g. "zh_CN",
+# "ja_JP", "ko_KR", "ar_AR") to broaden, or list every installed layout for the full set. The
+# globe key on the keyboard cycles through these. (Style + IM module are wired in main.cpp.)
+locales = ["en_US", "es_ES", "fr_FR", "de_DE", "it_IT"]
+
+# Design tokens read by the DsTheme singleton (values here are the defaults). These are the Tier-1
+# primitives + glass tokens; the semantic roles (surface, stroke, surfaceText, track, …) are
+# derived from them inside DsTheme. Re-point these to white-label the UI.
+# See Docs/articles/color_system.md.
+[waffles.theme]
+tonal0  = "#191F25"
+tonal10 = "#2E3439"
+tonal30 = "#5D6166"
+white   = "#FFFFFF"
+accent  = "#00ADF7"
+# Light brand tint — used for the content-launcher selected-row highlight.
+primary50 = "#B1DAFC"
+glassTintOpacity = 0.8
+glassBlur        = 0.5
+glassBlurMax     = 48
+# Extend blur radius beyond glassBlurMax without extra texture lookups (cheaper than raising
+# blurMax, at some quality loss). 0.0 disables — leave at 0 unless a design needs a wider blur.
+glassBlurMultiplier = 0.0
+glassRadius      = 12
+glassBorderWidth = 1
+# UI scale (physical-size / density): multiplies CHROME sizes (launcher, controls, keyboard, etc.)
+# so the same design reads at a usable physical size on different screens. 1.0 = authored size.
+# Bump > 1 on small/dense displays (laptop) for usable touch targets; tune per screen. Layers on
+# top of DsFitView's canvas fit; media content is NOT scaled.
+uiScale = 1.0
+
+# Media-viewer sizing. Bounds are logical px (the stage is a 4K canvas); per-viewer
+# overridable on creation.
+[waffles.viewer]
+minWidth  = 400
+maxWidth  = 3200
+minHeight = 300
+maxHeight = 2000
+# Default width an image viewer uses when it fits itself to the media aspect ratio.
+imageWidth = 1400
+# Default size a web viewer opens at (web pages have no natural aspect to fit). Clamped to the
+# min/max bounds above. Override per-viewer on creation if needed.
+webWidth  = 1280
+webHeight = 800
+# Default open/close animations (per-viewer overridable on creation).
+# One of: fade | grow | growBounce | fadeRise | none
+enterAnimation = "fadeRise"
+exitAnimation  = "grow"
+animationDuration = 300
+
+# Fullscreen: a viewer fits the stage minus this margin, over a scrim that blocks the rest of
+# the UI. The scrim is blurred when the viewer's glass is on, else a tint at scrimOpacity.
+[waffles.fullscreen]
+margin = 0
+scrimOpacity = 0.9
+scrimBlurTintOpacity = 0.8
+# Blur for the blur-mode scrim (see [waffles.theme] for how blur + blurMax combine). When unset
+# these default to the glass tokens (glassBlur / glassBlurMax) so the scrim matches the viewer
+# glass. Uncomment to give the fullscreen scrim its own, different blur.
+#scrimBlur    = 0.7
+#scrimBlurMax = 48

@@ -1,10 +1,21 @@
 # Migrating from DsQt Subdirectory to DsQt Library
 
-This guide walks through converting a project that uses DsQt via `add_subdirectory()` to one that consumes DsQt as a pre-built, installed library via `find_package()`.
+This guide moves older `add_subdirectory()` consumers to `find_package(Dsqt)`.
+The recommended source for applications is a **published vcpkg package from the
+registry**. An ordinary prebuilt installation remains an alternative.
 
-## Automated Migration (Recommended)
+For a new application, use [ProjectCloner](../../README.md#creating-a-new-project).
+For an existing application already using `find_package`, go directly to
+[Switching DsQt packages, versions, and Qt kits](switching_dsqt_packages.md).
+That guide covers registry pins, source switches, and complete presets.
 
-A Python script automates most of the migration steps described below. It parses your existing `CMakeLists.txt`, generates updated build files, patches `main.cpp`, rewrites QML imports, and copies scaffolding from `ClonerSource`.
+## Automated migration for the installed-library path
+
+`Tools/migrate_to_library.py` automates much of the older installed-library
+migration. It is not a registry-version selector: review its output, then add
+the current package helpers and pins from the switching guide for registry use.
+Preview with `--dry-run` and preserve application-specific CMake, startup code,
+and dependencies when applying the changes.
 
 ### Usage
 
@@ -49,7 +60,8 @@ python Tools/migrate_to_library.py C:\dev\MyProject --reset
 7. Rewrites QML imports (`import Dsqt` → `import Dsqt.Core`, etc.)
 8. Copies missing scaffolding files from `Examples/ClonerSource/`
 
-After running the script, do a clean rebuild (delete `build/`, re-configure, build). See the manual steps below for details on what each change does and for troubleshooting.
+After reviewing the migration, configure and build in a new directory. Keep the
+old build available for comparison until the migrated application is validated.
 
 ---
 
@@ -59,37 +71,41 @@ The following sections describe each migration step in detail. If you used the a
 
 ## Prerequisites
 
-- Visual Studio 2022
-- Qt 6.10.x installed (e.g. `C:/Qt/6.10.1/msvc2022_64`)
+- An x64 MSVC compiler compatible with the selected Qt kit
+- Qt 6.12.0 or newer compatible SDK for current Core/Waffles, including Canvas Painter
+- CMake 3.29 or newer, Ninja, Git, and Git LFS
 - vcpkg installed and `VCPKG_ROOT` environment variable set
 - The DsQt repository cloned locally
 
-## Step 1: Build and Install the DsQt Library
+## Step 1: Choose the DsQt package source
 
-Before your project can consume DsQt as a library, you need to build and install it once.
+**Recommended: registry.** Choose a published version with supported module
+metadata in a separately generated ProjectCloner reference app. Merge its exact
+DsQt override and registry commit into your application, following the
+[switching guide](switching_dsqt_packages.md#2-pin-a-published-package). You do
+not build/install a standalone DsQt library first; vcpkg builds it for the app.
 
-1. Open the DsQt **Library** project in Qt Creator:
-   - File > Open > navigate to `DsQt/Library/CMakeLists.txt`
-2. Select a configure preset (e.g. **VS2022 x64 - Qt 6.10.1**).
-3. Build the project (Build > Build All).
-4. Install the project (Build > Install, or run `cmake --install` from the command line).
-
-The library installs to `%USERPROFILE%\Documents\DsQt` by default. This location is configured in `Library/CMakePresets.json` and is where downstream projects will find it.
-
-> **Tip:** You only need to rebuild and reinstall DsQt when the library itself changes. Your application projects reference the installed copy.
+**Alternative: installed library.** Run
+`Library/build_and_install.bat -qt 6.12.0` from the DsQt checkout, substituting your
+installed kit. This builds Debug and Release and installs to
+`%USERPROFILE%/Documents/DsQt` by default. Match that exact kit in the consumer,
+and rebuild/reinstall when changing the library. For a source snapshot consumed
+through vcpkg, see [local packages](../vcpkg.md#build-a-local-package-and-use-it-in-a-new-application).
 
 ## Step 2: Copy Project Scaffolding from ClonerSource
 
-Several files in the `Examples/ClonerSource` directory serve as the reference template for a library-based project. Copy the following files into your project root, replacing existing versions where noted:
+Several files in the `Examples/ClonerSource` directory serve as the reference template for a library-based project. Merge the relevant pieces into your project, preserving existing application logic:
 
 ### Files to Copy
 
 | Source (from `Examples/ClonerSource/`) | Destination (your project root) | Notes |
 |---|---|---|
-| `CMakeLists.txt` | `CMakeLists.txt` | **Replace entirely.** This is the most important change. See Step 3 for details. |
-| `CMakePresets.json` | `CMakePresets.json` | **Replace entirely.** Adds the DsQt install path to `CMAKE_PREFIX_PATH`. Do not edit directly — use `CMakeUserPresets.json` for local overrides (see Step 6). |
-| `vcpkg.json` | `vcpkg.json` | **Replace or merge.** Provides `tomlplusplus`, `glm`, and `pkgconf` dependencies. |
-| `main.cpp` | `main.cpp` | **Replace or use as reference.** Contains the new `Q_IMPORT_QML_PLUGIN` macros and module-based loading. |
+| `CMakeLists.txt` | `CMakeLists.txt` | **Merge.** Adopt package discovery and deployment while keeping your targets and resources; see Step 3. |
+| `CMakePresets.json` | `CMakePresets.json` | **Merge.** Choose registry, local-package, or installed-library presets. Use user presets for machine-specific paths (Step 6). |
+| `vcpkg.json` | `vcpkg.json` | **Merge.** Preserve app dependencies and add the selected DsQt mode feature and version override. |
+| `main.cpp` | `main.cpp` | **Use as reference.** Merge static plugin imports and initialization without replacing existing services. |
+| `cmake/DsqtRegistryPackage.cmake`, `cmake/DsqtLocalPackage.cmake` | Same paths | Copy for package modes; include before `project()`. |
+| `vcpkg-configuration.json`, `dsqt-project.json` | Same paths | Merge the selected registry pin and module record from a generated reference project. |
 | `cmake/app.rc.in` | `cmake/app.rc.in` | Windows resource file template. Copy if you don't already have one. |
 | `resource1.h` | `resource1.h` | Windows resource header. Copy if you don't already have one. |
 | `VERSION.txt` | `VERSION.txt` | Version source of truth. Create with your version (e.g. `1.0.0`). |
@@ -97,7 +113,9 @@ Several files in the `Examples/ClonerSource` directory serve as the reference te
 | `project-ci.yml` | `project-ci.yml` | CI configuration template. Copy and update the `name` and `qt_modules` fields. |
 | `settings/` | `settings/` | Copy the full directory if starting fresh, or merge individual `.toml` files. |
 
-> **Alternative:** Instead of copying manually, you can use the **ProjectCloner** tool (`Tools/ProjectCloner/`) to generate a fresh project from the ClonerSource template, then migrate your QML and C++ source files into it.
+> Generate a separate **ProjectCloner** reference app with the desired package
+> and modules to compare its scaffolding. Integrate into your existing application
+> instead of overwriting it with the raw template.
 
 ## Step 3: Update CMakeLists.txt
 
@@ -118,7 +136,7 @@ add_subdirectory("$ENV{DS_QT_PLATFORM_100}/Dsqt" "${CMAKE_BINARY_DIR}/Dsqt")
 Replace the removed lines with:
 
 ```cmake
-# Find Dsqt from installed package (CMAKE_PREFIX_PATH set via CMakePresets.json)
+# Package helpers or the installed-library preset select the package location.
 find_package(Dsqt REQUIRED COMPONENTS Core Bridge Waffles TouchEngine)
 ```
 
@@ -147,7 +165,7 @@ target_link_libraries(${DS_EXE_NAME}
 )
 ```
 
-**After (library approach):**
+**After (package approach):**
 ```cmake
 target_link_libraries(${DS_EXE_NAME}
     PRIVATE
@@ -155,35 +173,15 @@ target_link_libraries(${DS_EXE_NAME}
         Dsqt::Bridge
         Dsqt::TouchEngine
         Dsqt::Waffles
-
-        Qt6::Concurrent
-        Qt6::Core
-        Qt6::Gui
-        Qt6::Multimedia
         Qt6::Quick
-        Qt6::QuickControls2
-        Qt6::ShaderTools
-        Qt6::GuiPrivate
-        Qt6::Sql
-
-        PkgConfig::tomlplusplus
-        glm::glm
 )
 ```
 
-### Update: target_include_directories
-
-**Before:**
-```cmake
-target_include_directories(${DS_EXE_NAME} PRIVATE ${Dsqt_INCLUDES})
-```
-
-**After:**
-```cmake
-target_include_directories(${DS_EXE_NAME} PRIVATE ${Dsqt_INCLUDES} ${TouchEngineQt_INCLUDES})
-```
-
-These variables are set automatically by `DsqtConfig.cmake` when `find_package(Dsqt)` runs.
+Preserve additional dependencies used directly by your application. DsQt's
+imported targets carry their own include paths and link dependencies. Remove
+manual source-tree include paths; do not add `PkgConfig::tomlplusplus` just to
+satisfy DsQt. If the app uses toml++ directly, find its CMake package and link
+`tomlplusplus::tomlplusplus` as in the current ClonerSource template.
 
 ### Update: qt_add_qml_module
 
@@ -198,38 +196,32 @@ qt_add_qml_module(${DS_EXE_NAME}
         # ... your QML files
     IMPORT_PATH "${DSQT_QML_IMPORT_PATH}"
     DEPENDENCIES
-        Dsqt::Core
-        Dsqt::Bridge
-        Dsqt::TouchEngine
-        Dsqt::Waffles
+        Dsqt.Core
+        Dsqt.Bridge
+        Dsqt.TouchEngine
+        Dsqt.Waffles
         QtQuick
 )
 ```
 
-### Add: TouchEngine DLL handling (if using TouchEngine)
+### Add: layout-aware runtime deployment
+
+Use the selected package's helpers after creating the application target:
 
 ```cmake
-# TouchEngine SDK DLL location (from installed package, config-specific subdirectory)
-set(TOUCHENGINE_DLL "${DSQT_BIN_DIR}/$<CONFIG>/TouchEngine.dll")
-
-if(WIN32)
-    add_custom_command(TARGET ${DS_EXE_NAME} POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            "${TOUCHENGINE_DLL}"
-            $<TARGET_FILE_DIR:${DS_EXE_NAME}>
-        COMMENT "Copying TouchEngine.dll to output directory"
-    )
-endif()
+dsqt_deploy_runtime_dlls(${DS_EXE_NAME})
 ```
 
-### Add: Deploy script for TouchEngine DLL (if using TouchEngine)
+After setting up the application's install directories, add:
 
 ```cmake
-if(WIN32)
-    install(FILES "${DSQT_BIN_DIR}/$<CONFIG>/TouchEngine.dll"
-        DESTINATION ${CMAKE_INSTALL_BINDIR} OPTIONAL)
-endif()
+dsqt_install_runtime_dlls(${CMAKE_INSTALL_BINDIR})
 ```
+
+These handle the requested modules' runtime DLLs, including TouchEngine, across
+ordinary and vcpkg layouts. Do not hardcode `bin/$<CONFIG>/TouchEngine.dll` for
+vcpkg: its Debug and Release directories differ from an ordinary installation.
+Keep the application's Qt QML deployment script as well.
 
 ## Step 4: Update main.cpp
 
@@ -258,7 +250,9 @@ Q_IMPORT_QML_PLUGIN(Dsqt_SpoutPlugin)
 #endif
 ```
 
-Each `DSQT_HAS_<Module>` definition is set automatically when the corresponding component is found by `find_package(Dsqt)`. In your `CMakeLists.txt`, add this pattern after `find_package`:
+The application sets these `DSQT_HAS_<Module>` compile definitions using the
+component results from `find_package(Dsqt)`. Add this pattern after creating the
+application target, with the module list matching your requested components:
 
 ```cmake
 foreach(_comp Core Bridge Waffles TouchEngine Spout)
@@ -268,7 +262,8 @@ foreach(_comp Core Bridge Waffles TouchEngine Spout)
 endforeach()
 ```
 
-This makes each module truly optional — if a component isn't found (or isn't requested), the corresponding plugin import is simply skipped.
+Only requested modules get these imports. A missing component listed as
+`REQUIRED` still fails configuration; the guard does not make a required module optional.
 
 ### Update: Module loading
 
@@ -321,85 +316,36 @@ import Dsqt.Bridge
 
 ## Step 6: Update CMake Presets
 
-Your project needs the DsQt install location in `CMAKE_PREFIX_PATH`. The generated `CMakePresets.json` already includes this. **Do not edit `CMakePresets.json` directly** — it is managed by the migration script and may be regenerated. Instead, use `CMakeUserPresets.json` for any local overrides.
+Use the complete [source-mode presets](switching_dsqt_packages.md#3-choose-the-source-in-presets)
+for registry, local package, or installed library. They use separate build
+directories and do not depend on historical template preset names.
 
-For a full guide to all `CMakeUserPresets.json` scenarios — including enabling the VS2022 generator, using a different Qt version, and handling Qt installed outside `C:/Qt/` — see [Enabling Additional Build Presets with CMakeUserPresets.json](cmake_user_presets.md).
+For registry mode, set `DSQT_USE_REGISTRY_VCPKG=ON`, local mode off, and the
+registry Qt version/root. The helper controls the package paths. For installed
+mode, turn both package switches off and include the Qt kit and DsQt installation
+in `CMAKE_PREFIX_PATH`, with `Dsqt_DIR` identifying that installation.
 
-### CMakePresets.json (generated, checked into source control)
+Keep portable, team-wide configuration in `CMakePresets.json`. Put local path
+changes in `CMakeUserPresets.json`. Inherit from a configure preset, never a
+`-debug` or `-release` build preset. See [CMake user presets](cmake_user_presets.md)
+for examples. Review any presets regenerated by the migration script before use.
 
-The migration script generates a `CMakePresets.json` with sensible defaults, including the DsQt install path:
+## Step 7: Remove source-tree dependencies
 
-```json
-{
-  "name": "qt-6.10.1",
-  "hidden": true,
-  "inherits": "vcpkg-base",
-  "cacheVariables": {
-    "CMAKE_PREFIX_PATH": "C:/Qt/6.10.1/msvc2022_64;$env{USERPROFILE}/Documents/DsQt"
-  }
-}
-```
+Remove the application's dependency on `DS_QT_PLATFORM_100` for finding DsQt
+source. `find_package` uses the selected package configuration instead. Other
+legacy projects or tools may still use that environment variable, so changing
+this application does not require removing it from your machine globally.
 
-This file should be committed to version control so all team members share the same base configuration.
+## Step 8: Configure and validate in a new build directory
 
-### CMakeUserPresets.json (local overrides, not checked in)
-
-To customize paths, add Qt versions, or override variables for your local environment, create a `CMakeUserPresets.json` in your project root. CMake automatically merges it with `CMakePresets.json`. This file should be listed in `.gitignore`.
-
-**Example — override the DsQt install path and add a custom Qt location:**
-
-```json
-{
-  "version": 6,
-  "configurePresets": [
-    {
-      "name": "my-local",
-      "inherits": "vs2022-6.10.1-debug",
-      "cacheVariables": {
-        "CMAKE_PREFIX_PATH": "D:/Qt/6.10.1/msvc2022_64;D:/libs/DsQt"
-      }
-    }
-  ]
-}
-```
-
-**Example — add a Qt version not in the base presets:**
-
-```json
-{
-  "version": 6,
-  "configurePresets": [
-    {
-      "name": "qt-6.11.0",
-      "hidden": true,
-      "inherits": "vcpkg-base",
-      "cacheVariables": {
-        "CMAKE_PREFIX_PATH": "C:/Qt/6.11.0/msvc2022_64;$env{USERPROFILE}/Documents/DsQt"
-      }
-    },
-    {
-      "name": "vs2022-6.11.0-debug",
-      "displayName": "VS2022 x64 Debug - Qt 6.11.0",
-      "inherits": ["qt-6.11.0", "vs2022-base"],
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Debug"
-      }
-    }
-  ]
-}
-```
-
-> **Tip:** Make sure your `.gitignore` includes `CMakeUserPresets.json`. The migration script and ClonerSource `.gitignore` already include it.
-
-## Step 7: Remove the DS_QT_PLATFORM_100 Environment Variable
-
-The subdirectory approach relied on the `DS_QT_PLATFORM_100` environment variable to locate the DsQt source tree. This is no longer needed. You can remove it from your system environment variables.
-
-## Step 8: Clean and Rebuild
-
-1. Delete your existing `build/` directory.
-2. Re-configure the project using your CMake preset.
-3. Build and verify everything compiles and links correctly.
+1. Inspect configure/build names with `cmake --list-presets` and `cmake --list-presets=build`.
+2. Configure the chosen source-mode preset in its separate build directory.
+3. Build the intended configuration and install with the matching `--config`.
+4. Verify `Qt6_DIR`, `Dsqt_DIR`, and the installed package version using the
+   [verification steps](switching_dsqt_packages.md#5-configure-build-and-verify-the-result).
+5. Launch the deployed app with the matching Qt runtime and verify existing
+   features plus any newly selected modules.
 
 ## Quick Reference: Old vs New Target Names
 
@@ -437,12 +383,18 @@ The subdirectory approach relied on the `DS_QT_PLATFORM_100` environment variabl
 
 ## Troubleshooting
 
-**CMake can't find Dsqt:** Make sure you've built and installed the DsQt Library (Step 1) and that `CMAKE_PREFIX_PATH` in your `CMakePresets.json` includes the install location.
+**CMake cannot find Dsqt:** Check the active source mode. Registry/local builds
+need the helpers before `project()` and a successful vcpkg installation. Ordinary
+installed-library builds need a compatible installation and its explicit config
+path. Inspect `Dsqt_DIR` in the actual build cache.
 
 **Linker errors about missing symbols:** Verify you are linking all required `Dsqt::` targets and that you've added the `Q_IMPORT_QML_PLUGIN` macros in `main.cpp`.
 
 **QML module not found at runtime:** Check that `IMPORT_PATH "${DSQT_QML_IMPORT_PATH}"` is set in your `qt_add_qml_module` call.
 
-**TouchEngine.dll not found:** Ensure the post-build copy command is in your CMakeLists.txt and that the DsQt library was installed with TouchEngine support.
+**TouchEngine.dll not found:** Ensure the package contains TouchEngine and the
+layout-aware deployment helpers run for the application target and installation.
 
-**Need to customize paths or add Qt versions:** Don't edit `CMakePresets.json` — create a `CMakeUserPresets.json` in your project root with local overrides. CMake merges both files automatically. See [Enabling Additional Build Presets with CMakeUserPresets.json](cmake_user_presets.md) for a full guide.
+**Need to change package versions or sources:** Use the [switching guide](switching_dsqt_packages.md).
+For machine-specific paths, use [CMake user presets](cmake_user_presets.md); shared
+team configuration belongs in `CMakePresets.json`.

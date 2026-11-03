@@ -33,13 +33,16 @@ if(DSQT_SETTINGS_TEST_STANDALONE)
 
     find_package(Qt6 REQUIRED COMPONENTS Gui Sql Qml)
 
-    # Post-revamp settings sources. Note: this standalone path is not exercised
-    # by the normal build (Tests/Settings is added as a subdirectory of Library,
-    # where Dsqt::Core already exists) and is best-effort.
+    # Include the QML proxy and the resource/path helpers used by DsEnvironment.
     target_sources(${DS_EXE_NAME} PRIVATE
         "${DS_QT_PLATFORM_100_LIBRARY}/settings/dsSettings.cpp"
         "${DS_QT_PLATFORM_100_LIBRARY}/settings/dsSettingsFile.cpp"
+        "${DS_QT_PLATFORM_100_LIBRARY}/settings/dsQmlSettingsProxy.cpp"
+        "${DS_QT_PLATFORM_100_LIBRARY}/settings/dsQmlSettingsProxy.h"
         "${DS_QT_PLATFORM_100_LIBRARY}/core/dsEnvironment.cpp"
+        "${DS_QT_PLATFORM_100_LIBRARY}/model/dsResource.cpp"
+        "${DS_QT_PLATFORM_100_LIBRARY}/utility/dsFileMetaData.cpp"
+        "${DS_QT_PLATFORM_100_LIBRARY}/utility/dsStringUtils.cpp"
     )
 
     FetchContent_Declare(tomlplusplus

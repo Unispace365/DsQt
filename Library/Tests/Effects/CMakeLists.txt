@@ -12,7 +12,7 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
 
     option(DSQT_EFFECTS_USE_INSTALLED "Test an installed DsQt package" OFF)
     if(DSQT_EFFECTS_USE_INSTALLED)
-        find_package(Dsqt CONFIG REQUIRED)
+        find_package(Dsqt CONFIG REQUIRED COMPONENTS Core)
     else()
         find_package(tomlplusplus CONFIG REQUIRED)
         set(QT_QML_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/qml")
@@ -33,8 +33,8 @@ target_compile_definitions(test_ds_multieffect
     PRIVATE
         QUICK_TEST_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/qml"
 )
-if(TARGET Coreplugin)
-    get_target_property(_effects_plugin_type Coreplugin TYPE)
+if(TARGET DsqtCoreplugin)
+    get_target_property(_effects_plugin_type DsqtCoreplugin TYPE)
 else()
     get_target_property(_effects_plugin_type Dsqt::Coreplugin TYPE)
 endif()

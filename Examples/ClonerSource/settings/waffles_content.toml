@@ -1,0 +1,102 @@
+# Bridge schema mappings for Waffles. Loaded into app_settings by engine.toml.
+# Defaults match schema-waffles-dsqt. IDs identify schema types, not content records.
+# Existing applications should use their own schema IDs and event type names.
+# Changes are picked up by new viewers; reopen an active playlist after changing layouts.
+
+[waffles.content]
+unknownTypePolicy = "hide" # "show" preserves legacy launcher behavior
+mediaField = "media"
+titleFields = ["record_name", "headline", "title"]
+thumbnailFields = ["thumbnail", "image", "icon", "preview", "header_image", "main_media"]
+
+[waffles.content.layout]
+frameUid = "t1bv0BSfh7g6" # 16:9; use "nDpUGKOMJHUr" for 80:27
+# An empty frameUid selects the closest authored aspect ratio automatically.
+# A specified frame with no authored media is reported and is not substituted.
+
+[waffles.content.platform]
+contentField = "default_content"
+interactivePlaylistField = "default_interactive_playlist"
+ambientPlaylistField = "default_ambient_playlist"
+
+[waffles.content.events]
+typeNames = ["Scheduled Content"]
+contentField = "content"
+interactivePlaylistField = "interactive_playlist"
+ambientPlaylistField = "ambient_playlist"
+
+[waffles.content.types."JfDgLbj9vxT8"]
+label = "Media"
+kind = "media"
+mediaField = "media"
+tapAction = "open"
+
+[waffles.content.types."ykAdRYGJeuXI"]
+label = "Media Template"
+kind = "media"
+mediaField = "media"
+tapAction = "open"
+
+[waffles.content.types."4fysJWac8KpK"]
+label = "Assets"
+kind = "folder"
+tapAction = "browse"
+
+[waffles.content.types."YhPdk0XdFnRD"]
+label = "Asset Folders"
+kind = "folder"
+tapAction = "browse"
+
+[waffles.content.types."dvkSDXt0njdh"]
+label = "Playlists"
+kind = "folder"
+tapAction = "browse"
+
+[waffles.content.types."Q1zLmsTO9Ux9"]
+label = "Playlist Folders"
+kind = "folder"
+tapAction = "browse"
+
+[waffles.content.types."bweKU2WOurPH"]
+label = "Presentations"
+kind = "playlist"
+playlistMode = "interactive"
+tapAction = "open"
+
+[waffles.content.types."TybD4YgiVHB3"]
+label = "Ambient Playlists"
+kind = "playlist"
+playlistMode = "ambient"
+tapAction = "open"
+
+# Additional media types can override mediaField, titleFields and thumbnailFields.
+# Types used only inside layouts (Composite Media, Hotspot) need no launcher entry.
+# Hiding an item from the launcher never removes it from slide/layout traversal.
+
+[waffles.content.launcher]
+filters = [
+    { label = "All" },
+    { label = "Images", kinds = ["image"] },
+    { label = "Video", kinds = ["video"] },
+    { label = "PDFs", kinds = ["pdf"] },
+    { label = "Web", kinds = ["weblink"] },
+    { label = "Folders", kinds = ["folder"] },
+    { label = "Presentations", typeUids = ["bweKU2WOurPH"] },
+]
+
+[waffles.content.playback]
+holdTimeField = "ambient_hold_time"
+defaultHoldTimeSeconds = 8
+transitionField = "transition"
+disableTransitionField = "disable_transition"
+
+# Renderer names must be registered as QML Components by the application.
+[waffles.content.templates."ykAdRYGJeuXI"]
+renderer = "media"
+
+[waffles.content.templates."Pj63JiWllbSY"]
+renderer = "customLayout"
+frames = [
+    { uid = "t1bv0BSfh7g6", width = 16, height = 9 },
+    { uid = "nDpUGKOMJHUr", width = 80, height = 27 },
+]

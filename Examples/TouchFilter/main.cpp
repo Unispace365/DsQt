@@ -44,7 +44,6 @@ int main(int argc, char *argv[])
     QQuickStyle::setStyle("Fusion");
 
     dsqt::DsQmlApplicationEngine engine;
-    engine.addImportPath("qrc:/keyboard");
 
     engine.initialize();
 

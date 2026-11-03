@@ -64,7 +64,7 @@ target_compile_definitions(test_ds_touchengine_qml PRIVATE
 )
 target_link_libraries(test_ds_touchengine_qml PRIVATE
     Dsqt::TouchEngine
-    TouchEngineplugin
+    DsqtTouchEngineplugin
     Qt6::Gui
     Qt6::Quick
     Qt6::QuickTest

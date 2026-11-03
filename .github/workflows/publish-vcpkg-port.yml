@@ -1,0 +1,305 @@
+name: Publish vcpkg Port
+
+# Manually triggered; requires an existing verified Build Library release.
+# publish=false (default): prepare a preview without creating commits.
+# publish=true: create and push the registry commits.
+# Build Library creates the GitHub release; this workflow publishes its vcpkg port.
+on:
+  workflow_dispatch:
+    inputs:
+      source_ref:
+        description: 'Approved DsQt source commit (full 40-character SHA)'
+        required: true
+        type: string
+      expected_version:
+        description: 'Exact development or main version from a successful Build Library release'
+        required: true
+        type: string
+      publish:
+        description: 'Commit and push the prepared port to the private registry'
+        default: false
+        type: boolean
+      port_commit_message:
+        description: 'Approved port commit message (required when publishing)'
+        type: string
+      version_commit_message:
+        description: 'Approved version-database commit message (required when publishing)'
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: publish-vcpkg-port
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    env:
+      SOURCE_REF: ${{ inputs.source_ref }}
+      EXPECTED_VERSION: ${{ inputs.expected_version }}
+      PUBLISH: ${{ inputs.publish }}
+      PORT_COMMIT_MESSAGE: ${{ inputs.port_commit_message }}
+      VERSION_COMMIT_MESSAGE: ${{ inputs.version_commit_message }}
+    steps:
+      - name: Validate request
+        shell: python
+        run: |
+          import os, re
+          assert re.fullmatch(r"[0-9a-f]{40}", os.environ["SOURCE_REF"]), "Use a full lowercase source commit SHA."
+          number = r"(?:0|[1-9][0-9]*)"
+          assert re.fullmatch(rf"{number}\.{number}\.{number}(?:-dev\.[1-9][0-9]*\.[a-z0-9]+(?:-[a-z0-9]+)*|\.[1-9][0-9]*)", os.environ["EXPECTED_VERSION"]), "Use a dev.<build-number>.<branch-slug> or four-part main release version."
+          if os.environ["PUBLISH"] == "true":
+              for name in ("PORT_COMMIT_MESSAGE", "VERSION_COMMIT_MESSAGE"):
+                  assert os.environ[name].strip(), f"Supply the approved {name}."
+
+      - name: Check registry credential is configured
+        env:
+          REGISTRY_TOKEN: ${{ secrets.REGISTRY_PAT }}
+        shell: bash
+        run: |
+          if [[ -z "$REGISTRY_TOKEN" ]]; then
+            echo "::error::Configure REGISTRY_PAT with read access to Unispace365/vcpkg-registry, plus contents write access when publishing."
+            exit 1
+          fi
+
+      - name: Checkout pinned DsQt source
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.source_ref }}
+          path: dsqt
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify release build
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: python
+        run: |
+          import json, os, pathlib, re, subprocess, urllib.parse, urllib.request
+          version = os.environ["EXPECTED_VERSION"]
+          base = pathlib.Path("dsqt/Library/VERSION.txt").read_text().strip()
+          match = re.fullmatch(re.escape(base) + r"(?:-dev\.([1-9][0-9]*)\.([a-z0-9]+(?:-[a-z0-9]+)*)|\.([1-9][0-9]*))", version)
+          assert match, "Release and Library base versions differ."
+          prerelease = match[1] is not None
+          run_number = int(match[1] or match[3])
+          sha = os.environ["SOURCE_REF"]
+          tag = "refs/tags/library/v" + version
+          tagged = subprocess.check_output(["git", "-C", "dsqt", "rev-parse", "--verify", tag + "^{commit}"], text=True).strip()
+          assert tagged == sha, "The release tag does not identify the requested source commit."
+          if not prerelease:
+              subprocess.run(["git", "-C", "dsqt", "merge-base", "--is-ancestor", sha, "refs/remotes/origin/main"], check=True)
+          def branch_slug(branch):
+              slug = re.sub(r"[^a-z0-9]+", "-", branch.lower()).strip("-")[:64].rstrip("-")
+              if not slug:
+                  return "branch"
+              return "branch-" + slug if slug.isdigit() else slug
+          # Use the original build's branch and run number, never the publisher's.
+          page = 1
+          verified = None
+          while True:
+              query = urllib.parse.urlencode({"event": "push", "head_sha": sha, "per_page": 100, "page": page})
+              url = (f"{os.environ['GITHUB_API_URL']}/repos/{os.environ['GITHUB_REPOSITORY']}"
+                     f"/actions/workflows/build-library.yml/runs?{query}")
+              request = urllib.request.Request(url, headers={"Authorization": "Bearer " + os.environ["GH_TOKEN"], "Accept": "application/vnd.github+json"})
+              with urllib.request.urlopen(request, timeout=30) as response:
+                  runs = json.load(response)["workflow_runs"]
+              for run in runs:
+                  branch = run.get("head_branch")
+                  if not branch or run["run_number"] != run_number or run["head_sha"] != sha:
+                      continue
+                  expected = (base + "." + str(run_number) if branch == "main"
+                              else base + "-dev." + str(run_number) + "." + branch_slug(branch))
+                  if (version == expected and run["event"] == "push" and run["status"] == "completed"
+                          and run["conclusion"] == "success"):
+                      verified = run
+                      break
+              if verified or len(runs) < 100:
+                  break
+              page += 1
+          assert verified, "No successful Build Library push run matches this version, branch and source commit."
+          pathlib.Path("publication").mkdir(exist_ok=True)
+          pathlib.Path("publication/build.json").write_text(json.dumps({"run-id": verified["id"], "run-number": run_number,
+              "source-commit": sha, "source-branch": verified["head_branch"], "prerelease": prerelease,
+              "version": version, "tag": tag}, indent=2) + "\n")
+          print(f"Verified release {version} from Build Library run {run_number} on {verified['head_branch']}.")
+
+      - name: Checkout registry
+        uses: actions/checkout@v5
+        with:
+          repository: Unispace365/vcpkg-registry
+          ref: main
+          token: ${{ secrets.REGISTRY_PAT }}
+          path: registry
+          fetch-depth: 0
+
+      - name: Prepare immutable source port
+        id: prepare
+        shell: python
+        run: |
+          import json, os, pathlib, re, subprocess
+          source = pathlib.Path("dsqt/Library/vcpkg/port")
+          registry = pathlib.Path("registry")
+          manifest = json.loads((source / "vcpkg.json").read_text(encoding="utf-8"))
+          declared = manifest.get("version", "")
+          version = os.environ["EXPECTED_VERSION"]
+          revision = manifest.get("port-version", 0)
+          base = pathlib.Path("dsqt/Library/VERSION.txt").read_text().strip()
+          assert manifest["name"] == "dsqt"
+          assert not any(key in manifest for key in ("version-semver", "version-string", "version-date")), "Use the version field for preview and main releases."
+          assert declared == base, "Library and port base versions differ."
+          proof = json.loads(pathlib.Path("publication/build.json").read_text())
+          assert proof["version"] == version and proof["source-commit"] == os.environ["SOURCE_REF"], "Build verification does not match this publication."
+          # The checkout retains its base version. Only the published port is stamped.
+          manifest["version"] = version
+          sha = subprocess.check_output(["git", "-C", "dsqt", "rev-parse", "HEAD"], text=True).strip()
+          assert sha == os.environ["SOURCE_REF"], "Checkout did not resolve to the approved source commit."
+          consumer = json.loads(pathlib.Path("dsqt/Examples/ClonerSource/vcpkg-configuration.json").read_text())
+          assert sum(entry.get("repository") == "https://github.com/Unispace365/vcpkg-registry" for entry in consumer["registries"]) == 1, "The source commit must contain the consumer registry configuration."
+          parent = subprocess.check_output(["git", "-C", "registry", "rev-parse", "HEAD"], text=True).strip()
+          database_path = registry / "versions/d-/dsqt.json"
+          database = json.loads(database_path.read_text()) if database_path.exists() else {"versions": []}
+          for entry in database["versions"]:
+              values = [entry.get(key) for key in ("version", "version-semver", "version-string", "version-date")]
+              assert not (version in values and entry.get("port-version", 0) == revision), "This package version/revision already exists; select a new successful Build Library release. Published versions are never overwritten."
+          baseline_path = registry / "versions/baseline.json"
+          baseline = json.loads(baseline_path.read_text()) if baseline_path.exists() else {"default": {}}
+          current = baseline["default"].get("dsqt")
+          if proof["prerelease"]:
+              assert current, "Publish a main release first to establish the default registry version."
+          elif current:
+              def version_key(value, port_revision):
+                  match = re.fullmatch(r"([0-9]+(?:\.[0-9]+)*)(?:-([0-9A-Za-z.-]+))?", value)
+                  assert match, f"Review the unsupported existing baseline version before publishing: {value}"
+                  return (tuple(map(int, match[1].split("."))), match[2] is None, port_revision)
+              assert version_key(version, revision) > version_key(current["baseline"], current.get("port-version", 0)), "Publishing would move the default registry baseline backwards."
+          destination = registry / "ports/dsqt"
+          destination.mkdir(parents=True, exist_ok=True)
+          for name in ("portfile.cmake", "vcpkg.json", "usage"):
+              text = (json.dumps(manifest, indent=2) + "\n") if name == "vcpkg.json" else (source / name).read_text(encoding="utf-8")
+              if name == "portfile.cmake":
+                  text, count = re.subn(r'REF "[0-9a-f]{40}"(\s*# DSQT_REF)', lambda m: f'REF "{sha}"{m[1]}', text)
+                  assert count == 1, "Expected exactly one tagged source REF."
+              (destination / name).write_text(text, encoding="utf-8", newline="\n")
+          metadata = json.loads(pathlib.Path("dsqt/Library/dsqt-modules.json").read_text())
+          assert metadata["formatVersion"] == 1 and metadata["templateApi"] == 1
+          assert metadata["minimumQt"] == metadata["modules"]["Core"]["minimumQt"]
+          (destination / "dsqt-modules.json").write_text(json.dumps(metadata, indent=2) + "\n")
+          attributes = registry / ".gitattributes"
+          text = attributes.read_text() if attributes.exists() else ""
+          for rule in ("ports/** text eol=lf", "versions/** text eol=lf"):
+              if rule not in text.splitlines():
+                  text = text.rstrip("\n") + "\n" + rule + "\n"
+          attributes.write_text(text, encoding="utf-8", newline="\n")
+          pathlib.Path("publication").mkdir(exist_ok=True)
+          details = {"package": "dsqt", "version": version, "port-version": revision,
+                     "prerelease": proof["prerelease"], "source-branch": proof["source-branch"],
+                     "default-version": current["baseline"] if proof["prerelease"] else version,
+                     "source-commit": sha, "registry-parent": parent,
+                     "port-commit-message": os.environ["PORT_COMMIT_MESSAGE"],
+                     "version-commit-message": os.environ["VERSION_COMMIT_MESSAGE"]}
+          pathlib.Path("publication/details.json").write_text(json.dumps(details, indent=2) + "\n")
+          with open(os.environ["GITHUB_OUTPUT"], "a") as output:
+              output.write(f"version={version}\nrevision={revision}\nparent={parent}\n")
+
+      - name: Prepare version database without creating commits
+        shell: bash
+        working-directory: registry
+        run: |
+          set -euo pipefail
+          git add ports/dsqt .gitattributes
+          ROOT_TREE=$(git write-tree)
+          PORT_TREE=$(git rev-parse "$ROOT_TREE:ports/dsqt")
+          export PORT_TREE
+          python - <<'PY'
+          import json, os, pathlib
+          manifest = json.loads(pathlib.Path("ports/dsqt/vcpkg.json").read_text())
+          version = manifest["version"]
+          revision = manifest.get("port-version", 0)
+          db_path = pathlib.Path("versions/d-/dsqt.json")
+          db = json.loads(db_path.read_text()) if db_path.exists() else {"versions": []}
+          db["versions"].insert(0, {"git-tree": os.environ["PORT_TREE"], "version": version, "port-version": revision})
+          proof = json.loads(pathlib.Path("../publication/build.json").read_text())
+          files = [(db_path, db)]
+          if not proof["prerelease"]:
+              baseline_path = pathlib.Path("versions/baseline.json")
+              baseline = json.loads(baseline_path.read_text()) if baseline_path.exists() else {"default": {}}
+              baseline["default"]["dsqt"] = {"baseline": version, "port-version": revision}
+              files.append((baseline_path, baseline))
+          for path, value in files:
+              path.parent.mkdir(parents=True, exist_ok=True)
+              path.write_text(json.dumps(value, indent=2) + "\n", encoding="utf-8", newline="\n")
+          PY
+          git diff HEAD --stat
+
+      - name: Upload prepared registry files
+        uses: actions/upload-artifact@v4
+        with:
+          name: dsqt-registry-preview
+          include-hidden-files: true
+          path: |
+            publication/*.json
+            registry/ports/dsqt/
+            registry/versions/
+            registry/.gitattributes
+
+      - name: Publish approved commits
+        if: inputs.publish
+        env:
+          EXPECTED_PARENT: ${{ steps.prepare.outputs.parent }}
+        shell: bash
+        working-directory: registry
+        run: |
+          set -euo pipefail
+          git fetch origin main
+          if [[ "$(git rev-parse origin/main)" != "$EXPECTED_PARENT" ]]; then
+            echo "::error::The registry changed during preparation. Rerun against its current state."
+            exit 1
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "$PORT_COMMIT_MESSAGE"
+          git add versions
+          git commit -m "$VERSION_COMMIT_MESSAGE"
+          git push origin HEAD:main
+
+      - name: Prepare consumer baseline after publication
+        if: inputs.publish
+        shell: python
+        run: |
+          import json, pathlib, subprocess
+          commit = subprocess.check_output(["git", "-C", "registry", "rev-parse", "HEAD"], text=True).strip()
+          path = pathlib.Path("consumer/vcpkg-configuration.json")
+          path.parent.mkdir(exist_ok=True)
+          config = json.loads(pathlib.Path("dsqt/Examples/ClonerSource/vcpkg-configuration.json").read_text())
+          matches = [entry for entry in config["registries"] if entry.get("repository") == "https://github.com/Unispace365/vcpkg-registry"]
+          assert len(matches) == 1
+          matches[0]["baseline"] = commit
+          path.write_text(json.dumps(config, indent=2) + "\n")
+
+      - name: Upload published consumer configuration
+        if: inputs.publish
+        uses: actions/upload-artifact@v4
+        with:
+          name: dsqt-registry-consumer
+          path: consumer/vcpkg-configuration.json
+
+      - name: Summary
+        env:
+          VERSION: ${{ steps.prepare.outputs.version }}
+          REVISION: ${{ steps.prepare.outputs.revision }}
+        shell: bash
+        run: |
+          {
+            echo "### DsQt $VERSION#$REVISION"
+            echo "Source commit: \`$SOURCE_REF\`."
+            if [[ "$PUBLISH" == "true" ]]; then
+              echo "Published registry baseline: \`$(git -C registry rev-parse HEAD)\`."
+              echo 'Use the new registry commit and select this exact package version in ProjectCloner. Development packages do not change the default version.'
+            else
+              echo 'Prepared only. No commits were created and nothing was published.'
+              echo 'Review the dsqt-registry-preview artifact, then supply the approved commit messages and enable publish.'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"

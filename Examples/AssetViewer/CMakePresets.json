@@ -1,0 +1,94 @@
+{
+    "buildPresets": [
+        {
+            "configuration": "Debug",
+            "configurePreset": "vs2022-6.11.1",
+            "displayName": "Debug",
+            "name": "vs2022-6.11.1-debug"
+        },
+        {
+            "configuration": "Release",
+            "configurePreset": "vs2022-6.11.1",
+            "displayName": "Release",
+            "name": "vs2022-6.11.1-release"
+        },
+        {
+            "configuration": "RelWithDebInfo",
+            "configurePreset": "vs2022-6.11.1",
+            "displayName": "RelWithDebInfo",
+            "name": "vs2022-6.11.1-relwithdebinfo"
+        },
+        {
+            "configurePreset": "ninja-6.11.1-debug",
+            "name": "ninja-6.11.1-debug"
+        },
+        {
+            "configurePreset": "ninja-6.11.1-release",
+            "name": "ninja-6.11.1-release"
+        },
+        {
+            "configurePreset": "ninja-6.11.1-relwithdebinfo",
+            "name": "ninja-6.11.1-relwithdebinfo"
+        }
+    ],
+    "configurePresets": [
+        {
+            "hidden": true,
+            "name": "vcpkg-base",
+            "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
+        },
+        {
+            "cacheVariables": {
+                "CMAKE_PREFIX_PATH": "C:/Qt/6.11.1/msvc2022_64;$env{USERPROFILE}/Documents/DsQt"
+            },
+            "hidden": true,
+            "inherits": "vcpkg-base",
+            "name": "qt-6.11.1"
+        },
+        {
+            "architecture": "x64",
+            "binaryDir": "${sourceDir}/build/vs2022-6.11.1",
+            "displayName": "VS2022 x64 - Qt 6.11.1",
+            "generator": "Visual Studio 17 2022",
+            "inherits": "qt-6.11.1",
+            "name": "vs2022-6.11.1"
+        },
+        {
+            "binaryDir": "${sourceDir}/build/ninja-6.11.1-debug",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "CMAKE_CXX_COMPILER": "cl.exe",
+                "CMAKE_C_COMPILER": "cl.exe"
+            },
+            "displayName": "Ninja Debug - Qt 6.11.1",
+            "generator": "Ninja",
+            "inherits": "qt-6.11.1",
+            "name": "ninja-6.11.1-debug"
+        },
+        {
+            "binaryDir": "${sourceDir}/build/ninja-6.11.1-release",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release",
+                "CMAKE_CXX_COMPILER": "cl.exe",
+                "CMAKE_C_COMPILER": "cl.exe"
+            },
+            "displayName": "Ninja Release - Qt 6.11.1",
+            "generator": "Ninja",
+            "inherits": "qt-6.11.1",
+            "name": "ninja-6.11.1-release"
+        },
+        {
+            "binaryDir": "${sourceDir}/build/ninja-6.11.1-relwithdebinfo",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+                "CMAKE_CXX_COMPILER": "cl.exe",
+                "CMAKE_C_COMPILER": "cl.exe"
+            },
+            "displayName": "Ninja RelWithDebInfo - Qt 6.11.1",
+            "generator": "Ninja",
+            "inherits": "qt-6.11.1",
+            "name": "ninja-6.11.1-relwithdebinfo"
+        }
+    ],
+    "version": 6
+}

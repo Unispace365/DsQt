@@ -154,7 +154,7 @@ bool DsEnvironment::loadEngineSettings() {
 
     qCInfo(lgEnv) << "%LOCAL%:" << sDocumentsDownstream;
 #endif
-    
+
     // Make sure the default settings path is used to find the settings.
     //Settings::instance().setSearchPaths({baseSettings});
 
@@ -249,7 +249,7 @@ SettingsFile* DsEnvironment::loadSettings(const QString& settingsName, const QSt
 void DsEnvironment::initialize() {
     static std::once_flag initFlag;
     std::call_once(initFlag, []() {
-        
+
 #ifdef Q_OS_IOS
     sDocuments = QStandardPaths::writableLocation(
         QStandardPaths::DocumentsLocation);
