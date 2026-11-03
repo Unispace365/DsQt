@@ -1,0 +1,46 @@
+{
+  "version": 6,
+  "configurePresets": [
+    {
+      "name": "local-macos",
+      "inherits": "macos",
+      "environment": {
+        "VCPKG_ROOT": "/path/to/vcpkg",
+        "QT_APPLE_ROOT": "/path/to/Qt/6.10.3/macos",
+        "DSQT_ROOT": "/path/to/DsQt-macos"
+      }
+    },
+    {
+      "name": "local-ios-simulator-intel",
+      "inherits": "ios-simulator-intel",
+      "environment": {
+        "VCPKG_ROOT": "/path/to/vcpkg",
+        "QT_APPLE_ROOT": "/path/to/Qt/6.10.3/ios",
+        "QT_HOST_PATH": "/path/to/Qt/6.10.3/macos",
+        "DSQT_ROOT": "/path/to/DsQt-ios-simulator-intel"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "local-macos-debug",
+      "configurePreset": "local-macos",
+      "configuration": "Debug"
+    },
+    {
+      "name": "local-macos-release",
+      "configurePreset": "local-macos",
+      "configuration": "Release"
+    },
+    {
+      "name": "local-ios-simulator-intel-debug",
+      "configurePreset": "local-ios-simulator-intel",
+      "configuration": "Debug"
+    },
+    {
+      "name": "local-ios-simulator-intel-release",
+      "configurePreset": "local-ios-simulator-intel",
+      "configuration": "Release"
+    }
+  ]
+}

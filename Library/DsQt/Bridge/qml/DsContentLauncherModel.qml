@@ -49,7 +49,7 @@ QtObject {
         return adapter._settings.getObj("content", {});
     }
     property Connections _settingsConnection: Connections {
-        target: Settings.app_settings || null
+        target: DsSettings.app_settings || null
         function onSettingsRebuilt() { ++adapter._settingsRevision; }
     }
     property var typeDefinitions: adapter.contentConfig.types || ({})

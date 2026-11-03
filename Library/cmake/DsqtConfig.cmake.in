@@ -216,15 +216,15 @@ function(_dsqt_set_locations _target _basename)
         PROPERTY IMPORTED_CONFIGURATIONS ${_DSQT_IMPORTED_CONFIGS})
 
     set_target_properties(${_target} PROPERTIES
-        IMPORTED_LOCATION_RELEASE "${_DSQT_LIBDIR_RELEASE}/${_basename}${_DSQT_STATIC_SUFFIX}"
-        IMPORTED_LOCATION_DEBUG   "${_DSQT_LIBDIR_DEBUG}/${_basename}${_DSQT_STATIC_SUFFIX}"
+        IMPORTED_LOCATION_RELEASE "${_DSQT_LIBDIR_RELEASE}/${CMAKE_STATIC_LIBRARY_PREFIX}${_basename}${_DSQT_STATIC_SUFFIX}"
+        IMPORTED_LOCATION_DEBUG   "${_DSQT_LIBDIR_DEBUG}/${CMAKE_STATIC_LIBRARY_PREFIX}${_basename}${_DSQT_STATIC_SUFFIX}"
         MAP_IMPORTED_CONFIG_MINSIZEREL Release
     )
 
     if(_DSQT_HAVE_RELWITHDEBINFO)
         set_target_properties(${_target} PROPERTIES
             IMPORTED_LOCATION_RELWITHDEBINFO
-                "${_DSQT_LIBDIR_RELWITHDEBINFO}/${_basename}${_DSQT_STATIC_SUFFIX}")
+                "${_DSQT_LIBDIR_RELWITHDEBINFO}/${CMAKE_STATIC_LIBRARY_PREFIX}${_basename}${_DSQT_STATIC_SUFFIX}")
     else()
         # No RelWithDebInfo was installed (vcpkg / flat layouts): a consumer
         # building RelWithDebInfo links the Release artifacts rather than
@@ -279,11 +279,13 @@ macro(_dsqt_create_plugin_target _name _plugin)
     if(NOT TARGET Dsqt::${_name}plugin)
         add_library(Dsqt::${_name}plugin STATIC IMPORTED)
         _dsqt_set_locations(Dsqt::${_name}plugin "${_plugin}")
+        set_property(TARGET Dsqt::${_name}plugin PROPERTY INTERFACE_LINK_LIBRARIES Dsqt::${_name})
     endif()
     # Non-namespaced target, named exactly as the qmldir 'plugin' line
     if(NOT TARGET ${_plugin})
         add_library(${_plugin} STATIC IMPORTED)
         _dsqt_set_locations(${_plugin} "${_plugin}")
+        set_property(TARGET ${_plugin} PROPERTY INTERFACE_LINK_LIBRARIES Dsqt::${_name})
     endif()
 endmacro()
 
@@ -372,7 +374,7 @@ set(_dsqt_touchengine_requested FALSE)
 set(_dsqt_spout_requested FALSE)
 set(_dsqt_spout_vulkan_enabled "@DSQT_SPOUT_VULKAN_ENABLED@")
 
-if("TouchEngine" IN_LIST DSQT_AVAILABLE_MODULES AND "TouchEngine" IN_LIST _dsqt_requested_modules)
+if(WIN32 AND "TouchEngine" IN_LIST DSQT_AVAILABLE_MODULES AND "TouchEngine" IN_LIST _dsqt_requested_modules)
     set(_dsqt_touchengine_requested TRUE)
 endif()
 

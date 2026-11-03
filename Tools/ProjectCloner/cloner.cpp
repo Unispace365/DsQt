@@ -843,7 +843,7 @@ QByteArray Cloner::generateCMakePresets(const QStringList &versions) const
         }
         if (source == "local") break;
     }
-    return QJsonDocument(QJsonObject{{"version", 6}, {"configurePresets", configure}, {"buildPresets", builds}}).toJson();
+    return QJsonDocument(QJsonObject{{"version", 6}, {"include", QJsonArray{QStringLiteral("cmake/ApplePresets.json")}}, {"configurePresets", configure}, {"buildPresets", builds}}).toJson();
 }
 
 bool Cloner::writeProjectSelection(const QString &destDir)

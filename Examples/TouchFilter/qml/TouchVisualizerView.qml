@@ -104,7 +104,7 @@ Item {
     }
 
     // ── Filter ────────────────────────────────────────────────────────────────
-    TouchFilter {
+    DsTouchFilter {
         id: filter
         transientThresholdMs:  ctrlTransient.value
         smoothingFactor:       ctrlSmooth.value

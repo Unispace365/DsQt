@@ -8,3 +8,5 @@ install/*
 !install/get_deps.bat
 !install/requirements.txt
 !install/base_install.iss
+
+CMakeUserPresets.json

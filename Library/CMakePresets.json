@@ -11,25 +11,114 @@
       "hidden": true,
       "generator": "Ninja Multi-Config",
       "cacheVariables": {
-        "CMAKE_C_COMPILER":         { "type": "FILEPATH", "value": "cl.exe" },
-        "CMAKE_CXX_COMPILER":       { "type": "FILEPATH", "value": "cl.exe" },
-        "CMAKE_CXX_FLAGS_INIT":     { "type": "STRING",   "value": "/EHsc" },
-        "CMAKE_CONFIGURATION_TYPES":{ "type": "STRING",   "value": "Debug;Release;RelWithDebInfo" }
+        "CMAKE_CONFIGURATION_TYPES": { "type": "STRING", "value": "Debug;Release;RelWithDebInfo" }
       }
     },
     {
       "name": "ninja",
-      "displayName": "Ninja Multi-Config",
+      "displayName": "Windows - MSVC Ninja Multi-Config",
+      "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Windows" },
       "inherits": ["vcpkg-base", "ninja-base"],
       "binaryDir": "${sourceDir}/build/ninja",
       "cacheVariables": {
-        "CMAKE_INSTALL_PREFIX": "$env{USERPROFILE}/Documents/DsQt"
+        "CMAKE_C_COMPILER": "cl.exe",
+        "CMAKE_CXX_COMPILER": "cl.exe"
+      }
+    },
+    {
+      "name": "linux",
+      "displayName": "Linux - Ninja Multi-Config",
+      "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Linux" },
+      "inherits": ["vcpkg-base", "ninja-base"],
+      "binaryDir": "${sourceDir}/build/linux"
+    },
+    {
+      "name": "macos",
+      "displayName": "macOS - Ninja Multi-Config",
+      "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Darwin" },
+      "inherits": ["vcpkg-base"],
+      "generator": "Ninja Multi-Config",
+      "binaryDir": "${sourceDir}/build/macos",
+      "cacheVariables": {
+        "CMAKE_CONFIGURATION_TYPES": { "type": "STRING", "value": "Debug;Release;RelWithDebInfo" },
+        "CMAKE_INSTALL_PREFIX": "$env{HOME}/Documents/DsQt"
+      }
+    },
+    {
+      "name": "ios-base",
+      "hidden": true,
+      "generator": "Xcode",
+      "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Darwin" },
+      "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+      "cacheVariables": {
+        "VCPKG_CHAINLOAD_TOOLCHAIN_FILE": "$env{QT_IOS_ROOT}/lib/cmake/Qt6/qt.toolchain.cmake",
+        "CMAKE_CONFIGURATION_TYPES": { "type": "STRING", "value": "Debug;Release;RelWithDebInfo" },
+        "CMAKE_SYSTEM_NAME": "iOS",
+        "CMAKE_XCODE_ATTRIBUTE_CODE_SIGNING_ALLOWED": "NO",
+        "VCPKG_OVERLAY_TRIPLETS": "${sourceDir}/cmake/triplets",
+        "DSQT_BUILD_TESTS": { "type": "BOOL", "value": "OFF" },
+        "DSQT_BUILD_TOOLS": { "type": "BOOL", "value": "OFF" }
+      }
+    },
+    {
+      "name": "ios-device",
+      "displayName": "iOS - device (arm64)",
+      "inherits": ["ios-base"],
+      "binaryDir": "${sourceDir}/build/ios-device",
+      "cacheVariables": {
+        "CMAKE_OSX_SYSROOT": "iphoneos",
+        "CMAKE_OSX_ARCHITECTURES": "arm64",
+        "VCPKG_TARGET_TRIPLET": "arm64-ios",
+        "CMAKE_INSTALL_PREFIX": "$env{HOME}/Documents/DsQt-ios-device"
+      }
+    },
+    {
+      "name": "ios-simulator",
+      "displayName": "iOS - simulator (Apple Silicon arm64)",
+      "inherits": ["ios-base"],
+      "binaryDir": "${sourceDir}/build/ios-simulator",
+      "cacheVariables": {
+        "CMAKE_OSX_SYSROOT": "iphonesimulator",
+        "CMAKE_OSX_ARCHITECTURES": "arm64",
+        "VCPKG_TARGET_TRIPLET": "arm64-ios-simulator",
+        "CMAKE_INSTALL_PREFIX": "$env{HOME}/Documents/DsQt-ios-simulator"
+      }
+    },
+    {
+      "name": "ios-simulator-intel",
+      "displayName": "iOS - simulator (Intel x86_64)",
+      "inherits": [
+        "ios-simulator"
+      ],
+      "binaryDir": "${sourceDir}/build/ios-simulator-intel",
+      "cacheVariables": {
+        "CMAKE_OSX_ARCHITECTURES": "x86_64",
+        "VCPKG_TARGET_TRIPLET": "x64-ios",
+        "CMAKE_INSTALL_PREFIX": "$env{HOME}/Documents/DsQt-ios-simulator-intel"
       }
     }
   ],
   "buildPresets": [
     { "name": "ninja-debug",          "configurePreset": "ninja", "configuration": "Debug" },
     { "name": "ninja-release",        "configurePreset": "ninja", "configuration": "Release" },
-    { "name": "ninja-relwithdebinfo", "configurePreset": "ninja", "configuration": "RelWithDebInfo" }
+    { "name": "ninja-relwithdebinfo", "configurePreset": "ninja", "configuration": "RelWithDebInfo" },
+
+    { "name": "linux-debug",          "configurePreset": "linux", "configuration": "Debug" },
+    { "name": "linux-release",        "configurePreset": "linux", "configuration": "Release" },
+    { "name": "linux-relwithdebinfo", "configurePreset": "linux", "configuration": "RelWithDebInfo" },
+
+    { "name": "macos-debug",                  "configurePreset": "macos",         "configuration": "Debug" },
+    { "name": "macos-release",                "configurePreset": "macos",         "configuration": "Release" },
+    { "name": "macos-relwithdebinfo",         "configurePreset": "macos",         "configuration": "RelWithDebInfo" },
+
+    { "name": "ios-device-debug",             "configurePreset": "ios-device",    "configuration": "Debug" },
+    { "name": "ios-device-release",           "configurePreset": "ios-device",    "configuration": "Release" },
+    { "name": "ios-device-relwithdebinfo",    "configurePreset": "ios-device",    "configuration": "RelWithDebInfo" },
+    { "name": "ios-simulator-debug",          "configurePreset": "ios-simulator", "configuration": "Debug" },
+    { "name": "ios-simulator-release",        "configurePreset": "ios-simulator", "configuration": "Release" },
+    { "name": "ios-simulator-relwithdebinfo", "configurePreset": "ios-simulator", "configuration": "RelWithDebInfo" },
+    {"name": "ios-simulator-intel-debug", "configurePreset": "ios-simulator-intel", "configuration": "Debug"},
+    {"name": "ios-simulator-intel-release", "configurePreset": "ios-simulator-intel", "configuration": "Release"},
+    {"name": "ios-simulator-intel-relwithdebinfo", "configurePreset": "ios-simulator-intel", "configuration": "RelWithDebInfo"}
   ]
 }

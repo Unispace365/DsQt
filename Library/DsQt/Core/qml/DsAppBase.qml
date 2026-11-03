@@ -7,7 +7,7 @@ import Dsqt.Core
 
 /// \brief main window for DsQt QML applications.
 ApplicationWindow {
-    readonly property var windowProxy: Settings.engine?.engine?.window ?? undefined
+    readonly property var windowProxy: DsSettings.engine?.engine?.window ?? undefined
 
     id: window
     flags: Qt.Window
@@ -34,7 +34,7 @@ ApplicationWindow {
         id: refocusTimer
         interval: windowProxy.forceToFrontInterval ?? 2000
         repeat: true
-        onTriggered: WindowHelper.forceToFront(window)
+        onTriggered: DsWindowHelper.forceToFront(window)
     }
 
     // Keep track of screen changes.

@@ -75,3 +75,5 @@ cmake/dsqtimportpath.h
 .vs/
 .qmlls.ini
 .qmllint.ini
+
+CMakeUserPresets.json

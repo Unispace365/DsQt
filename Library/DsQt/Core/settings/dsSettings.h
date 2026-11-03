@@ -18,7 +18,7 @@ namespace dsqt {
 
 class Settings : public QQmlPropertyMap {
     Q_OBJECT
-    QML_ELEMENT
+    QML_NAMED_ELEMENT(DsSettings)
     QML_SINGLETON
 
     Q_PROPERTY(QStringList searchPaths READ searchPaths WRITE setSearchPaths NOTIFY searchPathsChanged)

@@ -63,27 +63,27 @@ MenuBar {
         width: 200
         Action {
             text: "Stop AppHost"
-            onTriggered: AppHost.exit()
+            onTriggered: DsAppHost.exit()
         }
 
         Action {
             text: "Kiosk"
-            onTriggered: AppHost.kiosk()
+            onTriggered: DsAppHost.kiosk()
         }
 
         Action {
             text: "Un-Kiosk"
-            onTriggered: AppHost.unkiosk()
+            onTriggered: DsAppHost.unkiosk()
         }
 
         Action {
             text: "Restart AppHost"
-            onTriggered: AppHost.reconfigure()
+            onTriggered: DsAppHost.reconfigure()
         }
 
         // Action {
         //     text: "Status"
-        //     onTriggered: AppHost.getStatus()
+        //     onTriggered: DsAppHost.getStatus()
         // }
     }
     Menu {

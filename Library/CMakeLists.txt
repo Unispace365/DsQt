@@ -6,6 +6,15 @@ string(STRIP "${DSQT_VERSION_STRING}" DSQT_VERSION_STRING)
 
 project(Dsqt VERSION ${DSQT_VERSION_STRING} LANGUAGES CXX)
 
+# Default install prefix to ~/Documents/DsQt across all platforms if not specified
+if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
+    if(WIN32)
+        set(CMAKE_INSTALL_PREFIX "$ENV{USERPROFILE}/Documents/DsQt" CACHE PATH "Default install prefix" FORCE)
+    else()
+        set(CMAKE_INSTALL_PREFIX "$ENV{HOME}/Documents/DsQt" CACHE PATH "Default install prefix" FORCE)
+    endif()
+endif()
+
 set(CMAKE_AUTORCC ON)
 
 set(CMAKE_CXX_STANDARD 20)
@@ -201,7 +210,7 @@ endif()
 
 foreach(_module Core Bridge Waffles TouchEngine Spout Touch Qsys)
     if(_module IN_LIST DSQT_ENABLED_MODULES)
-        add_subdirectory("Dsqt/${_module}")
+        add_subdirectory("DsQt/${_module}")
     endif()
 endforeach()
 add_library(Dsqt INTERFACE)

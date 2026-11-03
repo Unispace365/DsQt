@@ -9,12 +9,16 @@
       "features": [
         "dx"
       ],
-      "version>=": "2.007.010"
+      "version>=": "2.007.010",
+      "platform": "windows"
     },
     {
       "name": "tomlplusplus",
       "version>=": "3.4.0"
     },
-    "vulkan"
+    {
+      "name": "vulkan",
+      "platform": "windows"
+    }
   ]
 }
