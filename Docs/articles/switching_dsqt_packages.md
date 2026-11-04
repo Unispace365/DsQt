@@ -11,7 +11,27 @@ including Canvas Painter. Disabling Waffles does not lower the current Core
 module's Qt requirement. Check the selected package's metadata and install the
 Qt components required by the modules you use.
 
-## What you are changing
+## Choose your setup path
+
+Complete [Before you start](#before-you-start), then follow the one path you need:
+
+| I want to... | Follow this path |
+| --- | --- |
+| Use a published release, or upgrade/downgrade a published version | [Use a published DsQt package](#use-a-published-dsqt-package) |
+| Build DsQt from my checkout and use the resulting local package | [Use a local DsQt source package](#use-a-local-dsqt-source-package) |
+| Use a DsQt installation or an extracted library ZIP | [Use an installed DsQt library](#use-an-installed-dsqt-library) |
+
+Each path uses the [shared preset example](#shared-preset-example-for-all-three-paths).
+If your application already has the matching preset, use its actual name.
+Finish with [Build and verify your selected setup](#build-and-verify-your-selected-setup).
+You do not need to complete the other setup paths.
+
+For an existing setup, see the optional tasks [Change the Qt kit](#change-the-qt-kit)
+and [Add or remove modules](#add-or-remove-modules).
+
+## Before you start
+
+### Understand which files control the setup
 
 | Change | Files/settings to update |
 | --- | --- |
@@ -41,7 +61,9 @@ The files have different responsibilities:
 See [vcpkg version selection](https://learn.microsoft.com/en-us/vcpkg/users/versioning)
 for the distinction between baselines and overrides.
 
-## 1. Check the application's starting point
+<a id="1-check-the-applications-starting-point"></a>
+
+### Check your application and prepare older projects
 
 From the application directory:
 
@@ -84,7 +106,94 @@ Keep the template's static QML plugin imports, `IMPORT_PATH
 helpers. Older `add_subdirectory` applications should first follow the
 [migration guide](migration_subdirectory_to_library.md).
 
-## 2. Pin a published package
+<a id="3-choose-the-source-in-presets"></a>
+
+## Shared preset example for all three paths
+
+This is a reference for all three paths, not a requirement to enable all three.
+Use `user-dsqt-base`, the configure preset for your chosen path, and its matching
+Debug/Release build presets. The paths below explain the settings to use.
+
+The following is a complete **CMakeUserPresets.json** example for an application
+that has the two helpers described above. Registry and local mode also need
+the corresponding manifest feature from the [manifest example](#pin-the-published-version).
+It does not depend on generated preset names. Merge it if you already have a
+user-presets file, and adjust the paths. Start an x64 MSVC developer shell and set `VCPKG_ROOT` to your
+bootstrapped checkout. Ninja must be available in that shell.
+
+```json
+{
+  "version": 6,
+  "configurePresets": [
+    {
+      "name": "user-dsqt-base",
+      "hidden": true,
+      "generator": "Ninja Multi-Config",
+      "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+      "cacheVariables": {
+        "CMAKE_CONFIGURATION_TYPES": "Debug;Release",
+        "CMAKE_C_COMPILER": "cl.exe",
+        "CMAKE_CXX_COMPILER": "cl.exe",
+        "CMAKE_CXX_FLAGS_INIT": "/EHsc"
+      }
+    },
+    {
+      "name": "user-registry-6.12.0",
+      "inherits": "user-dsqt-base",
+      "binaryDir": "${sourceDir}/build/user-registry-6.12.0",
+      "cacheVariables": {
+        "DSQT_USE_REGISTRY_VCPKG": "ON",
+        "DSQT_USE_LOCAL_VCPKG": "OFF",
+        "DSQT_REGISTRY_QT_VERSION": "6.12.0",
+        "DSQT_REGISTRY_QT_ROOT": "C:/Qt"
+      }
+    },
+    {
+      "name": "user-local-6.12.0",
+      "inherits": "user-dsqt-base",
+      "binaryDir": "${sourceDir}/build/user-local-6.12.0",
+      "cacheVariables": {
+        "DSQT_USE_REGISTRY_VCPKG": "OFF",
+        "DSQT_USE_LOCAL_VCPKG": "ON",
+        "DSQT_LOCAL_PACKAGE_ROOT": "$env{LOCALAPPDATA}/DsQt/vcpkg"
+      }
+    },
+    {
+      "name": "user-installed-6.12.0",
+      "inherits": "user-dsqt-base",
+      "binaryDir": "${sourceDir}/build/user-installed-6.12.0",
+      "cacheVariables": {
+        "DSQT_USE_REGISTRY_VCPKG": "OFF",
+        "DSQT_USE_LOCAL_VCPKG": "OFF",
+        "CMAKE_PREFIX_PATH": "C:/Qt/6.12.0/msvc2022_64;$env{USERPROFILE}/Documents/DsQt",
+        "Dsqt_DIR": "$env{USERPROFILE}/Documents/DsQt/lib/cmake/Dsqt",
+        "VCPKG_TARGET_TRIPLET": "x64-windows",
+        "VCPKG_INSTALLED_DIR": "${sourceDir}/build/user-installed-6.12.0/vcpkg_installed"
+      }
+    }
+  ],
+  "buildPresets": [
+    { "name": "user-registry-release", "configurePreset": "user-registry-6.12.0", "configuration": "Release" },
+    { "name": "user-local-release", "configurePreset": "user-local-6.12.0", "configuration": "Release" },
+    { "name": "user-installed-release", "configurePreset": "user-installed-6.12.0", "configuration": "Release" },
+    { "name": "user-registry-debug", "configurePreset": "user-registry-6.12.0", "configuration": "Debug" },
+    { "name": "user-local-debug", "configurePreset": "user-local-6.12.0", "configuration": "Debug" },
+    { "name": "user-installed-debug", "configurePreset": "user-installed-6.12.0", "configuration": "Debug" }
+  ]
+}
+```
+
+For shared team support, put the portable presets in `CMakePresets.json` and keep
+machine-specific overrides in the user file. Names must be unique across both.
+See [CMake user presets](cmake_user_presets.md) for inheritance examples.
+
+<a id="2-pin-a-published-package"></a>
+
+## Use a published DsQt package
+
+Follow this path to select a published version and configure your application to use it.
+
+### Pin the published version
 
 ProjectCloner writes these pins when you choose a version. For an existing app,
 merge the following **fragments** into its files, preserving unrelated
@@ -156,86 +265,11 @@ invent a minimum such as `0.3.0-0`; requested minimum versions must exist.
 Neither changing `Library/VERSION.txt` nor changing the app's top-level
 `vcpkg.json` version selects a published dependency.
 
-## 3. Choose the source in presets
+### Select the registry preset
 
-The following is a complete **CMakeUserPresets.json** example for an application
-that has the two helpers and manifest features above. It does not depend on
-generated preset names. Merge it if you already have a user-presets file, and
-adjust the paths. Start an x64 MSVC developer shell and set `VCPKG_ROOT` to your
-bootstrapped checkout. Ninja must be available in that shell.
-
-```json
-{
-  "version": 6,
-  "configurePresets": [
-    {
-      "name": "user-dsqt-base",
-      "hidden": true,
-      "generator": "Ninja Multi-Config",
-      "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
-      "cacheVariables": {
-        "CMAKE_CONFIGURATION_TYPES": "Debug;Release",
-        "CMAKE_C_COMPILER": "cl.exe",
-        "CMAKE_CXX_COMPILER": "cl.exe",
-        "CMAKE_CXX_FLAGS_INIT": "/EHsc"
-      }
-    },
-    {
-      "name": "user-registry-6.12.0",
-      "inherits": "user-dsqt-base",
-      "binaryDir": "${sourceDir}/build/user-registry-6.12.0",
-      "cacheVariables": {
-        "DSQT_USE_REGISTRY_VCPKG": "ON",
-        "DSQT_USE_LOCAL_VCPKG": "OFF",
-        "DSQT_REGISTRY_QT_VERSION": "6.12.0",
-        "DSQT_REGISTRY_QT_ROOT": "C:/Qt"
-      }
-    },
-    {
-      "name": "user-local-6.12.0",
-      "inherits": "user-dsqt-base",
-      "binaryDir": "${sourceDir}/build/user-local-6.12.0",
-      "cacheVariables": {
-        "DSQT_USE_REGISTRY_VCPKG": "OFF",
-        "DSQT_USE_LOCAL_VCPKG": "ON",
-        "DSQT_LOCAL_PACKAGE_ROOT": "$env{LOCALAPPDATA}/DsQt/vcpkg"
-      }
-    },
-    {
-      "name": "user-installed-6.12.0",
-      "inherits": "user-dsqt-base",
-      "binaryDir": "${sourceDir}/build/user-installed-6.12.0",
-      "cacheVariables": {
-        "DSQT_USE_REGISTRY_VCPKG": "OFF",
-        "DSQT_USE_LOCAL_VCPKG": "OFF",
-        "CMAKE_PREFIX_PATH": "C:/Qt/6.12.0/msvc2022_64;$env{USERPROFILE}/Documents/DsQt",
-        "Dsqt_DIR": "$env{USERPROFILE}/Documents/DsQt/lib/cmake/Dsqt",
-        "VCPKG_TARGET_TRIPLET": "x64-windows",
-        "VCPKG_INSTALLED_DIR": "${sourceDir}/build/user-installed-6.12.0/vcpkg_installed"
-      }
-    }
-  ],
-  "buildPresets": [
-    { "name": "user-registry-release", "configurePreset": "user-registry-6.12.0", "configuration": "Release" },
-    { "name": "user-local-release", "configurePreset": "user-local-6.12.0", "configuration": "Release" },
-    { "name": "user-installed-release", "configurePreset": "user-installed-6.12.0", "configuration": "Release" },
-    { "name": "user-registry-debug", "configurePreset": "user-registry-6.12.0", "configuration": "Debug" },
-    { "name": "user-local-debug", "configurePreset": "user-local-6.12.0", "configuration": "Debug" },
-    { "name": "user-installed-debug", "configurePreset": "user-installed-6.12.0", "configuration": "Debug" }
-  ]
-}
-```
-
-For shared team support, put the portable presets in `CMakePresets.json` and keep
-machine-specific overrides in the user file. Names must be unique across both.
-See [CMake user presets](cmake_user_presets.md) for inheritance examples.
-
-### Installed library to registry
-
-Before: both mode switches off, with Qt and the installed DsQt prefix in
-`CMAKE_PREFIX_PATH`. After: `DSQT_USE_REGISTRY_VCPKG=ON`, local mode off, and the
-registry Qt variables set. Select `user-registry-6.12.0` above after pinning the
-package in section 2. The helper sets Qt paths, the triplet, the manifest feature,
+Set `DSQT_USE_REGISTRY_VCPKG=ON`, local mode off, and the registry Qt variables.
+Select `user-registry-6.12.0` from the [shared preset example](#shared-preset-example-for-all-three-paths)
+after pinning the package above. The helper sets Qt paths, the triplet, the manifest feature,
 and `Dsqt_DIR` to the app's own `vcpkg_installed/<triplet>/share/dsqt`.
 
 Remove source overlays from `VCPKG_OVERLAY_PORTS`, its environment variable, and
@@ -243,7 +277,16 @@ Remove source overlays from `VCPKG_OVERLAY_PORTS`, its environment variable, and
 these to ensure that a local recipe cannot replace the selected published port.
 Do not carry an old installed `Dsqt_DIR` or `Qt6_DIR` into the new build directory.
 
-### Registry to a local source package
+Continue with [Build and verify your selected setup](#build-and-verify-your-selected-setup).
+
+## Use a local DsQt source package
+
+Use this path for a package built from your own DsQt checkout. Your application
+needs the local helper from [Before you start](#before-you-start), the
+`dsqt-local` feature shown in the [manifest example](#pin-the-published-version),
+and `user-local-6.12.0` from the [shared preset example](#shared-preset-example-for-all-three-paths).
+The published-version pin and registry preset are only needed if you also use
+the published-package path.
 
 Build a completed local package from your DsQt checkout first:
 
@@ -286,7 +329,13 @@ Published snapshots are retained, and failed builds do not replace the default.
 The package and binary cache are local to your machine.
 See the [local package guide](../vcpkg.md#build-a-local-package-and-use-it-in-a-new-application).
 
-### Registry or local package to an installed library
+Continue with [Build and verify your selected setup](#build-and-verify-your-selected-setup).
+
+## Use an installed DsQt library
+
+Use this path for an existing DsQt installation or library ZIP. Use
+`user-installed-6.12.0` from the [shared preset example](#shared-preset-example-for-all-three-paths).
+The published-version pins and local-package build are not required for this path.
 
 Build/install DsQt with your exact Qt kit, or extract a compatible library ZIP.
 Select `user-installed-6.12.0`, with both package switches off and paths pointing
@@ -299,7 +348,11 @@ vcpkg layout uses `share/dsqt/DsqtConfig.cmake`. Preserve the template's deploym
 helpers, which handle both layouts. Match the installed library's Qt version,
 architecture, compiler compatibility, and Debug/Release binaries.
 
-## 4. Change Qt or modules
+Continue with [Build and verify your selected setup](#build-and-verify-your-selected-setup).
+
+<a id="4-change-qt-or-modules"></a>
+
+## Change the Qt kit
 
 For a **registry build**, duplicate the registry preset and change
 `DSQT_REGISTRY_QT_VERSION` to the exact installed version. Change its name and
@@ -313,7 +366,9 @@ a new preset at its resulting package root. For an **installed library**, build
 or obtain a matching installation and update both the Qt and DsQt paths in a new
 preset. An installed library is not rebuilt by changing the consumer's Qt path.
 
-For **modules**, keep `dsqt-project.json` and the dependency feature arrays in
+## Add or remove modules
+
+Keep `dsqt-project.json` and the dependency feature arrays in
 both `dsqt-registry` and `dsqt-local` aligned. For example, adding Waffles to
 Core-only changes modules to `["Core", "Waffles"]` and dependency features to
 `["waffles"]`. Keep `default-features` false to avoid enabling every module.
@@ -326,7 +381,9 @@ its startup code, plugin registration, QML, settings, and deployment resources.
 Compare a separately generated project with that module selected. For Waffles,
 follow the [existing-app integration path](../waffles-implementation-guide.md#existing-dsqt-application-integrate-in-place).
 
-## 5. Configure, build, and verify the result
+<a id="5-configure-build-and-verify-the-result"></a>
+
+## Build and verify your selected setup
 
 Use a separate build directory when switching sources, Qt kits, compilers,
 architectures, or generators. For a version-only update within the same mode and
@@ -335,7 +392,19 @@ clears CMake's cache and `CMakeFiles`; it does not clear all installed dependenc
 or deployed output. A new directory is the clearest diagnostic for stale state.
 See [CMake's command-line reference](https://cmake.org/cmake/help/latest/manual/cmake.1.html#cmdoption-cmake-fresh).
 
-Example for the complete registry preset above, in a matching x64 MSVC shell:
+Choose the names and build directory for your setup from this table. These
+match the [shared preset example](#shared-preset-example-for-all-three-paths);
+substitute your actual names if you use generated or existing presets.
+
+| Setup path | Configure preset | Release build preset | Build directory |
+| --- | --- | --- | --- |
+| Published package | `user-registry-6.12.0` | `user-registry-release` | `build/user-registry-6.12.0` |
+| Local source package | `user-local-6.12.0` | `user-local-release` | `build/user-local-6.12.0` |
+| Installed library | `user-installed-6.12.0` | `user-installed-release` | `build/user-installed-6.12.0` |
+
+Example for the published-package path, in a matching x64 MSVC shell.
+For another path, replace both preset names and the install build directory
+using the table above:
 
 ```powershell
 $env:VCPKG_ROOT = 'C:/vcpkg'
@@ -344,7 +413,8 @@ cmake --build --preset user-registry-release
 cmake --install build/user-registry-6.12.0 --config Release
 ```
 
-Inspect the actual result, rather than relying only on the UI label:
+Inspect the actual result, rather than relying only on the UI label. Set
+`$buildDir` to your selected path's build directory from the table above:
 
 ```powershell
 $buildDir = 'build/user-registry-6.12.0'
