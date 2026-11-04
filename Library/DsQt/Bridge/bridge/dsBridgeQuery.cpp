@@ -1009,11 +1009,14 @@ DatabaseContent DsBridgeSqlQuery::queryTables() {
         } else if (field_type == "COLOR") {
             record.insertOrAssign(field_uid, result.value("color").toString());
         } else if (field_type == "TAGS") {
-            const auto tag_uid = result.value("tags").toString();
-            auto       uids    = record.value(field_uid).toStringList();
-            auto       labels  = record.value(field_uid + "_labels").toStringList();
+            auto uids   = record.value(field_uid).toStringList();
+            auto labels = record.value(field_uid + "_labels").toStringList();
+            // One tag uid per row, or several in one row separated by commas.
             // BridgeSync uses '_' for an empty tag value.
-            if (!tag_uid.isEmpty() && tag_uid != "_") {
+            const auto tag_uids = result.value("tags").toString().split(',', Qt::SkipEmptyParts);
+            for (const auto& entry : tag_uids) {
+                const auto tag_uid = entry.trimmed();
+                if (tag_uid.isEmpty() || tag_uid == "_") continue;
                 const auto tag = content.m_records.constFind(tag_uid);
                 if (tag != content.m_records.constEnd() && tag->value("variant") == "TAG") {
                     content.addRecordTag(uid, tag_uid);
