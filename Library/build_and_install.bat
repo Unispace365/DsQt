@@ -5,36 +5,40 @@ goto :script_start
 
 :usage
 echo[
-echo Usage: build_and_install.bat [preset] [-test] [-tools] [-no-configure] [-no-install]
-echo                              [-force-install] [-clean]
-echo                              [-hard-clean] [-rebuild] [-hard-rebuild] [-qt ^<ver^|path^>]
-echo                              [-no-private-reinject] [-fresh]
-echo        build_and_install.bat -vcpkg -qt ^<ver^|path^> [-modules Core,Qsys]
-echo                              [-publish-root ^<path^>] [-package-root ^<path^>]
+echo Usage: build_and_install.bat [preset] [--test] [--tools] [--no-configure] [--no-install]
+echo                              [--force-install] [--clean]
+echo                              [--hard-clean] [--rebuild] [--hard-rebuild] [--qt ^<ver^|path^>]
+echo                              [--no-private-reinject] [--fresh]
+echo        build_and_install.bat --vcpkg --qt ^<ver^|path^> [--modules "Core,Qsys"]
+echo                              [--publish-root ^<path^>] [--package-root ^<path^>]
 echo[
-echo   preset              : CMake configure preset name ^(default: ninja^)
-echo   -test               : Enable and run unit tests after the Debug build
-echo   -tools              : Build and install ProjectCloner + ClonerSource template
-echo   -vcpkg              : Build a local Debug/Release source package and binary cache
+echo   preset                 : CMake configure preset name ^(default: ninja^)
+echo   --test                 : Enable and run unit tests after the Debug build
+echo   --tools                : Build and install ProjectCloner + ClonerSource template
+echo   --vcpkg                : Build a local Debug/Release source package and binary cache
 echo                         Publish locally under %%LOCALAPPDATA%%\DsQt\vcpkg
-echo                         Requires -qt; does not publish to the GitHub registry
-echo   -publish-root       : Override the local publication store ^(-vcpkg only^)
-echo   -package-root       : Override staging below Library\build ^(-vcpkg only^)
-echo   -fresh / --fresh    : Reset the CMake cache before configuring, keeping build outputs
-echo   -no-configure       : Skip the CMake configure step ^(for fast incremental builds^)
-echo   -no-install         : Skip the install steps entirely
-echo   -force-install      : Install even when both builds report no changes
-echo   -clean              : Run cmake --build clean targets and exit
-echo   -hard-clean         : Delete the entire build folder and exit
-echo   -rebuild            : Clean then build ^(cmake clean + full build^)
-echo   -hard-rebuild       : Delete build folder then configure + build + install from scratch
-echo   -qt ^<ver or path^>   : Qt version ^(e.g. 6.10.2^) or full path ^(e.g. C:\Qt\6.10.2\msvc2022_64^)
-echo   -no-private-reinject: Disable private-header touch re-injection ^(falls back to
+echo                         Requires --qt; does not publish to the GitHub registry
+echo   --publish-root         : Override the local publication store ^(--vcpkg only^)
+echo   --package-root         : Override staging below Library\build ^(--vcpkg only^)
+echo   --fresh                : Reset the CMake cache before configuring, keeping build outputs
+echo   --no-configure         : Skip the CMake configure step ^(for fast incremental builds^)
+echo   --no-install           : Skip the install steps entirely
+echo   --force-install        : Install even when both builds report no changes
+echo   --clean                : Run cmake --build clean targets and exit
+echo   --hard-clean           : Delete the entire build folder and exit
+echo   --rebuild              : Clean then build ^(cmake clean + full build^)
+echo   --hard-rebuild         : Delete build folder then configure + build + install from scratch
+echo   --qt ^<ver or path^>   : Qt version ^(e.g. 6.10.2^) or full path ^(e.g. C:\Qt\6.10.2\msvc2022_64^)
+echo   --no-private-reinject  : Disable private-header touch re-injection ^(falls back to
 echo                         QCoreApplication::sendEvent; private reinject is ON by default^)
-echo   -h / -?             : Print usage info and exit
-if defined PRINT_HELP (
-  exit /b 0
-)
+echo   --help / --h / --?     : Print usage info and exit
+echo   Legacy -name options are accepted with a warning; /name aliases remain supported.
+exit /b !USAGE_EXIT!
+
+:invalid_args
+>&2 echo ERROR: !ARG_ERROR!
+set USAGE_EXIT=2
+goto :usage
 
 :script_start
 
@@ -44,16 +48,6 @@ REM the caller's explicitly configured standalone vcpkg root across MSVC setup.
 set "CALLER_VCPKG_ROOT=%VCPKG_ROOT%"
 set "CALLER_VCPKG_ROOT_WAS_DEFINED=0"
 if defined VCPKG_ROOT set "CALLER_VCPKG_ROOT_WAS_DEFINED=1"
-
-REM Set up the MSVC developer environment if not already active
-call :setup_msvc
-if errorlevel 1 exit /b 1
-
-if "%CALLER_VCPKG_ROOT_WAS_DEFINED%"=="1" (
-    set "VCPKG_ROOT=%CALLER_VCPKG_ROOT%"
-) else (
-    set "VCPKG_ROOT="
-)
 
 set PRESET=ninja
 set RUN_TESTS=0
@@ -67,6 +61,7 @@ set DO_REBUILD=0
 set DO_HARD_REBUILD=0
 set BUILD_TOOLS=0
 set PRINT_HELP=0
+set USAGE_EXIT=0
 set QT_PATH=
 set NO_PRIVATE_REINJECT=0
 set BUILD_VCPKG=0
@@ -76,92 +71,172 @@ set "DSQT_PACKAGE_WORK="
 set "DSQT_PUBLISH_ROOT="
 set EXPLICIT_PRESET=0
 
-:: Parse arguments — accept preset and flags in any order
+:: Validate arguments before setting up MSVC or performing build/package actions.
 :parse_args
-if "%~1"=="" goto :args_done
-if /i "%~1"=="-publish-root" (
-    if "%~2"=="" (echo ERROR: -publish-root requires a path.& exit /b 2)
-    set "DSQT_PUBLISH_ROOT=%~2"
-    shift
+if [%1]==[] goto :args_done
+if "%~1"=="" (
+    set "ARG_ERROR=Empty arguments are not supported."
+    goto :invalid_args
+)
+set "ARG=%~1"
+set "OPTION="
+set IS_OPTION=0
+set LEGACY_OPTION=0
+if "!ARG:~0,2!"=="--" (
+    set "OPTION=!ARG:~2!"
+    set IS_OPTION=1
+) else if "!ARG:~0,1!"=="-" (
+    set "OPTION=!ARG:~1!"
+    set IS_OPTION=1
+    set LEGACY_OPTION=1
+) else if "!ARG:~0,1!"=="/" (
+    set "OPTION=!ARG:~1!"
+    set IS_OPTION=1
+)
+if !IS_OPTION!==0 (
+    if !EXPLICIT_PRESET!==1 (
+        set "ARG_ERROR=Multiple presets given: !PRESET! and !ARG!."
+        goto :invalid_args
+    )
+    set "PRESET=!ARG!"
+    set EXPLICIT_PRESET=1
     shift
     goto :parse_args
 )
-if /i "%~1"=="-package-root" (
-    if "%~2"=="" (echo ERROR: -package-root requires a path.& exit /b 2)
-    set "DSQT_PACKAGE_WORK=%~2"
-    shift
-    shift
-    goto :parse_args
+set OPTION_KNOWN=0
+for %%O in (vcpkg fresh test tools no-configure no-install force-install clean hard-clean rebuild hard-rebuild no-private-reinject help h ? publish-root package-root modules qt) do if /i "!OPTION!"=="%%O" set OPTION_KNOWN=1
+if !OPTION_KNOWN!==0 (
+    set "ARG_ERROR=Unknown option: !ARG!."
+    goto :invalid_args
 )
-if /i "%~1"=="-modules" (set DSQT_MODULES_REQUESTED=1& set "DSQT_PACKAGE_MODULES=%~2"& shift & shift & goto :parse_args)
-if /i "%~1"=="-vcpkg"        (set BUILD_VCPKG=1& shift & goto :parse_args)
-if /i "%~1"=="-fresh"         (set FRESH_CONFIGURE=1& shift & goto :parse_args)
-if /i "%~1"=="--fresh"        (set FRESH_CONFIGURE=1& shift & goto :parse_args)
-if /i "%~1"=="/fresh"         (set FRESH_CONFIGURE=1& shift & goto :parse_args)
-if /i "%~1"=="-test"          (set RUN_TESTS=1& shift & goto :parse_args)
-if /i "%~1"=="/test"          (set RUN_TESTS=1& shift & goto :parse_args)
-if /i "%~1"=="-tools"         (set BUILD_TOOLS=1& shift & goto :parse_args)
-if /i "%~1"=="/tools"         (set BUILD_TOOLS=1& shift & goto :parse_args)
-if /i "%~1"=="-no-configure"  (set SKIP_CONFIGURE=1& shift & goto :parse_args)
-if /i "%~1"=="/no-configure"  (set SKIP_CONFIGURE=1& shift & goto :parse_args)
-if /i "%~1"=="-no-install"    (set SKIP_INSTALL=1& shift & goto :parse_args)
-if /i "%~1"=="/no-install"    (set SKIP_INSTALL=1& shift & goto :parse_args)
-if /i "%~1"=="-force-install" (set FORCE_INSTALL=1& shift & goto :parse_args)
-if /i "%~1"=="/force-install" (set FORCE_INSTALL=1& shift & goto :parse_args)
-if /i "%~1"=="-clean"         (set DO_CLEAN=1& shift & goto :parse_args)
-if /i "%~1"=="/clean"         (set DO_CLEAN=1& shift & goto :parse_args)
-if /i "%~1"=="-hard-clean"    (set DO_HARD_CLEAN=1& shift & goto :parse_args)
-if /i "%~1"=="/hard-clean"    (set DO_HARD_CLEAN=1& shift & goto :parse_args)
-if /i "%~1"=="-rebuild"       (set DO_REBUILD=1& shift & goto :parse_args)
-if /i "%~1"=="/rebuild"       (set DO_REBUILD=1& shift & goto :parse_args)
-if /i "%~1"=="-hard-rebuild"  (set DO_HARD_REBUILD=1& shift & goto :parse_args)
-if /i "%~1"=="/hard-rebuild"  (set DO_HARD_REBUILD=1& shift & goto :parse_args)
-if /i "%~1"=="-qt"                  (set QT_PATH=%~2& shift & shift & goto :parse_args)
-if /i "%~1"=="/qt"                  (set QT_PATH=%~2& shift & shift & goto :parse_args)
-if /i "%~1"=="-no-private-reinject" (set NO_PRIVATE_REINJECT=1& shift & goto :parse_args)
-if /i "%~1"=="/no-private-reinject" (set NO_PRIVATE_REINJECT=1& shift & goto :parse_args)
-if /i "%~1"=="-h"            (set PRINT_HELP=1& shift & goto :parse_args)
-if /i "%~1"=="/h"            (set PRINT_HELP=1& shift & goto :parse_args)
-if /i "%~1"=="-?"            (set PRINT_HELP=1& shift & goto :parse_args)
-if /i "%~1"=="/?"            (set PRINT_HELP=1& shift & goto :parse_args)
-set PRESET=%~1
-set EXPLICIT_PRESET=1
+if !LEGACY_OPTION!==1 >&2 echo WARNING: !ARG! is deprecated; use --!OPTION! instead.
+set NEEDS_VALUE=0
+for %%O in (publish-root package-root modules qt) do if /i "!OPTION!"=="%%O" set NEEDS_VALUE=1
+if !NEEDS_VALUE!==1 (
+    set "ARG_VALUE=%~2"
+    if not defined ARG_VALUE (
+        set "ARG_ERROR=--!OPTION! requires a value."
+        goto :invalid_args
+    )
+    if "!ARG_VALUE:~0,1!"=="-" (
+        set "ARG_ERROR=--!OPTION! requires a value before !ARG_VALUE!."
+        goto :invalid_args
+    )
+    REM Recognize slash aliases as options while allowing slash-prefixed paths.
+    for %%O in (vcpkg fresh test tools no-configure no-install force-install clean hard-clean rebuild hard-rebuild no-private-reinject help h ? publish-root package-root modules qt) do (
+        if /i "!ARG_VALUE!"=="/%%O" (
+            set "ARG_ERROR=--!OPTION! requires a value before !ARG_VALUE!."
+            goto :invalid_args
+        )
+    )
+    if /i "!OPTION!"=="publish-root" set "DSQT_PUBLISH_ROOT=!ARG_VALUE!"
+    if /i "!OPTION!"=="package-root" set "DSQT_PACKAGE_WORK=!ARG_VALUE!"
+    if /i "!OPTION!"=="modules" set "DSQT_PACKAGE_MODULES=!ARG_VALUE!"
+    if /i "!OPTION!"=="qt" set "QT_PATH=!ARG_VALUE!"
+    if /i "!OPTION!"=="modules" set DSQT_MODULES_REQUESTED=1
+    shift
+) else (
+    if /i "!OPTION!"=="vcpkg" set BUILD_VCPKG=1
+    if /i "!OPTION!"=="fresh" set FRESH_CONFIGURE=1
+    if /i "!OPTION!"=="test" set RUN_TESTS=1
+    if /i "!OPTION!"=="tools" set BUILD_TOOLS=1
+    if /i "!OPTION!"=="no-configure" set SKIP_CONFIGURE=1
+    if /i "!OPTION!"=="no-install" set SKIP_INSTALL=1
+    if /i "!OPTION!"=="force-install" set FORCE_INSTALL=1
+    if /i "!OPTION!"=="clean" set DO_CLEAN=1
+    if /i "!OPTION!"=="hard-clean" set DO_HARD_CLEAN=1
+    if /i "!OPTION!"=="rebuild" set DO_REBUILD=1
+    if /i "!OPTION!"=="hard-rebuild" set DO_HARD_REBUILD=1
+    if /i "!OPTION!"=="no-private-reinject" set NO_PRIVATE_REINJECT=1
+    if /i "!OPTION!"=="help" set PRINT_HELP=1
+    if /i "!OPTION!"=="h" set PRINT_HELP=1
+    if /i "!OPTION!"=="?" set PRINT_HELP=1
+)
 shift
 goto :parse_args
 :args_done
 
-if !PRINT_HELP!==1 (
-    goto :usage
-)
+if !PRINT_HELP!==1 goto :usage
 
-if !BUILD_VCPKG!==0 if !DSQT_MODULES_REQUESTED!==1 (
-    echo ERROR: -modules requires -vcpkg.
-    exit /b 2
+if !BUILD_VCPKG!==0 (
+    if !DSQT_MODULES_REQUESTED!==1 (
+        set "ARG_ERROR=--modules requires --vcpkg."
+        goto :invalid_args
+    )
+    if defined DSQT_PUBLISH_ROOT (
+        set "ARG_ERROR=--publish-root requires --vcpkg."
+        goto :invalid_args
+    )
+    if defined DSQT_PACKAGE_WORK (
+        set "ARG_ERROR=--package-root requires --vcpkg."
+        goto :invalid_args
+    )
+)
+if !BUILD_VCPKG!==1 (
+    if not defined QT_PATH (
+        set "ARG_ERROR=--vcpkg requires --qt, for example: --vcpkg --qt 6.12.0."
+        goto :invalid_args
+    )
+    for %%F in (EXPLICIT_PRESET RUN_TESTS BUILD_TOOLS FRESH_CONFIGURE SKIP_CONFIGURE SKIP_INSTALL FORCE_INSTALL DO_CLEAN DO_HARD_CLEAN DO_REBUILD DO_HARD_REBUILD NO_PRIVATE_REINJECT) do (
+        if !%%F!==1 (
+            set "ARG_ERROR=--vcpkg supports only --qt, --modules, --publish-root and --package-root. Run build/test/tool options separately."
+            goto :invalid_args
+        )
+    )
+)
+if !FRESH_CONFIGURE!==1 if !SKIP_CONFIGURE!==1 (
+    set "ARG_ERROR=--fresh cannot be combined with --no-configure."
+    goto :invalid_args
+)
+if !DO_HARD_REBUILD!==1 if !SKIP_CONFIGURE!==1 (
+    set "ARG_ERROR=--hard-rebuild cannot be combined with --no-configure."
+    goto :invalid_args
+)
+set /a CLEAN_MODE_COUNT=DO_CLEAN+DO_HARD_CLEAN+DO_REBUILD+DO_HARD_REBUILD
+if !CLEAN_MODE_COUNT! gtr 1 (
+    set "ARG_ERROR=Choose only one of --clean, --hard-clean, --rebuild and --hard-rebuild."
+    goto :invalid_args
+)
+if !SKIP_INSTALL!==1 (
+    if !FORCE_INSTALL!==1 (
+        set "ARG_ERROR=--force-install cannot be combined with --no-install."
+        goto :invalid_args
+    )
+    if !BUILD_TOOLS!==1 (
+        set "ARG_ERROR=--tools cannot be combined with --no-install."
+        goto :invalid_args
+    )
 )
 if !BUILD_VCPKG!==0 (
-    if defined DSQT_PUBLISH_ROOT (echo ERROR: -publish-root requires -vcpkg.& exit /b 2)
-    if defined DSQT_PACKAGE_WORK (echo ERROR: -package-root requires -vcpkg.& exit /b 2)
+    where cmake.exe >nul 2>&1
+    if errorlevel 1 (
+        >&2 echo ERROR: cmake not found on PATH; cannot validate the preset.
+        exit /b 1
+    )
+    set PRESET_VALID=0
+    for /f "tokens=1" %%P in ('cmake --list-presets 2^>nul') do (
+        if [%%P]==["!PRESET!"] set PRESET_VALID=1
+    )
+    if !PRESET_VALID!==0 (
+        set "ARG_ERROR=Unknown or unavailable preset: !PRESET!. Run cmake --list-presets for available presets."
+        goto :invalid_args
+    )
+)
+
+:: Argument validation is complete; toolchain setup and package/build work may begin.
+REM Set up the MSVC developer environment if not already active
+call :setup_msvc
+if errorlevel 1 exit /b 1
+
+if "%CALLER_VCPKG_ROOT_WAS_DEFINED%"=="1" (
+    set "VCPKG_ROOT=%CALLER_VCPKG_ROOT%"
+) else (
+    set "VCPKG_ROOT="
 )
 
 if !BUILD_VCPKG!==1 (
-    if not defined QT_PATH (
-        echo ERROR: -vcpkg requires -qt, for example: -vcpkg -qt 6.12.0
-        exit /b 2
-    )
-    for %%F in (EXPLICIT_PRESET RUN_TESTS BUILD_TOOLS FRESH_CONFIGURE SKIP_CONFIGURE SKIP_INSTALL DO_CLEAN DO_HARD_CLEAN DO_REBUILD DO_HARD_REBUILD NO_PRIVATE_REINJECT) do (
-        if !%%F!==1 (
-            echo ERROR: incompatible package option: %%F
-            echo ERROR: -vcpkg supports -qt, -modules, -publish-root and -package-root. Run ordinary build/test/tool options separately.
-            exit /b 2
-        )
-    )
     powershell -NoProfile -ExecutionPolicy Bypass -File "!DSQT_SCRIPT_DIR!vcpkg\Build-DsqtPackage.ps1" -Qt "!QT_PATH!" -Modules "!DSQT_PACKAGE_MODULES!" -PackageRoot "!DSQT_PACKAGE_WORK!" -PublishRoot "!DSQT_PUBLISH_ROOT!"
     exit /b !errorlevel!
-)
-
-if !FRESH_CONFIGURE!==1 if !SKIP_CONFIGURE!==1 (
-    echo ERROR: --fresh cannot be combined with -no-configure.
-    exit /b 2
 )
 
 :: --- Check if VCPKG is installed ---
@@ -223,6 +298,8 @@ if defined QT_PATH (
     if !errorlevel! neq 0 (
         set QT_PATH=C:\Qt\!QT_PATH!\msvc2022_64
     )
+    REM Use CMake-style paths so vcpkg's find_package wrapper cannot parse backslashes as escapes.
+    set "QT_PATH=!QT_PATH:\=/!"
     if not exist "!QT_PATH!" (
         powershell -NoProfile -Command "Write-Host 'Qt path not found: !QT_PATH!' -ForegroundColor Red"
         exit /b 1
@@ -277,7 +354,7 @@ if exist "build\%PRESET%\CMakeCache.txt" (
     for /f "tokens=1,* delims==" %%A in ('findstr /b /c:"CMAKE_TOOLCHAIN_FILE:FILEPATH=" "build\%PRESET%\CMakeCache.txt"') do set "CACHED_TOOLCHAIN=%%B"
 )
 if defined CACHED_TOOLCHAIN if /i not "!CACHED_TOOLCHAIN!"=="!EXPECTED_TOOLCHAIN!" (
-    powershell -NoProfile -Command "Write-Host 'ERROR: The existing build cache uses a different vcpkg toolchain:' -ForegroundColor Red; Write-Host '    Cached:   !CACHED_TOOLCHAIN!' -ForegroundColor Yellow; Write-Host '    Expected: !EXPECTED_TOOLCHAIN!' -ForegroundColor Yellow; Write-Host 'Run build_and_install.bat -hard-rebuild with your usual options.' -ForegroundColor Cyan"
+    powershell -NoProfile -Command "Write-Host 'ERROR: The existing build cache uses a different vcpkg toolchain:' -ForegroundColor Red; Write-Host '    Cached:   !CACHED_TOOLCHAIN!' -ForegroundColor Yellow; Write-Host '    Expected: !EXPECTED_TOOLCHAIN!' -ForegroundColor Yellow; Write-Host 'Run build_and_install.bat --hard-rebuild with your usual options.' -ForegroundColor Cyan"
     exit /b 1
 )
 
@@ -303,7 +380,7 @@ call :gettime OVERALL_START
 set CONFIGURE_START=0
 set CONFIGURE_END=0
 if %SKIP_CONFIGURE%==1 (
-    call :header "Skipping Configure (-no-configure)"
+    call :header "Skipping Configure (--no-configure)"
 ) else (
     call :header "Configuring DsQt Library (%PRESET%)"
     if %RUN_TESTS%==1       powershell -NoProfile -Command "Write-Host '    Tests:            ENABLED' -ForegroundColor Yellow"
@@ -383,7 +460,7 @@ if not "!BUILD_EXIT!"=="0" (
 powershell -NoProfile -Command "if (-not (Get-ChildItem 'build\%PRESET%' -Recurse -Filter '*.lib' | Where-Object { $_.LastWriteTime -gt (Get-Item '!BUILD_MARKER!').LastWriteTime })) { exit 1 }"
 if !errorlevel! neq 0 set RELEASE_NOOP=1
 
-:: --- Install (skip if -no-install or both builds were no-ops) ---
+:: --- Install (skip if --no-install or both builds were no-ops) ---
 set INSTALL_DEBUG_START=0
 set INSTALL_DEBUG_END=0
 set INSTALL_RELEASE_START=0
@@ -391,7 +468,7 @@ set INSTALL_RELEASE_END=0
 
 if !SKIP_INSTALL!==1 (
     echo.
-    call :header "Skipping Install (-no-install)"
+    call :header "Skipping Install (--no-install)"
     goto :timing
 )
 
