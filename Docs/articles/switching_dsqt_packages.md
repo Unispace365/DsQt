@@ -24,7 +24,10 @@ Complete [Before you start](#before-you-start), then follow the one path you nee
 Each path uses the [shared preset example](#shared-preset-example-for-all-three-paths).
 If your application already has the matching preset, use its actual name.
 Finish with [Build and verify your selected setup](#build-and-verify-your-selected-setup).
-You do not need to complete the other setup paths.
+You do not need to complete the other setup paths. After the shared file changes,
+choose **either Option A — Qt Creator or Option B — Command line** to configure,
+build, and install the application. Do not perform both application workflows.
+The local DsQt package-build command is a shared prerequisite for local mode.
 
 For an existing setup, see the optional tasks [Change the Qt kit](#change-the-qt-kit)
 and [Add or remove modules](#add-or-remove-modules).
@@ -118,8 +121,10 @@ The following is a complete **CMakeUserPresets.json** example for an application
 that has the two helpers described above. Registry and local mode also need
 the corresponding manifest feature from the [manifest example](#pin-the-published-version).
 It does not depend on generated preset names. Merge it if you already have a
-user-presets file, and adjust the paths. Start an x64 MSVC developer shell and set `VCPKG_ROOT` to your
-bootstrapped checkout. Ninja must be available in that shell.
+user-presets file, and adjust the paths. Set `VCPKG_ROOT` to your bootstrapped
+checkout in the preset's environment or in the Qt Creator process environment
+for Option A. For Option B, use an x64 MSVC developer shell with Ninja available.
+The same presets support either option.
 
 ```json
 {
@@ -129,6 +134,8 @@ bootstrapped checkout. Ninja must be available in that shell.
       "name": "user-dsqt-base",
       "hidden": true,
       "generator": "Ninja Multi-Config",
+      "architecture": { "value": "x64", "strategy": "external" },
+      "toolset": { "value": "host=x64", "strategy": "external" },
       "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
       "cacheVariables": {
         "CMAKE_CONFIGURATION_TYPES": "Debug;Release",
@@ -193,6 +200,37 @@ See [CMake user presets](cmake_user_presets.md) for inheritance examples.
 
 Follow this path to select a published version and configure your application to use it.
 
+### Find available published versions
+
+In **ProjectCloner**, select **Published vcpkg package**, then **Refresh**.
+Select a version to review its modules and Qt requirements. Generate a separate
+reference project if you need the matching pins and selection record; do not
+generate over your existing application.
+
+As an alternative to ProjectCloner discovery, inspect the private registry in PowerShell. Choose an unused
+checkout directory and ensure Git can authenticate to the repository:
+
+```powershell
+git clone https://github.com/Unispace365/vcpkg-registry C:/dev/dsqt-registry
+Set-Location C:/dev/dsqt-registry
+$catalog = Get-Content versions/d-/dsqt.json -Raw | ConvertFrom-Json
+$catalog.versions | Select-Object version, 'port-version'
+git rev-parse HEAD
+```
+
+Record the selected version, its `port-version`, and the full registry commit
+SHA printed by the final command. Use values from this same registry snapshot
+for the override and registry pin below. For an existing clean registry checkout,
+update it with `git pull --ff-only` before listing versions and recording its SHA.
+Return to your application directory before configuring the application.
+
+The catalog establishes which versions are available, not whether every version
+is compatible with your application. Check the selected package's metadata and
+Qt/module requirements. A GitHub release tag alone does not establish registry
+availability. Published sources also require Git LFS and Git access to the
+private DsQt repository. vcpkg builds the source or restores cached binaries;
+you do not need to build/install DsQt separately for this path.
+
 ### Pin the published version
 
 ProjectCloner writes these pins when you choose a version. For an existing app,
@@ -234,6 +272,8 @@ Core is implicit; it has no vcpkg feature. `#0` is the port revision. It is
 independent of the build number `224` and does not need incrementing by consumers.
 Keep DsQt in the mode features, rather than also as an unconditional dependency,
 if the same app must support installed-library mode.
+If the app already declares DsQt as an unconditional dependency, move that
+declaration into the corresponding mode feature instead of duplicating it.
 
 `vcpkg-configuration.json` fragment:
 
@@ -278,6 +318,8 @@ these to ensure that a local recipe cannot replace the selected published port.
 Do not carry an old installed `Dsqt_DIR` or `Qt6_DIR` into the new build directory.
 
 Continue with [Build and verify your selected setup](#build-and-verify-your-selected-setup).
+Choose **either Option A — Qt Creator or Option B — Command line**, using
+`user-registry-6.12.0` as the configure preset.
 
 ## Use a local DsQt source package
 
@@ -288,7 +330,12 @@ and `user-local-6.12.0` from the [shared preset example](#shared-preset-example-
 The published-version pin and registry preset are only needed if you also use
 the published-package path.
 
-Build a completed local package from your DsQt checkout first:
+This workflow creates a local package store with an overlay port. You do not
+need to initialize a separate Git registry or add a GitHub DsQt registry entry
+for a local-only setup.
+
+Shared prerequisite for either application workflow: build and publish a completed
+local package from your DsQt checkout first:
 
 ```bat
 set "VCPKG_ROOT=C:\vcpkg"
@@ -296,14 +343,31 @@ C:\dev\DsQt\Library\build_and_install.bat -vcpkg -qt 6.12.0 -modules "Core,Bridg
 ```
 
 Replace the paths, Qt version, and modules for your application. Successful
-builds publish to `%LOCALAPPDATA%\DsQt\vcpkg`. Select `user-local-6.12.0` to use
-that store's default. With no explicit package path, the local helper discovers
+builds publish to `%LOCALAPPDATA%\DsQt\vcpkg` and automatically mark the completed
+package as that store's default. The builder prepares MSVC x64 and builds Debug
+and Release. A full Qt kit path can be passed to `-qt` for a custom installation.
+Select `user-local-6.12.0` to use the default package. The helper reads
+`dsqt-local-default.json` automatically to locate it; **do not edit or manage
+that file manually**. With no explicit package path, the local helper discovers
 the same store; an explicit CMake/preset path overrides the environment default.
 Its local mode switch enables `dsqt-local` and the selected overlay.
 The metadata chooses the exact Qt kit;
-changing `CMAKE_PREFIX_PATH` cannot override that selection. Check that the
-application's `builtin-baseline` matches `dsqt-local-package.json`. Align the
-dependency baselines deliberately and rebuild as needed.
+changing `CMAKE_PREFIX_PATH` cannot override that selection. The preset name
+does not select a different Qt kit. To inspect the default package in PowerShell:
+
+```powershell
+$store = "$env:LOCALAPPDATA/DsQt/vcpkg"
+$selection = Get-Content "$store/dsqt-local-default.json" -Raw | ConvertFrom-Json
+$metadata = Get-Content "$($selection.packageRoot)/dsqt-local-package.json" -Raw |
+    ConvertFrom-Json
+$metadata | Select-Object packageVersion, qtVersion, qtKit, builtinBaseline
+```
+
+For a custom store, change `$store`. For an exact snapshot selection, read
+`dsqt-local-package.json` directly from that snapshot directory. Compare its
+`builtinBaseline` with the application's `builtin-baseline` in `vcpkg.json`.
+Align dependency baselines deliberately and rebuild as needed; the helper
+rejects a mismatch before installing dependencies.
 
 The [overlay takes precedence](https://learn.microsoft.com/en-us/vcpkg/concepts/overlay-ports)
 over the registry recipe, so the registry override
@@ -312,13 +376,20 @@ published version does not describe the local build. Inspect the local metadata
 and installed package status to identify the snapshot actually used. If retiring
 registry support entirely, remove its unused DsQt override and feature.
 
-After source edits, repeat the package build and adopt its new default:
+After source edits, repeat the package build above. Then choose the update step
+for your application workflow:
 
-```powershell
-cmake --fresh --preset user-local-6.12.0
-cmake --build --preset user-local-release
-cmake --install build/user-local-6.12.0 --config Release
-```
+- **Option A — Qt Creator:** use **Re-configure with Initial Variables**, then
+  rebuild and run the `install` target as described in Option A. Keep the initial
+  preset settings. You do not need to delete `.qtcreator` for every source update.
+- **Option B — Command line:** run the following instead, from a matching x64
+  MSVC developer shell in the application directory:
+
+  ```powershell
+  cmake --fresh --preset user-local-6.12.0
+  cmake --build --preset user-local-release
+  cmake --install build/user-local-6.12.0 --config Release
+  ```
 
 These names match the complete preset example above; substitute your actual
 names. ProjectCloner's default local selection records the store; selecting an
@@ -330,6 +401,8 @@ The package and binary cache are local to your machine.
 See the [local package guide](../vcpkg.md#build-a-local-package-and-use-it-in-a-new-application).
 
 Continue with [Build and verify your selected setup](#build-and-verify-your-selected-setup).
+Choose **either Option A — Qt Creator or Option B — Command line**, using
+`user-local-6.12.0` as the configure preset.
 
 ## Use an installed DsQt library
 
@@ -349,6 +422,8 @@ helpers, which handle both layouts. Match the installed library's Qt version,
 architecture, compiler compatibility, and Debug/Release binaries.
 
 Continue with [Build and verify your selected setup](#build-and-verify-your-selected-setup).
+Choose **either Option A — Qt Creator or Option B — Command line**, using
+`user-installed-6.12.0` as the configure preset.
 
 <a id="4-change-qt-or-modules"></a>
 
@@ -402,6 +477,63 @@ substitute your actual names if you use generated or existing presets.
 | Local source package | `user-local-6.12.0` | `user-local-release` | `build/user-local-6.12.0` |
 | Installed library | `user-installed-6.12.0` | `user-installed-release` | `build/user-installed-6.12.0` |
 
+<a id="import-the-presets-into-qt-creator"></a>
+
+### Option A — Qt Creator (choose this or Option B)
+
+Complete your chosen source path's helper, manifest, and preset changes first.
+For local mode, build and publish the local package before opening the app.
+Use the [shared preset example](#shared-preset-example-for-all-three-paths) or
+equivalent presets in `CMakePresets.json`. Do not inherit installed-library
+paths in a package preset. Review existing `CMakeUserPresets.json` overrides
+for stale paths too; resetting Qt Creator does not remove that file.
+
+Use this option to configure, build, and install inside Qt Creator. Skip Option B.
+
+For a clean import when switching an existing application's source mode:
+
+1. Close Qt Creator. Save any custom run/debug settings you want to recreate.
+2. Delete the **application's** `.qtcreator` directory and its old generated
+   build directory after checking that the build directory contains only
+   generated output. Older projects may also store `CMakeLists.txt.user` beside
+   `CMakeLists.txt`; remove that saved settings file if present. Keep the local
+   package store and the DsQt library's package-build directory.
+3. Set `VCPKG_ROOT` in the configure preset's `environment` object, for example
+   `"environment": { "VCPKG_ROOT": "C:/vcpkg" }`. Merge it with any existing
+   environment entries. Keep machine-specific paths in `CMakeUserPresets.json`.
+   This lets you launch Qt Creator normally without a terminal setup step.
+4. Open the application's `CMakeLists.txt` and select the configure preset for
+   your chosen path: `user-registry-6.12.0`, `user-local-6.12.0`, or
+   `user-installed-6.12.0`. Substitute your actual preset names. Verify the
+   imported kit has x64 MSVC C and C++ compilers and the intended Qt kit.
+5. Configure, select Debug or Release, and build. Under **Projects > Build
+   Settings > Build Steps**, select the CMake `install` target and build it for
+   the same configuration. This runs the project's install/deployment rules;
+   no command-line install step is required. Restore the normal application/all
+   target afterward if you changed the existing build step's target selection.
+6. In CMake output and **Current Configuration**, confirm the selected Qt kit,
+   source mode, and `Dsqt_DIR`. Check the installed version/features in the
+   build directory's `vcpkg_installed/vcpkg/status` using your editor. For an
+   installed library, inspect `dsqt-modules.json` beside `DsqtConfig.cmake`.
+   Then follow [Verify the selected package and application](#verify-the-selected-package-and-application).
+
+The shared Ninja preset uses `external` for both `architecture` and `toolset`
+so Qt Creator can initialize MSVC before CMake runs. CMake itself does not set
+up MSVC from these fields; command-line builds still need the matching developer
+shell. See [Qt Creator's MSVC preset example](https://doc.qt.io/qtcreator/creator-build-settings-cmake-presets.html#msvc-example).
+Qt Creator imports presets when opening a project without saved project settings.
+For later preset edits, **Build > Reload CMake Presets** is also available.
+See [preset import](https://doc.qt.io/qtcreator/creator-build-settings-cmake-presets.html)
+and [reconfiguring with initial variables](https://doc.qt.io/qtcreator/creator-build-settings-cmake.html#re-configuring-with-initial-variables).
+
+See [Qt Creator CMake build steps](https://doc.qt.io/qtcreator/creator-build-settings-cmake.html#cmake-build-steps) for target selection.
+
+### Option B — Command line (choose this or Option A)
+
+Use this option instead of Qt Creator to configure, build, and install. No IDE
+reset/import is needed. Run from the application directory in a matching x64
+MSVC developer shell.
+
 Example for the published-package path, in a matching x64 MSVC shell.
 For another path, replace both preset names and the install build directory
 using the table above:
@@ -413,7 +545,7 @@ cmake --build --preset user-registry-release
 cmake --install build/user-registry-6.12.0 --config Release
 ```
 
-Inspect the actual result, rather than relying only on the UI label. Set
+For this option, inspect the selected package with these commands. Set
 `$buildDir` to your selected path's build directory from the table above:
 
 ```powershell
@@ -422,7 +554,9 @@ Select-String -Path "$buildDir/CMakeCache.txt" -Pattern '^(Qt6_DIR|Dsqt_DIR|DSQT
 Select-String -Path "$buildDir/vcpkg_installed/vcpkg/status" -Pattern '^Package: dsqt$' -Context 0,12
 ```
 
-Confirm the expected Qt config path, DsQt layout, active mode, triplet, and
+### Verify the selected package and application
+
+For either option, confirm the expected Qt config path, DsQt layout, active mode, triplet, and
 installed DsQt version/features. In installed-library mode, check the selected
 installation's `dsqt-modules.json` beside `DsqtConfig.cmake` instead of expecting
 DsQt in the app's vcpkg status file. The configure log also reports the selected
