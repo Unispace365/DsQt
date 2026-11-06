@@ -25,31 +25,35 @@ die()    { printf '%s%s%s\n' "$C_RED" "$1" "$C_OFF" >&2; exit "${2:-1}"; }
 usage() {
 cat <<'USAGE'
 
-Usage: ./build_and_install.sh [preset] [-test] [-tools] [-no-configure] [-no-install] [-clean]
-                              [-hard-clean] [-rebuild] [-hard-rebuild] [-qt <ver|path>]
-                              [-team <id>] [-no-private-reinject]
+Usage: ./build_and_install.sh [preset] [--test] [--tools] [--no-configure] [--no-install] [--clean]
+                              [--hard-clean] [--rebuild] [--hard-rebuild] [--qt <ver|path>]
+                              [--team <id>] [--no-private-reinject]
 
-  preset               : CMake configure preset (interactive choice; default: macos)
+  preset                 : CMake configure preset (interactive choice; default: macos)
                          one of: macos | ios-device | ios-simulator | ios-simulator-intel
-  -test                : Enable and run unit tests after the Debug build (macos only)
-  -tools               : Build and install ProjectCloner + ClonerSource template (macos only)
-  -no-configure        : Skip the CMake configure step (for fast incremental builds)
-  -no-install          : Skip the install steps entirely
-  -clean               : Run cmake --build clean targets and exit
-  -hard-clean          : Delete the entire build folder and exit
-  -rebuild             : Clean then build (cmake clean + full build)
-  -hard-rebuild        : Delete build folder then configure + build + install from scratch
-  -qt <ver or path>    : Qt version (e.g. 6.10.2) or full path to the host/target Qt dir.
+  --test                 : Enable and run unit tests after the Debug build (macos only)
+  --tools                : Build and install ProjectCloner + ClonerSource template (macos only)
+  --no-configure         : Skip the CMake configure step (for fast incremental builds)
+  --no-install           : Skip the install steps entirely
+  --clean                : Run cmake --build clean targets and exit
+  --hard-clean           : Delete the entire build folder and exit
+  --rebuild              : Clean then build (cmake clean + full build)
+  --hard-rebuild         : Delete build folder then configure + build + install from scratch
+  --qt <ver or path>     : Qt version (e.g. 6.10.2) or full path to the host/target Qt dir.
                          A bare version resolves to <QtRoot>/<ver>/macos for the macos preset
                          and <QtRoot>/<ver>/ios for the iOS presets, probing ~/Qt, /opt/Qt
                          and /Applications/Qt.
-  -team <id>           : Apple Development Team ID, for iOS code signing
-  -no-private-reinject : Disable private-header touch re-injection (falls back to
+  --team <id>            : Apple Development Team ID, for iOS code signing
+  --no-private-reinject  : Disable private-header touch re-injection (falls back to
                          QCoreApplication::sendEvent; private reinject is ON by default)
-  -h / --help          : Print usage info and exit
+  --help / --h           : Print usage info and exit
+
+  Legacy -name options are accepted with a warning.
 
 USAGE
 }
+
+argument_error() { printf 'ERROR: %s\n' "$1" >&2; usage >&2; exit 2; }
 
 # ------------------------------------------------------------------ args ---
 PRESET=""
@@ -64,31 +68,42 @@ DO_HARD_REBUILD=0
 NO_PRIVATE_REINJECT=0
 QT_ARG=""
 TEAM_ID=""
+PRINT_HELP=0
 
 while [[ $# -gt 0 ]]; do
-    case "$1" in
-        -test|--test)                 RUN_TESTS=1; shift ;;
-        -tools|--tools)               BUILD_TOOLS=1; shift ;;
-        -no-configure|--no-configure) SKIP_CONFIGURE=1; shift ;;
-        -no-install|--no-install)     SKIP_INSTALL=1; shift ;;
-        -clean|--clean)               DO_CLEAN=1; shift ;;
-        -hard-clean|--hard-clean)     DO_HARD_CLEAN=1; shift ;;
-        -rebuild|--rebuild)           DO_REBUILD=1; shift ;;
-        -hard-rebuild|--hard-rebuild) DO_HARD_REBUILD=1; shift ;;
-        -no-private-reinject|--no-private-reinject) NO_PRIVATE_REINJECT=1; shift ;;
-        -qt|--qt)
-            [[ $# -ge 2 ]] || die "-qt requires an argument"
-            QT_ARG="$2"; shift 2 ;;
-        -team|--team)
-            [[ $# -ge 2 ]] || die "-team requires an argument"
-            TEAM_ID="$2"; shift 2 ;;
-        -h|--help)                    usage; exit 0 ;;
-        -*)                           usage; die "Unknown option: $1" ;;
+    arg="$1"
+    # Normalize legacy spellings before dispatch; only recognized options warn.
+    if [[ "$arg" == -?* && "$arg" != --* ]]; then arg="-${arg}"; fi
+    case "$arg" in
+        --test|--tools|--no-configure|--no-install|--clean|--hard-clean|--rebuild|--hard-rebuild|--no-private-reinject|--qt|--team|--h|--help) ;;
+        -*) argument_error "Unknown option: $1" ;;
         *)
-            [[ -z "$PRESET" ]] || die "Multiple presets given: '$PRESET' and '$1'"
-            PRESET="$1"; shift ;;
+            [[ -n "$1" ]] || argument_error "Empty arguments are not supported"
+            [[ -z "$PRESET" ]] || argument_error "Multiple presets given: '$PRESET' and '$1'"
+            PRESET="$1"; shift; continue ;;
+    esac
+    if [[ "$1" != "$arg" ]]; then
+        printf 'WARNING: %s is deprecated; use %s instead.\n' "$1" "$arg" >&2
+    fi
+    case "$arg" in
+        --qt|--team)
+            [[ $# -ge 2 && -n "$2" && "$2" != -* ]] || argument_error "$arg requires a value before the next option or end of arguments"
+            if [[ "$arg" == --qt ]]; then QT_ARG="$2"; else TEAM_ID="$2"; fi
+            shift 2 ;;
+        --test)                RUN_TESTS=1; shift ;;
+        --tools)               BUILD_TOOLS=1; shift ;;
+        --no-configure)        SKIP_CONFIGURE=1; shift ;;
+        --no-install)          SKIP_INSTALL=1; shift ;;
+        --clean)               DO_CLEAN=1; shift ;;
+        --hard-clean)          DO_HARD_CLEAN=1; shift ;;
+        --rebuild)             DO_REBUILD=1; shift ;;
+        --hard-rebuild)        DO_HARD_REBUILD=1; shift ;;
+        --no-private-reinject) NO_PRIVATE_REINJECT=1; shift ;;
+        --h|--help)            PRINT_HELP=1; shift ;;
     esac
 done
+
+if (( PRINT_HELP )); then usage; exit 0; fi
 
 if [[ -z "$PRESET" && -t 0 ]]; then
     printf 'Choose build target:\n  1) macOS\n  2) iOS device (arm64)\n  3) iOS simulator (Apple Silicon)\n  4) iOS simulator (Intel)\n'
@@ -104,7 +119,7 @@ fi
 PRESET="${PRESET:-macos}"
 case "$PRESET" in
     macos|ios-device|ios-simulator|ios-simulator-intel) ;;
-    *) die "Unknown preset '$PRESET'. Expected: macos | ios-device | ios-simulator | ios-simulator-intel" ;;
+    *) argument_error "Unknown preset '$PRESET'. Expected: macos | ios-device | ios-simulator | ios-simulator-intel" ;;
 esac
 
 IS_IOS=0
@@ -112,14 +127,26 @@ if [[ "$PRESET" == ios-* ]]; then IS_IOS=1; fi
 
 BUILD_DIR="build/$PRESET"
 
+# Validate combinations before toolchain discovery or any build actions.
+if (( DO_CLEAN + DO_HARD_CLEAN + DO_REBUILD + DO_HARD_REBUILD > 1 )); then
+    argument_error "Choose only one of --clean, --hard-clean, --rebuild and --hard-rebuild"
+fi
+if (( DO_HARD_REBUILD && SKIP_CONFIGURE )); then
+    argument_error "--hard-rebuild cannot be combined with --no-configure"
+fi
+if (( BUILD_TOOLS && SKIP_INSTALL )); then
+    argument_error "--tools cannot be combined with --no-install"
+fi
+if (( IS_IOS )); then
+    if (( RUN_TESTS )); then argument_error "--test is not supported for the iOS presets: this script has no simulator or device test harness"; fi
+    if (( BUILD_TOOLS )); then argument_error "--tools is not supported for the iOS presets: ProjectCloner is a desktop application"; fi
+elif [[ -n "$TEAM_ID" ]]; then
+    argument_error "--team is supported only for the iOS presets"
+fi
+
 # --------------------------------------------------------- sanity checks ---
 [[ "$(uname -s)" == "Darwin" ]] \
     || die "This script targets macOS/iOS and must run on macOS. Use build_and_install.bat on Windows."
-
-if (( IS_IOS )); then
-    if (( RUN_TESTS )); then die "-test is not supported for the iOS presets: ctest cannot run the suite without a simulator or device harness, which this repo does not provide."; fi
-    if (( BUILD_TOOLS )); then die "-tools is not supported for the iOS presets: ProjectCloner is a desktop application."; fi
-fi
 
 command -v cmake >/dev/null 2>&1 || die "cmake not found on PATH."
 if (( ! IS_IOS )) && ! command -v ninja >/dev/null 2>&1; then
@@ -193,7 +220,7 @@ if [[ -n "$QT_ARG" ]]; then
                 break
             fi
         done
-        [[ -n "$QT_PATH" ]] || die "Qt $QT_ARG ($QT_SUBDIR) not found under ~/Qt, /opt/Qt or /Applications/Qt. Pass a full path instead: -qt /path/to/Qt/$QT_ARG/$QT_SUBDIR"
+        [[ -n "$QT_PATH" ]] || die "Qt $QT_ARG ($QT_SUBDIR) not found under ~/Qt, /opt/Qt or /Applications/Qt. Pass a full path instead: --qt /path/to/Qt/$QT_ARG/$QT_SUBDIR"
     fi
     [[ -d "$QT_PATH" ]] || die "Qt path not found: $QT_PATH"
     info "    Qt: $QT_PATH"
@@ -205,7 +232,7 @@ if (( IS_IOS )); then
     if [[ -n "$QT_PATH" ]]; then
         export QT_IOS_ROOT="$QT_PATH"
     elif [[ -z "${QT_IOS_ROOT:-}" ]]; then
-        die "The $PRESET preset needs a Qt for iOS location. Pass -qt <version|path>, or export QT_IOS_ROOT=<Qt-dir>/<version>/ios"
+        die "The $PRESET preset needs a Qt for iOS location. Pass --qt <version|path>, or export QT_IOS_ROOT=<Qt-dir>/<version>/ios"
     fi
     [[ -f "$QT_IOS_ROOT/lib/cmake/Qt6/qt.toolchain.cmake" ]] \
         || die "qt.toolchain.cmake not found under QT_IOS_ROOT ($QT_IOS_ROOT). Expected: \$QT_IOS_ROOT/lib/cmake/Qt6/qt.toolchain.cmake"
@@ -256,7 +283,7 @@ if [[ -n "$TEAM_ID" ]]; then
 fi
 
 if (( SKIP_CONFIGURE )); then
-    header "Skipping Configure (-no-configure)"
+    header "Skipping Configure (--no-configure)"
 else
     header "Configuring DsQt Library ($PRESET)"
     if (( RUN_TESTS )); then info "    Tests:            ENABLED"; fi
@@ -299,7 +326,7 @@ BUILD_RELEASE_SECS=$(( $(now) - t0 ))
 # --------------------------------------------------------------- install ---
 if (( SKIP_INSTALL )); then
     echo
-    header "Skipping Install (-no-install)"
+    header "Skipping Install (--no-install)"
 else
     t0=$(now)
     echo
