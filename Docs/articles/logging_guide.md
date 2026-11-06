@@ -28,6 +28,13 @@ With the following defaults:
 | Rotate daily         | No        |
 | Async                | Yes       |
 
+The default desktop output is one console destination plus one rotating file sink
+in both Debug and Release. On Windows the console destination sends each message
+through `OutputDebugString` while a native debugger is attached, and to stderr
+otherwise. This keeps Qt Creator's CDB output visible without sending the same
+message through both channels. Attaching or detaching a debugger changes the route
+for subsequent messages. Explicit INI stdout/stderr sinks keep their chosen stream.
+
 ## logging.ini reference
 
 ```ini
@@ -35,7 +42,7 @@ With the following defaults:
 ; --- Output targets ---
 stdout=false              ; Mirror log messages to stdout
 stdout_color=false        ; Colorize stdout output (ANSI terminals)
-platform_std_log=true     ; Use platform logging (e.g. OutputDebugString on Windows)
+platform_std_log=true     ; Automatic desktop console destination (see above)
 
 ; --- File rotation ---
 max_file_size=1048576     ; Rotate when the active log exceeds this size (bytes)
@@ -63,6 +70,80 @@ path=
 > written back into the settings so QtLogger always receives a fully qualified
 > file path.
 
+## Category rules and precedence
+
+`logging.ini` configures destinations, formatting, and file rotation. The merged
+`engine.toml` settings configure Qt category rules:
+
+```toml
+[engine.logging]
+rules = [[
+    "*.verbose=false",
+    "settings.*=true",
+]]
+```
+
+Both `rules = ["..."]` and the legacy `rules = [["..."]]` are supported.
+Rules are applied when `DsEnvironment::loadEngineSettings()` loads the engine,
+then updated when its settings files reload or runtime overrides change. Messages
+emitted before engine settings load use the Qt rules already in effect. Removing
+the rules or setting an empty list clears the application rule layer.
+
+Engine settings merge from lowest to highest priority:
+
+1. Registered defaults.
+2. `%APP%/settings/engine.toml`.
+3. `%APP%/settings/%CFG_FOLDER%/engine.toml`, when configured.
+4. `%LOCAL%/settings/%PP%/engine.toml`, when the project path is configured.
+5. `%LOCAL%/settings/%PP%/%CFG_FOLDER%/engine.toml`, when configured.
+6. Files listed in `engine.extra.engine`, in list order, each using that same
+   directory order.
+7. Runtime overrides.
+
+Rule lists replace earlier lists; they are not concatenated across files.
+`Settings.engine.provenance("engine.logging.rules")` in QML, or the equivalent
+`SettingsFile::provenance()` call in C++, identifies the winning source.
+
+DsQt applies this merged list through `QLoggingCategory::setFilterRules()`.
+[Qt's category-rule precedence](https://doc.qt.io/qt-6/qloggingcategory.html#logging-rules),
+from lowest to highest, is Qt's installation `qtlogging.ini`, user QtProject
+`qtlogging.ini`, the application rules (including the engine list),
+`QT_LOGGING_CONF`, then `QT_LOGGING_RULES`. Within each source, later matching
+rules win. A custom `QLoggingCategory::installFilter()` bypasses text rules.
+Other application calls to `setFilterRules()` replace that same application layer.
+
+The optional INI `filter_rules` and `regexp_filter` are additional QtLogger
+pipeline filters. They can discard messages Qt enabled; they cannot restore a
+message disabled by Qt category rules. The DsQt INI is read only from
+`%APP%/settings/logging.ini` at application construction; it does not participate
+in TOML stacking or live reload.
+
+### Checking output in terminals and Qt Creator
+
+Build the `ds_logging_probe` target with tests enabled. It prints unique
+`DSQT_PROBE_*` markers and the resolved log path. Run it in Qt Creator using both
+Run and Debug, and from PowerShell or Command Prompt. Test Debug and Release,
+with no INI, the standard INI, and explicitly enabled multiple sinks.
+
+Each enabled destination should receive one `DSQT_PROBE_VISIBLE` marker. The
+standard desktop configuration produces one on stderr (or Windows debugger output
+while attached) and one in the log file. Outside a Windows debugger, enabling both
+`stdout` and `platform_std_log` produces one on each console stream, so combining
+those streams displays two. Enabling `stderr` together with `platform_std_log`
+also displays two when the platform route uses stderr. Under a Windows debugger
+those explicitly requested streams remain separate from the automatic debugger
+destination. Use only one console destination when one visible copy is wanted.
+
+In the tested Qt Creator 20.0.2 CDB configuration, Run captures stdout and stderr,
+while Debug displays debugger output and does not display the explicit stdout
+copy. Thus `stdout=true` plus `platform_std_log=true` displays two copies in Run
+and one in that Debug view, while the file receives one in both modes.
+
+The rule hierarchy is platform independent. The bundled default platform sink is
+stderr on Linux and macOS; QtLogger can instead use Apple unified
+logging if built with `QTLOGGER_OSLOG`. Native IDE/debugger capture should be
+verified separately on each operating system.
+
 ### Path resolution
 
 The `path` key accepts three forms:
@@ -82,6 +163,13 @@ The `path` key accepts three forms:
    ```
 
 Intermediate directories are created automatically.
+
+DsQt checks that the directory and file can be opened before enabling file logging.
+If this fails, it reports one `DsQt file logging disabled:` warning and continues
+with console output. A console destination is added if a file-only configuration
+would otherwise have no console output. `getLogPath()` returns an empty string in
+this case. This check covers startup; it does not guarantee that a later disk or
+permission failure can be recovered automatically.
 
 > **Caveat:** Directory detection is based on the presence of a file
 > extension. If a directory name contains a dot (e.g. `C:/my.logs`), it

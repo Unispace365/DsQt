@@ -852,6 +852,14 @@ rules = [[
 ]]
 ```
 
+`engine.logging.rules` controls Qt category filtering and follows the same file
+stacking and runtime override hierarchy as other engine settings. The merged
+list is applied at engine settings load and updated on live reload. Qt's
+`QT_LOGGING_CONF` and `QT_LOGGING_RULES` take precedence over this application
+rule layer. Output destinations and rotation are configured separately in
+`%APP%/settings/logging.ini`; see the [Logging Configuration Guide](logging_guide.md#category-rules-and-precedence)
+for the complete hierarchy and duplicate-output checks.
+
 `[engine.extra]` entries load additional files into the *named* collection given by the key. That collection must already be registered — by the time `DsEnvironment::loadEngineSettings()` processes `engine.extra`, both `engine` and `app_settings` are already registered, so those two are always valid targets; any other collection name must be registered earlier. Extra-file content is merged in **after** that collection's own primary file and **before** any runtime overrides.
 
 ### App Settings Structure

@@ -223,6 +223,13 @@ bool DsEnvironment::loadEngineSettings() {
             qCInfo(lgEnv) << "loading extra settings files for" << it.key() << extraFiles;
             settingsFile->setExtraFiles(extraFiles);
         }
+
+        // Bind after all layers have loaded. bind() reuses the connection on repeated
+        // initialization and also applies file reloads and runtime overrides.
+        engineSettings->bind<QStringList>("engine.logging.rules", engineSettings,
+            [](const QStringList &rules) {
+                QLoggingCategory::setFilterRules(rules.join(QLatin1Char('\n')));
+            });
     }
 
     qCInfo(lgEnv) << ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n";
