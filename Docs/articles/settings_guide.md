@@ -834,7 +834,7 @@ prefixes = [
 
 # Window settings
 [engine.window]
-mode = "window"           # "window", "fullscreen", "borderless"
+mode = "window"           # "window", "display", "desktop"
 displayIndex = 0
 width = 1920
 height = 1080
