@@ -475,9 +475,10 @@ DsQt supports path variable expansion for portable configurations:
 | `%PP%` | Project path (from `engine.project_path`) | `my_project` |
 | `%CFG_FOLDER%` | Configuration folder (from `configuration.toml`'s `config_folder`) | `config_v2` |
 
-`%DOCUMENTS%` is the Documents folder the operating system reports, so on Windows it follows a Documents folder that was moved to another drive (it is where the log files go, too). Older DsQt versions always used `<home>/Documents`; when only that folder has a `downstream` folder, DsQt keeps using it for `%LOCAL%` and logs a warning. Move the folder to switch.
 | `%RES%` | Resolved resource location (from `engine.resource.location`) | `file:///C:/.../resources/` |
 | `%ENV%(VAR)` | Environment variable | `%ENV%(HOME)` |
+
+`%DOCUMENTS%` is the Documents folder the operating system reports, so on Windows it follows a Documents folder that was moved to another drive (it is where the log files go, too). Older DsQt versions always used `<home>/Documents`; when only that folder has a `downstream` folder, DsQt keeps using it for `%LOCAL%` and logs a warning. Move the folder to switch.
 
 A path containing a variable that can't be resolved is dropped rather than used as-is (e.g. when building search paths before `engine.project_path` has loaded).
 
