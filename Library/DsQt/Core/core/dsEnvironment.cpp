@@ -291,6 +291,14 @@ void DsEnvironment::initialize() {
     // leftover then, or missing altogether.
     sDocuments = QDir::cleanPath(QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation));
 
+    // writableLocation() returns an empty string when the OS cannot say where
+    // Documents is. Never let that become a path relative to the working
+    // directory: fall back to <home>/Documents (homePath() is always absolute).
+    if (sDocuments.isEmpty()) {
+        sDocuments = QDir::cleanPath(QDir::homePath() + QStringLiteral("/Documents"));
+        qCWarning(lgEnv).noquote() << "%DOCUMENTS%: the OS reports no Documents folder; using" << sDocuments;
+    }
+
     // documents/downstream
     sDocumentsDownstream = QDir::cleanPath(QDir(sDocuments).filePath("downstream"));
 
