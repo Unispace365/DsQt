@@ -3,6 +3,7 @@
 #include "settings/dsSettings.h"
 
 #include <QDir>
+#include <QFileInfo>
 #include <QRegularExpression>
 #include <QRegularExpressionMatch>
 #include <QStandardPaths>
@@ -284,16 +285,36 @@ void DsEnvironment::initialize() {
     if (!QDir().mkpath(sDocumentsDownstream))
         qFatal("Cannot create Downstream data directory");
 #else
-        // documents
-    sDocuments = QStandardPaths::locate(
-        QStandardPaths::HomeLocation,
-        "Documents",
-        QStandardPaths::LocateDirectory);
+    // documents: the folder the OS reports as the user's Documents. On Windows
+    // this follows a Documents folder moved to another drive, as the default
+    // log folder in DsGuiApplication does; <home>/Documents can be a stale
+    // leftover then, or missing altogether.
+    sDocuments = QDir::cleanPath(QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation));
 
-        // documents/downstream
-    QDir documents(sDocuments);
-    sDocumentsDownstream =
-        QDir::cleanPath(documents.filePath("downstream"));
+    // writableLocation() returns an empty string when the OS cannot say where
+    // Documents is. Never let that become a path relative to the working
+    // directory: fall back to <home>/Documents (homePath() is always absolute).
+    if (sDocuments.isEmpty()) {
+        sDocuments = QDir::cleanPath(QDir::homePath() + QStringLiteral("/Documents"));
+        qCWarning(lgEnv).noquote() << "%DOCUMENTS%: the OS reports no Documents folder; using" << sDocuments;
+    }
+
+    // documents/downstream
+    sDocumentsDownstream = QDir::cleanPath(QDir(sDocuments).filePath("downstream"));
+
+    // Before this, %LOCAL% was always <home>/Documents/downstream. If only that
+    // folder exists, keep using it, so settings, caches and other files already
+    // there do not silently disappear; move it to the new location to switch.
+    const QString legacyDownstream =
+        QDir::cleanPath(QDir::homePath() + QStringLiteral("/Documents/downstream"));
+    if (legacyDownstream.compare(sDocumentsDownstream, Qt::CaseInsensitive) != 0
+        && QFileInfo(legacyDownstream).isDir() && !QFileInfo::exists(sDocumentsDownstream)) {
+        qCWarning(lgEnv).noquote() << "%LOCAL%: using" << legacyDownstream << "because"
+                                   << sDocumentsDownstream
+                                   << "does not exist yet. Move the folder there to use the Documents location.";
+        sDocuments           = QDir::cleanPath(QDir::homePath() + QStringLiteral("/Documents"));
+        sDocumentsDownstream = legacyDownstream;
+    }
 #endif
 
 
