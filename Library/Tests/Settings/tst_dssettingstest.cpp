@@ -2,11 +2,13 @@
 #include <settings/dsSettings.h>
 #include <settings/dsSettingsFile.h>
 #include <settings/dsQmlSettingsProxy.h>
+#include <core/dsEnvironment.h>
 #include <memory>
 #include <QDebug>
 #include <QDir>
 #include <QFile>
 #include <QTemporaryDir>
+#include <QStandardPaths>
 
 // ---------------------------------------------------------------------------
 // Migrated from the removed dsqt::DsSettings / dsqt::DsSettingsRef API to the
@@ -43,6 +45,9 @@ class DsSettingsTest : public QObject
     void cleanup();
 
     // Registry (replaces getSettingsOrCreate / forgetSettings)
+    // Path variables
+    void environment_localShouldFollowTheDocumentsLocation();
+
     void registry_addForgetAndFind();
     void registry_findShouldReturnTheDefaultForAnUnknownFile();
 
@@ -1456,6 +1461,22 @@ void DsSettingsTest::registryBind_deferred_shouldNotResolveOnAnUnrelatedFile()
 
     dsqt::Settings::add("test_settings");
     QCOMPARE(calls, 2);
+}
+
+// %DOCUMENTS% and %LOCAL% must use the Documents folder the OS reports, which on
+// Windows follows a Documents folder moved to another drive (as the log folder
+// does), not <home>/Documents.
+void DsSettingsTest::environment_localShouldFollowTheDocumentsLocation()
+{
+    const QString documents = QDir::cleanPath(QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation));
+    const QString expected  = documents + QStringLiteral("/downstream");
+    const QString legacy    = QDir::cleanPath(QDir::homePath() + QStringLiteral("/Documents/downstream"));
+    if (legacy.compare(expected, Qt::CaseInsensitive) != 0 && QFileInfo(legacy).isDir()
+        && !QFileInfo::exists(expected))
+        QSKIP("Only the legacy <home>/Documents/downstream exists here, which DsQt keeps using.");
+
+    QCOMPARE(dsqt::DsEnvironment::expandq(QStringLiteral("%DOCUMENTS%")), documents);
+    QCOMPARE(dsqt::DsEnvironment::expandq(QStringLiteral("%LOCAL%")), expected);
 }
 
 QTEST_MAIN(DsSettingsTest)
