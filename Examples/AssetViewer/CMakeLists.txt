@@ -151,7 +151,6 @@ set_target_properties(${DS_EXE_NAME} PROPERTIES
 #find_package(PkgConfig REQUIRED)
 #pkg_check_modules(tomlplusplus REQUIRED IMPORTED_TARGET tomlplusplus)
 find_package(tomlplusplus CONFIG REQUIRED)
-find_package(glm CONFIG REQUIRED)
 
 
 
@@ -186,7 +185,6 @@ target_link_libraries(${DS_EXE_NAME}
         Qt6::WebEngineQuick
 
         tomlplusplus::tomlplusplus
-        glm::glm
 )
 
 message("HEADERS ${Dsqt_INCLUDES}")
