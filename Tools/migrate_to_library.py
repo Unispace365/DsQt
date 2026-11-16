@@ -416,7 +416,6 @@ set_target_properties(${{DS_EXE_NAME}} PROPERTIES
     WIN32_EXECUTABLE TRUE
 )
 {fetchcontent_block}
-find_package(glm CONFIG REQUIRED)
 
 target_include_directories(${{DS_EXE_NAME}} PRIVATE
     ${{Dsqt_INCLUDES}}
@@ -451,7 +450,6 @@ target_link_libraries(${{DS_EXE_NAME}}
         Qt6::Sql
 
 {toml_link_line}
-        glm::glm
 )
 
 message("HEADERS ${{Dsqt_INCLUDES}}")
@@ -738,10 +736,6 @@ def generate_vcpkg_json(app_name):
     {{
       "name": "pkgconf",
       "version>=": "2.3.0"
-    }},
-    {{
-      "name": "glm",
-      "version>=": "1.0.1"
     }}
   ]
 }}
@@ -1117,7 +1111,7 @@ def migrate(project_dir, dsqt_root, dry_run=False, no_backup=False):
             qt_link_libs.add(lib)
             continue
         if lib in ('glm', 'glm::glm'):
-            continue
+            continue  # DsQt no longer uses GLM; drop the legacy link
         if lib in ('PkgConfig::tomlplusplus', 'tomlplusplus::tomlplusplus'):
             continue
         extra_link_libs.append(lib)
@@ -1280,7 +1274,7 @@ def migrate(project_dir, dsqt_root, dry_run=False, no_backup=False):
     vcpkg_path = os.path.join(project_dir, "vcpkg.json")
     print("Step 5: vcpkg.json...")
     if os.path.isfile(vcpkg_path):
-        print("  Already exists, skipping. Ensure it includes 'glm' dependency.")
+        print("  Already exists, skipping. Remove 'glm' if it is listed: DsQt no longer needs it.")
     else:
         vcpkg_content = generate_vcpkg_json(app_name)
         if dry_run:
