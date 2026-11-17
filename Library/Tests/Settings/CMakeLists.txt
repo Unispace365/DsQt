@@ -39,6 +39,8 @@ if(DSQT_SETTINGS_TEST_STANDALONE)
         "${DS_QT_PLATFORM_100_LIBRARY}/settings/dsSettingsFile.cpp"
         "${DS_QT_PLATFORM_100_LIBRARY}/settings/dsQmlSettingsProxy.cpp"
         "${DS_QT_PLATFORM_100_LIBRARY}/settings/dsQmlSettingsProxy.h"
+        "${DS_QT_PLATFORM_100_LIBRARY}/settings/dsSettingsTreeModel.cpp"
+        "${DS_QT_PLATFORM_100_LIBRARY}/settings/dsSettingsTreeModel.h"
         "${DS_QT_PLATFORM_100_LIBRARY}/core/dsEnvironment.cpp"
         "${DS_QT_PLATFORM_100_LIBRARY}/model/dsResource.cpp"
         "${DS_QT_PLATFORM_100_LIBRARY}/utility/dsFileMetaData.cpp"

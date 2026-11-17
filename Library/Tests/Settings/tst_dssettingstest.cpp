@@ -2,6 +2,14 @@
 #include <settings/dsSettings.h>
 #include <settings/dsSettingsFile.h>
 #include <settings/dsQmlSettingsProxy.h>
+#include <settings/dsSettingsTreeModel.h>
+#include <QPointF>
+#include <QQuaternion>
+#include <QRectF>
+#include <QSizeF>
+#include <QVector2D>
+#include <QVector3D>
+#include <QVector4D>
 #include <memory>
 #include <QDebug>
 #include <QDir>
@@ -143,6 +151,16 @@ class DsSettingsTest : public QObject
     void registryBind_deferred_shouldReplayInCallOrder();
     void registryBind_deferred_shouldBeDroppedWhenTheContextDies();
     void registryBind_deferred_shouldNotResolveOnAnUnrelatedFile();
+
+    // SettingsTreeModel (settings viewer editing)
+    void treeModel_parseDisplayString_shouldRoundTrip_data();
+    void treeModel_parseDisplayString_shouldRoundTrip();
+    void treeModel_parseDisplayString_shouldAcceptLooseSeparators();
+    void treeModel_parseDisplayString_shouldRejectMismatchedText_data();
+    void treeModel_parseDisplayString_shouldRejectMismatchedText();
+    void treeModel_setData_shouldKeepTheOriginalType_data();
+    void treeModel_setData_shouldKeepTheOriginalType();
+    void treeModel_setData_shouldRejectTextThatDoesNotFit();
 
   private:
     // Directory the test data is copied into by the build (see CMakeLists.txt).
@@ -1456,6 +1474,185 @@ void DsSettingsTest::registryBind_deferred_shouldNotResolveOnAnUnrelatedFile()
 
     dsqt::Settings::add("test_settings");
     QCOMPARE(calls, 2);
+}
+
+// ── SettingsTreeModel ────────────────────────────────────────────────────────
+
+namespace {
+
+// Depth-first search for the value-column index of the item at `path`.
+QModelIndex findValueIndex(const QAbstractItemModel &model, const QString &path,
+                           const QModelIndex &parent = {})
+{
+    for (int row = 0; row < model.rowCount(parent); ++row) {
+        const QModelIndex idx = model.index(row, 0, parent);
+        if (idx.data(dsqt::SettingsTreeModel::FullPathRole).toString() == path)
+            return idx.siblingAtColumn(1);
+        if (const QModelIndex found = findValueIndex(model, path, idx); found.isValid())
+            return found;
+    }
+    return {};
+}
+
+// A SettingsFile backed by a TOML file written into a temporary directory.
+struct TempSettingsFile
+{
+    QTemporaryDir dir;
+    std::unique_ptr<dsqt::SettingsFile> file;
+
+    explicit TempSettingsFile(const QByteArray &toml)
+    {
+        QFile out(dir.filePath("viewer.toml"));
+        if (out.open(QIODevice::WriteOnly))
+            out.write(toml);
+        out.close();
+        file = std::make_unique<dsqt::SettingsFile>(nullptr, QStringList{dir.path()});
+        file->setFileName("viewer.toml");
+    }
+};
+
+} // namespace
+
+void DsSettingsTest::treeModel_parseDisplayString_shouldRoundTrip_data()
+{
+    QTest::addColumn<QVariant>("value");
+
+    QTest::newRow("point")      << QVariant(QPointF(10, -20.5));
+    QTest::newRow("point-prec") << QVariant(QPointF(1234567.125, 0.1));
+    QTest::newRow("size")       << QVariant(QSizeF(1920, 1080));
+    QTest::newRow("rect")       << QVariant(QRectF(1.5, 2, 300, 400));
+    QTest::newRow("vector2d")   << QVariant(QVector2D(0.1f, -2.f));
+    QTest::newRow("vector3d")   << QVariant(QVector3D(0.1f, 0.2f, 0.3f));
+    QTest::newRow("vector4d")   << QVariant(QVector4D(1.f, 2.f, 3.f, 0.25f));
+    QTest::newRow("quaternion") << QVariant(QQuaternion(0.5f, 1.f, 2.f, 3.f));
+    QTest::newRow("color")      << QVariant(QColor(0x80, 0x10, 0x20, 0x40));
+    QTest::newRow("bool")       << QVariant(true);
+    QTest::newRow("int64")      << QVariant(qlonglong(-9000000000));
+    QTest::newRow("double")     << QVariant(0.1);
+    QTest::newRow("string")     << QVariant(QStringLiteral(" padded (1, 2) "));
+    QTest::newRow("date")       << QVariant(QDate(2026, 11, 17));
+    QTest::newRow("time")       << QVariant(QTime(13, 45, 10));
+}
+
+void DsSettingsTest::treeModel_parseDisplayString_shouldRoundTrip()
+{
+    QFETCH(QVariant, value);
+    const QString  text   = dsqt::SettingsTreeModel::displayString(value);
+    const QVariant parsed = dsqt::SettingsTreeModel::parseDisplayString(text, value.metaType());
+    QVERIFY2(parsed.isValid(), qPrintable("could not parse " + text));
+    QCOMPARE(parsed.metaType(), value.metaType());
+    QCOMPARE(parsed, value);
+}
+
+void DsSettingsTest::treeModel_parseDisplayString_shouldAcceptLooseSeparators()
+{
+    using dsqt::SettingsTreeModel;
+    const QMetaType point = QMetaType::fromType<QPointF>();
+    const QMetaType size  = QMetaType::fromType<QSizeF>();
+    QCOMPARE(SettingsTreeModel::parseDisplayString("(3, 4)", point), QVariant(QPointF(3, 4)));
+    QCOMPARE(SettingsTreeModel::parseDisplayString("3,4", point), QVariant(QPointF(3, 4)));
+    QCOMPARE(SettingsTreeModel::parseDisplayString("  3 4  ", point), QVariant(QPointF(3, 4)));
+    QCOMPARE(SettingsTreeModel::parseDisplayString("[-1e2; .5]", point), QVariant(QPointF(-100, 0.5)));
+    QCOMPARE(SettingsTreeModel::parseDisplayString("800x600", size), QVariant(QSizeF(800, 600)));
+    QCOMPARE(SettingsTreeModel::parseDisplayString(QStringLiteral(u"800 × 600"), size),
+             QVariant(QSizeF(800, 600)));
+}
+
+void DsSettingsTest::treeModel_parseDisplayString_shouldRejectMismatchedText_data()
+{
+    QTest::addColumn<QString>("text");
+    QTest::addColumn<QMetaType>("type");
+
+    const QMetaType point = QMetaType::fromType<QPointF>();
+    QTest::newRow("point-empty")    << QString()                    << point;
+    QTest::newRow("point-word")     << QStringLiteral("abc")        << point;
+    QTest::newRow("point-one")      << QStringLiteral("1")          << point;
+    QTest::newRow("point-three")    << QStringLiteral("1, 2, 3")    << point;
+    QTest::newRow("point-trailing") << QStringLiteral("1, 2 px")    << point;
+    QTest::newRow("rect-two")       << QStringLiteral("(1, 2)")     << QMetaType::fromType<QRectF>();
+    QTest::newRow("bool-word")      << QStringLiteral("yes")        << QMetaType::fromType<bool>();
+    QTest::newRow("int-fraction")   << QStringLiteral("1.5")        << QMetaType::fromType<qlonglong>();
+    QTest::newRow("color-word")     << QStringLiteral("notacolor")  << QMetaType::fromType<QColor>();
+    QTest::newRow("date-garbage")   << QStringLiteral("17/11/2026") << QMetaType::fromType<QDate>();
+}
+
+void DsSettingsTest::treeModel_parseDisplayString_shouldRejectMismatchedText()
+{
+    QFETCH(QString, text);
+    QFETCH(QMetaType, type);
+    QVERIFY(!dsqt::SettingsTreeModel::parseDisplayString(text, type).isValid());
+}
+
+void DsSettingsTest::treeModel_setData_shouldKeepTheOriginalType_data()
+{
+    QTest::addColumn<QString>("path");
+    QTest::addColumn<QString>("text");
+    QTest::addColumn<QVariant>("expected");
+
+    QTest::newRow("point")  << "window.pos"      << "(3, 4.5)"       << QVariant(QPointF(3, 4.5));
+    QTest::newRow("size")   << "window.size"     << "1280 x 720"     << QVariant(QSizeF(1280, 720));
+    QTest::newRow("rect")   << "window.rect"     << "(0, 0, 10, 20)" << QVariant(QRectF(0, 0, 10, 20));
+    QTest::newRow("vec3")   << "window.axis"     << "(0, 1, 0)"      << QVariant(QVector3D(0, 1, 0));
+    QTest::newRow("int")    << "window.count"    << "7"              << QVariant(qlonglong(7));
+    QTest::newRow("string") << "window.title"    << "(1, 2)"         << QVariant(QStringLiteral("(1, 2)"));
+    QTest::newRow("listed") << "window.points.1" << "(5, 6)"         << QVariant(QPointF(5, 6));
+}
+
+void DsSettingsTest::treeModel_setData_shouldKeepTheOriginalType()
+{
+    QFETCH(QString, path);
+    QFETCH(QString, text);
+    QFETCH(QVariant, expected);
+
+    TempSettingsFile settings(R"(
+[window]
+pos    = { x = 1, y = 2 }
+size   = { w = 640, h = 480 }
+rect   = { x = 1, y = 2, w = 3, h = 4 }
+axis   = { x = 1, y = 0, z = 0 }
+count  = 3
+title  = "hello"
+points = [ { x = 1, y = 1 }, { x = 2, y = 2 } ]
+)");
+
+    dsqt::SettingsTreeModel model;
+    model.setSettingsFile(settings.file.get());
+
+    const QModelIndex idx = findValueIndex(model, path);
+    QVERIFY2(idx.isValid(), qPrintable("no tree item for " + path));
+    QVERIFY(model.flags(idx) & Qt::ItemIsEditable);
+
+    // The delegate's line edit always hands the model a QString.
+    QVERIFY(model.setData(idx, text, Qt::EditRole));
+
+    // SettingsFile::value() does not index into lists, so read list elements
+    // ("window.points.1") through their parent list.
+    QVariant stored;
+    const qsizetype dot = path.lastIndexOf(u'.');
+    bool isElement = false;
+    const int element = path.mid(dot + 1).toInt(&isElement);
+    if (isElement)
+        stored = settings.file->value(path.left(dot)).toList().value(element);
+    else
+        stored = settings.file->value(path);
+    QCOMPARE(stored.metaType(), expected.metaType());
+    QCOMPARE(stored, expected);
+    QCOMPARE(findValueIndex(model, path).data(Qt::EditRole), expected);
+}
+
+void DsSettingsTest::treeModel_setData_shouldRejectTextThatDoesNotFit()
+{
+    TempSettingsFile settings("pos = { x = 1, y = 2 }\n");
+
+    dsqt::SettingsTreeModel model;
+    model.setSettingsFile(settings.file.get());
+
+    const QModelIndex idx = findValueIndex(model, "pos");
+    QVERIFY(idx.isValid());
+    QVERIFY(!model.setData(idx, QStringLiteral("not a point"), Qt::EditRole));
+
+    QCOMPARE(settings.file->value("pos"), QVariant(QPointF(1, 2)));
+    QCOMPARE(settings.file->provenance("pos"), settings.file->resolvedFilePaths().value(0));
 }
 
 QTEST_MAIN(DsSettingsTest)

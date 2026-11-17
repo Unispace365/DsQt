@@ -55,8 +55,13 @@ public:
     };
     Q_ENUM(Roles)
 
-    // Public so that ArrayEditorDialog (in SettingsViewerWidget.cpp) can reuse it.
+    // Public so that ArrayEditorDialog (in SettingsViewerWidget.cpp) can reuse them.
     static QString displayString(const QVariant &v);
+    // Inverse of displayString(): parses text typed by the user back into a value
+    // of `type`. Lenient about separators, so "(10, 20)", "10, 20", "10 20" and
+    // "10 × 20" all parse as two numbers. Returns an invalid QVariant if the text
+    // cannot be represented as `type`.
+    static QVariant parseDisplayString(const QString &text, QMetaType type);
 
     explicit SettingsTreeModel(QObject *parent = nullptr);
     ~SettingsTreeModel() override;
