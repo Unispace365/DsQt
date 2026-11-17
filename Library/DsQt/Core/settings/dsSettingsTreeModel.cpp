@@ -21,6 +21,7 @@
 #include <QRectF>
 #include <QRegularExpression>
 #include <QSizeF>
+#include <QUrl>
 #include <QVector2D>
 #include <QVector3D>
 #include <QVector4D>
@@ -422,10 +423,11 @@ SettingsSchemaEntry::Kind SettingsSchemaEntry::detectPath(const QString &value)
                                           });
     const bool driveRoot = windowsRoot.match(v).hasMatch();
     const bool slashRoot = v.startsWith(u'/') && !v.startsWith(u"//");
-    if (!variableRoot && !driveRoot && !slashRoot)
+    const bool fileUrl   = v.startsWith(u"file:", Qt::CaseInsensitive);
+    if (!variableRoot && !driveRoot && !slashRoot && !fileUrl)
         return Kind::None;
 
-    const QFileInfo info(DsEnvironment::expandq(v));
+    const QFileInfo info(localPath(v));
     if (info.exists())
         return info.isDir() ? Kind::Folder : Kind::File;
     if (slashRoot && !variableRoot && !driveRoot)
@@ -433,6 +435,34 @@ SettingsSchemaEntry::Kind SettingsSchemaEntry::detectPath(const QString &value)
     if (v.endsWith(u'/') || v.endsWith(u'\\'))
         return Kind::Folder;
     return info.suffix().isEmpty() ? Kind::Folder : Kind::File;
+}
+
+QString SettingsSchemaEntry::localPath(const QString &value)
+{
+    const QString v = value.trimmed();
+    if (!v.startsWith(u"file:", Qt::CaseInsensitive))
+        return DsEnvironment::expandq(v);
+
+    // Not parsed with QUrl: variables such as %CFG_FOLDER% would be taken for
+    // percent-encoding. The forms in use: file:///C:/x, file:///%APP%/x,
+    // file:///home/x, file://server/share/x and file:/x.
+    QString path = v.mid(5);
+    if (path.startsWith(u"//")) {
+        const QString rest = path.mid(2);
+        if (rest.startsWith(u'/') || rest.startsWith(u'%'))
+            path = rest; // no host
+        else
+            path = QStringLiteral("//") + rest; // a host: a UNC path
+    }
+    // "/C:/x" and "/%APP%/x": the slash only separates the path from the host.
+    static const QRegularExpression slashBeforeRoot(QStringLiteral(R"(^/(?=%|[A-Za-z]:))"));
+    path.remove(slashBeforeRoot);
+
+    // Variables first, then the URL's own escapes ("my%20clip.mp4"), unless a
+    // variable is left unresolved: "%CFG_FOLDER%" would decode as "%CF".
+    static const QRegularExpression variable(QStringLiteral("%[A-Za-z_]+%"));
+    path = DsEnvironment::expandq(path);
+    return path.contains(variable) ? path : QUrl::fromPercentEncoding(path.toUtf8());
 }
 
 int SettingsSchemaEntry::optionIndex(const QVariant &value) const
@@ -555,7 +585,7 @@ static void setLeaf(SettingsTreeItem *item, const QVariant &value, const Setting
         entry.kind = SettingsSchemaEntry::detectPath(value.toString());
     if (entry.kind == Kind::File || entry.kind == Kind::Folder) {
         const QString path = value.toString().trimmed();
-        entry.pathMissing  = !path.isEmpty() && !QFileInfo::exists(DsEnvironment::expandq(path));
+        entry.pathMissing  = !path.isEmpty() && !QFileInfo::exists(SettingsSchemaEntry::localPath(path));
     }
 
     // An option with a label is shown by its label.
@@ -719,7 +749,7 @@ QVariant SettingsTreeModel::data(const QModelIndex &index, int role) const
                                   : QStringLiteral("Takes effect after the app restarts.")));
         if (item->schema.pathMissing)
             lines.append(warn(QStringLiteral("Not found: %1")
-                                  .arg(QDir::toNativeSeparators(DsEnvironment::expandq(
+                                  .arg(QDir::toNativeSeparators(SettingsSchemaEntry::localPath(
                                       item->rawValue.toString().trimmed())))));
         if (!item->provenance.isEmpty())
             lines.append(QStringLiteral("<i style=\"color:%1\">%2</i>")

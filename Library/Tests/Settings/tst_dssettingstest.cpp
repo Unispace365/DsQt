@@ -181,6 +181,9 @@ class DsSettingsTest : public QObject
     void schemaEntry_detectPath_data();
     void schemaEntry_detectPath();
     void treeModel_paths_shouldBeDetectedAndFlaggedWhenMissing();
+    void schemaEntry_localPath_data();
+    void schemaEntry_localPath();
+    void treeModel_fileUrls_shouldBeCheckedAsPaths();
 
     // Restart marker
     void schemaEntry_restart_shouldAcceptBoolsAndLegacyStrings();
@@ -2019,6 +2022,9 @@ void DsSettingsTest::schemaEntry_detectPath_data()
     QTest::newRow("missing slash root") << "/api/v1" << Kind::None;
     QTest::newRow("relative")           << "data/movies" << Kind::None;
     QTest::newRow("word")               << "ripple" << Kind::None;
+    QTest::newRow("file url variable")  << "file:///%APP%/no-such-sound.wav" << Kind::File;
+    QTest::newRow("file url drive")     << "file:///Q:/does/not/exist/" << Kind::Folder;
+    QTest::newRow("file url any case")  << "FILE:///Q:/clip.mp4" << Kind::File;
     QTest::newRow("url")                << "https://example.com/a.png" << Kind::None;
     QTest::newRow("qrc")                << "qrc:/qt/qml/App/Main.qml" << Kind::None;
     QTest::newRow("empty")              << "" << Kind::None;
@@ -2074,6 +2080,62 @@ void DsSettingsTest::treeModel_paths_shouldBeDetectedAndFlaggedWhenMissing()
     QCOMPARE(entry("chosen").kind, Entry::Kind::File);
     QVERIFY(entry("chosen").pathMissing);
     QCOMPARE(entry("title").kind, Entry::Kind::None);
+}
+
+void DsSettingsTest::schemaEntry_localPath_data()
+{
+    QTest::addColumn<QString>("value");
+    QTest::addColumn<QString>("expected");
+
+    const QString app = dsqt::DsEnvironment::expandq("%APP%/data/fire.wav");
+    QTest::newRow("plain variable")    << "%APP%/data/fire.wav" << app;
+    QTest::newRow("url variable")      << "file:///%APP%/data/fire.wav" << app;
+    QTest::newRow("url two slashes")   << "file://%APP%/data/fire.wav" << app;
+    QTest::newRow("url drive")         << "file:///C:/temp/fire.wav" << "C:/temp/fire.wav";
+    QTest::newRow("url escapes")       << "file:///C:/temp/my%20clip.mp4" << "C:/temp/my clip.mp4";
+    QTest::newRow("url spaces")        << "file:///C:/temp/my clip.mp4" << "C:/temp/my clip.mp4";
+    QTest::newRow("url rooted")        << "file:///home/user/x.png" << "/home/user/x.png";
+    QTest::newRow("url single slash")  << "file:/C:/temp/x.png" << "C:/temp/x.png";
+    QTest::newRow("url host")          << "file://server/share/x.png" << "//server/share/x.png";
+    QTest::newRow("cfg folder")        << "file:///%CFG_FOLDER%/x.png"
+                                       << dsqt::DsEnvironment::expandq("%CFG_FOLDER%/x.png");
+}
+
+void DsSettingsTest::schemaEntry_localPath()
+{
+    QFETCH(QString, value);
+    QFETCH(QString, expected);
+    QCOMPARE(dsqt::SettingsSchemaEntry::localPath(value), expected);
+}
+
+void DsSettingsTest::treeModel_fileUrls_shouldBeCheckedAsPaths()
+{
+    using Entry = dsqt::SettingsSchemaEntry;
+    QTemporaryDir media;
+    QVERIFY(media.isValid());
+    {
+        QFile clip(media.filePath("fire.wav"));
+        QVERIFY(clip.open(QIODevice::WriteOnly));
+    }
+
+    const QByteArray toml = QStringLiteral(
+        "found = \"file:///%1\"\n"
+        "missing = \"file:///%2\"\n")
+        .arg(media.filePath("fire.wav"), media.filePath("gone.wav")).toUtf8();
+    TempSettingsFile settings(toml, "[found]\neditor = \"file\"\n");
+    dsqt::SettingsTreeModel model;
+    model.setSettingsFile(settings.file.get());
+
+    const auto entry = [&model](const QString &path) {
+        return findValueIndex(model, path).data(dsqt::SettingsTreeModel::SchemaEntryRole).value<Entry>();
+    };
+    QCOMPARE(entry("found").kind, Entry::Kind::File);
+    QVERIFY(!entry("found").pathMissing);
+    QCOMPARE(entry("missing").kind, Entry::Kind::File); // detected without a schema
+    QVERIFY(entry("missing").pathMissing);
+    const QString tip = findValueIndex(model, "missing").data(Qt::ToolTipRole).toString();
+    QVERIFY2(tip.contains(QDir::toNativeSeparators(media.filePath("gone.wav")).toHtmlEscaped()),
+             qPrintable(tip));
 }
 
 // ── Restart marker ───────────────────────────────────────────────────────────

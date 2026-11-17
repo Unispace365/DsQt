@@ -48,11 +48,16 @@ struct SettingsSchemaEntry
 
     // Guesses whether a string without a schema editor holds a path: it must
     // start with a root path variable (%APP%, %LOCAL%, ...) or a drive letter
-    // or UNC prefix, or be a "/"-rooted path that exists. An existing path is
-    // a File or Folder as found on disk; otherwise a trailing slash or a
-    // missing extension means Folder. Anything else (URLs, plain words,
-    // relative paths) is Kind::None.
+    // or UNC prefix, or be a "/"-rooted path that exists. A file: URL
+    // ("file:///%APP%/data/clip.mp4") counts when its path does. An existing
+    // path is a File or Folder as found on disk; otherwise a trailing slash or
+    // a missing extension means Folder. Anything else (other URLs, plain
+    // words, relative paths) is Kind::None.
     static Kind detectPath(const QString &value);
+
+    // The local file system path a path setting refers to: path variables
+    // expanded, and a file: URL converted to a plain path.
+    static QString localPath(const QString &value);
 
     // Slider: `v` clamped to [min, max] and snapped to the step grid, as valueType.
     QVariant snapped(double v) const;

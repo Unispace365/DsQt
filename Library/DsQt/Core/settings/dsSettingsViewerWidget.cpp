@@ -102,6 +102,20 @@ public:
                const QStyleOptionViewItem &option,
                const QModelIndex &index) const override
     {
+        // Under an open editor only the background is painted: some styles draw
+        // a frameless combo box without filling it, so the cell's own text
+        // would show through.
+        if (m_editing.isValid() && index == m_editing) {
+            QStyleOptionViewItem opt(option);
+            initStyleOption(&opt, index);
+            opt.text.clear();
+            opt.icon = QIcon();
+            const QWidget *widget = opt.widget;
+            QStyle *style = widget ? widget->style() : QApplication::style();
+            style->drawControl(QStyle::CE_ItemViewItem, &opt, painter, widget);
+            return;
+        }
+
         const SettingsSchemaEntry entry = schemaEntry(index);
         if (entry.kind == SettingsSchemaEntry::Kind::None) {
             QStyledItemDelegate::paint(painter, option, index);
@@ -172,10 +186,10 @@ public:
                 }, Qt::QueuedConnection);
             };
             QTimer::singleShot(0, combo, &QComboBox::showPopup);
-            return combo;
+            return trackEditor(combo, index);
         }
 
-        return new QLineEdit(parent);
+        return trackEditor(new QLineEdit(parent), index);
     }
 
     void setEditorData(QWidget *editor, const QModelIndex &index) const override
@@ -533,7 +547,7 @@ private:
             return;
 
         const QString current  = index.data(Qt::EditRole).toString().trimmed();
-        const QString expanded = current.isEmpty() ? QString() : DsEnvironment::expandq(current);
+        const QString expanded = current.isEmpty() ? QString() : SettingsSchemaEntry::localPath(current);
         const QString path     = index.data(SettingsTreeModel::FullPathRole).toString();
 
         // Start where the current value points, or at the nearest folder that exists.
@@ -557,6 +571,15 @@ private:
             return;
 
         QString value = DsEnvironment::contractPath(picked);
+        // Keep a file: URL a URL ("file:///%APP%/data/clip.mp4").
+        if (current.startsWith(u"file:", Qt::CaseInsensitive)) {
+            if (value.startsWith(u"//"))
+                value.prepend(QStringLiteral("file:")); // UNC: the host goes in the URL
+            else if (value.startsWith(u'/'))
+                value.prepend(QStringLiteral("file://"));
+            else
+                value.prepend(QStringLiteral("file:///"));
+        }
         // Keep the folder style of the current value ("%LOCAL%/cache/").
         if (folder && (current.endsWith(u'/') || current.endsWith(u'\\')) && !value.endsWith(u'/'))
             value += u'/';
@@ -601,8 +624,22 @@ private:
             painter->drawEllipse(centre + QPointF(i * 4.5, 0.5), 1.4, 1.4);
     }
 
+    // Remembers the cell an editor is open on, until the editor is destroyed.
+    QWidget *trackEditor(QWidget *editor, const QModelIndex &index) const
+    {
+        m_editing = index;
+        QObject::connect(editor, &QObject::destroyed, m_view, [this, target = QPersistentModelIndex(index)] {
+            if (m_editing == target) {
+                m_editing = QPersistentModelIndex();
+                m_view->viewport()->update();
+            }
+        });
+        return editor;
+    }
+
     QAbstractItemView    *m_view;
-    QPersistentModelIndex m_drag; // slider being dragged, if any
+    QPersistentModelIndex m_drag;            // slider being dragged, if any
+    mutable QPersistentModelIndex m_editing; // cell with an open editor, if any
 };
 
 // ── SettingsTypeDelegate ──────────────────────────────────────────────────────
