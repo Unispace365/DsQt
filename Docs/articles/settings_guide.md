@@ -818,7 +818,7 @@ max = 45.0
 - Schema files are layered like the settings files they accompany: a later search path overrides an earlier one key by key, so an application can change the `max` of a library entry without repeating the rest. They are watched and reloaded live as well.
 - A schema only affects the viewer; it never changes values, and code that calls `setOverride()` is not clamped.
 - Entries that do not fit the setting are ignored: `min`/`max` on a string or a point, or a dropdown whose options all fail to convert, leave the plain text editor in place.
-- `restart = true` marks a setting that the app only reads at startup, such as `engine.project_path`. It works on any setting, alone or together with a slider, dropdown or path editor. The viewer shows a small amber warning sign after the type name, filled in once the value has been changed at runtime, and the tooltip says the change takes effect after the app restarts. Nothing restarts automatically. A legacy-style `restart = "full"` is read the same way; `false`, `"none"` or an empty string turn it off.
+- `restart = true` marks a setting that the app only reads at startup, such as `engine.project_path`. It works on any setting, alone or together with a slider, dropdown or path editor. On a table (`[engine.font]`) it applies to every setting below it; nothing else in an entry is inherited. The viewer shows a small amber warning sign after the type name, filled in once the value has been changed at runtime, and the tooltip says the change takes effect after the app restarts. Nothing restarts automatically. A legacy-style `restart = "full"` is read the same way; `false`, `"none"` or an empty string turn it off.
 
 ```toml
 [engine.project_path]
@@ -842,7 +842,22 @@ editor = "text"                  # never treat this string as a path
 
 The conversion is also available as `DsEnvironment::contractPath()`. Unlike the older `DsEnvironment::contract()`, it only ever replaces the start of a path.
 
-The raw entry for a key is available as `SettingsFile::schema(key)` (also from QML), and as the `schema` role of `SettingsTreeModel`.
+#### Built-in schemas
+
+DsQt describes the settings its own modules read, so an application does not have to. Each module carries a fragment for the settings files it reads, next to its code, compiled into its resources at `:/qt/qml/Dsqt/<Module>/schema/<file>.schema.toml`:
+
+| Module | Describes |
+|---|---|
+| Core | `engine.project_path`, `engine.idle_timeout`, `engine.window.*` (mode as a dropdown), `engine.resource.*`, `engine.font.*` (style, weight, hinting… as dropdowns and sliders), `engine.logging.rules`; `configuration.toml`'s `config_folder` |
+| Bridge | `engine.bridgesync.*`; `app_settings.toml`'s `platform.id` |
+| Qsys | `engine.qsys.*` |
+| Touch | `engine.touch_filter.*` (sliders) |
+
+These fragments are the lowest layer: an application's own schema files are merged over them key by key, so `engine.schema.toml` in an app's settings folder only needs what it adds or changes (an extra description, a narrower range). An application only gets the fragments of the modules it links. When a module starts reading a new setting, add it to that module's `schema/` file in the same change.
+
+New projects made with ProjectCloner start with an `app_settings.schema.toml` for the application's own settings.
+
+The raw entry for a key is available as `SettingsFile::schema(key)` (also from QML), and as the `schema` role of `SettingsTreeModel`. `SettingsFile::resolvedSchemaPaths()` lists every schema file that applies, built-in fragments first.
 
 ---
 

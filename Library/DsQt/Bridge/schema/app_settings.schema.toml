@@ -1,0 +1,7 @@
+# How the settings viewer edits the app_settings.toml settings that DsQt Bridge
+# reads. Compiled into Dsqt::Bridge; an application's own app_settings.schema.toml
+# is layered over it key by key.
+
+[platform.id]
+editor = "text"
+description = "UID of this platform's record in the Bridge database."

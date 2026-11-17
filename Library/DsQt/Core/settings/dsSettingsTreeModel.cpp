@@ -12,6 +12,8 @@
 #include <QDir>
 #include <QFileInfo>
 #include <QFont>
+#include <QGuiApplication>
+#include <QPalette>
 #include <QLocale>
 #include <QPixmap>
 #include <QPointF>
@@ -533,14 +535,17 @@ void SettingsTreeModel::updateInPlace(SettingsTreeItem *current,
     }
 }
 
-// Fills in the leaf fields of `item` for `value`.
-static void setLeaf(SettingsTreeItem *item, const QVariant &value, const SettingsFile *sf)
+// Fills in the leaf fields of `item` for `value`. `restart` is inherited from
+// an enclosing table whose schema says restart = true.
+static void setLeaf(SettingsTreeItem *item, const QVariant &value, const SettingsFile *sf,
+                    bool restart)
 {
     item->isLeaf    = true;
     item->rawValue  = value;
     item->typeName  = typeName(value);
     item->schemaMap = sf ? sf->schema(item->fullPath) : QVariantMap{};
     item->schema    = SettingsSchemaEntry::fromMap(item->schemaMap, value.metaType());
+    item->schema.restart = item->schema.restart || restart;
 
     // Strings without a schema editor may still be recognisable paths.
     SettingsSchemaEntry &entry = item->schema;
@@ -561,22 +566,31 @@ static void setLeaf(SettingsTreeItem *item, const QVariant &value, const Setting
                               : SettingsTreeModel::displayString(value);
 }
 
+bool SettingsTreeModel::schemaSaysRestart(const QString &path) const
+{
+    return m_settingsFile
+           && SettingsSchemaEntry::fromMap(m_settingsFile->schema(path), QMetaType()).restart;
+}
+
 void SettingsTreeModel::buildChildren(SettingsTreeItem *parent,
                                       const QVariantMap &map,
-                                      const QString &prefix)
+                                      const QString &prefix,
+                                      bool restart)
 {
     for (auto it = map.cbegin(); it != map.cend(); ++it) {
         const QString fullPath = prefix.isEmpty() ? it.key() : prefix + u'.' + it.key();
         auto *item = new SettingsTreeItem(it.key(), fullPath, parent);
 
         if (isMap(it.value())) {
-            buildChildren(item, it.value().toMap(), fullPath);
+            buildChildren(item, it.value().toMap(), fullPath,
+                          restart || schemaSaysRestart(fullPath));
         } else if (isList(it.value())) {
             item->typeName   = typeName(it.value());
             item->provenance = m_settingsFile ? m_settingsFile->provenance(fullPath) : QString{};
-            buildListChildren(item, it.value().toList(), fullPath);
+            buildListChildren(item, it.value().toList(), fullPath,
+                              restart || schemaSaysRestart(fullPath));
         } else {
-            setLeaf(item, it.value(), m_settingsFile);
+            setLeaf(item, it.value(), m_settingsFile, restart);
             item->provenance = m_settingsFile ? m_settingsFile->provenance(fullPath) : QString{};
         }
 
@@ -586,7 +600,8 @@ void SettingsTreeModel::buildChildren(SettingsTreeItem *parent,
 
 void SettingsTreeModel::buildListChildren(SettingsTreeItem *parent,
                                           const QVariantList &list,
-                                          const QString &prefix)
+                                          const QString &prefix,
+                                          bool restart)
 {
     for (int i = 0; i < list.size(); ++i) {
         const QString key      = QString::number(i);
@@ -595,12 +610,12 @@ void SettingsTreeModel::buildListChildren(SettingsTreeItem *parent,
         auto *item             = new SettingsTreeItem(key, fullPath, parent);
 
         if (isMap(v)) {
-            buildChildren(item, v.toMap(), fullPath);
+            buildChildren(item, v.toMap(), fullPath, restart);
         } else if (isList(v)) {
             item->typeName = typeName(v);
-            buildListChildren(item, v.toList(), fullPath);
+            buildListChildren(item, v.toList(), fullPath, restart);
         } else {
-            setLeaf(item, v, m_settingsFile);
+            setLeaf(item, v, m_settingsFile, restart);
             // Provenance is not tracked for individual array elements.
         }
 
@@ -673,22 +688,44 @@ QVariant SettingsTreeModel::data(const QModelIndex &index, int role) const
         }
         return {};
     case Qt::ToolTipRole: {
-        // The schema description, then provenance for any item that has it
-        // (leaves AND list parent nodes; list elements have no provenance).
+        // Rich text, so long descriptions wrap:
+        //  - the schema description, in the tooltip's normal text style;
+        //  - warnings (restart, missing path) in bold amber, matching the
+        //    warning sign the viewer paints;
+        //  - provenance (leaves AND list parent nodes; list elements have
+        //    none) in grey italics.
+        // Colours come from the tooltip palette, so both themes read well.
+        const QPalette palette = QGuiApplication::palette();
+        const QColor text = palette.color(QPalette::ToolTipText);
+        const QColor base = palette.color(QPalette::ToolTipBase);
+        const bool darkTip = text.lightness() > base.lightness();
+        const QColor warning = darkTip ? QColor(252, 200, 60) : QColor(176, 104, 0);
+        // 60% text, 40% background: clearly secondary, still readable.
+        const auto mix = [](int t, int b) { return (t * 3 + b * 2) / 5; };
+        const QColor grey(mix(text.red(), base.red()), mix(text.green(), base.green()),
+                          mix(text.blue(), base.blue()));
+
+        const auto warn = [&warning](const QString &line) {
+            return QStringLiteral("<b style=\"color:%1\">%2</b>")
+                .arg(warning.name(), line.toHtmlEscaped());
+        };
+
         QStringList lines;
         if (!item->schema.description.isEmpty())
-            lines.append(item->schema.description);
+            lines.append(item->schema.description.toHtmlEscaped());
         if (item->schema.restart)
-            lines.append(item->hasOverride()
-                             ? QStringLiteral("Changed: takes effect after the app restarts.")
-                             : QStringLiteral("Takes effect after the app restarts."));
+            lines.append(warn(item->hasOverride()
+                                  ? QStringLiteral("Changed: takes effect after the app restarts.")
+                                  : QStringLiteral("Takes effect after the app restarts.")));
         if (item->schema.pathMissing)
-            lines.append(QStringLiteral("Not found: %1")
-                             .arg(QDir::toNativeSeparators(
-                                 DsEnvironment::expandq(item->rawValue.toString().trimmed()))));
+            lines.append(warn(QStringLiteral("Not found: %1")
+                                  .arg(QDir::toNativeSeparators(DsEnvironment::expandq(
+                                      item->rawValue.toString().trimmed())))));
         if (!item->provenance.isEmpty())
-            lines.append(item->provenance);
-        return lines.isEmpty() ? QVariant{} : QVariant(lines.join(u'\n'));
+            lines.append(QStringLiteral("<i style=\"color:%1\">%2</i>")
+                             .arg(grey.name(), item->provenance.toHtmlEscaped()));
+        return lines.isEmpty() ? QVariant{}
+                               : QVariant(QStringLiteral("<qt>%1</qt>").arg(lines.join(u"<br>")));
     }
     case Qt::FontRole: {
         QFont font;

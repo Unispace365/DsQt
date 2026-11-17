@@ -8,7 +8,10 @@
 
 #include <QColor>
 #include <QDateTime>
+#include <QDir>
 #include <QFile>
+#include <QFileInfo>
+#include <QLoggingCategory>
 #include <QSaveFile>
 #include <QPointF>
 #include <QQuaternion>
@@ -22,6 +25,8 @@
 
 // TOML parsing is isolated here — never pulled into the header.
 #include <toml++/toml.hpp>
+
+Q_LOGGING_CATEGORY(lgSettingsSchema, "settings.schema")
 
 namespace dsqt {
 
@@ -786,7 +791,56 @@ QStringList SettingsFile::resolvedFilePaths() const
     return result;
 }
 
+QStringList SettingsFile::librarySchemaPaths(const QString &fileName)
+{
+    const QString base = QFileInfo(fileName).completeBaseName(); // "engine.toml" -> "engine"
+    if (base.isEmpty())
+        return {};
+    static const QString root = QStringLiteral(":/qt/qml/Dsqt");
+    QStringList result;
+    const QStringList modules = QDir(root).entryList(QDir::Dirs | QDir::NoDotAndDotDot, QDir::Name);
+    for (const QString &module : modules) {
+        const QString path = QStringLiteral("%1/%2/schema/%3.schema.toml").arg(root, module, base);
+        if (QFile::exists(path))
+            result.append(path);
+    }
+    return result;
+}
+
 QStringList SettingsFile::resolvedSchemaPaths() const
+{
+    return librarySchemaPaths(m_fileName) + fileSchemaPaths();
+}
+
+void SettingsFile::ensureLibrarySchema() const
+{
+    if (m_librarySchemaLoaded)
+        return;
+    // Most settings files have no fragment at all, and schema() is called for
+    // every setting when the viewer builds its tree: scanning the resources each
+    // time made a large file take seconds. Look again at most once a second, in
+    // case a module's resources are registered later (when its QML plugin loads).
+    if (m_librarySchemaScan.isValid() && m_librarySchemaScan.elapsed() < 1000)
+        return;
+    const QStringList paths = librarySchemaPaths(m_fileName);
+    if (paths.isEmpty()) {
+        m_librarySchemaScan.start();
+        return;
+    }
+    qCInfo(lgSettingsSchema) << "Built-in schema for" << m_fileName << ":" << paths;
+    for (const QString &path : paths) {
+        try {
+            flattenSchema(schemaNodeToVariant(parseFile(path)).toMap(), {}, m_librarySchema);
+        } catch (const toml::parse_error &e) {
+            qWarning("SettingsFile: failed to parse schema '%s': %s",
+                     qPrintable(path),
+                     e.description().data());
+        }
+    }
+    m_librarySchemaLoaded = true;
+}
+
+QStringList SettingsFile::fileSchemaPaths() const
 {
     static const QLatin1StringView suffix(".toml");
     QStringList result;
@@ -803,18 +857,29 @@ QStringList SettingsFile::resolvedSchemaPaths() const
 QVariantMap SettingsFile::schema(const QString &key) const
 {
     settings::checkThread(this, Q_FUNC_INFO);
-    if (const auto it = m_schema.constFind(key); it != m_schema.cend())
-        return *it;
+    ensureLibrarySchema();
 
-    // A list element has no path of its own in the schema; use its list's entry.
-    const qsizetype dot = key.lastIndexOf(u'.');
-    if (dot > 0) {
-        bool isIndex = false;
-        key.mid(dot + 1).toInt(&isIndex);
-        if (isIndex)
-            return m_schema.value(key.left(dot));
-    }
-    return {};
+    // The entry for `key` in one layer; a list element has no path of its own,
+    // so it uses its list's entry.
+    const auto lookup = [&key](const QHash<QString, QVariantMap> &layer) -> QVariantMap {
+        if (const auto it = layer.constFind(key); it != layer.cend())
+            return *it;
+        const qsizetype dot = key.lastIndexOf(u'.');
+        if (dot > 0) {
+            bool isIndex = false;
+            key.mid(dot + 1).toInt(&isIndex);
+            if (isIndex)
+                return layer.value(key.left(dot));
+        }
+        return {};
+    };
+
+    // DsQt's fragments first, the application's schema files over them key by key.
+    QVariantMap entry = lookup(m_librarySchema);
+    const QVariantMap own = lookup(m_schema);
+    for (auto it = own.cbegin(); it != own.cend(); ++it)
+        entry.insert(it.key(), it.value());
+    return entry;
 }
 
 void SettingsFile::reload()
@@ -825,7 +890,7 @@ void SettingsFile::reload()
     m_provenance.clear();
     m_schema.clear();
 
-    for (const QString &path : resolvedSchemaPaths()) {
+    for (const QString &path : fileSchemaPaths()) {
         try {
             const toml::table table = parseFile(path);
             flattenSchema(schemaNodeToVariant(table).toMap(), {}, m_schema);

@@ -1,0 +1,9 @@
+# How the settings viewer edits the engine.toml settings that DsQt Qsys reads.
+# Compiled into Dsqt::Qsys; an application's own engine.schema.toml is layered
+# over it key by key. Both settings are applied live (dsQsys.cpp binds them).
+
+[engine.qsys.enabled]
+description = "Run the Q-SYS control server."
+
+[engine.qsys.port]
+description = "TCP port the Q-SYS control server listens on, 1 to 65535."

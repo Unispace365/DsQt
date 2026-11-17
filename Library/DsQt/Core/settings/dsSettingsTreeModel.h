@@ -159,12 +159,17 @@ private:
     void updateInPlace(SettingsTreeItem *current,
                        const SettingsTreeItem *fresh,
                        const QModelIndex &parentIndex);
+    // `restart`: an enclosing table's schema says restart = true, which
+    // applies to every setting below it.
     void buildChildren(SettingsTreeItem *parent,
                        const QVariantMap &map,
-                       const QString &prefix);
+                       const QString &prefix,
+                       bool restart = false);
     void buildListChildren(SettingsTreeItem *parent,
                            const QVariantList &list,
-                           const QString &prefix);
+                           const QString &prefix,
+                           bool restart = false);
+    bool schemaSaysRestart(const QString &path) const;
 
     SettingsFile *m_settingsFile = nullptr;
     SettingsTreeItem *m_root = nullptr;

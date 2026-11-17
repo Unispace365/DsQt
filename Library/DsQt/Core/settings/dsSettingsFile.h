@@ -17,6 +17,7 @@
 #include <QStringList>
 #include <QVariant>
 #include <QVariantMap>
+#include <QElapsedTimer>
 #include <QHash>
 #include <QVector2D>
 #include <QVector3D>
@@ -92,9 +93,19 @@ public:
     // Returns the resolved existing primary and extra files in merge order.
     QStringList resolvedFilePaths() const;
 
-    // Returns the existing schema files that accompany resolvedFilePaths(), in the
-    // same order: "engine.schema.toml" next to each "engine.toml".
+    // Returns every schema file that applies, lowest priority first: the
+    // fragments compiled into DsQt modules for this file (see librarySchemaPaths()),
+    // then those that accompany resolvedFilePaths(): "engine.schema.toml" next
+    // to each "engine.toml".
     QStringList resolvedSchemaPaths() const;
+
+    // Returns the schema fragments that DsQt modules compile in for `fileName`
+    // ("engine.toml" -> ":/qt/qml/Dsqt/<Module>/schema/engine.schema.toml"),
+    // sorted by module. A module's fragment describes the settings that module
+    // reads, so an application only gets fragments for the modules it links.
+    // Their resources may only be registered once the module's QML plugin has
+    // loaded, which is why schema() looks them up lazily.
+    static QStringList librarySchemaPaths(const QString &fileName);
 
     // Returns the schema entry for `key`, or an empty map if it has none.
     //
@@ -120,7 +131,8 @@ public:
     //                                # only after the app restarts
     //
     // A list element ("points.1") falls back to the entry of its list ("points").
-    // Later schema files override earlier ones key by key.
+    // Later schema files override earlier ones key by key, and an application's
+    // schema files override DsQt's built-in fragments the same way.
     Q_INVOKABLE QVariantMap schema(const QString &key) const;
 
     // Returns the value at `key` as a QString, or def if absent or unconvertible.
@@ -422,7 +434,15 @@ private:
     mutable QReadWriteLock m_mergedLock; // guards m_merged for cross-thread reads
     QStringList m_files;
     QMap<QString, int> m_provenance;
-    QHash<QString, QVariantMap> m_schema; // dotted setting path → schema entry
+    // Schema files next to the settings files, read by reload().
+    QStringList fileSchemaPaths() const;
+    // Loads the DsQt modules' schema fragments, until at least one is found.
+    void ensureLibrarySchema() const;
+
+    QHash<QString, QVariantMap> m_schema; // dotted setting path → schema entry (files)
+    mutable QHash<QString, QVariantMap> m_librarySchema; // same, from DsQt modules
+    mutable bool m_librarySchemaLoaded = false;
+    mutable QElapsedTimer m_librarySchemaScan; // since the last scan that found nothing
 };
 
 }

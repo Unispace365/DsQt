@@ -1,0 +1,40 @@
+# How the settings viewer edits the engine.toml settings that DsQt Touch reads.
+# Compiled into Dsqt::Touch; an application's own engine.schema.toml is layered
+# over it key by key. TouchFilter reads these once, when it is created.
+# Slider ranges cover sensible tuning; values typed by hand are clamped to them.
+
+[engine.touch_filter]
+restart = true
+
+[engine.touch_filter.filterEnabled]
+description = "Filter touches at all."
+
+[engine.touch_filter.proximityFilterPx]
+min = 0.0
+max = 200.0
+step = 1.0
+description = "Reject a press this close, in pixels, to an active touch. 0 turns proximity rejection off."
+
+[engine.touch_filter.transientThresholdMs]
+min = 0
+max = 500
+step = 5
+description = "Hold each press this long, in milliseconds; a touch that lifts sooner is suppressed as a transient."
+
+[engine.touch_filter.smoothingFactor]
+min = 0.0
+max = 1.0
+step = 0.05
+description = "Jitter smoothing of the positions reported in touchAccepted, 0 to 1."
+
+[engine.touch_filter.liftResumeThresholdMs]
+min = 0
+max = 500
+step = 5
+description = "A press this soon, in milliseconds, after a nearby release continues the same drag."
+
+[engine.touch_filter.liftResumeDistancePx]
+min = 0.0
+max = 200.0
+step = 1.0
+description = "How near, in pixels, that press must be to the release to continue the drag."

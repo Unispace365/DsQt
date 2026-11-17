@@ -11,6 +11,13 @@ qt_add_qml_module(Qsys
     NO_PLUGIN_OPTIONAL
     SOURCES qsys/dsQsys.h qsys/dsQsys.cpp
 )
+
+# Settings viewer schema for the settings this module reads (see
+# SettingsFile::librarySchemaPaths): served at :/qt/qml/Dsqt/Qsys/schema/.
+qt_target_qml_sources(Qsys
+    RESOURCES
+        schema/engine.schema.toml
+)
 target_sources(DsqtQsysplugin PRIVATE qsys/dsQsysPlugin.cpp)
 target_link_libraries(Qsys PUBLIC Dsqt::Core Qt6::Qml Qt6::Network Qt6::WebSockets DsqtQsysplugin)
 target_include_directories(Qsys PUBLIC

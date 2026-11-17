@@ -1,0 +1,104 @@
+# How the settings viewer edits the engine.toml settings that DsQt Core reads.
+# Compiled into Dsqt::Core; an application's own engine.schema.toml is layered
+# over it key by key. Keep entries in step with the code that reads them.
+
+[engine.project_path]
+restart = true
+description = "Project name (%PP%): adds %LOCAL%/settings/<name>/ to the settings search paths and names the app's local resource folders."
+
+[engine.idle_timeout]
+restart = true
+description = "Seconds without a touch or click before Ds.engine.idle starts idling."
+
+# ── Window (DsAppBase.qml) ──────────────────────────────────────────────────
+
+[engine.window.mode]
+options = ["window", "display", "desktop"]
+labels = ["Window", "Display", "Desktop"]
+description = "Window: a framed window centred on its display. Display: borderless, filling one display. Desktop: borderless, spanning every display."
+
+[engine.window.displayIndex]
+description = "The display to use, counting from 0. Ignored when displayName is set."
+
+[engine.window.displayName]
+description = "The name of the display to use. Takes precedence over displayIndex."
+
+[engine.window.width]
+description = "Preferred width in pixels in Window mode; 0 fills the display minus the margin. Applied when the window is laid out: at startup, when the mode or display changes, and when F toggles full screen."
+
+[engine.window.height]
+description = "Preferred height in pixels in Window mode; 0 fills the display minus the margin. Applied when the window is laid out: at startup, when the mode or display changes, and when F toggles full screen."
+
+[engine.window.margin]
+description = "Space in pixels kept free around the window in Window mode."
+
+[engine.window.forceToFront]
+description = "Keep a borderless window in front by re-activating it whenever it loses focus."
+
+[engine.window.forceToFrontInterval]
+min = 500
+max = 10000
+step = 100
+description = "How often, in milliseconds, forceToFront re-activates the window."
+
+# ── Resources ───────────────────────────────────────────────────────────────
+
+[engine.resource]
+restart = true
+
+[engine.resource.location]
+editor = "folder"
+description = "Folder holding the CMS resources and their database."
+
+[engine.resource.resource_db]
+description = "File name of the resource database inside the resource location."
+
+# ── Fonts (DsFontManager, applied once at startup) ──────────────────────────
+
+[engine.font]
+restart = true
+
+[engine.font.default.weight]
+min = 100
+max = 900
+step = 100
+description = "CSS-style weight: 100 thin, 400 normal, 700 bold, 900 black."
+
+[engine.font.default.style]
+options = ["StyleNormal", "StyleItalic", "StyleOblique"]
+labels = ["Normal", "Italic", "Oblique"]
+
+[engine.font.default.capitalization]
+options = ["MixedCase", "AllUppercase", "AllLowercase", "SmallCaps", "Capitalize"]
+labels = ["As written", "All uppercase", "All lowercase", "Small caps", "Capitalize words"]
+
+[engine.font.default.letterSpacingType]
+options = ["PercentageSpacing", "AbsoluteSpacing"]
+labels = ["Percentage", "Absolute (pixels)"]
+description = "How letterSpacing is read: a percentage of the normal spacing (100 = normal), or pixels added."
+
+[engine.font.default.hintingPreference]
+options = ["PreferDefaultHinting", "PreferNoHinting", "PreferVerticalHinting", "PreferFullHinting"]
+labels = ["Default", "None", "Vertical only", "Full"]
+
+[engine.font.default.styleHint]
+options = ["AnyStyle", "SansSerif", "Helvetica", "Serif", "Times", "TypeWriter", "Courier",
+           "OldEnglish", "Decorative", "Monospace", "Fantasy", "Cursive"]
+description = "Which kind of font to fall back to when the family is not available."
+
+[engine.font.default.styleStrategy]
+options = ["PreferDefault", "PreferBitmap", "PreferDevice", "PreferOutline", "ForceOutline",
+           "PreferMatch", "PreferQuality", "PreferAntialias", "NoAntialias",
+           "NoSubpixelAntialias", "PreferNoShaping", "NoFontMerging"]
+
+# ── Other ───────────────────────────────────────────────────────────────────
+
+[engine.logging.rules]
+description = "Qt logging filter rules, \"category=true|false\", one per entry. Applied live."
+
+[node.refresh_rate]
+restart = true
+description = "Seconds between node watcher polls (at least 0.01)."
+
+[appHost.exitOnQuit]
+description = "On quit, ask DsAppHost to stop the app rather than restart it."

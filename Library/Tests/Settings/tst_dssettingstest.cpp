@@ -186,6 +186,11 @@ class DsSettingsTest : public QObject
     void schemaEntry_restart_shouldAcceptBoolsAndLegacyStrings();
     void treeModel_restart_shouldExplainItselfInTheTooltip();
 
+    // DsQt's built-in schema fragments
+    void librarySchema_shouldBeCompiledIntoTheModules();
+    void librarySchema_shouldLayerUnderTheApplicationSchema();
+    void schema_restart_shouldBeInheritedFromATable();
+
   private:
     // Directory the test data is copied into by the build (see CMakeLists.txt).
     static QString settingsDir() { return QDir::current().filePath("settings"); }
@@ -1892,7 +1897,7 @@ void DsSettingsTest::treeModel_schema_shouldDriveDisplayTooltipAndClamping()
     const auto widthEntry = width.data(dsqt::SettingsTreeModel::SchemaEntryRole).value<Entry>();
     QCOMPARE(widthEntry.kind, Entry::Kind::Slider);
     QCOMPARE(widthEntry.max, 3840.0);
-    QVERIFY(width.data(Qt::ToolTipRole).toString().startsWith("Width of the window"));
+    QVERIFY(width.data(Qt::ToolTipRole).toString().contains("<qt>Width of the window<br>"));
     QCOMPARE(width.data(dsqt::SettingsTreeModel::SchemaRole).toMap().value("step").toInt(), 10);
 
     // An option with a label is displayed by its label; the value is untouched.
@@ -2112,6 +2117,74 @@ void DsSettingsTest::treeModel_restart_shouldExplainItselfInTheTooltip()
     QVERIFY(model.setData(project, QStringLiteral("changed"), Qt::EditRole));
     QVERIFY(findValueIndex(model, "project").data(Qt::ToolTipRole).toString()
                 .contains("Changed: takes effect after the app restarts."));
+}
+
+// ── DsQt's built-in schema fragments ─────────────────────────────────────────
+
+void DsSettingsTest::librarySchema_shouldBeCompiledIntoTheModules()
+{
+    // This test links Dsqt::Core only: Core's fragments are there, Bridge's are not.
+    const QStringList engine = dsqt::SettingsFile::librarySchemaPaths("engine.toml");
+    QVERIFY2(engine.contains(":/qt/qml/Dsqt/Core/schema/engine.schema.toml"),
+             qPrintable(engine.join(", ")));
+    QVERIFY(!engine.contains(":/qt/qml/Dsqt/Bridge/schema/engine.schema.toml"));
+    QCOMPARE(dsqt::SettingsFile::librarySchemaPaths("configuration.toml"),
+             QStringList{":/qt/qml/Dsqt/Core/schema/configuration.schema.toml"});
+    QVERIFY(dsqt::SettingsFile::librarySchemaPaths("viewer.toml").isEmpty());
+}
+
+void DsSettingsTest::librarySchema_shouldLayerUnderTheApplicationSchema()
+{
+    QTemporaryDir dir;
+    const auto write = [&dir](const QString &name, const QByteArray &text) {
+        QFile out(dir.filePath(name));
+        QVERIFY(out.open(QIODevice::WriteOnly));
+        out.write(text);
+    };
+    write("engine.toml", "[engine.window]\nmode = \"window\"\n\n[engine.font.default]\nstyle = \"StyleItalic\"\n");
+    write("engine.schema.toml", "[engine.window.mode]\ndescription = \"Ours\"\n");
+
+    dsqt::SettingsFile file(nullptr, QStringList{dir.path()});
+    file.setFileName("engine.toml");
+
+    // Library fragments come first, the application's schema files after them.
+    const QStringList paths = file.resolvedSchemaPaths();
+    QCOMPARE(paths.first(), QStringLiteral(":/qt/qml/Dsqt/Core/schema/engine.schema.toml"));
+    QCOMPARE(paths.last(), dir.filePath("engine.schema.toml"));
+
+    // Key by key: Core's options stay, the application's description wins.
+    const QVariantMap mode = file.schema("engine.window.mode");
+    QCOMPARE(mode.value("options").toList().size(), 3);
+    QCOMPARE(mode.value("description").toString(), QStringLiteral("Ours"));
+
+    // Through the model: Core's dropdown, and restart inherited from [engine.font].
+    using Entry = dsqt::SettingsSchemaEntry;
+    dsqt::SettingsTreeModel model;
+    model.setSettingsFile(&file);
+    const auto entry = [&model](const QString &path) {
+        return findValueIndex(model, path).data(dsqt::SettingsTreeModel::SchemaEntryRole).value<Entry>();
+    };
+    QCOMPARE(entry("engine.window.mode").kind, Entry::Kind::Options);
+    QVERIFY(!entry("engine.window.mode").restart);
+    QCOMPARE(entry("engine.font.default.style").kind, Entry::Kind::Options);
+    QVERIFY(entry("engine.font.default.style").restart);
+    QCOMPARE(findValueIndex(model, "engine.font.default.style").data(Qt::DisplayRole).toString(),
+             QStringLiteral("Italic"));
+}
+
+void DsSettingsTest::schema_restart_shouldBeInheritedFromATable()
+{
+    using Entry = dsqt::SettingsSchemaEntry;
+    TempSettingsFile settings("[group.inner]\na = 1\n\n[other]\nb = 2\n",
+                              "[group]\nrestart = true\n\n[group.inner.a]\nmin = 0\nmax = 5\n");
+    dsqt::SettingsTreeModel model;
+    model.setSettingsFile(settings.file.get());
+
+    const auto a = findValueIndex(model, "group.inner.a").data(dsqt::SettingsTreeModel::SchemaEntryRole).value<Entry>();
+    QVERIFY(a.restart);                     // from [group], two levels up
+    QCOMPARE(a.kind, Entry::Kind::Slider);  // its own entry still applies
+    QVERIFY(!findValueIndex(model, "other.b").data(dsqt::SettingsTreeModel::SchemaEntryRole)
+                 .value<Entry>().restart);
 }
 
 QTEST_MAIN(DsSettingsTest)

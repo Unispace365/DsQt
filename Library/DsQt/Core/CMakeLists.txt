@@ -120,6 +120,14 @@ qt_target_qml_sources(Core
     RESOURCES
         "${CMAKE_CURRENT_BINARY_DIR}/.qsb/shaders/dsMultiEffect.frag.qsb"
 )
+
+# Settings viewer schema for the settings this module reads (see
+# SettingsFile::librarySchemaPaths): served at :/qt/qml/Dsqt/Core/schema/.
+qt_target_qml_sources(Core
+    RESOURCES
+        schema/engine.schema.toml
+        schema/configuration.schema.toml
+)
 set(CoreTargets ${CoreTargets} PARENT_SCOPE)
 
 target_link_libraries(Core PUBLIC 
