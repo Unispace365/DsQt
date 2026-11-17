@@ -302,18 +302,15 @@ void DsEnvironment::initialize() {
     // documents/downstream
     sDocumentsDownstream = QDir::cleanPath(QDir(sDocuments).filePath("downstream"));
 
-    // Before this, %LOCAL% was always <home>/Documents/downstream. If only that
-    // folder exists, keep using it, so settings, caches and other files already
-    // there do not silently disappear; move it to the new location to switch.
+    // Older DsQt versions always used <home>/Documents/downstream. %LOCAL% does not
+    // fall back to it, because BridgeSync installs into the OS Documents folder too,
+    // but warn when it still holds files, such as settings overrides, that are now ignored.
     const QString legacyDownstream =
         QDir::cleanPath(QDir::homePath() + QStringLiteral("/Documents/downstream"));
     if (legacyDownstream.compare(sDocumentsDownstream, Qt::CaseInsensitive) != 0
-        && QFileInfo(legacyDownstream).isDir() && !QFileInfo::exists(sDocumentsDownstream)) {
-        qCWarning(lgEnv).noquote() << "%LOCAL%: using" << legacyDownstream << "because"
-                                   << sDocumentsDownstream
-                                   << "does not exist yet. Move the folder there to use the Documents location.";
-        sDocuments           = QDir::cleanPath(QDir::homePath() + QStringLiteral("/Documents"));
-        sDocumentsDownstream = legacyDownstream;
+        && QFileInfo(legacyDownstream).isDir() && !QDir(legacyDownstream).isEmpty()) {
+        qCWarning(lgEnv).noquote() << "%LOCAL% is" << sDocumentsDownstream << "but" << legacyDownstream
+                                   << "also has content, which is no longer used. Move what you still need.";
     }
 #endif
 

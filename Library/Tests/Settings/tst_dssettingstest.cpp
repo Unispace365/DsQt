@@ -7,7 +7,6 @@
 #include <QDebug>
 #include <QDir>
 #include <QFile>
-#include <QFileInfo>
 #include <QTemporaryDir>
 #include <QStandardPaths>
 
@@ -1471,10 +1470,6 @@ void DsSettingsTest::environment_localShouldFollowTheDocumentsLocation()
 {
     const QString documents = QDir::cleanPath(QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation));
     const QString expected  = documents + QStringLiteral("/downstream");
-    const QString legacy    = QDir::cleanPath(QDir::homePath() + QStringLiteral("/Documents/downstream"));
-    if (legacy.compare(expected, Qt::CaseInsensitive) != 0 && QFileInfo(legacy).isDir()
-        && !QFileInfo::exists(expected))
-        QSKIP("Only the legacy <home>/Documents/downstream exists here, which DsQt keeps using.");
 
     QCOMPARE(dsqt::DsEnvironment::expandq(QStringLiteral("%DOCUMENTS%")), documents);
     QCOMPARE(dsqt::DsEnvironment::expandq(QStringLiteral("%LOCAL%")), expected);
