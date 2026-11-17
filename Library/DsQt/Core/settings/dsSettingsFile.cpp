@@ -8,7 +8,10 @@
 
 #include <QColor>
 #include <QDateTime>
+#include <QDir>
 #include <QFile>
+#include <QFileInfo>
+#include <QLoggingCategory>
 #include <QSaveFile>
 #include <QPointF>
 #include <QQuaternion>
@@ -22,6 +25,8 @@
 
 // TOML parsing is isolated here — never pulled into the header.
 #include <toml++/toml.hpp>
+
+Q_LOGGING_CATEGORY(lgSettingsSchema, "settings.schema")
 
 namespace dsqt {
 
@@ -428,6 +433,86 @@ static bool isMap(const QVariant &v)
     return v.metaType() == QMetaType::fromType<QVariantMap>();
 }
 
+// ── Schema files ───────────────────────────────────────────────────────────
+// Schema values are read literally: none of nodeToVariant()'s interpretation
+// applies, so options = ["red", "blue"] stays a list of strings rather than
+// becoming colours, and {x, y} tables stay tables.
+
+static QVariant schemaNodeToVariant(const toml::node &node)
+{
+    switch (node.type()) {
+    case toml::node_type::table: {
+        QVariantMap map;
+        for (auto &&[k, v] : *node.as_table())
+            map.insert(QString::fromStdString(std::string(k)), schemaNodeToVariant(v));
+        return map;
+    }
+    case toml::node_type::array: {
+        QVariantList list;
+        for (auto &&item : *node.as_array())
+            list.append(schemaNodeToVariant(item));
+        return list;
+    }
+    case toml::node_type::string:
+        return QString::fromStdString(*node.value<std::string>());
+    case toml::node_type::integer:
+        return QVariant::fromValue(*node.value<int64_t>());
+    case toml::node_type::floating_point:
+        return node.value_or(0.0);
+    case toml::node_type::boolean:
+        return node.value_or(false);
+    default:
+        return {}; // dates/times have no meaning in a schema
+    }
+}
+
+// A table is a schema entry if it holds at least one known schema key with a
+// non-table value. Checking the value keeps a setting that happens to be named
+// "min" ([range.min] min = 0 ...) from being mistaken for an entry of "range".
+static bool isSchemaEntry(const QVariantMap &map)
+{
+    static const QStringList keys{QStringLiteral("min"),     QStringLiteral("max"),
+                                  QStringLiteral("step"),    QStringLiteral("options"),
+                                  QStringLiteral("labels"),  QStringLiteral("description"),
+                                  QStringLiteral("editor"),  QStringLiteral("filter"),
+                                  QStringLiteral("restart")};
+    for (const QString &key : keys) {
+        const auto it = map.constFind(key);
+        if (it != map.cend() && !isMap(*it))
+            return true;
+    }
+    return false;
+}
+
+// Flattens a parsed schema file into dotted path → entry, merging into `out`
+// key by key so a later file can override a single field of an earlier entry.
+static void flattenSchema(const QVariantMap &map,
+                          const QString &prefix,
+                          QHash<QString, QVariantMap> &out)
+{
+    for (auto it = map.cbegin(); it != map.cend(); ++it) {
+        if (!isMap(it.value()))
+            continue; // stray top-level values describe nothing
+        const QString path = prefix.isEmpty() ? it.key() : prefix + u'.' + it.key();
+        const QVariantMap table = it.value().toMap();
+
+        if (!isSchemaEntry(table)) {
+            flattenSchema(table, path, out);
+            continue;
+        }
+        // An entry may still contain tables for nested settings below it.
+        QVariantMap &entry = out[path];
+        QVariantMap nested;
+        for (auto f = table.cbegin(); f != table.cend(); ++f) {
+            if (isMap(f.value()))
+                nested.insert(f.key(), f.value());
+            else
+                entry.insert(f.key(), f.value());
+        }
+        flattenSchema(nested, path, out);
+    }
+}
+
 // Deep-merges `overlay` into `base`: tables merge recursively, scalars overwrite.
 // If fileIndex >= 0, records it in m_provenance for every leaf written.
 void SettingsFile::deepMerge(QVariantMap &base,
@@ -706,12 +791,115 @@ QStringList SettingsFile::resolvedFilePaths() const
     return result;
 }
 
+QStringList SettingsFile::librarySchemaPaths(const QString &fileName)
+{
+    const QString base = QFileInfo(fileName).completeBaseName(); // "engine.toml" -> "engine"
+    if (base.isEmpty())
+        return {};
+    static const QString root = QStringLiteral(":/qt/qml/Dsqt");
+    QStringList result;
+    const QStringList modules = QDir(root).entryList(QDir::Dirs | QDir::NoDotAndDotDot, QDir::Name);
+    for (const QString &module : modules) {
+        const QString path = QStringLiteral("%1/%2/schema/%3.schema.toml").arg(root, module, base);
+        if (QFile::exists(path))
+            result.append(path);
+    }
+    return result;
+}
+
+QStringList SettingsFile::resolvedSchemaPaths() const
+{
+    return librarySchemaPaths(m_fileName) + fileSchemaPaths();
+}
+
+void SettingsFile::ensureLibrarySchema() const
+{
+    if (m_librarySchemaLoaded)
+        return;
+    // Most settings files have no fragment at all, and schema() is called for
+    // every setting when the viewer builds its tree: scanning the resources each
+    // time made a large file take seconds. Look again at most once a second, in
+    // case a module's resources are registered later (when its QML plugin loads).
+    if (m_librarySchemaScan.isValid() && m_librarySchemaScan.elapsed() < 1000)
+        return;
+    const QStringList paths = librarySchemaPaths(m_fileName);
+    if (paths.isEmpty()) {
+        m_librarySchemaScan.start();
+        return;
+    }
+    qCInfo(lgSettingsSchema) << "Built-in schema for" << m_fileName << ":" << paths;
+    for (const QString &path : paths) {
+        try {
+            flattenSchema(schemaNodeToVariant(parseFile(path)).toMap(), {}, m_librarySchema);
+        } catch (const toml::parse_error &e) {
+            qWarning("SettingsFile: failed to parse schema '%s': %s",
+                     qPrintable(path),
+                     e.description().data());
+        }
+    }
+    m_librarySchemaLoaded = true;
+}
+
+QStringList SettingsFile::fileSchemaPaths() const
+{
+    static const QLatin1StringView suffix(".toml");
+    QStringList result;
+    for (const QString &path : resolvedFilePaths()) {
+        if (!path.endsWith(suffix, Qt::CaseInsensitive))
+            continue;
+        const QString schemaPath = path.chopped(suffix.size()) + QStringLiteral(".schema.toml");
+        if (QFile::exists(schemaPath))
+            result.append(schemaPath);
+    }
+    return result;
+}
+
+QVariantMap SettingsFile::schema(const QString &key) const
+{
+    settings::checkThread(this, Q_FUNC_INFO);
+    ensureLibrarySchema();
+
+    // The entry for `key` in one layer; a list element has no path of its own,
+    // so it uses its list's entry.
+    const auto lookup = [&key](const QHash<QString, QVariantMap> &layer) -> QVariantMap {
+        if (const auto it = layer.constFind(key); it != layer.cend())
+            return *it;
+        const qsizetype dot = key.lastIndexOf(u'.');
+        if (dot > 0) {
+            bool isIndex = false;
+            key.mid(dot + 1).toInt(&isIndex);
+            if (isIndex)
+                return layer.value(key.left(dot));
+        }
+        return {};
+    };
+
+    // DsQt's fragments first, the application's schema files over them key by key.
+    QVariantMap entry = lookup(m_librarySchema);
+    const QVariantMap own = lookup(m_schema);
+    for (auto it = own.cbegin(); it != own.cend(); ++it)
+        entry.insert(it.key(), it.value());
+    return entry;
+}
+
 void SettingsFile::reload()
 {
     settings::checkThread(this, Q_FUNC_INFO);
     m_settings.clear();
     m_files.clear();
     m_provenance.clear();
+    m_schema.clear();
+
+    for (const QString &path : fileSchemaPaths()) {
+        try {
+            const toml::table table = parseFile(path);
+            flattenSchema(schemaNodeToVariant(table).toMap(), {}, m_schema);
+        } catch (const toml::parse_error &e) {
+            qWarning("SettingsFile: failed to parse schema '%s': %s",
+                     qPrintable(path),
+                     e.description().data());
+        }
+    }
 
     for (const QString &path : resolvedFilePaths()) {
         try {

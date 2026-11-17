@@ -36,6 +36,13 @@ qt_add_qml_module(Touch
         qml/TouchFilterControlsWindow.qml
 )
 
+# Settings viewer schema for the settings this module reads (see
+# SettingsFile::librarySchemaPaths): served at :/qt/qml/Dsqt/Touch/schema/.
+qt_target_qml_sources(Touch
+    RESOURCES
+        schema/engine.schema.toml
+)
+
 set(TouchTargets ${TouchTargets} PARENT_SCOPE)
 
 target_link_libraries(Touch PUBLIC

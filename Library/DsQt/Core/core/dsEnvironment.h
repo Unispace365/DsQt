@@ -4,6 +4,9 @@
 #include <QDebug>
 #include <qloggingcategory.h>
 #include <string>
+#include <utility>
+#include <QList>
+#include <QString>
 
 Q_DECLARE_LOGGING_CATEGORY(lgEnv)
 Q_DECLARE_LOGGING_CATEGORY(lgEnvVerbose)
@@ -77,6 +80,37 @@ class DsEnvironment {
      * @return The contracted path as a QString.
      */
     static QString contract(QString path);
+
+    /// A path variable and the folder it stands for, e.g. {"%LOCAL%", "C:/Users/me/Documents/downstream"}.
+    using PathVariable = std::pair<QString, QString>;
+
+    /**
+     * @brief The variables that name a root folder, with their current folders:
+     * %APP%, %LOCAL%, %DOCUMENTS%, %SHARED%, %CFG_FOLDER% and %RES%.
+     *
+     * Variables whose folder is not known (yet) are left out. %PP% is not a root
+     * folder but a name used inside paths, so it is never included.
+     */
+    static QList<PathVariable> pathVariables();
+
+    /**
+     * @brief Rewrites an absolute path to start with the variable of the deepest
+     * root folder that contains it.
+     *
+     * "C:/Users/me/Documents/downstream/cache" becomes "%LOCAL%/cache" rather than
+     * "%DOCUMENTS%/downstream/cache". Unlike contract(), only the start of the path
+     * is ever replaced, and only on a folder boundary ("Documents2" does not match
+     * "Documents"); either slash is accepted, case is ignored on Windows, and the
+     * result uses forward slashes. A trailing slash is kept. A path outside every
+     * root comes back cleaned but otherwise unchanged.
+     *
+     * @param path An absolute path, e.g. from a file dialog.
+     * @return The path with a variable prefix where possible.
+     */
+    static QString contractPath(const QString& path);
+
+    /// contractPath() against an explicit list of variables (for tests and tools).
+    static QString contractPath(const QString& path, const QList<PathVariable>& variables);
 
     /**
      * @brief Retrieves the path to a specified app folder, optionally appending a file name.

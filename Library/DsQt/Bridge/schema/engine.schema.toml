@@ -1,0 +1,41 @@
+# How the settings viewer edits the engine.toml settings that DsQt Bridge reads.
+# Compiled into Dsqt::Bridge; an application's own engine.schema.toml is
+# layered over it key by key. Keep entries in step with dsBridgeQuery.cpp.
+
+[engine.bridgesync]
+restart = true
+
+[engine.bridgesync.launch_bridgesync]
+description = "Start the BridgeSync console app together with this application."
+
+[engine.bridgesync.app_path]
+editor = "file"
+filter = "Programs (*.exe);;All files (*)"
+description = "The BridgeSync console executable."
+
+[engine.bridgesync.connection.server]
+description = "Bridge server URL that BridgeSync syncs from."
+
+[engine.bridgesync.connection.auth_server]
+description = "Authentication server URL."
+
+[engine.bridgesync.connection.client_id]
+editor = "text"
+description = "Client id for the authentication server."
+
+[engine.bridgesync.connection.client_secret]
+editor = "text"
+description = "Client secret for the authentication server."
+
+[engine.bridgesync.connection.directory]
+editor = "folder"
+description = "Folder BridgeSync syncs into. BridgeSync does not launch while this is empty."
+
+[engine.bridgesync.connection.interval]
+description = "Interval passed to BridgeSync as --interval; 0 leaves BridgeSync's own default."
+
+[engine.bridgesync.connection.verbose]
+description = "Pass --verbose to BridgeSync."
+
+[engine.bridgesync.connection.asyncRecords]
+description = "Let BridgeSync fetch records asynchronously."

@@ -2,55 +2,217 @@
 #include "settings/dsSettings.h"
 #include "settings/dsSettingsFile.h"
 #include "settings/dsSettingsTreeModel.h"
+#include "core/dsEnvironment.h"
 
 #include <QApplication>
 #include <QColor>
 #include <QColorDialog>
+#include <QComboBox>
 #include <QDesktopServices>
 #include <QDialog>
 #include <QDialogButtonBox>
 #include <QFileDialog>
 #include <QFileInfo>
+#include <functional>
 #include <QHBoxLayout>
 #include <QHeaderView>
 #include <QLineEdit>
 #include <QListWidget>
 #include <QHideEvent>
+#include <QKeyEvent>
 #include <QMenu>
 #include <QMessageBox>
 #include <QMouseEvent>
+#include <QPainter>
+#include <QPainterPath>
 #include <QPushButton>
 #include <QShowEvent>
 #include <QSortFilterProxyModel>
 #include <QStyledItemDelegate>
 #include <QTabWidget>
+#include <QTimer>
+#include <QToolTip>
 #include <QTreeView>
 #include <QUrl>
+#include <QVariantAnimation>
 #include <QVBoxLayout>
 
 namespace dsqt {
 
+// ── OptionsComboBox ───────────────────────────────────────────────────────────
+// The editor for settings whose schema lists options. It opens its popup as
+// soon as it is shown and reports when the popup closes, so the delegate can
+// close the editor whether or not an option was picked.
+
+class OptionsComboBox : public QComboBox
+{
+public:
+    using QComboBox::QComboBox;
+
+    std::function<void()> onPopupHidden;
+
+    void hidePopup() override
+    {
+        QComboBox::hidePopup();
+        if (onPopupHidden)
+            onPopupHidden();
+    }
+};
+
 // ── SettingsValueDelegate ─────────────────────────────────────────────────────
-// Column 1 editor: QColorDialog for colours, QLineEdit for everything else.
+// Column 1 (values):
+//  - colours: QColorDialog on double-click;
+//  - schema sliders: painted in the cell and dragged directly, no editor widget;
+//  - schema options: painted as a flat dropdown, opens an OptionsComboBox;
+//  - file and folder paths (schema editor, or detected): painted browse button
+//    that opens a file or folder dialog; the result is stored with a path
+//    variable (%LOCAL%, %APP%, ...) where one applies;
+//  - Booleans: painted on/off switch, flipped with a click or Space;
+//  - everything else (and a slider's exact value, via double-click on its
+//    text or F2): QLineEdit.
+//
+// Sliders and dropdowns are painted rather than being persistent widgets, so
+// every row keeps exactly the same height and look as a plain text row, and
+// nothing has to be recreated when the model changes.
 
 class SettingsValueDelegate : public QStyledItemDelegate
 {
 public:
-    using QStyledItemDelegate::QStyledItemDelegate;
+    explicit SettingsValueDelegate(QAbstractItemView *view)
+        : QStyledItemDelegate(view)
+        , m_view(view)
+    {
+        // The delegate drives slider drags itself: an item view only forwards
+        // presses to its delegate, never the moves that follow.
+        view->viewport()->installEventFilter(this);
+        view->viewport()->setMouseTracking(true); // cursor feedback
+        view->viewport()->setAttribute(Qt::WA_Hover);
+        view->installEventFilter(this); // Space flips a switch
+
+        // Slides a switch's knob over when it is flipped.
+        m_switchAnimation = new QVariantAnimation(this);
+        m_switchAnimation->setDuration(120);
+        m_switchAnimation->setEasingCurve(QEasingCurve::OutCubic);
+        QObject::connect(m_switchAnimation, &QVariantAnimation::valueChanged, this, [this] {
+            if (m_switchIndex.isValid())
+                m_view->viewport()->update(m_view->visualRect(m_switchIndex));
+        });
+    }
+
+    // ── Painting ──
+
+    QSize sizeHint(const QStyleOptionViewItem &option, const QModelIndex &index) const override
+    {
+        // One height for every row, with room for a slider handle and a
+        // dropdown frame. The tree uses uniform row heights, so this applies
+        // to all rows, whatever they contain.
+        QSize size = QStyledItemDelegate::sizeHint(option, index);
+        size.setHeight(std::max(size.height(), rowHeight(option.fontMetrics)));
+        return size;
+    }
+
+    void paint(QPainter *painter,
+               const QStyleOptionViewItem &option,
+               const QModelIndex &index) const override
+    {
+        // Under an open editor only the background is painted: some styles draw
+        // a frameless combo box without filling it, so the cell's own text
+        // would show through.
+        if (m_editing.isValid() && index == m_editing) {
+            QStyleOptionViewItem opt(option);
+            initStyleOption(&opt, index);
+            opt.text.clear();
+            opt.icon = QIcon();
+            const QWidget *widget = opt.widget;
+            QStyle *style = widget ? widget->style() : QApplication::style();
+            style->drawControl(QStyle::CE_ItemViewItem, &opt, painter, widget);
+            return;
+        }
+
+        const SettingsSchemaEntry entry = schemaEntry(index);
+        if (entry.kind == SettingsSchemaEntry::Kind::None) {
+            QStyledItemDelegate::paint(painter, option, index);
+            return;
+        }
+
+        QStyleOptionViewItem opt(option);
+        initStyleOption(&opt, index);
+        const QString text = opt.text;
+        const QWidget *widget = opt.widget;
+        QStyle *style = widget ? widget->style() : QApplication::style();
+
+        // Background, selection and focus exactly as for any other row.
+        opt.text.clear();
+        opt.icon = QIcon();
+        style->drawControl(QStyle::CE_ItemViewItem, &opt, painter, widget);
+
+        const Colors colors = colorsFor(opt);
+        painter->save();
+        painter->setRenderHint(QPainter::Antialiasing);
+        painter->setFont(opt.font);
+
+        switch (entry.kind) {
+        case SettingsSchemaEntry::Kind::Slider:
+            paintSlider(painter, opt, index, entry, text, colors);
+            break;
+        case SettingsSchemaEntry::Kind::Options:
+            paintOptions(painter, opt, index, entry, text, colors);
+            break;
+        case SettingsSchemaEntry::Kind::File:
+        case SettingsSchemaEntry::Kind::Folder:
+            paintPath(painter, opt, entry, text, colors);
+            break;
+        case SettingsSchemaEntry::Kind::Switch:
+            paintSwitch(painter, opt, index, text, colors);
+            break;
+        case SettingsSchemaEntry::Kind::None:
+            break;
+        }
+
+        painter->restore();
+    }
+
+    // ── Editing ──
 
     QWidget *createEditor(QWidget *parent,
-                          const QStyleOptionViewItem &,
+                          const QStyleOptionViewItem &option,
                           const QModelIndex &index) const override
     {
         const QVariant raw = index.data(Qt::EditRole);
         if (raw.metaType() == QMetaType::fromType<QColor>())
             return nullptr; // handled via editorEvent
-        return new QLineEdit(parent);
+
+        const SettingsSchemaEntry entry = schemaEntry(index);
+        if (entry.kind == SettingsSchemaEntry::Kind::Options) {
+            auto *combo = new OptionsComboBox(parent);
+            combo->setFrame(false);
+            combo->setFont(option.font);
+            for (qsizetype i = 0; i < entry.options.size(); ++i)
+                combo->addItem(entry.labels.at(i), entry.options.at(i));
+
+            auto *self = const_cast<SettingsValueDelegate *>(this);
+            QObject::connect(combo, &QComboBox::activated, combo, [self, combo] {
+                emit self->commitData(combo);
+            });
+            // QComboBox hides its popup before it emits activated, so close
+            // the editor only once the event loop is back, after the commit.
+            combo->onPopupHidden = [self, combo] {
+                QMetaObject::invokeMethod(combo, [self, combo] {
+                    emit self->closeEditor(combo);
+                }, Qt::QueuedConnection);
+            };
+            QTimer::singleShot(0, combo, &QComboBox::showPopup);
+            return trackEditor(combo, index);
+        }
+
+        return trackEditor(new QLineEdit(parent), index);
     }
 
     void setEditorData(QWidget *editor, const QModelIndex &index) const override
     {
-        if (auto *le = qobject_cast<QLineEdit *>(editor))
+        if (auto *combo = qobject_cast<QComboBox *>(editor))
+            combo->setCurrentIndex(schemaEntry(index).optionIndex(index.data(Qt::EditRole)));
+        else if (auto *le = qobject_cast<QLineEdit *>(editor))
             le->setText(index.data(Qt::DisplayRole).toString());
     }
 
@@ -58,8 +220,23 @@ public:
                       QAbstractItemModel *model,
                       const QModelIndex &index) const override
     {
-        if (auto *le = qobject_cast<QLineEdit *>(editor))
-            model->setData(index, le->text(), Qt::EditRole);
+        if (auto *combo = qobject_cast<QComboBox *>(editor)) {
+            if (combo->currentIndex() >= 0)
+                model->setData(index, combo->currentData(), Qt::EditRole);
+            return;
+        }
+
+        auto *le = qobject_cast<QLineEdit *>(editor);
+        if (!le)
+            return;
+        if (!model->setData(index, le->text(), Qt::EditRole)) {
+            // The model rejects text that does not fit the setting's type; say
+            // so instead of letting the old value silently reappear.
+            const QString type = index.siblingAtColumn(2).data(Qt::DisplayRole).toString();
+            QToolTip::showText(le->mapToGlobal(QPoint(0, le->height())),
+                               QObject::tr("\"%1\" is not a valid %2.").arg(le->text(), type),
+                               le);
+        }
     }
 
     bool editorEvent(QEvent *event,
@@ -81,6 +258,603 @@ public:
             }
         }
         return QStyledItemDelegate::editorEvent(event, model, option, index);
+    }
+
+protected:
+    // Mouse handling for painted sliders and dropdowns, on the view's viewport.
+    bool eventFilter(QObject *watched, QEvent *event) override
+    {
+        if (watched == m_view
+            && (event->type() == QEvent::KeyPress || event->type() == QEvent::ShortcutOverride)) {
+            // Space flips the current row's switch, whichever column is current.
+            auto *ke = static_cast<QKeyEvent *>(event);
+            const QModelIndex value = m_view->currentIndex().siblingAtColumn(1);
+            if (ke->key() == Qt::Key_Space && ke->modifiers() == Qt::NoModifier
+                && !m_editing.isValid()
+                && schemaEntry(value).kind == SettingsSchemaEntry::Kind::Switch) {
+                // Accepting the override claims Space from application-wide
+                // shortcuts (an app's own "SPACE" Shortcut); the key press follows.
+                if (event->type() == QEvent::ShortcutOverride) {
+                    ke->accept();
+                    return true;
+                }
+                toggle(value);
+                return true;
+            }
+        }
+        if (watched != m_view->viewport())
+            return QStyledItemDelegate::eventFilter(watched, event);
+
+        switch (event->type()) {
+        case QEvent::MouseButtonPress:
+        case QEvent::MouseButtonDblClick: {
+            auto *me = static_cast<QMouseEvent *>(event);
+            if (me->button() != Qt::LeftButton)
+                break;
+            const QPoint pos = me->position().toPoint();
+            const QModelIndex index = m_view->indexAt(pos);
+            switch (hitTest(index, pos)) {
+            case Hit::Slider:
+                m_view->setCurrentIndex(index);
+                m_drag = index;
+                dragTo(pos);
+                return true;
+            case Hit::Options:
+                m_view->setCurrentIndex(index);
+                m_view->edit(index);
+                return true;
+            case Hit::Browse:
+                m_view->setCurrentIndex(index);
+                if (event->type() == QEvent::MouseButtonPress) {
+                    // Open the dialog once the press has been handled, not
+                    // from inside it.
+                    const QPersistentModelIndex target(index);
+                    QTimer::singleShot(0, m_view, [this, target] { browse(target); });
+                }
+                return true; // a double-click on the button must not start text editing
+            case Hit::Switch:
+                // A double-click arrives instead of a second press: it flips
+                // the switch back, as two clicks would.
+                m_view->setCurrentIndex(index);
+                toggle(index);
+                return true;
+            case Hit::None:
+                break;
+            }
+            break;
+        }
+        case QEvent::MouseMove: {
+            auto *me = static_cast<QMouseEvent *>(event);
+            const QPoint pos = me->position().toPoint();
+            if (m_drag.isValid()) {
+                if (me->buttons() & Qt::LeftButton) {
+                    dragTo(pos);
+                    return true;
+                }
+                endDrag(); // the release happened outside the window
+            }
+            if (hitTest(m_view->indexAt(pos), pos) != Hit::None)
+                m_view->viewport()->setCursor(Qt::PointingHandCursor);
+            else
+                m_view->viewport()->unsetCursor();
+            break;
+        }
+        case QEvent::MouseButtonRelease:
+            if (m_drag.isValid() && static_cast<QMouseEvent *>(event)->button() == Qt::LeftButton) {
+                endDrag();
+                return true;
+            }
+            break;
+        case QEvent::Leave:
+            if (!m_drag.isValid())
+                m_view->viewport()->unsetCursor();
+            break;
+        default:
+            break;
+        }
+        return QStyledItemDelegate::eventFilter(watched, event);
+    }
+
+private:
+    enum class Hit { None, Slider, Options, Browse, Switch };
+
+    struct Colors
+    {
+        QColor text;   // value text, chevron
+        QColor groove; // unfilled part of a slider, dropdown frame
+        QColor fill;   // filled part of a slider, handle centre
+        QColor handle; // handle body
+    };
+
+    // Positions of a slider's parts inside a cell. The value text gets a fixed
+    // width (the widest of min and max, in bold so an override does not shift
+    // anything), so the track stays put while the value changes.
+    struct SliderLayout
+    {
+        QRect  text;
+        QRectF track; // the groove line; empty when the cell is too narrow
+        qreal  handleRadius = 0;
+    };
+
+    static int rowHeight(const QFontMetrics &fm) { return fm.height() + 8; }
+
+    static SettingsSchemaEntry schemaEntry(const QModelIndex &index)
+    {
+        if (index.column() != 1)
+            return {};
+        return index.data(SettingsTreeModel::SchemaEntryRole).value<SettingsSchemaEntry>();
+    }
+
+    int textMargin() const
+    {
+        // The horizontal padding QStyledItemDelegate uses for item text.
+        return m_view->style()->pixelMetric(QStyle::PM_FocusFrameHMargin, nullptr, m_view) + 1;
+    }
+
+    SliderLayout sliderLayout(const QRect &cell,
+                              const QFont &font,
+                              const SettingsSchemaEntry &entry) const
+    {
+        QFont bold(font);
+        bold.setBold(true);
+        const QFontMetrics fm(bold);
+        const int valueWidth = std::max({fm.horizontalAdvance(entry.format(entry.min)),
+                                         fm.horizontalAdvance(entry.format(entry.max)),
+                                         fm.horizontalAdvance(QStringLiteral("0000"))});
+
+        SliderLayout layout;
+        const int margin = textMargin();
+        layout.text = QRect(cell.left() + margin, cell.top(), valueWidth, cell.height());
+        layout.handleRadius = std::clamp(cell.height() / 2.0 - 4.0, 4.0, 8.0);
+
+        const qreal left  = layout.text.right() + 12 + layout.handleRadius;
+        const qreal right = cell.right() - 8 - layout.handleRadius;
+        if (right - left >= 24) {
+            const qreal groove = 4.0;
+            layout.track = QRectF(left, cell.center().y() + 0.5 - groove / 2, right - left, groove);
+        }
+        return layout;
+    }
+
+    Hit hitTest(const QModelIndex &index, const QPoint &pos) const
+    {
+        const SettingsSchemaEntry entry = schemaEntry(index);
+        const QRect cell = m_view->visualRect(index);
+        if (entry.kind == SettingsSchemaEntry::Kind::Options)
+            return cell.contains(pos) ? Hit::Options : Hit::None;
+        if (entry.kind == SettingsSchemaEntry::Kind::File
+            || entry.kind == SettingsSchemaEntry::Kind::Folder)
+            return browseButtonRect(cell).contains(pos) ? Hit::Browse : Hit::None;
+        if (entry.kind == SettingsSchemaEntry::Kind::Switch) {
+            // The full cell height, a little wider than the switch; the text
+            // next to it stays editable with a double-click.
+            const QRectF track = switchRect(cell);
+            const QRectF area(track.left() - 4, cell.top(), track.width() + 8, cell.height());
+            return area.contains(pos) ? Hit::Switch : Hit::None;
+        }
+        if (entry.kind == SettingsSchemaEntry::Kind::Slider) {
+            const SliderLayout layout = sliderLayout(cell, m_view->font(), entry);
+            if (layout.track.isEmpty())
+                return Hit::None;
+            // The whole cell height, from the left of the handle at min to the
+            // right of the handle at max; the value text stays editable.
+            const qreal r = layout.handleRadius;
+            const QRectF area(layout.track.left() - r, cell.top(),
+                              layout.track.width() + 2 * r, cell.height());
+            return area.contains(pos) ? Hit::Slider : Hit::None;
+        }
+        return Hit::None;
+    }
+
+    void dragTo(const QPoint &pos)
+    {
+        const QModelIndex index = m_drag;
+        const SettingsSchemaEntry entry = schemaEntry(index);
+        if (entry.kind != SettingsSchemaEntry::Kind::Slider) {
+            endDrag(); // the model changed shape under the drag
+            return;
+        }
+        const SliderLayout layout = sliderLayout(m_view->visualRect(index), m_view->font(), entry);
+        if (layout.track.isEmpty())
+            return;
+
+        const double t = std::clamp((pos.x() - layout.track.left()) / layout.track.width(), 0.0, 1.0);
+        const QVariant value = entry.snapped(entry.min + t * (entry.max - entry.min));
+        if (value != index.data(Qt::EditRole))
+            m_view->model()->setData(index, value, Qt::EditRole); // applied live
+        m_view->viewport()->update(m_view->visualRect(index));
+    }
+
+    void endDrag()
+    {
+        const QModelIndex index = m_drag;
+        m_drag = QPersistentModelIndex();
+        if (index.isValid())
+            m_view->viewport()->update(m_view->visualRect(index));
+    }
+
+    static Colors colorsFor(const QStyleOptionViewItem &opt)
+    {
+        const QPalette::ColorGroup group = !(opt.state & QStyle::State_Enabled) ? QPalette::Disabled
+                                           : (opt.state & QStyle::State_Active) ? QPalette::Normal
+                                                                                : QPalette::Inactive;
+        const bool selected = opt.state & QStyle::State_Selected;
+
+        Colors c;
+        c.text = opt.palette.color(group, selected ? QPalette::HighlightedText : QPalette::Text);
+        c.groove = c.text;
+        c.groove.setAlphaF(0.22f);
+        // On a selected row the selection is often a shade of the accent (the
+        // Windows 11 style paints it a lighter blue), which would swallow an
+        // accent fill; use the selection's text colour there instead.
+        c.fill = selected ? c.text : opt.palette.color(group, QPalette::Accent);
+        c.handle = opt.palette.color(group, QPalette::Base);
+        return c;
+    }
+
+    void paintSlider(QPainter *painter,
+                     const QStyleOptionViewItem &opt,
+                     const QModelIndex &index,
+                     const SettingsSchemaEntry &entry,
+                     const QString &text,
+                     const Colors &colors) const
+    {
+        const SliderLayout layout = sliderLayout(opt.rect, opt.font, entry);
+
+        painter->setPen(colors.text);
+        painter->drawText(layout.text, Qt::AlignLeft | Qt::AlignVCenter,
+                          opt.fontMetrics.elidedText(text, Qt::ElideRight, layout.text.width()));
+        if (layout.track.isEmpty())
+            return;
+
+        const QRectF &track = layout.track;
+        const qreal radius = track.height() / 2;
+        const qreal x = track.left() + entry.ratio(index.data(Qt::EditRole).toDouble()) * track.width();
+
+        painter->setPen(Qt::NoPen);
+        painter->setBrush(colors.groove);
+        painter->drawRoundedRect(track, radius, radius);
+        painter->setBrush(colors.fill);
+        painter->drawRoundedRect(QRectF(track.left(), track.top(), x - track.left(), track.height()),
+                                 radius, radius);
+
+        // Handle: a ring in the base colour with an accent centre that grows
+        // while the row is hovered or the handle is being dragged.
+        const QPointF centre(x, track.center().y());
+        const qreal r = layout.handleRadius;
+        QColor border = colors.text;
+        border.setAlphaF(0.25f);
+        painter->setPen(QPen(border, 1.0));
+        painter->setBrush(colors.handle);
+        painter->drawEllipse(centre, r, r);
+
+        const bool active = (opt.state & QStyle::State_MouseOver) || m_drag == index;
+        const qreal inner = r * (active ? 0.62 : 0.5);
+        painter->setPen(Qt::NoPen);
+        painter->setBrush(colors.fill);
+        painter->drawEllipse(centre, inner, inner);
+    }
+
+    void paintOptions(QPainter *painter,
+                      const QStyleOptionViewItem &opt,
+                      const QModelIndex &index,
+                      const SettingsSchemaEntry &entry,
+                      const QString &text,
+                      const Colors &colors) const
+    {
+        const int margin = textMargin();
+        const int chevron = 8; // width of the down-arrow
+        const QRect cell = opt.rect;
+
+        // Subtle frame on hover so the cell reads as clickable.
+        if (opt.state & QStyle::State_MouseOver) {
+            painter->setPen(QPen(colors.groove, 1.0));
+            painter->setBrush(Qt::NoBrush);
+            painter->drawRoundedRect(QRectF(cell).adjusted(1.5, 2.5, -1.5, -2.5), 4, 4);
+        }
+
+        // A value that is not one of the options is shown in italics.
+        const bool known = entry.optionIndex(index.data(Qt::EditRole)) >= 0;
+        QFont font(opt.font);
+        font.setItalic(!known);
+        painter->setFont(font);
+        painter->setPen(colors.text);
+        const QRect textRect = cell.adjusted(margin, 0, -(margin + chevron + 8), 0);
+        painter->drawText(textRect, Qt::AlignLeft | Qt::AlignVCenter,
+                          QFontMetrics(font).elidedText(text, Qt::ElideRight, textRect.width()));
+
+        const QPointF tip(cell.right() - margin - 4 - chevron / 2.0, cell.center().y() + 2.5);
+        QPainterPath arrow;
+        arrow.moveTo(tip + QPointF(-chevron / 2.0, -4));
+        arrow.lineTo(tip);
+        arrow.lineTo(tip + QPointF(chevron / 2.0, -4));
+        painter->setPen(QPen(colors.text, 1.3, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
+        painter->setBrush(Qt::NoBrush);
+        painter->drawPath(arrow);
+    }
+
+    // The switch's track, at the left of the cell, as tall as a slider handle.
+    QRectF switchRect(const QRect &cell) const
+    {
+        const qreal height = std::clamp(cell.height() - 8.0, 12.0, 18.0);
+        const qreal width  = std::round(height * 1.8);
+        return QRectF(cell.left() + textMargin() + 0.5,
+                      cell.top() + (cell.height() - height) / 2.0 + 0.5, width, height);
+    }
+
+    // Flips a Boolean and slides the knob over to its new side.
+    void toggle(const QModelIndex &index)
+    {
+        const bool on = index.data(Qt::EditRole).toBool();
+        if (!m_view->model()->setData(index, !on, Qt::EditRole))
+            return;
+        m_switchAnimation->stop();
+        m_switchIndex = index;
+        m_switchAnimation->setStartValue(on ? 1.0 : 0.0);
+        m_switchAnimation->setEndValue(on ? 0.0 : 1.0);
+        m_switchAnimation->start();
+    }
+
+    static QColor blend(const QColor &a, const QColor &b, qreal t)
+    {
+        const auto mix = [t](float x, float y) { return x + (y - x) * float(t); };
+        return QColor::fromRgbF(mix(a.redF(), b.redF()), mix(a.greenF(), b.greenF()),
+                                mix(a.blueF(), b.blueF()), mix(a.alphaF(), b.alphaF()));
+    }
+
+    void paintSwitch(QPainter *painter,
+                     const QStyleOptionViewItem &opt,
+                     const QModelIndex &index,
+                     const QString &text,
+                     const Colors &colors) const
+    {
+        const QRectF track = switchRect(opt.rect);
+        const bool on = index.data(Qt::EditRole).toBool();
+
+        // 0 = off, 1 = on; in between while the knob slides over.
+        qreal t = on ? 1.0 : 0.0;
+        if (m_switchAnimation->state() == QAbstractAnimation::Running && index == m_switchIndex)
+            t = m_switchAnimation->currentValue().toReal();
+
+        // Track: the groove colour with an outline when off, the accent when on.
+        const qreal radius = track.height() / 2;
+        QColor outline = colors.text;
+        outline.setAlphaF(0.35f * float(1.0 - t));
+        painter->setPen(t < 1.0 ? QPen(outline, 1.0) : QPen(Qt::NoPen));
+        painter->setBrush(blend(colors.groove, colors.fill, t));
+        painter->drawRoundedRect(track, radius, radius);
+
+        // Knob: in the base colour, a little larger while the row is hovered.
+        const bool hover = opt.state & QStyle::State_MouseOver;
+        const qreal knob = radius - (hover ? 2.0 : 2.5);
+        const qreal from = track.left() + radius;
+        const qreal to   = track.right() - radius;
+        const QPointF centre(from + (to - from) * t, track.center().y());
+        QColor border = colors.text;
+        border.setAlphaF(0.25f * float(1.0 - t));
+        painter->setPen(t < 1.0 ? QPen(border, 1.0) : QPen(Qt::NoPen));
+        painter->setBrush(colors.handle);
+        painter->drawEllipse(centre, knob, knob);
+
+        // The value as written in the file, slightly dimmed.
+        QColor textColor = colors.text;
+        textColor.setAlphaF(0.75f);
+        const int textLeft = int(std::ceil(track.right())) + 8;
+        const QRect textRect(textLeft, opt.rect.top(), opt.rect.right() - textLeft, opt.rect.height());
+        painter->setPen(textColor);
+        painter->drawText(textRect, Qt::AlignLeft | Qt::AlignVCenter,
+                          opt.fontMetrics.elidedText(text, Qt::ElideRight, textRect.width()));
+    }
+
+    // The "…" button at the right end of a path cell.
+    static QRect browseButtonRect(const QRect &cell)
+    {
+        const int height = cell.height() - 6;
+        const int width  = cell.height() + 4;
+        return QRect(cell.right() - 3 - width + 1, cell.top() + 3, width, height);
+    }
+
+    // Opens a file or folder dialog for a path cell and stores the choice,
+    // with a path variable where one applies.
+    void browse(const QModelIndex &index)
+    {
+        if (!index.isValid())
+            return;
+        const SettingsSchemaEntry entry = schemaEntry(index);
+        const bool folder = entry.kind == SettingsSchemaEntry::Kind::Folder;
+        if (!folder && entry.kind != SettingsSchemaEntry::Kind::File)
+            return;
+
+        const QString current  = index.data(Qt::EditRole).toString().trimmed();
+        const QString expanded = current.isEmpty() ? QString() : SettingsSchemaEntry::localPath(current);
+        const QString path     = index.data(SettingsTreeModel::FullPathRole).toString();
+
+        // Start where the current value points, or at the nearest folder that exists.
+        QString start = expanded;
+        while (!start.isEmpty() && !QFileInfo::exists(start)) {
+            const QString up = QFileInfo(start).absolutePath();
+            start = (up == start) ? QString() : up;
+        }
+
+        QString picked;
+        if (folder) {
+            picked = QFileDialog::getExistingDirectory(m_view->window(),
+                                                       QObject::tr("Select folder: %1").arg(path),
+                                                       start);
+        } else {
+            picked = QFileDialog::getOpenFileName(m_view->window(),
+                                                  QObject::tr("Select file: %1").arg(path),
+                                                  start, entry.fileFilter);
+        }
+        if (picked.isEmpty())
+            return;
+
+        QString value = DsEnvironment::contractPath(picked);
+        // Keep a file: URL a URL ("file:///%APP%/data/clip.mp4").
+        if (current.startsWith(u"file:", Qt::CaseInsensitive)) {
+            if (value.startsWith(u"//"))
+                value.prepend(QStringLiteral("file:")); // UNC: the host goes in the URL
+            else if (value.startsWith(u'/'))
+                value.prepend(QStringLiteral("file://"));
+            else
+                value.prepend(QStringLiteral("file:///"));
+        }
+        // Keep the folder style of the current value ("%LOCAL%/cache/").
+        if (folder && (current.endsWith(u'/') || current.endsWith(u'\\')) && !value.endsWith(u'/'))
+            value += u'/';
+        if (value != current)
+            m_view->model()->setData(index, value, Qt::EditRole);
+    }
+
+    void paintPath(QPainter *painter,
+                   const QStyleOptionViewItem &opt,
+                   const SettingsSchemaEntry &entry,
+                   const QString &text,
+                   const Colors &colors) const
+    {
+        const QRect cell   = opt.rect;
+        const QRect button = browseButtonRect(cell);
+        const bool  hover  = opt.state & QStyle::State_MouseOver;
+
+        // A path that does not exist is shown in a warning colour.
+        QColor textColor = colors.text;
+        if (entry.pathMissing) {
+            const bool dark = colors.text.lightness() > 128;
+            textColor = dark ? QColor(255, 153, 164) : QColor(196, 43, 28);
+        }
+        const QRect textRect(cell.left() + textMargin(), cell.top(),
+                             button.left() - 6 - (cell.left() + textMargin()), cell.height());
+        painter->setPen(textColor);
+        painter->drawText(textRect, Qt::AlignLeft | Qt::AlignVCenter,
+                          opt.fontMetrics.elidedText(text, Qt::ElideMiddle, textRect.width()));
+
+        // The button: three dots, on a soft background while the row is hovered.
+        if (hover) {
+            painter->setPen(Qt::NoPen);
+            painter->setBrush(colors.groove);
+            painter->drawRoundedRect(QRectF(button), 4, 4);
+        }
+        QColor dots = colors.text;
+        dots.setAlphaF(hover ? 1.0f : 0.6f);
+        painter->setPen(Qt::NoPen);
+        painter->setBrush(dots);
+        const QPointF centre = QRectF(button).center();
+        for (int i = -1; i <= 1; ++i)
+            painter->drawEllipse(centre + QPointF(i * 4.5, 0.5), 1.4, 1.4);
+    }
+
+    // Remembers the cell an editor is open on, until the editor is destroyed.
+    QWidget *trackEditor(QWidget *editor, const QModelIndex &index) const
+    {
+        m_editing = index;
+        QObject::connect(editor, &QObject::destroyed, m_view, [this, target = QPersistentModelIndex(index)] {
+            if (m_editing == target) {
+                m_editing = QPersistentModelIndex();
+                m_view->viewport()->update();
+            }
+        });
+        return editor;
+    }
+
+    QAbstractItemView    *m_view;
+    QPersistentModelIndex m_drag;            // slider being dragged, if any
+    QVariantAnimation    *m_switchAnimation = nullptr;
+    QPersistentModelIndex m_switchIndex;     // switch whose knob is sliding
+    mutable QPersistentModelIndex m_editing; // cell with an open editor, if any
+};
+
+// ── SettingsTypeDelegate ──────────────────────────────────────────────────────
+// Column 2 (type): the type name, followed by a small warning sign for
+// settings whose schema says a change only takes effect after the app
+// restarts. The sign is an amber outline, and filled once the value has been
+// changed at runtime: that change is waiting for a restart. The tooltip says
+// the same in words. It is painted rather than drawn as the emoji, so its size
+// and baseline match the text at any DPI.
+
+class SettingsTypeDelegate : public QStyledItemDelegate
+{
+public:
+    using QStyledItemDelegate::QStyledItemDelegate;
+
+    void paint(QPainter *painter,
+               const QStyleOptionViewItem &option,
+               const QModelIndex &index) const override
+    {
+        const auto entry = index.data(SettingsTreeModel::SchemaEntryRole).value<SettingsSchemaEntry>();
+        if (!entry.restart) {
+            QStyledItemDelegate::paint(painter, option, index);
+            return;
+        }
+
+        QStyleOptionViewItem opt(option);
+        initStyleOption(&opt, index);
+        const QString text = opt.text;
+        const QWidget *widget = opt.widget;
+        QStyle *style = widget ? widget->style() : QApplication::style();
+        opt.text.clear();
+        style->drawControl(QStyle::CE_ItemViewItem, &opt, painter, widget);
+
+        const QPalette::ColorGroup group = !(opt.state & QStyle::State_Enabled) ? QPalette::Disabled
+                                           : (opt.state & QStyle::State_Active) ? QPalette::Normal
+                                                                                : QPalette::Inactive;
+        const bool selected = opt.state & QStyle::State_Selected;
+        const QColor textColor = opt.palette.color(group, selected ? QPalette::HighlightedText
+                                                                   : QPalette::Text);
+        const bool pending =
+            index.data(SettingsTreeModel::ProvenanceRole).toString() == QStringLiteral("override");
+
+        // The type name, then the sign right after it, cut short if the column
+        // is too narrow for both.
+        const int margin   = style->pixelMetric(QStyle::PM_FocusFrameHMargin, nullptr, widget) + 1;
+        const qreal size   = std::round(opt.fontMetrics.height() * 0.85);
+        const int  gap     = 6;
+        const int  room    = opt.rect.width() - 2 * margin - gap - int(size);
+        const QString shown = opt.fontMetrics.elidedText(text, Qt::ElideRight, std::max(0, room));
+        const QRect textRect(opt.rect.left() + margin, opt.rect.top(),
+                             opt.fontMetrics.horizontalAdvance(shown), opt.rect.height());
+
+        painter->save();
+        painter->setRenderHint(QPainter::Antialiasing);
+        painter->setFont(opt.font);
+        painter->setPen(textColor);
+        painter->drawText(textRect, Qt::AlignLeft | Qt::AlignVCenter, shown);
+
+        const QRectF sign(textRect.right() + 1 + gap, opt.rect.center().y() + 0.5 - size / 2,
+                          size, size);
+        paintWarningSign(painter, sign, pending, textColor);
+        painter->restore();
+    }
+
+private:
+    // A rounded warning triangle with an exclamation mark, in amber.
+    static void paintWarningSign(QPainter *painter, const QRectF &r, bool filled, const QColor &text)
+    {
+        // Amber that reads on both light and dark backgrounds.
+        const bool   dark  = text.lightness() > 128; // light text: dark theme
+        const QColor amber = dark ? QColor(252, 200, 60) : QColor(214, 140, 0);
+
+        const qreal  pen = std::max(1.0, r.height() / 11.0);
+        const QRectF t   = r.adjusted(pen / 2, pen / 2 + r.height() * 0.04, -pen / 2, -pen / 2);
+        QPainterPath triangle;
+        triangle.moveTo(t.center().x(), t.top());
+        triangle.lineTo(t.right(), t.bottom());
+        triangle.lineTo(t.left(), t.bottom());
+        triangle.closeSubpath();
+
+        painter->setPen(QPen(amber, pen, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
+        painter->setBrush(filled ? QBrush(amber) : QBrush(Qt::NoBrush));
+        painter->drawPath(triangle);
+
+        // The exclamation mark: a bar and a dot, centred in the lower part.
+        const QColor mark = filled ? QColor(32, 24, 0) : amber;
+        const qreal  x    = t.center().x();
+        const qreal  w    = std::max(1.2, r.width() * 0.11);
+        painter->setPen(QPen(mark, w, Qt::SolidLine, Qt::RoundCap));
+        painter->drawLine(QPointF(x, t.top() + t.height() * 0.38),
+                          QPointF(x, t.top() + t.height() * 0.66));
+        painter->setPen(Qt::NoPen);
+        painter->setBrush(mark);
+        painter->drawEllipse(QPointF(x, t.top() + t.height() * 0.83), w * 0.62, w * 0.62);
     }
 };
 
@@ -144,7 +918,13 @@ public:
         connect(btnDown,   &QPushButton::clicked, this, &ArrayEditorDialog::onMoveDown);
         connect(bbox, &QDialogButtonBox::accepted, this, &QDialog::accept);
         connect(bbox, &QDialogButtonBox::rejected, this, &QDialog::reject);
-        connect(this, &QDialog::accepted, this, &ArrayEditorDialog::applyChanges);
+    }
+
+    // Applies the edited list; stays open if any row fails to parse.
+    void accept() override
+    {
+        if (applyChanges())
+            QDialog::accept();
     }
 
 private:
@@ -189,7 +969,7 @@ private:
         m_list->setCurrentRow(row + 1);
     }
 
-    void applyChanges()
+    bool applyChanges()
     {
         // Find the first valid MetaType to guide type-aware parsing of edited text.
         QMetaType mt;
@@ -206,13 +986,27 @@ private:
             const QString    text = li->text();
             // If the display text hasn't changed, preserve the original QVariant
             // (keeps exact type, avoids unnecessary re-parsing).
-            if (orig.isValid() && text == SettingsTreeModel::displayString(orig))
+            if (orig.isValid() && text == SettingsTreeModel::displayString(orig)) {
                 list.append(orig);
-            else
-                list.append(parseAs(text, orig.isValid() ? orig.metaType() : mt));
+                continue;
+            }
+            const QMetaType type = orig.isValid() ? orig.metaType() : mt;
+            const QVariant parsed = type.isValid()
+                                        ? SettingsTreeModel::parseDisplayString(text, type)
+                                        : QVariant(text);
+            if (!parsed.isValid()) {
+                m_list->setCurrentItem(li);
+                QMessageBox::warning(this, windowTitle(),
+                                     tr("Item %1: \"%2\" is not a valid %3.")
+                                         .arg(i)
+                                         .arg(text, QString::fromUtf8(type.name())));
+                return false;
+            }
+            list.append(parsed);
         }
 
         m_sf->setOverride(m_path, QVariant::fromValue(list));
+        return true;
     }
 
     // Returns a sensible zero/empty default for the given type.
@@ -223,25 +1017,13 @@ private:
         if (mt == QMetaType::fromType<qlonglong>()) return qlonglong{0};
         if (mt == QMetaType::fromType<double>())    return 0.0;
         if (mt == QMetaType::fromType<float>())     return 0.0f;
+        if (mt == QMetaType::fromType<QColor>())    return QColor(Qt::black);
+        // Points, sizes, rects, vectors, dates…: a default-constructed value
+        // of the same type, so new items don't turn the list into strings.
+        if (mt.isValid() && mt != QMetaType::fromType<QVariantList>()
+            && mt != QMetaType::fromType<QVariantMap>())
+            return QVariant(mt);
         return QString{};
-    }
-
-    // Parses a display string back to the target MetaType.
-    static QVariant parseAs(const QString &text, const QMetaType mt)
-    {
-        if (mt == QMetaType::fromType<bool>())
-            return text == QLatin1String("true") || text == QLatin1String("1");
-        if (mt == QMetaType::fromType<int>()) {
-            bool ok; const int v = text.toInt(&ok);
-            if (ok) return v;
-        } else if (mt == QMetaType::fromType<qlonglong>()) {
-            bool ok; const qlonglong v = text.toLongLong(&ok);
-            if (ok) return v;
-        } else if (mt == QMetaType::fromType<double>() || mt == QMetaType::fromType<float>()) {
-            bool ok; const double v = text.toDouble(&ok);
-            if (ok) return v;
-        }
-        return text;
     }
 
     QString      m_path;
@@ -366,6 +1148,7 @@ void SettingsViewerWidget::rebuild()
         proxy->setSourceModel(model);
         view->setModel(proxy);
         view->setItemDelegateForColumn(1, new SettingsValueDelegate(view));
+        view->setItemDelegateForColumn(2, new SettingsTypeDelegate(view));
         view->setAlternatingRowColors(true);
         view->setUniformRowHeights(true);
         view->setRootIsDecorated(true);
