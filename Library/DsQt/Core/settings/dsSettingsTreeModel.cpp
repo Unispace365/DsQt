@@ -1,5 +1,6 @@
 #include "settings/dsSettingsTreeModel.h"
 #include "settings/dsSettingsFile.h"
+#include "core/dsEnvironment.h"
 
 #include <algorithm>
 #include <charconv>
@@ -8,6 +9,8 @@
 
 #include <QColor>
 #include <QDateTime>
+#include <QDir>
+#include <QFileInfo>
 #include <QFont>
 #include <QLocale>
 #include <QPixmap>
@@ -305,6 +308,19 @@ SettingsSchemaEntry SettingsSchemaEntry::fromMap(const QVariantMap &schema, QMet
     e.valueType   = valueType;
     e.description = schema.value(QStringLiteral("description")).toString();
 
+    // "editor", not "type": in legacy [value, {metadata}] tables "type" names
+    // the value's type ("int", "color"), not how it is edited.
+    const QString editor = schema.value(QStringLiteral("editor")).toString().trimmed().toLower();
+    if (valueType == QMetaType::fromType<QString>()) {
+        if (editor == u"text")
+            e.detectPaths = false;
+        if (editor == u"file" || editor == u"folder") {
+            e.kind       = editor == u"file" ? Kind::File : Kind::Folder;
+            e.fileFilter = schema.value(QStringLiteral("filter")).toString();
+            return e;
+        }
+    }
+
     if (schema.contains(QStringLiteral("options"))) {
         const QVariantList options = schema.value(QStringLiteral("options")).toList();
         const QVariantList labels  = schema.value(QStringLiteral("labels")).toList();
@@ -376,6 +392,36 @@ double SettingsSchemaEntry::ratio(double v) const
 QString SettingsSchemaEntry::format(double v) const
 {
     return integral ? QString::number(std::llround(v)) : QString::number(v, 'f', decimals);
+}
+
+SettingsSchemaEntry::Kind SettingsSchemaEntry::detectPath(const QString &value)
+{
+    static const QStringList rootVariables{
+        QStringLiteral("%APP%"),    QStringLiteral("%LOCAL%"),      QStringLiteral("%DOCUMENTS%"),
+        QStringLiteral("%SHARED%"), QStringLiteral("%CFG_FOLDER%"), QStringLiteral("%RES%")};
+    static const QRegularExpression windowsRoot(QStringLiteral(R"(^(?:[A-Za-z]:[\\/]|\\\\))"));
+
+    const QString v = value.trimmed();
+    if (v.isEmpty())
+        return Kind::None;
+
+    const bool variableRoot = std::any_of(rootVariables.cbegin(), rootVariables.cend(),
+                                          [&v](const QString &var) {
+                                              return v.startsWith(var, Qt::CaseInsensitive);
+                                          });
+    const bool driveRoot = windowsRoot.match(v).hasMatch();
+    const bool slashRoot = v.startsWith(u'/') && !v.startsWith(u"//");
+    if (!variableRoot && !driveRoot && !slashRoot)
+        return Kind::None;
+
+    const QFileInfo info(DsEnvironment::expandq(v));
+    if (info.exists())
+        return info.isDir() ? Kind::Folder : Kind::File;
+    if (slashRoot && !variableRoot && !driveRoot)
+        return Kind::None; // "/api/v1" and friends: only trusted when they exist
+    if (v.endsWith(u'/') || v.endsWith(u'\\'))
+        return Kind::Folder;
+    return info.suffix().isEmpty() ? Kind::Folder : Kind::File;
 }
 
 int SettingsSchemaEntry::optionIndex(const QVariant &value) const
@@ -486,6 +532,17 @@ static void setLeaf(SettingsTreeItem *item, const QVariant &value, const Setting
     item->typeName  = typeName(value);
     item->schemaMap = sf ? sf->schema(item->fullPath) : QVariantMap{};
     item->schema    = SettingsSchemaEntry::fromMap(item->schemaMap, value.metaType());
+
+    // Strings without a schema editor may still be recognisable paths.
+    SettingsSchemaEntry &entry = item->schema;
+    using Kind = SettingsSchemaEntry::Kind;
+    if (entry.kind == Kind::None && entry.detectPaths
+        && value.metaType() == QMetaType::fromType<QString>())
+        entry.kind = SettingsSchemaEntry::detectPath(value.toString());
+    if (entry.kind == Kind::File || entry.kind == Kind::Folder) {
+        const QString path = value.toString().trimmed();
+        entry.pathMissing  = !path.isEmpty() && !QFileInfo::exists(DsEnvironment::expandq(path));
+    }
 
     // An option with a label is shown by its label.
     const int option = item->schema.kind == SettingsSchemaEntry::Kind::Options
@@ -612,6 +669,10 @@ QVariant SettingsTreeModel::data(const QModelIndex &index, int role) const
         QStringList lines;
         if (!item->schema.description.isEmpty())
             lines.append(item->schema.description);
+        if (item->schema.pathMissing)
+            lines.append(QStringLiteral("Not found: %1")
+                             .arg(QDir::toNativeSeparators(
+                                 DsEnvironment::expandq(item->rawValue.toString().trimmed()))));
         if (!item->provenance.isEmpty())
             lines.append(item->provenance);
         return lines.isEmpty() ? QVariant{} : QVariant(lines.join(u'\n'));

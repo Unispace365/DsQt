@@ -15,6 +15,8 @@ struct SettingsSchemaEntry
         None,    // no usable schema: plain text editing
         Slider,  // numeric value with min and max
         Options, // value picked from a list
+        File,    // string holding a file path: browse with a file dialog
+        Folder,  // string holding a folder path: browse with a folder dialog
     };
 
     Kind      kind = Kind::None;
@@ -32,10 +34,24 @@ struct SettingsSchemaEntry
     QVariantList options;
     QStringList  labels;
 
+    // File and Folder
+    QString fileFilter;          // QFileDialog name filter, e.g. "Images (*.png *.jpg)"
+    bool    pathMissing = false; // the path (expanded) does not exist
+    bool    detectPaths = true;  // false when the schema says editor = "text"
+
     // Builds the entry for a setting of `valueType` from its raw schema map.
     // Unusable parts are dropped: min/max on a non-numeric setting, options
-    // that cannot be converted to valueType. What remains decides the kind.
+    // that cannot be converted to valueType, a file/folder editor on anything
+    // but a string. What remains decides the kind.
     static SettingsSchemaEntry fromMap(const QVariantMap &schema, QMetaType valueType);
+
+    // Guesses whether a string without a schema editor holds a path: it must
+    // start with a root path variable (%APP%, %LOCAL%, ...) or a drive letter
+    // or UNC prefix, or be a "/"-rooted path that exists. An existing path is
+    // a File or Folder as found on disk; otherwise a trailing slash or a
+    // missing extension means Folder. Anything else (URLs, plain words,
+    // relative paths) is Kind::None.
+    static Kind detectPath(const QString &value);
 
     // Slider: `v` clamped to [min, max] and snapped to the step grid, as valueType.
     QVariant snapped(double v) const;

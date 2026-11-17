@@ -468,7 +468,8 @@ static bool isSchemaEntry(const QVariantMap &map)
 {
     static const QStringList keys{QStringLiteral("min"),     QStringLiteral("max"),
                                   QStringLiteral("step"),    QStringLiteral("options"),
-                                  QStringLiteral("labels"),  QStringLiteral("description")};
+                                  QStringLiteral("labels"),  QStringLiteral("description"),
+                                  QStringLiteral("editor"),  QStringLiteral("filter")};
     for (const QString &key : keys) {
         const auto it = map.constFind(key);
         if (it != map.cend() && !isMap(*it))

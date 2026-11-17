@@ -783,6 +783,7 @@ It opens a window (a plain Qt Widgets `QWidget`, not QML) with one tab per regis
 - Overridden values are shown in **bold**; hovering any leaf shows a tooltip with its provenance (a file path, `"default"`, or `"override"`).
 - Color values show a swatch, and double-clicking one opens a `QColorDialog`. Double-clicking any other leaf turns it into an inline text editor; the parsed value is applied as a runtime override (`setOverride`) as soon as you commit it. Text that does not fit the setting's type (e.g. `abc` for a Point) is rejected with a tooltip rather than stored as a string. Points, sizes, rects and vectors accept their numbers with any separators: `(3, 4)`, `3,4` and `800x600` all work.
 - Settings described by a [schema file](#schema-files-sliders-and-dropdowns) get a slider or a dropdown instead of a text box.
+- String settings that hold a file or folder path get a **…** button that opens a file or folder dialog (see [Paths](#paths)). Paths that do not exist are shown in a warning colour, with the expanded location in the tooltip.
 - Double-clicking a list (array) node opens a dedicated editor dialog for adding, removing, and drag-reordering its elements; accepting it writes the whole list back as an override.
 - Right-clicking a leaf offers **Revert** (if it's currently overridden) or **Open File** (if its provenance is a real file path, via the OS default application).
 - **Save…** and **Restore…** buttons at the bottom write the current tab's overrides out to a chosen `.toml` file (`saveOverridesTo()`) or clear them (`resetOverrides()`), respectively.
@@ -817,6 +818,23 @@ max = 45.0
 - Schema files are layered like the settings files they accompany: a later search path overrides an earlier one key by key, so an application can change the `max` of a library entry without repeating the rest. They are watched and reloaded live as well.
 - A schema only affects the viewer; it never changes values, and code that calls `setOverride()` is not clamped.
 - Entries that do not fit the setting are ignored: `min`/`max` on a string or a point, or a dropdown whose options all fail to convert, leave the plain text editor in place.
+
+#### Paths
+
+String settings that hold a path get a **…** button at the right of the value. It opens a folder dialog or a file dialog, starting at the current value (or the nearest folder of it that exists). The chosen path is stored with a [path variable](#path-variables) where one applies: a file picked in the Documents/downstream folder becomes `%LOCAL%/…`, one in the application folder `%APP%/…`. The deepest matching folder wins, matching happens on folder boundaries only, and a path outside all of them is stored as an absolute path. A folder value that ended in `/` keeps its trailing slash.
+
+Paths are recognised without a schema when the value starts with one of `%APP%`, `%LOCAL%`, `%DOCUMENTS%`, `%SHARED%`, `%CFG_FOLDER%` or `%RES%`, or with a drive letter or UNC prefix (`C:/`, `\\server`), or is a `/`-rooted path that exists. Whether it is a file or a folder comes from the disk when the path exists; otherwise a trailing slash or a missing extension means folder. URLs, relative paths and plain words are left alone. A schema can say so explicitly:
+
+```toml
+[content.background]
+editor = "file"                  # "file" or "folder"
+filter = "Images (*.png *.jpg)"  # optional, for the file dialog
+
+[ui.title]
+editor = "text"                  # never treat this string as a path
+```
+
+The conversion is also available as `DsEnvironment::contractPath()`. Unlike the older `DsEnvironment::contract()`, it only ever replaces the start of a path.
 
 The raw entry for a key is available as `SettingsFile::schema(key)` (also from QML), and as the `schema` role of `SettingsTreeModel`.
 

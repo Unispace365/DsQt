@@ -111,6 +111,10 @@ public:
     //   labels = ["Fast", "Best"]    # optional display names for the options
     //   description = "Shown as a tooltip"
     //
+    //   [content.background]         # string settings only:
+    //   editor = "file"              # "file" or "folder": browse button;
+    //   filter = "Images (*.png)"    # "text": no path detection
+    //
     // A list element ("points.1") falls back to the entry of its list ("points").
     // Later schema files override earlier ones key by key.
     Q_INVOKABLE QVariantMap schema(const QString &key) const;

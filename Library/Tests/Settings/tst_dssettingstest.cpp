@@ -3,6 +3,7 @@
 #include <settings/dsSettingsFile.h>
 #include <settings/dsQmlSettingsProxy.h>
 #include <settings/dsSettingsTreeModel.h>
+#include <core/dsEnvironment.h>
 #include <QPointF>
 #include <QQuaternion>
 #include <QRectF>
@@ -172,6 +173,14 @@ class DsSettingsTest : public QObject
     void schemaEntry_shouldIgnoreWhatDoesNotFitTheType();
     void treeModel_schema_shouldDriveDisplayTooltipAndClamping();
     void treeModel_valueChanges_shouldUpdateRowsInPlace();
+
+    // Paths (browse button in the settings viewer)
+    void environment_contractPath_data();
+    void environment_contractPath();
+    void schemaEntry_editor_shouldSelectFileOrFolderForStrings();
+    void schemaEntry_detectPath_data();
+    void schemaEntry_detectPath();
+    void treeModel_paths_shouldBeDetectedAndFlaggedWhenMissing();
 
   private:
     // Directory the test data is copied into by the build (see CMakeLists.txt).
@@ -1925,6 +1934,137 @@ void DsSettingsTest::treeModel_valueChanges_shouldUpdateRowsInPlace()
     // A new key changes the tree's shape: that still resets.
     settings.file->setOverride("window.height", qlonglong(1080));
     QCOMPARE(resets.count(), 1);
+}
+
+// ── Paths ────────────────────────────────────────────────────────────────────
+
+void DsSettingsTest::environment_contractPath_data()
+{
+    QTest::addColumn<QString>("path");
+    QTest::addColumn<QString>("expected");
+
+    QTest::newRow("local wins over documents")
+        << "C:/Users/me/Documents/downstream/cache/a.png" << "%LOCAL%/cache/a.png";
+    QTest::newRow("documents")        << "C:/Users/me/Documents/notes.txt" << "%DOCUMENTS%/notes.txt";
+    QTest::newRow("root itself")      << "C:/Users/me/Documents/downstream" << "%LOCAL%";
+    QTest::newRow("trailing slash")   << "C:/Users/me/Documents/downstream/cache/" << "%LOCAL%/cache/";
+    QTest::newRow("app")              << "D:/Apps/RippleWall/data/movies" << "%APP%/data/movies";
+    QTest::newRow("folder boundary")  << "C:/Users/me/Documents2/x" << "C:/Users/me/Documents2/x";
+    QTest::newRow("outside")          << "E:/media/clip.mp4" << "E:/media/clip.mp4";
+    QTest::newRow("backslashes")      << R"(D:\Apps\RippleWall\settings\app.toml)" << "%APP%/settings/app.toml";
+    QTest::newRow("only at the start") << "E:/backup/D:/Apps/RippleWall" << "E:/backup/D:/Apps/RippleWall";
+    QTest::newRow("cleaned")          << "D:/Apps/RippleWall/./data/../data/x" << "%APP%/data/x";
+#ifdef Q_OS_WIN
+    QTest::newRow("case on windows")  << "c:/users/ME/documents/downstream/x" << "%LOCAL%/x";
+#endif
+}
+
+void DsSettingsTest::environment_contractPath()
+{
+    QFETCH(QString, path);
+    QFETCH(QString, expected);
+
+    const QList<dsqt::DsEnvironment::PathVariable> variables{
+        {"%DOCUMENTS%", "C:/Users/me/Documents"},
+        {"%LOCAL%", "C:/Users/me/Documents/downstream"},
+        {"%APP%", R"(D:\Apps\RippleWall)"},
+        {"%SHARED%", ""},       // unknown folders are ignored
+        {"%RES%", "%RES%"},     // as are unresolved ones
+    };
+    QCOMPARE(dsqt::DsEnvironment::contractPath(path, variables), expected);
+}
+
+void DsSettingsTest::schemaEntry_editor_shouldSelectFileOrFolderForStrings()
+{
+    using Entry = dsqt::SettingsSchemaEntry;
+    const QMetaType string = QMetaType::fromType<QString>();
+
+    const Entry file = Entry::fromMap({{"editor", "file"}, {"filter", "Images (*.png)"}}, string);
+    QCOMPARE(file.kind, Entry::Kind::File);
+    QCOMPARE(file.fileFilter, QStringLiteral("Images (*.png)"));
+    QCOMPARE(Entry::fromMap({{"editor", "Folder"}}, string).kind, Entry::Kind::Folder);
+
+    // "text" switches path detection off; file/folder on a non-string is ignored.
+    // A legacy-metadata style "type" key is not read at all.
+    QCOMPARE(Entry::fromMap({{"type", "file"}}, string).kind, Entry::Kind::None);
+    const Entry text = Entry::fromMap({{"editor", "text"}}, string);
+    QCOMPARE(text.kind, Entry::Kind::None);
+    QVERIFY(!text.detectPaths);
+    QCOMPARE(Entry::fromMap({{"editor", "file"}}, QMetaType::fromType<qlonglong>()).kind,
+             Entry::Kind::None);
+}
+
+void DsSettingsTest::schemaEntry_detectPath_data()
+{
+    using Kind = dsqt::SettingsSchemaEntry::Kind;
+    QTest::addColumn<QString>("value");
+    QTest::addColumn<Kind>("expected");
+
+    QTest::newRow("variable folder")    << "%LOCAL%/no-such-cache/" << Kind::Folder;
+    QTest::newRow("variable no ext")    << "%APP%/no-such-data" << Kind::Folder;
+    QTest::newRow("variable file")      << "%APP%/no-such-image.png" << Kind::File;
+    QTest::newRow("variable any case")  << "%local%/x.txt" << Kind::File;
+    QTest::newRow("drive")              << "Q:/does/not/exist.mp4" << Kind::File;
+    QTest::newRow("drive backslash")    << R"(Q:\does\not\exist)" << Kind::Folder;
+    QTest::newRow("unc")                << R"(\\server\share\clip.mp4)" << Kind::File;
+    QTest::newRow("missing slash root") << "/api/v1" << Kind::None;
+    QTest::newRow("relative")           << "data/movies" << Kind::None;
+    QTest::newRow("word")               << "ripple" << Kind::None;
+    QTest::newRow("url")                << "https://example.com/a.png" << Kind::None;
+    QTest::newRow("qrc")                << "qrc:/qt/qml/App/Main.qml" << Kind::None;
+    QTest::newRow("empty")              << "" << Kind::None;
+}
+
+void DsSettingsTest::schemaEntry_detectPath()
+{
+    using Kind = dsqt::SettingsSchemaEntry::Kind;
+    QFETCH(QString, value);
+    QFETCH(Kind, expected);
+    QCOMPARE(dsqt::SettingsSchemaEntry::detectPath(value), expected);
+}
+
+void DsSettingsTest::treeModel_paths_shouldBeDetectedAndFlaggedWhenMissing()
+{
+    using Entry = dsqt::SettingsSchemaEntry;
+    QTemporaryDir media;
+    QVERIFY(media.isValid());
+    {
+        QFile clip(media.filePath("clip"));  // a file without an extension
+        QVERIFY(clip.open(QIODevice::WriteOnly));
+    }
+
+    const QByteArray toml = QStringLiteral(
+        "folder = \"%1\"\n"
+        "clip = \"%2\"\n"
+        "missing = \"%1/gone.png\"\n"
+        "plain = \"%1\"\n"
+        "chosen = \"anything\"\n"
+        "title = \"hello\"\n")
+        .arg(media.path(), media.filePath("clip")).toUtf8();
+    const QByteArray schema = "[plain]\neditor = \"text\"\n\n[chosen]\neditor = \"file\"\n";
+    TempSettingsFile settings(toml, schema);
+    dsqt::SettingsTreeModel model;
+    model.setSettingsFile(settings.file.get());
+
+    const auto entry = [&model](const QString &path) {
+        return findValueIndex(model, path).data(dsqt::SettingsTreeModel::SchemaEntryRole).value<Entry>();
+    };
+
+    // Existing paths are classified by what is on disk, not by their extension.
+    QCOMPARE(entry("folder").kind, Entry::Kind::Folder);
+    QVERIFY(!entry("folder").pathMissing);
+    QCOMPARE(entry("clip").kind, Entry::Kind::File);
+
+    // Missing paths are still recognised, and flagged.
+    QCOMPARE(entry("missing").kind, Entry::Kind::File);
+    QVERIFY(entry("missing").pathMissing);
+    QVERIFY(findValueIndex(model, "missing").data(Qt::ToolTipRole).toString().contains("Not found"));
+
+    // The schema decides when it says so.
+    QCOMPARE(entry("plain").kind, Entry::Kind::None);
+    QCOMPARE(entry("chosen").kind, Entry::Kind::File);
+    QVERIFY(entry("chosen").pathMissing);
+    QCOMPARE(entry("title").kind, Entry::Kind::None);
 }
 
 QTEST_MAIN(DsSettingsTest)

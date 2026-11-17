@@ -2,6 +2,7 @@
 #include "settings/dsSettings.h"
 #include "settings/dsSettingsFile.h"
 #include "settings/dsSettingsTreeModel.h"
+#include "core/dsEnvironment.h"
 
 #include <QApplication>
 #include <QColor>
@@ -61,6 +62,9 @@ public:
 //  - colours: QColorDialog on double-click;
 //  - schema sliders: painted in the cell and dragged directly, no editor widget;
 //  - schema options: painted as a flat dropdown, opens an OptionsComboBox;
+//  - file and folder paths (schema editor, or detected): painted browse button
+//    that opens a file or folder dialog; the result is stored with a path
+//    variable (%LOCAL%, %APP%, ...) where one applies;
 //  - everything else (and a slider's exact value, via double-click on its
 //    text or F2): QLineEdit.
 //
@@ -120,10 +124,20 @@ public:
         painter->setRenderHint(QPainter::Antialiasing);
         painter->setFont(opt.font);
 
-        if (entry.kind == SettingsSchemaEntry::Kind::Slider)
+        switch (entry.kind) {
+        case SettingsSchemaEntry::Kind::Slider:
             paintSlider(painter, opt, index, entry, text, colors);
-        else
+            break;
+        case SettingsSchemaEntry::Kind::Options:
             paintOptions(painter, opt, index, entry, text, colors);
+            break;
+        case SettingsSchemaEntry::Kind::File:
+        case SettingsSchemaEntry::Kind::Folder:
+            paintPath(painter, opt, entry, text, colors);
+            break;
+        case SettingsSchemaEntry::Kind::None:
+            break;
+        }
 
         painter->restore();
     }
@@ -241,6 +255,15 @@ protected:
                 m_view->setCurrentIndex(index);
                 m_view->edit(index);
                 return true;
+            case Hit::Browse:
+                m_view->setCurrentIndex(index);
+                if (event->type() == QEvent::MouseButtonPress) {
+                    // Open the dialog once the press has been handled, not
+                    // from inside it.
+                    const QPersistentModelIndex target(index);
+                    QTimer::singleShot(0, m_view, [this, target] { browse(target); });
+                }
+                return true; // a double-click on the button must not start text editing
             case Hit::None:
                 break;
             }
@@ -279,7 +302,7 @@ protected:
     }
 
 private:
-    enum class Hit { None, Slider, Options };
+    enum class Hit { None, Slider, Options, Browse };
 
     struct Colors
     {
@@ -345,6 +368,9 @@ private:
         const QRect cell = m_view->visualRect(index);
         if (entry.kind == SettingsSchemaEntry::Kind::Options)
             return cell.contains(pos) ? Hit::Options : Hit::None;
+        if (entry.kind == SettingsSchemaEntry::Kind::File
+            || entry.kind == SettingsSchemaEntry::Kind::Folder)
+            return browseButtonRect(cell).contains(pos) ? Hit::Browse : Hit::None;
         if (entry.kind == SettingsSchemaEntry::Kind::Slider) {
             const SliderLayout layout = sliderLayout(cell, m_view->font(), entry);
             if (layout.track.isEmpty())
@@ -485,6 +511,94 @@ private:
         painter->setPen(QPen(colors.text, 1.3, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
         painter->setBrush(Qt::NoBrush);
         painter->drawPath(arrow);
+    }
+
+    // The "…" button at the right end of a path cell.
+    static QRect browseButtonRect(const QRect &cell)
+    {
+        const int height = cell.height() - 6;
+        const int width  = cell.height() + 4;
+        return QRect(cell.right() - 3 - width + 1, cell.top() + 3, width, height);
+    }
+
+    // Opens a file or folder dialog for a path cell and stores the choice,
+    // with a path variable where one applies.
+    void browse(const QModelIndex &index)
+    {
+        if (!index.isValid())
+            return;
+        const SettingsSchemaEntry entry = schemaEntry(index);
+        const bool folder = entry.kind == SettingsSchemaEntry::Kind::Folder;
+        if (!folder && entry.kind != SettingsSchemaEntry::Kind::File)
+            return;
+
+        const QString current  = index.data(Qt::EditRole).toString().trimmed();
+        const QString expanded = current.isEmpty() ? QString() : DsEnvironment::expandq(current);
+        const QString path     = index.data(SettingsTreeModel::FullPathRole).toString();
+
+        // Start where the current value points, or at the nearest folder that exists.
+        QString start = expanded;
+        while (!start.isEmpty() && !QFileInfo::exists(start)) {
+            const QString up = QFileInfo(start).absolutePath();
+            start = (up == start) ? QString() : up;
+        }
+
+        QString picked;
+        if (folder) {
+            picked = QFileDialog::getExistingDirectory(m_view->window(),
+                                                       QObject::tr("Select folder: %1").arg(path),
+                                                       start);
+        } else {
+            picked = QFileDialog::getOpenFileName(m_view->window(),
+                                                  QObject::tr("Select file: %1").arg(path),
+                                                  start, entry.fileFilter);
+        }
+        if (picked.isEmpty())
+            return;
+
+        QString value = DsEnvironment::contractPath(picked);
+        // Keep the folder style of the current value ("%LOCAL%/cache/").
+        if (folder && (current.endsWith(u'/') || current.endsWith(u'\\')) && !value.endsWith(u'/'))
+            value += u'/';
+        if (value != current)
+            m_view->model()->setData(index, value, Qt::EditRole);
+    }
+
+    void paintPath(QPainter *painter,
+                   const QStyleOptionViewItem &opt,
+                   const SettingsSchemaEntry &entry,
+                   const QString &text,
+                   const Colors &colors) const
+    {
+        const QRect cell   = opt.rect;
+        const QRect button = browseButtonRect(cell);
+        const bool  hover  = opt.state & QStyle::State_MouseOver;
+
+        // A path that does not exist is shown in a warning colour.
+        QColor textColor = colors.text;
+        if (entry.pathMissing) {
+            const bool dark = colors.text.lightness() > 128;
+            textColor = dark ? QColor(255, 153, 164) : QColor(196, 43, 28);
+        }
+        const QRect textRect(cell.left() + textMargin(), cell.top(),
+                             button.left() - 6 - (cell.left() + textMargin()), cell.height());
+        painter->setPen(textColor);
+        painter->drawText(textRect, Qt::AlignLeft | Qt::AlignVCenter,
+                          opt.fontMetrics.elidedText(text, Qt::ElideMiddle, textRect.width()));
+
+        // The button: three dots, on a soft background while the row is hovered.
+        if (hover) {
+            painter->setPen(Qt::NoPen);
+            painter->setBrush(colors.groove);
+            painter->drawRoundedRect(QRectF(button), 4, 4);
+        }
+        QColor dots = colors.text;
+        dots.setAlphaF(hover ? 1.0f : 0.6f);
+        painter->setPen(Qt::NoPen);
+        painter->setBrush(dots);
+        const QPointF centre = QRectF(button).center();
+        for (int i = -1; i <= 1; ++i)
+            painter->drawEllipse(centre + QPointF(i * 4.5, 0.5), 1.4, 1.4);
     }
 
     QAbstractItemView    *m_view;
