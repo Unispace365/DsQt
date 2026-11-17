@@ -162,6 +162,17 @@ class DsSettingsTest : public QObject
     void treeModel_setData_shouldKeepTheOriginalType();
     void treeModel_setData_shouldRejectTextThatDoesNotFit();
 
+    // Schema files (sliders and dropdowns in the settings viewer)
+    void schema_shouldLoadEntriesFromTheSchemaFile();
+    void schema_laterFilesShouldOverrideEarlierOnesKeyByKey();
+    void schema_shouldBeReadAgainOnReload();
+    void schemaEntry_slider_shouldSnapToTheStepGrid();
+    void schemaEntry_slider_shouldKeepAnOffGridMaxReachable();
+    void schemaEntry_options_shouldConvertToTheSettingType();
+    void schemaEntry_shouldIgnoreWhatDoesNotFitTheType();
+    void treeModel_schema_shouldDriveDisplayTooltipAndClamping();
+    void treeModel_valueChanges_shouldUpdateRowsInPlace();
+
   private:
     // Directory the test data is copied into by the build (see CMakeLists.txt).
     static QString settingsDir() { return QDir::current().filePath("settings"); }
@@ -1500,16 +1511,65 @@ struct TempSettingsFile
     QTemporaryDir dir;
     std::unique_ptr<dsqt::SettingsFile> file;
 
-    explicit TempSettingsFile(const QByteArray &toml)
+    explicit TempSettingsFile(const QByteArray &toml, const QByteArray &schema = {})
     {
-        QFile out(dir.filePath("viewer.toml"));
-        if (out.open(QIODevice::WriteOnly))
-            out.write(toml);
-        out.close();
+        write("viewer.toml", toml);
+        if (!schema.isEmpty())
+            write("viewer.schema.toml", schema);
         file = std::make_unique<dsqt::SettingsFile>(nullptr, QStringList{dir.path()});
         file->setFileName("viewer.toml");
     }
+
+    void write(const QString &name, const QByteArray &content)
+    {
+        QFile out(dir.filePath(name));
+        if (out.open(QIODevice::WriteOnly | QIODevice::Truncate))
+            out.write(content);
+    }
 };
+
+const QByteArray kViewerToml = R"(
+points = [1, 2, 3]
+
+[window]
+width = 1920
+scale = 0.5
+title = "hello"
+
+[render]
+mode = "fast"
+quality = 2
+
+[range]
+min = 1
+)";
+
+const QByteArray kViewerSchema = R"(
+[window.width]
+min = 640
+max = 3840
+step = 10
+description = "Width of the window"
+
+[window.scale]
+min = 0.0
+max = 1.0
+
+[render.mode]
+options = ["red", "fast"]
+labels = ["Red", "Fast"]
+
+[render.quality]
+options = [1, 2, 4]
+
+[range.min]          # a setting that happens to be called "min"
+min = 0
+max = 5
+
+[points]
+min = 0
+max = 10
+)";
 
 } // namespace
 
@@ -1653,6 +1713,218 @@ void DsSettingsTest::treeModel_setData_shouldRejectTextThatDoesNotFit()
 
     QCOMPARE(settings.file->value("pos"), QVariant(QPointF(1, 2)));
     QCOMPARE(settings.file->provenance("pos"), settings.file->resolvedFilePaths().value(0));
+}
+
+// ── Schema files ─────────────────────────────────────────────────────────────
+
+void DsSettingsTest::schema_shouldLoadEntriesFromTheSchemaFile()
+{
+    TempSettingsFile settings(kViewerToml, kViewerSchema);
+    dsqt::SettingsFile &file = *settings.file;
+
+    QCOMPARE(file.resolvedSchemaPaths(), QStringList{settings.dir.filePath("viewer.schema.toml")});
+
+    const QVariantMap width = file.schema("window.width");
+    QCOMPARE(width.value("min").toInt(), 640);
+    QCOMPARE(width.value("max").toInt(), 3840);
+    QCOMPARE(width.value("step").toInt(), 10);
+    QCOMPARE(width.value("description").toString(), QStringLiteral("Width of the window"));
+
+    // Read literally: "red" stays a string, it does not become a QColor.
+    const QVariantList options = file.schema("render.mode").value("options").toList();
+    QCOMPARE(options.size(), 2);
+    QCOMPARE(options.at(0).metaType(), QMetaType::fromType<QString>());
+    QCOMPARE(options.at(0).toString(), QStringLiteral("red"));
+
+    // A table holding a *setting* named "min" is not an entry for its parent.
+    QVERIFY(file.schema("range").isEmpty());
+    QCOMPARE(file.schema("range.min").value("max").toInt(), 5);
+
+    // List elements fall back to their list's entry.
+    QCOMPARE(file.schema("points.1"), file.schema("points"));
+    QVERIFY(!file.schema("points").isEmpty());
+
+    QVERIFY(file.schema("window").isEmpty());
+    QVERIFY(file.schema("does.not.exist").isEmpty());
+}
+
+void DsSettingsTest::schema_laterFilesShouldOverrideEarlierOnesKeyByKey()
+{
+    QTemporaryDir base, app;
+    const auto write = [](const QTemporaryDir &dir, const QString &name, const QByteArray &text) {
+        QFile out(dir.filePath(name));
+        QVERIFY(out.open(QIODevice::WriteOnly));
+        out.write(text);
+    };
+    write(base, "viewer.toml", "value = 5\n");
+    write(base, "viewer.schema.toml", "[value]\nmin = 0\nmax = 10\nstep = 1\n");
+    write(app, "viewer.toml", "value = 6\n");
+    write(app, "viewer.schema.toml", "[value]\nmax = 20\n");
+
+    dsqt::SettingsFile file(nullptr, QStringList{base.path(), app.path()});
+    file.setFileName("viewer.toml");
+
+    const QVariantMap entry = file.schema("value");
+    QCOMPARE(entry.value("min").toInt(), 0);
+    QCOMPARE(entry.value("max").toInt(), 20);
+    QCOMPARE(entry.value("step").toInt(), 1);
+}
+
+void DsSettingsTest::schema_shouldBeReadAgainOnReload()
+{
+    TempSettingsFile settings(kViewerToml, "[window.width]\nmin = 1\nmax = 2\n");
+    QCOMPARE(settings.file->schema("window.width").value("max").toInt(), 2);
+
+    settings.write("viewer.schema.toml", "[window.width]\nmin = 1\nmax = 3\n");
+    settings.file->reload();
+    QCOMPARE(settings.file->schema("window.width").value("max").toInt(), 3);
+}
+
+void DsSettingsTest::schemaEntry_slider_shouldSnapToTheStepGrid()
+{
+    using Entry = dsqt::SettingsSchemaEntry;
+
+    // Integer setting: a fractional step is rounded to a whole one.
+    const Entry ints = Entry::fromMap({{"min", 0}, {"max", 100}, {"step", 2.6}},
+                                      QMetaType::fromType<qlonglong>());
+    QCOMPARE(ints.kind, Entry::Kind::Slider);
+    QVERIFY(ints.integral);
+    QCOMPARE(ints.step, 3.0);
+    QCOMPARE(ints.snapped(7.0), QVariant(qlonglong(6)));
+    QCOMPARE(ints.snapped(-50.0), QVariant(qlonglong(0)));
+    QCOMPARE(ints.format(42.0), QStringLiteral("42"));
+
+    // Real setting without a step: a hundredth of the range, two decimals.
+    const Entry reals = Entry::fromMap({{"min", 0.0}, {"max", 1.0}}, QMetaType::fromType<double>());
+    QCOMPARE(reals.kind, Entry::Kind::Slider);
+    QCOMPARE(reals.decimals, 2);
+    QCOMPARE(reals.snapped(0.333), QVariant(0.33));
+    QCOMPARE(reals.snapped(0.1 * 3), QVariant(0.3)); // no 0.30000000000000004
+    QCOMPARE(reals.format(0.5), QStringLiteral("0.50"));
+    QCOMPARE(reals.ratio(0.25), 0.25);
+    QCOMPARE(reals.ratio(7.0), 1.0);
+
+    // Hand-typed values are clamped, not snapped.
+    QCOMPARE(reals.clamped(0.337), QVariant(0.337));
+    QCOMPARE(reals.clamped(3.0), QVariant(1.0));
+}
+
+void DsSettingsTest::schemaEntry_slider_shouldKeepAnOffGridMaxReachable()
+{
+    using Entry = dsqt::SettingsSchemaEntry;
+    const Entry entry = Entry::fromMap({{"min", 0}, {"max", 10}, {"step", 3}},
+                                       QMetaType::fromType<qlonglong>());
+    QCOMPARE(entry.snapped(10.0), QVariant(qlonglong(10)));
+    QCOMPARE(entry.snapped(9.4), QVariant(qlonglong(9)));
+    QCOMPARE(entry.snapped(9.6), QVariant(qlonglong(10)));
+}
+
+void DsSettingsTest::schemaEntry_options_shouldConvertToTheSettingType()
+{
+    using Entry = dsqt::SettingsSchemaEntry;
+
+    // Strings and numbers both work for a number setting; what does not fit is dropped.
+    const Entry ints = Entry::fromMap({{"options", QVariantList{"1", qlonglong(2), 2.5, "x"}}},
+                                      QMetaType::fromType<qlonglong>());
+    QCOMPARE(ints.kind, Entry::Kind::Options);
+    QCOMPARE(ints.options, (QVariantList{qlonglong(1), qlonglong(2)}));
+    QCOMPARE(ints.labels, (QStringList{"1", "2"}));
+    QCOMPARE(ints.optionIndex(QVariant(qlonglong(2))), 1);
+    QCOMPARE(ints.optionIndex(QVariant(qlonglong(3))), -1);
+
+    // Labels pair up with options by position.
+    const Entry strings = Entry::fromMap({{"options", QVariantList{"red", "fast"}},
+                                          {"labels", QVariantList{"Red", "Fast"}}},
+                                         QMetaType::fromType<QString>());
+    QCOMPARE(strings.options, (QVariantList{QStringLiteral("red"), QStringLiteral("fast")}));
+    QCOMPARE(strings.labels, (QStringList{"Red", "Fast"}));
+
+    // Options of a colour setting are parsed as colours.
+    const Entry colours = Entry::fromMap({{"options", QVariantList{"#ff0000", "nonsense"}}},
+                                         QMetaType::fromType<QColor>());
+    QCOMPARE(colours.options, (QVariantList{QVariant::fromValue(QColor(Qt::red))}));
+}
+
+void DsSettingsTest::schemaEntry_shouldIgnoreWhatDoesNotFitTheType()
+{
+    using Entry = dsqt::SettingsSchemaEntry;
+    const QVariantMap range{{"min", 0}, {"max", 10}};
+
+    QCOMPARE(Entry::fromMap(range, QMetaType::fromType<QString>()).kind, Entry::Kind::None);
+    QCOMPARE(Entry::fromMap(range, QMetaType::fromType<QPointF>()).kind, Entry::Kind::None);
+    QCOMPARE(Entry::fromMap({{"min", 5}, {"max", 5}}, QMetaType::fromType<double>()).kind,
+             Entry::Kind::None);
+    QCOMPARE(Entry::fromMap({{"min", 0}}, QMetaType::fromType<double>()).kind, Entry::Kind::None);
+
+    // Options take precedence; if none of them fit, there is no fallback to a slider.
+    QCOMPARE(Entry::fromMap({{"min", 0}, {"max", 10}, {"options", QVariantList{"x"}}},
+                            QMetaType::fromType<qlonglong>())
+                 .kind,
+             Entry::Kind::None);
+
+    // A description alone still reaches the tooltip.
+    const Entry described = Entry::fromMap({{"description", "Hi"}}, QMetaType::fromType<QString>());
+    QCOMPARE(described.kind, Entry::Kind::None);
+    QCOMPARE(described.description, QStringLiteral("Hi"));
+}
+
+void DsSettingsTest::treeModel_schema_shouldDriveDisplayTooltipAndClamping()
+{
+    using Entry = dsqt::SettingsSchemaEntry;
+    TempSettingsFile settings(kViewerToml, kViewerSchema);
+    dsqt::SettingsTreeModel model;
+    model.setSettingsFile(settings.file.get());
+
+    const QModelIndex width = findValueIndex(model, "window.width");
+    const auto widthEntry = width.data(dsqt::SettingsTreeModel::SchemaEntryRole).value<Entry>();
+    QCOMPARE(widthEntry.kind, Entry::Kind::Slider);
+    QCOMPARE(widthEntry.max, 3840.0);
+    QVERIFY(width.data(Qt::ToolTipRole).toString().startsWith("Width of the window"));
+    QCOMPARE(width.data(dsqt::SettingsTreeModel::SchemaRole).toMap().value("step").toInt(), 10);
+
+    // An option with a label is displayed by its label; the value is untouched.
+    const QModelIndex mode = findValueIndex(model, "render.mode");
+    QCOMPARE(mode.data(dsqt::SettingsTreeModel::SchemaEntryRole).value<Entry>().kind,
+             Entry::Kind::Options);
+    QCOMPARE(mode.data(Qt::DisplayRole).toString(), QStringLiteral("Fast"));
+    QCOMPARE(mode.data(Qt::EditRole), QVariant(QStringLiteral("fast")));
+
+    // List elements use their list's entry.
+    const QModelIndex point = findValueIndex(model, "points.1");
+    QCOMPARE(point.data(dsqt::SettingsTreeModel::SchemaEntryRole).value<Entry>().kind,
+             Entry::Kind::Slider);
+
+    // Typed values outside a slider's range are clamped to it.
+    QVERIFY(model.setData(width, QStringLiteral("99999"), Qt::EditRole));
+    QCOMPARE(settings.file->value("window.width"), QVariant(qlonglong(3840)));
+}
+
+void DsSettingsTest::treeModel_valueChanges_shouldUpdateRowsInPlace()
+{
+    TempSettingsFile settings(kViewerToml, kViewerSchema);
+    dsqt::SettingsTreeModel model;
+    model.setSettingsFile(settings.file.get());
+
+    QSignalSpy resets(&model, &QAbstractItemModel::modelReset);
+    QSignalSpy changes(&model, &QAbstractItemModel::dataChanged);
+
+    // Same keys, new value: rows are updated, the model is not reset, and a
+    // persistent index (what a view's selection or a slider drag holds) survives.
+    const QPersistentModelIndex width = findValueIndex(model, "window.width");
+    settings.file->setOverride("window.width", qlonglong(1000));
+    QCOMPARE(resets.count(), 0);
+    QVERIFY(width.isValid());
+    QCOMPARE(width.data(Qt::EditRole), QVariant(qlonglong(1000)));
+    QVERIFY(std::any_of(changes.cbegin(), changes.cend(), [&](const QList<QVariant> &args) {
+        const auto topLeft = args.at(0).value<QModelIndex>();
+        const auto bottomRight = args.at(1).value<QModelIndex>();
+        return topLeft.parent() == width.parent() && topLeft.row() <= width.row()
+               && bottomRight.row() >= width.row() && bottomRight.column() >= width.column();
+    }));
+
+    // A new key changes the tree's shape: that still resets.
+    settings.file->setOverride("window.height", qlonglong(1080));
+    QCOMPARE(resets.count(), 1);
 }
 
 QTEST_MAIN(DsSettingsTest)

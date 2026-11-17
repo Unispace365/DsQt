@@ -1,7 +1,9 @@
 #include "settings/dsSettingsTreeModel.h"
 #include "settings/dsSettingsFile.h"
 
+#include <algorithm>
 #include <charconv>
+#include <cmath>
 #include <utility>
 
 #include <QColor>
@@ -255,6 +257,136 @@ static QString typeName(const QVariant &v)
     return QString::fromUtf8(mt.name());
 }
 
+// ── SettingsSchemaEntry ───────────────────────────────────────────────────────
+
+static bool isIntegralType(QMetaType t)
+{
+    return t == QMetaType::fromType<int>() || t == QMetaType::fromType<qlonglong>()
+           || t == QMetaType::fromType<uint>() || t == QMetaType::fromType<qulonglong>();
+}
+
+static bool isFloatingType(QMetaType t)
+{
+    return t == QMetaType::fromType<double>() || t == QMetaType::fromType<float>();
+}
+
+// Number of digits after the point needed to write v exactly (up to 6).
+static int decimalsOf(double v)
+{
+    QString s = QString::number(std::abs(v), 'f', 6);
+    while (s.endsWith(u'0'))
+        s.chop(1);
+    const qsizetype dot = s.indexOf(u'.');
+    return dot < 0 ? 0 : int(s.size() - dot - 1);
+}
+
+// Converts a schema option (string, integer, float or bool as read from TOML)
+// to the setting's type. Returns an invalid QVariant if it does not fit.
+static QVariant convertOption(const QVariant &option, QMetaType type)
+{
+    if (option.metaType() == type)
+        return option;
+    if (option.metaType() == QMetaType::fromType<QString>())
+        return SettingsTreeModel::parseDisplayString(option.toString(), type);
+    if (type == QMetaType::fromType<QString>())
+        return SettingsTreeModel::displayString(option);
+
+    bool ok = false;
+    const double number = option.toDouble(&ok);
+    if (ok && isIntegralType(type) && number != std::floor(number))
+        return {}; // 2.5 is not an option for an integer setting
+    QVariant converted = option;
+    return converted.convert(type) ? converted : QVariant{};
+}
+
+SettingsSchemaEntry SettingsSchemaEntry::fromMap(const QVariantMap &schema, QMetaType valueType)
+{
+    SettingsSchemaEntry e;
+    e.valueType   = valueType;
+    e.description = schema.value(QStringLiteral("description")).toString();
+
+    if (schema.contains(QStringLiteral("options"))) {
+        const QVariantList options = schema.value(QStringLiteral("options")).toList();
+        const QVariantList labels  = schema.value(QStringLiteral("labels")).toList();
+        for (int i = 0; i < options.size(); ++i) {
+            const QVariant option = convertOption(options.at(i), valueType);
+            if (!option.isValid())
+                continue;
+            e.options.append(option);
+            e.labels.append(i < labels.size() ? labels.at(i).toString()
+                                              : SettingsTreeModel::displayString(option));
+        }
+        if (!e.options.isEmpty())
+            e.kind = Kind::Options;
+        return e;
+    }
+
+    const bool integral = isIntegralType(valueType);
+    if (!integral && !isFloatingType(valueType))
+        return e; // min/max/step only describe numbers
+
+    bool minOk = false, maxOk = false;
+    const double min = schema.value(QStringLiteral("min")).toDouble(&minOk);
+    const double max = schema.value(QStringLiteral("max")).toDouble(&maxOk);
+    if (!minOk || !maxOk || !(max > min))
+        return e;
+
+    bool stepOk = false;
+    double step = schema.value(QStringLiteral("step")).toDouble(&stepOk);
+    if (!stepOk || !(step > 0.0))
+        step = integral ? 1.0 : (max - min) / 100.0;
+    if (integral)
+        step = std::max(1.0, std::round(step));
+
+    e.kind     = Kind::Slider;
+    e.min      = min;
+    e.max      = max;
+    e.step     = step;
+    e.integral = integral;
+    e.decimals = integral ? 0 : std::max(decimalsOf(step), decimalsOf(min));
+    return e;
+}
+
+QVariant SettingsSchemaEntry::clamped(double v) const
+{
+    v = std::clamp(v, min, max);
+    QVariant result = integral ? QVariant(qlonglong(std::llround(v))) : QVariant(v);
+    result.convert(valueType);
+    return result;
+}
+
+QVariant SettingsSchemaEntry::snapped(double v) const
+{
+    v = std::clamp(v, min, max);
+    double grid = std::clamp(min + std::round((v - min) / step) * step, min, max);
+    // max need not lie on the grid (min 0, max 10, step 3); keep it reachable.
+    if (std::abs(v - max) < std::abs(v - grid))
+        grid = max;
+    v = grid;
+    if (!integral) // drop the binary noise of the multiplication: 0.30000000000000004
+        v = QString::number(v, 'f', decimals).toDouble();
+    return clamped(v);
+}
+
+double SettingsSchemaEntry::ratio(double v) const
+{
+    return max > min ? std::clamp((v - min) / (max - min), 0.0, 1.0) : 0.0;
+}
+
+QString SettingsSchemaEntry::format(double v) const
+{
+    return integral ? QString::number(std::llround(v)) : QString::number(v, 'f', decimals);
+}
+
+int SettingsSchemaEntry::optionIndex(const QVariant &value) const
+{
+    for (int i = 0; i < options.size(); ++i) {
+        if (options.at(i) == value)
+            return i;
+    }
+    return -1;
+}
+
 // ── SettingsTreeModel ─────────────────────────────────────────────────────────
 
 SettingsTreeModel::SettingsTreeModel(QObject *parent)
@@ -283,22 +415,84 @@ void SettingsTreeModel::setSettingsFile(SettingsFile *sf)
     m_settingsFile = sf;
 
     if (m_settingsFile)
-        connect(m_settingsFile, &SettingsFile::settingsRebuilt, this, &SettingsTreeModel::rebuild);
+        connect(m_settingsFile, &SettingsFile::settingsRebuilt, this, [this] { rebuild(); });
 
-    rebuild();
+    rebuild(/*forceReset=*/true);
     emit settingsFileChanged();
 }
 
-void SettingsTreeModel::rebuild()
+// True if both trees have the same keys in the same places, so rows map 1:1.
+static bool sameShape(const SettingsTreeItem *a, const SettingsTreeItem *b)
 {
+    if (a->children.size() != b->children.size())
+        return false;
+    for (qsizetype i = 0; i < a->children.size(); ++i) {
+        const SettingsTreeItem *ca = a->children.at(i);
+        const SettingsTreeItem *cb = b->children.at(i);
+        if (ca->key != cb->key || ca->isLeaf != cb->isLeaf || !sameShape(ca, cb))
+            return false;
+    }
+    return true;
+}
+
+void SettingsTreeModel::rebuild(bool forceReset)
+{
+    auto *fresh = new SettingsTreeItem;
+    if (m_settingsFile)
+        buildChildren(fresh, m_settingsFile->allSettings(), {});
+
+    if (!forceReset && sameShape(m_root, fresh)) {
+        updateInPlace(m_root, fresh, {});
+        delete fresh;
+        return;
+    }
+
     beginResetModel();
     delete m_root;
-    m_root = new SettingsTreeItem;
-
-    if (m_settingsFile)
-        buildChildren(m_root, m_settingsFile->allSettings(), {});
-
+    m_root = fresh;
     endResetModel();
+}
+
+void SettingsTreeModel::updateInPlace(SettingsTreeItem *current,
+                                      const SettingsTreeItem *fresh,
+                                      const QModelIndex &parentIndex)
+{
+    for (int row = 0; row < current->children.size(); ++row) {
+        SettingsTreeItem *c       = current->children.at(row);
+        const SettingsTreeItem *f = fresh->children.at(row);
+
+        const bool changed = c->value != f->value || c->rawValue != f->rawValue
+                             || c->typeName != f->typeName || c->provenance != f->provenance
+                             || c->schemaMap != f->schemaMap;
+        if (changed) {
+            c->value      = f->value;
+            c->rawValue   = f->rawValue;
+            c->typeName   = f->typeName;
+            c->provenance = f->provenance;
+            c->schemaMap  = f->schemaMap;
+            c->schema     = f->schema;
+            emit dataChanged(index(row, 0, parentIndex), index(row, columnCount() - 1, parentIndex));
+        }
+        if (!c->children.isEmpty())
+            updateInPlace(c, f, index(row, 0, parentIndex));
+    }
+}
+
+// Fills in the leaf fields of `item` for `value`.
+static void setLeaf(SettingsTreeItem *item, const QVariant &value, const SettingsFile *sf)
+{
+    item->isLeaf    = true;
+    item->rawValue  = value;
+    item->typeName  = typeName(value);
+    item->schemaMap = sf ? sf->schema(item->fullPath) : QVariantMap{};
+    item->schema    = SettingsSchemaEntry::fromMap(item->schemaMap, value.metaType());
+
+    // An option with a label is shown by its label.
+    const int option = item->schema.kind == SettingsSchemaEntry::Kind::Options
+                           ? item->schema.optionIndex(value)
+                           : -1;
+    item->value = option >= 0 ? item->schema.labels.at(option)
+                              : SettingsTreeModel::displayString(value);
 }
 
 void SettingsTreeModel::buildChildren(SettingsTreeItem *parent,
@@ -316,10 +510,7 @@ void SettingsTreeModel::buildChildren(SettingsTreeItem *parent,
             item->provenance = m_settingsFile ? m_settingsFile->provenance(fullPath) : QString{};
             buildListChildren(item, it.value().toList(), fullPath);
         } else {
-            item->isLeaf    = true;
-            item->rawValue  = it.value();
-            item->value     = displayString(it.value());
-            item->typeName  = typeName(it.value());
+            setLeaf(item, it.value(), m_settingsFile);
             item->provenance = m_settingsFile ? m_settingsFile->provenance(fullPath) : QString{};
         }
 
@@ -343,10 +534,7 @@ void SettingsTreeModel::buildListChildren(SettingsTreeItem *parent,
             item->typeName = typeName(v);
             buildListChildren(item, v.toList(), fullPath);
         } else {
-            item->isLeaf   = true;
-            item->rawValue = v;
-            item->value    = displayString(v);
-            item->typeName = typeName(v);
+            setLeaf(item, v, m_settingsFile);
             // Provenance is not tracked for individual array elements.
         }
 
@@ -418,10 +606,16 @@ QVariant SettingsTreeModel::data(const QModelIndex &index, int role) const
             return pix;
         }
         return {};
-    case Qt::ToolTipRole:
-        // Show provenance for any item that has it (leaves AND list parent nodes).
-        // List elements don't have per-element provenance, so they show nothing.
-        return item->provenance.isEmpty() ? QVariant{} : item->provenance;
+    case Qt::ToolTipRole: {
+        // The schema description, then provenance for any item that has it
+        // (leaves AND list parent nodes; list elements have no provenance).
+        QStringList lines;
+        if (!item->schema.description.isEmpty())
+            lines.append(item->schema.description);
+        if (!item->provenance.isEmpty())
+            lines.append(item->provenance);
+        return lines.isEmpty() ? QVariant{} : QVariant(lines.join(u'\n'));
+    }
     case Qt::FontRole: {
         QFont font;
         font.setBold(item->hasOverride());
@@ -433,6 +627,9 @@ QVariant SettingsTreeModel::data(const QModelIndex &index, int role) const
     case FullPathRole:   return item->fullPath;
     case ProvenanceRole: return item->provenance;
     case TypeRole:       return item->isLeaf ? item->typeName : QString{};
+    case SchemaRole:     return item->schemaMap;
+    case SchemaEntryRole:
+        return item->isLeaf ? QVariant::fromValue(item->schema) : QVariant{};
     case IsListRole:
         // A node is a list node when it is a non-leaf whose children carry
         // purely numeric keys ("0", "1", …) — i.e. it was built by buildListChildren.
@@ -489,6 +686,10 @@ bool SettingsTreeModel::setData(const QModelIndex &index, const QVariant &value,
             return false;
     }
 
+    // A slider's range also bounds values typed in by hand.
+    if (item->schema.kind == SettingsSchemaEntry::Kind::Slider)
+        converted = item->schema.clamped(converted.toDouble());
+
     // If this item is a scalar element inside a list node, we must update the
     // whole list rather than calling setOverride on the dotted sub-path (e.g.
     // "myList.0"). The dot-split in setOverride/setInMap would store the value
@@ -526,6 +727,7 @@ QHash<int, QByteArray> SettingsTreeModel::roleNames() const
     roles[ProvenanceRole] = "provenance";
     roles[TypeRole]       = "typeName";
     roles[IsListRole]     = "isList";
+    roles[SchemaRole]     = "schema";
     return roles;
 }
 

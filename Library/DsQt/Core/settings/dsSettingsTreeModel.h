@@ -7,6 +7,48 @@ namespace dsqt {
 
 class SettingsFile;
 
+// How the settings viewer edits one value: the setting's schema entry (see
+// SettingsFile::schema()) interpreted against the type of the value it describes.
+struct SettingsSchemaEntry
+{
+    enum class Kind {
+        None,    // no usable schema: plain text editing
+        Slider,  // numeric value with min and max
+        Options, // value picked from a list
+    };
+
+    Kind      kind = Kind::None;
+    QMetaType valueType;   // type of the setting the entry was built for
+    QString   description; // tooltip text, may be empty
+
+    // Slider
+    double min      = 0.0;
+    double max      = 0.0;
+    double step     = 0.0;   // always > 0 for a slider
+    bool   integral = false; // the setting holds an integer
+    int    decimals = 0;     // digits kept after the point (0 when integral)
+
+    // Options, already converted to valueType; labels has the same length.
+    QVariantList options;
+    QStringList  labels;
+
+    // Builds the entry for a setting of `valueType` from its raw schema map.
+    // Unusable parts are dropped: min/max on a non-numeric setting, options
+    // that cannot be converted to valueType. What remains decides the kind.
+    static SettingsSchemaEntry fromMap(const QVariantMap &schema, QMetaType valueType);
+
+    // Slider: `v` clamped to [min, max] and snapped to the step grid, as valueType.
+    QVariant snapped(double v) const;
+    // Slider: `v` clamped to [min, max] but not snapped (for exact typed values).
+    QVariant clamped(double v) const;
+    // Slider: position of `v` along the range, 0.0 to 1.0.
+    double ratio(double v) const;
+    // Slider: `v` formatted with the entry's precision.
+    QString format(double v) const;
+    // Options: index of `value` in options, or -1.
+    int optionIndex(const QVariant &value) const;
+};
+
 // Internal tree node.
 struct SettingsTreeItem
 {
@@ -16,6 +58,8 @@ struct SettingsTreeItem
     QString  typeName;   // friendly type name — non-empty for leaves only
     QString  provenance; // source file — non-empty for leaves only
     QVariant rawValue;   // original QVariant — used by setData() for type-aware parsing
+    QVariantMap schemaMap;      // raw schema entry from SettingsFile::schema()
+    SettingsSchemaEntry schema; // schemaMap interpreted for rawValue's type
     bool     isLeaf = false;
     bool hasOverride() const { return provenance == QStringLiteral("override"); }
 
@@ -52,6 +96,8 @@ public:
         ProvenanceRole = Qt::UserRole + 4,
         TypeRole       = Qt::UserRole + 5,
         IsListRole     = Qt::UserRole + 6,
+        SchemaRole     = Qt::UserRole + 7, // raw schema map (QVariantMap), for QML
+        SchemaEntryRole = Qt::UserRole + 8, // SettingsSchemaEntry, for the widget delegate
     };
     Q_ENUM(Roles)
 
@@ -87,7 +133,15 @@ signals:
     void settingsFileChanged();
 
 private:
-    void rebuild();
+    // Rebuilds the tree from the settings file. When only values changed (same
+    // keys in the same places) the existing rows are updated in place and
+    // dataChanged is emitted, so views keep their expansion state, selection
+    // and open editors; a slider can be dragged without its row being reset.
+    // Any structural change, or `forceReset`, resets the model instead.
+    void rebuild(bool forceReset = false);
+    void updateInPlace(SettingsTreeItem *current,
+                       const SettingsTreeItem *fresh,
+                       const QModelIndex &parentIndex);
     void buildChildren(SettingsTreeItem *parent,
                        const QVariantMap &map,
                        const QString &prefix);
@@ -100,3 +154,5 @@ private:
 };
 
 }
+
+Q_DECLARE_METATYPE(dsqt::SettingsSchemaEntry)

@@ -6,11 +6,13 @@
 #include <QApplication>
 #include <QColor>
 #include <QColorDialog>
+#include <QComboBox>
 #include <QDesktopServices>
 #include <QDialog>
 #include <QDialogButtonBox>
 #include <QFileDialog>
 #include <QFileInfo>
+#include <functional>
 #include <QHBoxLayout>
 #include <QHeaderView>
 #include <QLineEdit>
@@ -19,11 +21,14 @@
 #include <QMenu>
 #include <QMessageBox>
 #include <QMouseEvent>
+#include <QPainter>
+#include <QPainterPath>
 #include <QPushButton>
 #include <QShowEvent>
 #include <QSortFilterProxyModel>
 #include <QStyledItemDelegate>
 #include <QTabWidget>
+#include <QTimer>
 #include <QToolTip>
 #include <QTreeView>
 #include <QUrl>
@@ -31,27 +36,139 @@
 
 namespace dsqt {
 
+// ── OptionsComboBox ───────────────────────────────────────────────────────────
+// The editor for settings whose schema lists options. It opens its popup as
+// soon as it is shown and reports when the popup closes, so the delegate can
+// close the editor whether or not an option was picked.
+
+class OptionsComboBox : public QComboBox
+{
+public:
+    using QComboBox::QComboBox;
+
+    std::function<void()> onPopupHidden;
+
+    void hidePopup() override
+    {
+        QComboBox::hidePopup();
+        if (onPopupHidden)
+            onPopupHidden();
+    }
+};
+
 // ── SettingsValueDelegate ─────────────────────────────────────────────────────
-// Column 1 editor: QColorDialog for colours, QLineEdit for everything else.
+// Column 1 (values):
+//  - colours: QColorDialog on double-click;
+//  - schema sliders: painted in the cell and dragged directly, no editor widget;
+//  - schema options: painted as a flat dropdown, opens an OptionsComboBox;
+//  - everything else (and a slider's exact value, via double-click on its
+//    text or F2): QLineEdit.
+//
+// Sliders and dropdowns are painted rather than being persistent widgets, so
+// every row keeps exactly the same height and look as a plain text row, and
+// nothing has to be recreated when the model changes.
 
 class SettingsValueDelegate : public QStyledItemDelegate
 {
 public:
-    using QStyledItemDelegate::QStyledItemDelegate;
+    explicit SettingsValueDelegate(QAbstractItemView *view)
+        : QStyledItemDelegate(view)
+        , m_view(view)
+    {
+        // The delegate drives slider drags itself: an item view only forwards
+        // presses to its delegate, never the moves that follow.
+        view->viewport()->installEventFilter(this);
+        view->viewport()->setMouseTracking(true); // cursor feedback
+        view->viewport()->setAttribute(Qt::WA_Hover);
+    }
+
+    // ── Painting ──
+
+    QSize sizeHint(const QStyleOptionViewItem &option, const QModelIndex &index) const override
+    {
+        // One height for every row, with room for a slider handle and a
+        // dropdown frame. The tree uses uniform row heights, so this applies
+        // to all rows, whatever they contain.
+        QSize size = QStyledItemDelegate::sizeHint(option, index);
+        size.setHeight(std::max(size.height(), rowHeight(option.fontMetrics)));
+        return size;
+    }
+
+    void paint(QPainter *painter,
+               const QStyleOptionViewItem &option,
+               const QModelIndex &index) const override
+    {
+        const SettingsSchemaEntry entry = schemaEntry(index);
+        if (entry.kind == SettingsSchemaEntry::Kind::None) {
+            QStyledItemDelegate::paint(painter, option, index);
+            return;
+        }
+
+        QStyleOptionViewItem opt(option);
+        initStyleOption(&opt, index);
+        const QString text = opt.text;
+        const QWidget *widget = opt.widget;
+        QStyle *style = widget ? widget->style() : QApplication::style();
+
+        // Background, selection and focus exactly as for any other row.
+        opt.text.clear();
+        opt.icon = QIcon();
+        style->drawControl(QStyle::CE_ItemViewItem, &opt, painter, widget);
+
+        const Colors colors = colorsFor(opt);
+        painter->save();
+        painter->setRenderHint(QPainter::Antialiasing);
+        painter->setFont(opt.font);
+
+        if (entry.kind == SettingsSchemaEntry::Kind::Slider)
+            paintSlider(painter, opt, index, entry, text, colors);
+        else
+            paintOptions(painter, opt, index, entry, text, colors);
+
+        painter->restore();
+    }
+
+    // ── Editing ──
 
     QWidget *createEditor(QWidget *parent,
-                          const QStyleOptionViewItem &,
+                          const QStyleOptionViewItem &option,
                           const QModelIndex &index) const override
     {
         const QVariant raw = index.data(Qt::EditRole);
         if (raw.metaType() == QMetaType::fromType<QColor>())
             return nullptr; // handled via editorEvent
+
+        const SettingsSchemaEntry entry = schemaEntry(index);
+        if (entry.kind == SettingsSchemaEntry::Kind::Options) {
+            auto *combo = new OptionsComboBox(parent);
+            combo->setFrame(false);
+            combo->setFont(option.font);
+            for (qsizetype i = 0; i < entry.options.size(); ++i)
+                combo->addItem(entry.labels.at(i), entry.options.at(i));
+
+            auto *self = const_cast<SettingsValueDelegate *>(this);
+            QObject::connect(combo, &QComboBox::activated, combo, [self, combo] {
+                emit self->commitData(combo);
+            });
+            // QComboBox hides its popup before it emits activated, so close
+            // the editor only once the event loop is back, after the commit.
+            combo->onPopupHidden = [self, combo] {
+                QMetaObject::invokeMethod(combo, [self, combo] {
+                    emit self->closeEditor(combo);
+                }, Qt::QueuedConnection);
+            };
+            QTimer::singleShot(0, combo, &QComboBox::showPopup);
+            return combo;
+        }
+
         return new QLineEdit(parent);
     }
 
     void setEditorData(QWidget *editor, const QModelIndex &index) const override
     {
-        if (auto *le = qobject_cast<QLineEdit *>(editor))
+        if (auto *combo = qobject_cast<QComboBox *>(editor))
+            combo->setCurrentIndex(schemaEntry(index).optionIndex(index.data(Qt::EditRole)));
+        else if (auto *le = qobject_cast<QLineEdit *>(editor))
             le->setText(index.data(Qt::DisplayRole).toString());
     }
 
@@ -59,6 +176,12 @@ public:
                       QAbstractItemModel *model,
                       const QModelIndex &index) const override
     {
+        if (auto *combo = qobject_cast<QComboBox *>(editor)) {
+            if (combo->currentIndex() >= 0)
+                model->setData(index, combo->currentData(), Qt::EditRole);
+            return;
+        }
+
         auto *le = qobject_cast<QLineEdit *>(editor);
         if (!le)
             return;
@@ -92,6 +215,280 @@ public:
         }
         return QStyledItemDelegate::editorEvent(event, model, option, index);
     }
+
+protected:
+    // Mouse handling for painted sliders and dropdowns, on the view's viewport.
+    bool eventFilter(QObject *watched, QEvent *event) override
+    {
+        if (watched != m_view->viewport())
+            return QStyledItemDelegate::eventFilter(watched, event);
+
+        switch (event->type()) {
+        case QEvent::MouseButtonPress:
+        case QEvent::MouseButtonDblClick: {
+            auto *me = static_cast<QMouseEvent *>(event);
+            if (me->button() != Qt::LeftButton)
+                break;
+            const QPoint pos = me->position().toPoint();
+            const QModelIndex index = m_view->indexAt(pos);
+            switch (hitTest(index, pos)) {
+            case Hit::Slider:
+                m_view->setCurrentIndex(index);
+                m_drag = index;
+                dragTo(pos);
+                return true;
+            case Hit::Options:
+                m_view->setCurrentIndex(index);
+                m_view->edit(index);
+                return true;
+            case Hit::None:
+                break;
+            }
+            break;
+        }
+        case QEvent::MouseMove: {
+            auto *me = static_cast<QMouseEvent *>(event);
+            const QPoint pos = me->position().toPoint();
+            if (m_drag.isValid()) {
+                if (me->buttons() & Qt::LeftButton) {
+                    dragTo(pos);
+                    return true;
+                }
+                endDrag(); // the release happened outside the window
+            }
+            if (hitTest(m_view->indexAt(pos), pos) != Hit::None)
+                m_view->viewport()->setCursor(Qt::PointingHandCursor);
+            else
+                m_view->viewport()->unsetCursor();
+            break;
+        }
+        case QEvent::MouseButtonRelease:
+            if (m_drag.isValid() && static_cast<QMouseEvent *>(event)->button() == Qt::LeftButton) {
+                endDrag();
+                return true;
+            }
+            break;
+        case QEvent::Leave:
+            if (!m_drag.isValid())
+                m_view->viewport()->unsetCursor();
+            break;
+        default:
+            break;
+        }
+        return QStyledItemDelegate::eventFilter(watched, event);
+    }
+
+private:
+    enum class Hit { None, Slider, Options };
+
+    struct Colors
+    {
+        QColor text;   // value text, chevron
+        QColor groove; // unfilled part of a slider, dropdown frame
+        QColor fill;   // filled part of a slider, handle centre
+        QColor handle; // handle body
+    };
+
+    // Positions of a slider's parts inside a cell. The value text gets a fixed
+    // width (the widest of min and max, in bold so an override does not shift
+    // anything), so the track stays put while the value changes.
+    struct SliderLayout
+    {
+        QRect  text;
+        QRectF track; // the groove line; empty when the cell is too narrow
+        qreal  handleRadius = 0;
+    };
+
+    static int rowHeight(const QFontMetrics &fm) { return fm.height() + 8; }
+
+    static SettingsSchemaEntry schemaEntry(const QModelIndex &index)
+    {
+        if (index.column() != 1)
+            return {};
+        return index.data(SettingsTreeModel::SchemaEntryRole).value<SettingsSchemaEntry>();
+    }
+
+    int textMargin() const
+    {
+        // The horizontal padding QStyledItemDelegate uses for item text.
+        return m_view->style()->pixelMetric(QStyle::PM_FocusFrameHMargin, nullptr, m_view) + 1;
+    }
+
+    SliderLayout sliderLayout(const QRect &cell,
+                              const QFont &font,
+                              const SettingsSchemaEntry &entry) const
+    {
+        QFont bold(font);
+        bold.setBold(true);
+        const QFontMetrics fm(bold);
+        const int valueWidth = std::max({fm.horizontalAdvance(entry.format(entry.min)),
+                                         fm.horizontalAdvance(entry.format(entry.max)),
+                                         fm.horizontalAdvance(QStringLiteral("0000"))});
+
+        SliderLayout layout;
+        const int margin = textMargin();
+        layout.text = QRect(cell.left() + margin, cell.top(), valueWidth, cell.height());
+        layout.handleRadius = std::clamp(cell.height() / 2.0 - 4.0, 4.0, 8.0);
+
+        const qreal left  = layout.text.right() + 12 + layout.handleRadius;
+        const qreal right = cell.right() - 8 - layout.handleRadius;
+        if (right - left >= 24) {
+            const qreal groove = 4.0;
+            layout.track = QRectF(left, cell.center().y() + 0.5 - groove / 2, right - left, groove);
+        }
+        return layout;
+    }
+
+    Hit hitTest(const QModelIndex &index, const QPoint &pos) const
+    {
+        const SettingsSchemaEntry entry = schemaEntry(index);
+        const QRect cell = m_view->visualRect(index);
+        if (entry.kind == SettingsSchemaEntry::Kind::Options)
+            return cell.contains(pos) ? Hit::Options : Hit::None;
+        if (entry.kind == SettingsSchemaEntry::Kind::Slider) {
+            const SliderLayout layout = sliderLayout(cell, m_view->font(), entry);
+            if (layout.track.isEmpty())
+                return Hit::None;
+            // The whole cell height, from the left of the handle at min to the
+            // right of the handle at max; the value text stays editable.
+            const qreal r = layout.handleRadius;
+            const QRectF area(layout.track.left() - r, cell.top(),
+                              layout.track.width() + 2 * r, cell.height());
+            return area.contains(pos) ? Hit::Slider : Hit::None;
+        }
+        return Hit::None;
+    }
+
+    void dragTo(const QPoint &pos)
+    {
+        const QModelIndex index = m_drag;
+        const SettingsSchemaEntry entry = schemaEntry(index);
+        if (entry.kind != SettingsSchemaEntry::Kind::Slider) {
+            endDrag(); // the model changed shape under the drag
+            return;
+        }
+        const SliderLayout layout = sliderLayout(m_view->visualRect(index), m_view->font(), entry);
+        if (layout.track.isEmpty())
+            return;
+
+        const double t = std::clamp((pos.x() - layout.track.left()) / layout.track.width(), 0.0, 1.0);
+        const QVariant value = entry.snapped(entry.min + t * (entry.max - entry.min));
+        if (value != index.data(Qt::EditRole))
+            m_view->model()->setData(index, value, Qt::EditRole); // applied live
+        m_view->viewport()->update(m_view->visualRect(index));
+    }
+
+    void endDrag()
+    {
+        const QModelIndex index = m_drag;
+        m_drag = QPersistentModelIndex();
+        if (index.isValid())
+            m_view->viewport()->update(m_view->visualRect(index));
+    }
+
+    static Colors colorsFor(const QStyleOptionViewItem &opt)
+    {
+        const QPalette::ColorGroup group = !(opt.state & QStyle::State_Enabled) ? QPalette::Disabled
+                                           : (opt.state & QStyle::State_Active) ? QPalette::Normal
+                                                                                : QPalette::Inactive;
+        const bool selected = opt.state & QStyle::State_Selected;
+
+        Colors c;
+        c.text = opt.palette.color(group, selected ? QPalette::HighlightedText : QPalette::Text);
+        c.groove = c.text;
+        c.groove.setAlphaF(0.22f);
+        c.fill = opt.palette.color(group, QPalette::Accent);
+        // Styles that paint the selection in the accent colour would swallow
+        // an accent fill; use the selection's text colour there instead.
+        if (selected && opt.palette.color(group, QPalette::Highlight) == c.fill)
+            c.fill = c.text;
+        c.handle = opt.palette.color(group, QPalette::Base);
+        return c;
+    }
+
+    void paintSlider(QPainter *painter,
+                     const QStyleOptionViewItem &opt,
+                     const QModelIndex &index,
+                     const SettingsSchemaEntry &entry,
+                     const QString &text,
+                     const Colors &colors) const
+    {
+        const SliderLayout layout = sliderLayout(opt.rect, opt.font, entry);
+
+        painter->setPen(colors.text);
+        painter->drawText(layout.text, Qt::AlignLeft | Qt::AlignVCenter,
+                          opt.fontMetrics.elidedText(text, Qt::ElideRight, layout.text.width()));
+        if (layout.track.isEmpty())
+            return;
+
+        const QRectF &track = layout.track;
+        const qreal radius = track.height() / 2;
+        const qreal x = track.left() + entry.ratio(index.data(Qt::EditRole).toDouble()) * track.width();
+
+        painter->setPen(Qt::NoPen);
+        painter->setBrush(colors.groove);
+        painter->drawRoundedRect(track, radius, radius);
+        painter->setBrush(colors.fill);
+        painter->drawRoundedRect(QRectF(track.left(), track.top(), x - track.left(), track.height()),
+                                 radius, radius);
+
+        // Handle: a ring in the base colour with an accent centre that grows
+        // while the row is hovered or the handle is being dragged.
+        const QPointF centre(x, track.center().y());
+        const qreal r = layout.handleRadius;
+        QColor border = colors.text;
+        border.setAlphaF(0.25f);
+        painter->setPen(QPen(border, 1.0));
+        painter->setBrush(colors.handle);
+        painter->drawEllipse(centre, r, r);
+
+        const bool active = (opt.state & QStyle::State_MouseOver) || m_drag == index;
+        const qreal inner = r * (active ? 0.62 : 0.5);
+        painter->setPen(Qt::NoPen);
+        painter->setBrush(colors.fill);
+        painter->drawEllipse(centre, inner, inner);
+    }
+
+    void paintOptions(QPainter *painter,
+                      const QStyleOptionViewItem &opt,
+                      const QModelIndex &index,
+                      const SettingsSchemaEntry &entry,
+                      const QString &text,
+                      const Colors &colors) const
+    {
+        const int margin = textMargin();
+        const int chevron = 8; // width of the down-arrow
+        const QRect cell = opt.rect;
+
+        // Subtle frame on hover so the cell reads as clickable.
+        if (opt.state & QStyle::State_MouseOver) {
+            painter->setPen(QPen(colors.groove, 1.0));
+            painter->setBrush(Qt::NoBrush);
+            painter->drawRoundedRect(QRectF(cell).adjusted(1.5, 2.5, -1.5, -2.5), 4, 4);
+        }
+
+        // A value that is not one of the options is shown in italics.
+        const bool known = entry.optionIndex(index.data(Qt::EditRole)) >= 0;
+        QFont font(opt.font);
+        font.setItalic(!known);
+        painter->setFont(font);
+        painter->setPen(colors.text);
+        const QRect textRect = cell.adjusted(margin, 0, -(margin + chevron + 8), 0);
+        painter->drawText(textRect, Qt::AlignLeft | Qt::AlignVCenter,
+                          QFontMetrics(font).elidedText(text, Qt::ElideRight, textRect.width()));
+
+        const QPointF tip(cell.right() - margin - 4 - chevron / 2.0, cell.center().y() + 2.5);
+        QPainterPath arrow;
+        arrow.moveTo(tip + QPointF(-chevron / 2.0, -4));
+        arrow.lineTo(tip);
+        arrow.lineTo(tip + QPointF(chevron / 2.0, -4));
+        painter->setPen(QPen(colors.text, 1.3, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
+        painter->setBrush(Qt::NoBrush);
+        painter->drawPath(arrow);
+    }
+
+    QAbstractItemView    *m_view;
+    QPersistentModelIndex m_drag; // slider being dragged, if any
 };
 
 // ── ArrayEditorDialog ─────────────────────────────────────────────────────────

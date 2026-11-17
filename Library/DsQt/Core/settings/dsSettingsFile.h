@@ -17,6 +17,7 @@
 #include <QStringList>
 #include <QVariant>
 #include <QVariantMap>
+#include <QHash>
 #include <QVector2D>
 #include <QVector3D>
 #include <QVector4D>
@@ -90,6 +91,29 @@ public:
 
     // Returns the resolved existing primary and extra files in merge order.
     QStringList resolvedFilePaths() const;
+
+    // Returns the existing schema files that accompany resolvedFilePaths(), in the
+    // same order: "engine.schema.toml" next to each "engine.toml".
+    QStringList resolvedSchemaPaths() const;
+
+    // Returns the schema entry for `key`, or an empty map if it has none.
+    //
+    // Schema files describe how the settings viewer edits a value; they do not
+    // change the value itself. Each entry is a table at the setting's path:
+    //
+    //   [window.width]               # in engine.schema.toml
+    //   min = 640                    # min + max (+ step): slider
+    //   max = 3840
+    //   step = 10
+    //
+    //   [render.mode]
+    //   options = ["fast", "best"]   # dropdown; values in the setting's type
+    //   labels = ["Fast", "Best"]    # optional display names for the options
+    //   description = "Shown as a tooltip"
+    //
+    // A list element ("points.1") falls back to the entry of its list ("points").
+    // Later schema files override earlier ones key by key.
+    Q_INVOKABLE QVariantMap schema(const QString &key) const;
 
     // Returns the value at `key` as a QString, or def if absent or unconvertible.
     Q_INVOKABLE QVariant getString(const QString &key, const QVariant &def = {}) const
@@ -390,6 +414,7 @@ private:
     mutable QReadWriteLock m_mergedLock; // guards m_merged for cross-thread reads
     QStringList m_files;
     QMap<QString, int> m_provenance;
+    QHash<QString, QVariantMap> m_schema; // dotted setting path → schema entry
 };
 
 }

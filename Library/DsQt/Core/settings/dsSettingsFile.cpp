@@ -428,6 +428,84 @@ static bool isMap(const QVariant &v)
     return v.metaType() == QMetaType::fromType<QVariantMap>();
 }
 
+// ── Schema files ───────────────────────────────────────────────────────────
+// Schema values are read literally: none of nodeToVariant()'s interpretation
+// applies, so options = ["red", "blue"] stays a list of strings rather than
+// becoming colours, and {x, y} tables stay tables.
+
+static QVariant schemaNodeToVariant(const toml::node &node)
+{
+    switch (node.type()) {
+    case toml::node_type::table: {
+        QVariantMap map;
+        for (auto &&[k, v] : *node.as_table())
+            map.insert(QString::fromStdString(std::string(k)), schemaNodeToVariant(v));
+        return map;
+    }
+    case toml::node_type::array: {
+        QVariantList list;
+        for (auto &&item : *node.as_array())
+            list.append(schemaNodeToVariant(item));
+        return list;
+    }
+    case toml::node_type::string:
+        return QString::fromStdString(*node.value<std::string>());
+    case toml::node_type::integer:
+        return QVariant::fromValue(*node.value<int64_t>());
+    case toml::node_type::floating_point:
+        return node.value_or(0.0);
+    case toml::node_type::boolean:
+        return node.value_or(false);
+    default:
+        return {}; // dates/times have no meaning in a schema
+    }
+}
+
+// A table is a schema entry if it holds at least one known schema key with a
+// non-table value. Checking the value keeps a setting that happens to be named
+// "min" ([range.min] min = 0 ...) from being mistaken for an entry of "range".
+static bool isSchemaEntry(const QVariantMap &map)
+{
+    static const QStringList keys{QStringLiteral("min"),     QStringLiteral("max"),
+                                  QStringLiteral("step"),    QStringLiteral("options"),
+                                  QStringLiteral("labels"),  QStringLiteral("description")};
+    for (const QString &key : keys) {
+        const auto it = map.constFind(key);
+        if (it != map.cend() && !isMap(*it))
+            return true;
+    }
+    return false;
+}
+
+// Flattens a parsed schema file into dotted path → entry, merging into `out`
+// key by key so a later file can override a single field of an earlier entry.
+static void flattenSchema(const QVariantMap &map,
+                          const QString &prefix,
+                          QHash<QString, QVariantMap> &out)
+{
+    for (auto it = map.cbegin(); it != map.cend(); ++it) {
+        if (!isMap(it.value()))
+            continue; // stray top-level values describe nothing
+        const QString path = prefix.isEmpty() ? it.key() : prefix + u'.' + it.key();
+        const QVariantMap table = it.value().toMap();
+
+        if (!isSchemaEntry(table)) {
+            flattenSchema(table, path, out);
+            continue;
+        }
+        // An entry may still contain tables for nested settings below it.
+        QVariantMap &entry = out[path];
+        QVariantMap nested;
+        for (auto f = table.cbegin(); f != table.cend(); ++f) {
+            if (isMap(f.value()))
+                nested.insert(f.key(), f.value());
+            else
+                entry.insert(f.key(), f.value());
+        }
+        flattenSchema(nested, path, out);
+    }
+}
+
 // Deep-merges `overlay` into `base`: tables merge recursively, scalars overwrite.
 // If fileIndex >= 0, records it in m_provenance for every leaf written.
 void SettingsFile::deepMerge(QVariantMap &base,
@@ -706,12 +784,55 @@ QStringList SettingsFile::resolvedFilePaths() const
     return result;
 }
 
+QStringList SettingsFile::resolvedSchemaPaths() const
+{
+    static const QLatin1StringView suffix(".toml");
+    QStringList result;
+    for (const QString &path : resolvedFilePaths()) {
+        if (!path.endsWith(suffix, Qt::CaseInsensitive))
+            continue;
+        const QString schemaPath = path.chopped(suffix.size()) + QStringLiteral(".schema.toml");
+        if (QFile::exists(schemaPath))
+            result.append(schemaPath);
+    }
+    return result;
+}
+
+QVariantMap SettingsFile::schema(const QString &key) const
+{
+    settings::checkThread(this, Q_FUNC_INFO);
+    if (const auto it = m_schema.constFind(key); it != m_schema.cend())
+        return *it;
+
+    // A list element has no path of its own in the schema; use its list's entry.
+    const qsizetype dot = key.lastIndexOf(u'.');
+    if (dot > 0) {
+        bool isIndex = false;
+        key.mid(dot + 1).toInt(&isIndex);
+        if (isIndex)
+            return m_schema.value(key.left(dot));
+    }
+    return {};
+}
+
 void SettingsFile::reload()
 {
     settings::checkThread(this, Q_FUNC_INFO);
     m_settings.clear();
     m_files.clear();
     m_provenance.clear();
+    m_schema.clear();
+
+    for (const QString &path : resolvedSchemaPaths()) {
+        try {
+            const toml::table table = parseFile(path);
+            flattenSchema(schemaNodeToVariant(table).toMap(), {}, m_schema);
+        } catch (const toml::parse_error &e) {
+            qWarning("SettingsFile: failed to parse schema '%s': %s",
+                     qPrintable(path),
+                     e.description().data());
+        }
+    }
 
     for (const QString &path : resolvedFilePaths()) {
         try {

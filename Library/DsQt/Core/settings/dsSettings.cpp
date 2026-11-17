@@ -188,7 +188,7 @@ void Settings::onFileChanged(const QString &path)
 
     // Reload only the SettingsFile instances whose resolved file paths include this file.
     for (SettingsFile *s : std::as_const(m_instances)) {
-        if (s->resolvedFilePaths().contains(path))
+        if (s->resolvedFilePaths().contains(path) || s->resolvedSchemaPaths().contains(path))
             s->reload();
     }
 }
@@ -212,7 +212,7 @@ void Settings::rebuildWatcher()
         m_watcher.removePaths(m_watcher.directories());
 
     for (SettingsFile *s : std::as_const(m_instances)) {
-        for (const QString &file : s->resolvedFilePaths()) {
+        for (const QString &file : s->resolvedFilePaths() + s->resolvedSchemaPaths()) {
             if (!settings::isResourcePath(file))
                 m_watcher.addPath(file);
         }

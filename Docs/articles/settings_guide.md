@@ -20,6 +20,7 @@ This guide covers how to write and use TOML configuration files in DsQt applicat
 12. [Accessing Settings from QML](#accessing-settings-from-qml)
 13. [Accessing Settings from C++](#accessing-settings-from-c)
 14. [Settings Viewer](#settings-viewer)
+    - [Schema Files (Sliders and Dropdowns)](#schema-files-sliders-and-dropdowns)
 15. [File Organization](#file-organization)
 
 ---
@@ -780,12 +781,44 @@ It opens a window (a plain Qt Widgets `QWidget`, not QML) with one tab per regis
 
 - The search box filters the tree as you type: a case-insensitive substring match against the key, display value, or full dotted path. Only matching rows (and the ancestors needed to reach them) stay visible — everything else is hidden rather than shown in a separate results list.
 - Overridden values are shown in **bold**; hovering any leaf shows a tooltip with its provenance (a file path, `"default"`, or `"override"`).
-- Color values show a swatch, and double-clicking one opens a `QColorDialog`. Double-clicking any other leaf turns it into an inline text editor; the parsed value is applied as a runtime override (`setOverride`) as soon as you commit it.
+- Color values show a swatch, and double-clicking one opens a `QColorDialog`. Double-clicking any other leaf turns it into an inline text editor; the parsed value is applied as a runtime override (`setOverride`) as soon as you commit it. Text that does not fit the setting's type (e.g. `abc` for a Point) is rejected with a tooltip rather than stored as a string. Points, sizes, rects and vectors accept their numbers with any separators: `(3, 4)`, `3,4` and `800x600` all work.
+- Settings described by a [schema file](#schema-files-sliders-and-dropdowns) get a slider or a dropdown instead of a text box.
 - Double-clicking a list (array) node opens a dedicated editor dialog for adding, removing, and drag-reordering its elements; accepting it writes the whole list back as an override.
 - Right-clicking a leaf offers **Revert** (if it's currently overridden) or **Open File** (if its provenance is a real file path, via the OS default application).
 - **Save…** and **Restore…** buttons at the bottom write the current tab's overrides out to a chosen `.toml` file (`saveOverridesTo()`) or clear them (`resetOverrides()`), respectively.
 
 This is a developer/debugging tool, not something to embed in an end-user QML UI.
+
+### Schema Files (Sliders and Dropdowns)
+
+A schema file tells the settings viewer how to edit specific values. It sits next to the settings file it describes, with `.schema.toml` in place of `.toml`: `engine.toml` → `engine.schema.toml`. Each entry is a table at the setting's dotted path:
+
+```toml
+# engine.schema.toml
+
+[window.width]           # slider: min and max, optional step
+min = 640
+max = 3840
+step = 10
+description = "Window width in pixels"   # optional: shown as the tooltip
+
+[render.mode]            # dropdown: options, optional labels
+options = ["fast", "balanced", "quality"]
+labels  = ["Fast", "Balanced", "Best quality"]
+
+[ripples.maxAngle]       # a real number; without step, the step is 1/100 of the range
+min = 0.0
+max = 45.0
+```
+
+- **Sliders** apply to integer and real settings that have both `min` and `max`. Drag the track (the value is applied live while you drag) or double-click the number to type an exact value; typed values are clamped to the range but not snapped to the step. For integers the step is rounded to a whole number (default 1). For reals the number of decimals shown follows the step.
+- **Dropdowns** apply to any type. Options may be written as strings or numbers and are converted to the setting's type (`"#ff0000"` for a colour, `2` or `"2"` for an integer); options that do not convert are ignored. `labels` pairs up with `options` by position; without it the options are shown as they are. A current value that is not one of the options is shown in italics.
+- An entry for a list (`points`) applies to each of its elements.
+- Schema files are layered like the settings files they accompany: a later search path overrides an earlier one key by key, so an application can change the `max` of a library entry without repeating the rest. They are watched and reloaded live as well.
+- A schema only affects the viewer; it never changes values, and code that calls `setOverride()` is not clamped.
+- Entries that do not fit the setting are ignored: `min`/`max` on a string or a point, or a dropdown whose options all fail to convert, leave the plain text editor in place.
+
+The raw entry for a key is available as `SettingsFile::schema(key)` (also from QML), and as the `schema` role of `SettingsTreeModel`.
 
 ---
 
