@@ -37,15 +37,18 @@ ApplicationWindow {
         onTriggered: DsWindowHelper.forceToFront(window)
     }
 
-    // Keep track of screen changes.
+    // Keep track of the user moving the window to another screen, so that
+    // toggling full screen (F) uses the screen the window is on now. Stored
+    // apart from displayIndex/displayName: assigning those would break their
+    // bindings to the settings.
     onScreenChanged: {
+        if(_.applying || _.mode === "desktop")
+            return
         var screens = Application.screens
         for(var i=0; i<screens.length; ++i) {
             if(window.screen.virtualX === screens[i].virtualX &&
                window.screen.virtualY === screens[i].virtualY) {
-                _.displayIndex = i
-                if(_.displayName !== "")
-                _.displayName = screens[i].name
+                _.movedToDisplay = i
                 return
             }
         }
@@ -61,8 +64,23 @@ ApplicationWindow {
         property int preferredWidth: windowProxy.width ?? 0        //
         property int preferredHeight: windowProxy.height ?? 0      //
 
+        property int movedToDisplay: -1 // screen the user moved the window to; wins over the settings
+        property bool applying: false   // true while applyMode() lays the window out
+        property bool ready: false      // set once the initial layout is applied
+
+        // Changing these settings at runtime (e.g. from the settings viewer)
+        // re-applies the window layout. Width, height and margin are left out on
+        // purpose: applying hides and re-shows the window, which would flicker
+        // while a value is being dragged.
+        onModeChanged: if (ready) window.applyMode()
+        onDisplayIndexChanged: { movedToDisplay = -1; if (ready) window.applyMode() }
+        onDisplayNameChanged: { movedToDisplay = -1; if (ready) window.applyMode() }
+
         function getDisplayIndex() : int {
             var screens = Application.screens
+
+            if(movedToDisplay >= 0 && movedToDisplay < screens.length)
+                return movedToDisplay
 
             if(displayName !== "") {
                 for(var i=0; i<screens.length; ++i) {
@@ -85,24 +103,35 @@ ApplicationWindow {
         onActivated: Ds.engine.quit(false)
     }
 
+    /// Lays the window out for the "mode" setting: "desktop", "display" or "window".
+    function applyMode() {
+        _.applying = true
+        if(_.mode === "desktop") { spanDesktop() }
+        else if(_.mode === "display") { spanDisplay() }
+        else { centerOnScreen() }
+        _.applying = false
+    }
+
     function spanDesktop() {
         visible = false
 
         // Create a borderless window.
         flags |= Qt.FramelessWindowHint
 
-        // Find the origin.
+        // The bounding box of all screens, independent of where the window is
+        // now (it may be switching from another mode at runtime).
         var screens = Qt.application.screens
+        var left = Infinity, top = Infinity, right = -Infinity, bottom = -Infinity
         for(var i=0; i<screens.length; ++i) {
-            x = Math.min(x, screens[i].virtualX)
-            y = Math.min(y, screens[i].virtualY)
+            left = Math.min(left, screens[i].virtualX)
+            top = Math.min(top, screens[i].virtualY)
+            right = Math.max(right, screens[i].virtualX + screens[i].width)
+            bottom = Math.max(bottom, screens[i].virtualY + screens[i].height)
         }
-
-        // Span the full desktop.
-        for(let i=0; i<screens.length; ++i) {
-            width = Math.max(width, screens[i].width + (screens[i].virtualX - x))
-            height = Math.max(height, screens[i].height + (screens[i].virtualY - y))
-        }
+        x = left
+        y = top
+        width = right - left
+        height = bottom - top
 
         visible = true
     }
@@ -187,9 +216,8 @@ ApplicationWindow {
         }
 
         // Adjust position and size based on specified mode.
-        if(_.mode === "desktop") { spanDesktop() }
-        else if(_.mode === "display") { spanDisplay() }
-        else { centerOnScreen() }
+        applyMode()
+        _.ready = true
     }
 
     /// Allow full-screen toggle for windows.
