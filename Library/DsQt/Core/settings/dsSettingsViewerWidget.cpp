@@ -264,13 +264,20 @@ protected:
     // Mouse handling for painted sliders and dropdowns, on the view's viewport.
     bool eventFilter(QObject *watched, QEvent *event) override
     {
-        if (watched == m_view && event->type() == QEvent::KeyPress) {
+        if (watched == m_view
+            && (event->type() == QEvent::KeyPress || event->type() == QEvent::ShortcutOverride)) {
             // Space flips the current row's switch, whichever column is current.
-            const auto *ke = static_cast<QKeyEvent *>(event);
+            auto *ke = static_cast<QKeyEvent *>(event);
             const QModelIndex value = m_view->currentIndex().siblingAtColumn(1);
             if (ke->key() == Qt::Key_Space && ke->modifiers() == Qt::NoModifier
                 && !m_editing.isValid()
                 && schemaEntry(value).kind == SettingsSchemaEntry::Kind::Switch) {
+                // Accepting the override claims Space from application-wide
+                // shortcuts (an app's own "SPACE" Shortcut); the key press follows.
+                if (event->type() == QEvent::ShortcutOverride) {
+                    ke->accept();
+                    return true;
+                }
                 toggle(value);
                 return true;
             }
@@ -477,11 +484,10 @@ private:
         c.text = opt.palette.color(group, selected ? QPalette::HighlightedText : QPalette::Text);
         c.groove = c.text;
         c.groove.setAlphaF(0.22f);
-        c.fill = opt.palette.color(group, QPalette::Accent);
-        // Styles that paint the selection in the accent colour would swallow
-        // an accent fill; use the selection's text colour there instead.
-        if (selected && opt.palette.color(group, QPalette::Highlight) == c.fill)
-            c.fill = c.text;
+        // On a selected row the selection is often a shade of the accent (the
+        // Windows 11 style paints it a lighter blue), which would swallow an
+        // accent fill; use the selection's text colour there instead.
+        c.fill = selected ? c.text : opt.palette.color(group, QPalette::Accent);
         c.handle = opt.palette.color(group, QPalette::Base);
         return c;
     }
