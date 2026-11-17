@@ -24,6 +24,7 @@
 #include <QSortFilterProxyModel>
 #include <QStyledItemDelegate>
 #include <QTabWidget>
+#include <QToolTip>
 #include <QTreeView>
 #include <QUrl>
 #include <QVBoxLayout>
@@ -58,8 +59,17 @@ public:
                       QAbstractItemModel *model,
                       const QModelIndex &index) const override
     {
-        if (auto *le = qobject_cast<QLineEdit *>(editor))
-            model->setData(index, le->text(), Qt::EditRole);
+        auto *le = qobject_cast<QLineEdit *>(editor);
+        if (!le)
+            return;
+        if (!model->setData(index, le->text(), Qt::EditRole)) {
+            // The model rejects text that does not fit the setting's type; say
+            // so instead of letting the old value silently reappear.
+            const QString type = index.siblingAtColumn(2).data(Qt::DisplayRole).toString();
+            QToolTip::showText(le->mapToGlobal(QPoint(0, le->height())),
+                               QObject::tr("\"%1\" is not a valid %2.").arg(le->text(), type),
+                               le);
+        }
     }
 
     bool editorEvent(QEvent *event,
@@ -144,7 +154,13 @@ public:
         connect(btnDown,   &QPushButton::clicked, this, &ArrayEditorDialog::onMoveDown);
         connect(bbox, &QDialogButtonBox::accepted, this, &QDialog::accept);
         connect(bbox, &QDialogButtonBox::rejected, this, &QDialog::reject);
-        connect(this, &QDialog::accepted, this, &ArrayEditorDialog::applyChanges);
+    }
+
+    // Applies the edited list; stays open if any row fails to parse.
+    void accept() override
+    {
+        if (applyChanges())
+            QDialog::accept();
     }
 
 private:
@@ -189,7 +205,7 @@ private:
         m_list->setCurrentRow(row + 1);
     }
 
-    void applyChanges()
+    bool applyChanges()
     {
         // Find the first valid MetaType to guide type-aware parsing of edited text.
         QMetaType mt;
@@ -206,13 +222,27 @@ private:
             const QString    text = li->text();
             // If the display text hasn't changed, preserve the original QVariant
             // (keeps exact type, avoids unnecessary re-parsing).
-            if (orig.isValid() && text == SettingsTreeModel::displayString(orig))
+            if (orig.isValid() && text == SettingsTreeModel::displayString(orig)) {
                 list.append(orig);
-            else
-                list.append(parseAs(text, orig.isValid() ? orig.metaType() : mt));
+                continue;
+            }
+            const QMetaType type = orig.isValid() ? orig.metaType() : mt;
+            const QVariant parsed = type.isValid()
+                                        ? SettingsTreeModel::parseDisplayString(text, type)
+                                        : QVariant(text);
+            if (!parsed.isValid()) {
+                m_list->setCurrentItem(li);
+                QMessageBox::warning(this, windowTitle(),
+                                     tr("Item %1: \"%2\" is not a valid %3.")
+                                         .arg(i)
+                                         .arg(text, QString::fromUtf8(type.name())));
+                return false;
+            }
+            list.append(parsed);
         }
 
         m_sf->setOverride(m_path, QVariant::fromValue(list));
+        return true;
     }
 
     // Returns a sensible zero/empty default for the given type.
@@ -223,25 +253,13 @@ private:
         if (mt == QMetaType::fromType<qlonglong>()) return qlonglong{0};
         if (mt == QMetaType::fromType<double>())    return 0.0;
         if (mt == QMetaType::fromType<float>())     return 0.0f;
+        if (mt == QMetaType::fromType<QColor>())    return QColor(Qt::black);
+        // Points, sizes, rects, vectors, dates…: a default-constructed value
+        // of the same type, so new items don't turn the list into strings.
+        if (mt.isValid() && mt != QMetaType::fromType<QVariantList>()
+            && mt != QMetaType::fromType<QVariantMap>())
+            return QVariant(mt);
         return QString{};
-    }
-
-    // Parses a display string back to the target MetaType.
-    static QVariant parseAs(const QString &text, const QMetaType mt)
-    {
-        if (mt == QMetaType::fromType<bool>())
-            return text == QLatin1String("true") || text == QLatin1String("1");
-        if (mt == QMetaType::fromType<int>()) {
-            bool ok; const int v = text.toInt(&ok);
-            if (ok) return v;
-        } else if (mt == QMetaType::fromType<qlonglong>()) {
-            bool ok; const qlonglong v = text.toLongLong(&ok);
-            if (ok) return v;
-        } else if (mt == QMetaType::fromType<double>() || mt == QMetaType::fromType<float>()) {
-            bool ok; const double v = text.toDouble(&ok);
-            if (ok) return v;
-        }
-        return text;
     }
 
     QString      m_path;

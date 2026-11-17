@@ -1,15 +1,18 @@
 #include "settings/dsSettingsTreeModel.h"
 #include "settings/dsSettingsFile.h"
 
+#include <charconv>
 #include <utility>
 
 #include <QColor>
 #include <QDateTime>
 #include <QFont>
+#include <QLocale>
 #include <QPixmap>
 #include <QPointF>
 #include <QQuaternion>
 #include <QRectF>
+#include <QRegularExpression>
 #include <QSizeF>
 #include <QVector2D>
 #include <QVector3D>
@@ -18,6 +21,45 @@
 namespace dsqt {
 
 // ── Display helpers ───────────────────────────────────────────────────────────
+
+// Shortest text that reads back as exactly the same double, so editing one
+// component of a point/rect does not round the others.
+static QString num(double v)
+{
+    return QString::number(v, 'g', QLocale::FloatingPointShortest);
+}
+
+// Same for float (QVector*D, QQuaternion); widening to double first would
+// print float noise such as 0.10000000149011612.
+static QString num(float v)
+{
+    char buf[32];
+    const auto res = std::to_chars(buf, buf + sizeof(buf), v);
+    return QString::fromLatin1(buf, res.ptr - buf);
+}
+
+// Extracts every number in s, ignoring whatever separates them ("(", ",", "×"...).
+// Returns an empty list if s contains anything other than numbers and separators,
+// so stray text is rejected rather than silently dropped.
+static QList<double> extractNumbers(const QString &s)
+{
+    static const QRegularExpression number(
+        QStringLiteral(R"([-+]?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?)"));
+    static const QRegularExpression separators(QStringLiteral(u"^[\\s,;()\\[\\]{}x×*]*$"));
+
+    QList<double> result;
+    qsizetype pos = 0;
+    for (auto it = number.globalMatch(s); it.hasNext();) {
+        const auto m = it.next();
+        if (!separators.match(s.mid(pos, m.capturedStart() - pos)).hasMatch())
+            return {};
+        result.append(m.captured().toDouble());
+        pos = m.capturedEnd();
+    }
+    if (!separators.match(s.mid(pos)).hasMatch())
+        return {};
+    return result;
+}
 
 // Returns true if every character in s is a decimal digit (and s is non-empty).
 static bool isNumericString(const QString &s)
@@ -52,27 +94,35 @@ QString SettingsTreeModel::displayString(const QVariant &v)
         return v.value<QColor>().name(QColor::HexArgb);
     if (v.metaType() == QMetaType::fromType<QPointF>()) {
         const auto p = v.value<QPointF>();
-        return QString("(%1, %2)").arg(p.x()).arg(p.y());
+        return QString("(%1, %2)").arg(num(p.x()), num(p.y()));
     }
     if (v.metaType() == QMetaType::fromType<QSizeF>()) {
         const auto s = v.value<QSizeF>();
-        return QString("%1 × %2").arg(s.width()).arg(s.height());
+        return QString("%1 × %2").arg(num(s.width()), num(s.height()));
     }
     if (v.metaType() == QMetaType::fromType<QRectF>()) {
         const auto r = v.value<QRectF>();
-        return QString("(%1, %2, %3, %4)").arg(r.x()).arg(r.y()).arg(r.width()).arg(r.height());
+        return QString("(%1, %2, %3, %4)")
+            .arg(num(r.x()), num(r.y()), num(r.width()), num(r.height()));
     }
     if (v.metaType() == QMetaType::fromType<QVector2D>()) {
         const auto vec = v.value<QVector2D>();
-        return QString("(%1, %2)").arg(vec.x()).arg(vec.y());
+        return QString("(%1, %2)").arg(num(vec.x()), num(vec.y()));
     }
     if (v.metaType() == QMetaType::fromType<QVector3D>()) {
         const auto vec = v.value<QVector3D>();
-        return QString("(%1, %2, %3)").arg(vec.x()).arg(vec.y()).arg(vec.z());
+        return QString("(%1, %2, %3)").arg(num(vec.x()), num(vec.y()), num(vec.z()));
     }
     if (v.metaType() == QMetaType::fromType<QVector4D>()) {
         const auto vec = v.value<QVector4D>();
-        return QString("(%1, %2, %3, %4)").arg(vec.x()).arg(vec.y()).arg(vec.z()).arg(vec.w());
+        return QString("(%1, %2, %3, %4)")
+            .arg(num(vec.x()), num(vec.y()), num(vec.z()), num(vec.w()));
+    }
+    if (v.metaType() == QMetaType::fromType<QQuaternion>()) {
+        // Same order as the constructor and the TOML table: scalar, x, y, z.
+        const auto q = v.value<QQuaternion>();
+        return QString("(%1, %2, %3, %4)")
+            .arg(num(q.scalar()), num(q.x()), num(q.y()), num(q.z()));
     }
     if (v.metaType() == QMetaType::fromType<QDate>())
         return v.value<QDate>().toString(Qt::ISODate);
@@ -85,6 +135,81 @@ QString SettingsTreeModel::displayString(const QVariant &v)
     if (v.metaType() == QMetaType::fromType<QVariantList>())
         return QString("[%1 items]").arg(v.toList().size());
     return v.toString();
+}
+
+QVariant SettingsTreeModel::parseDisplayString(const QString &text, QMetaType type)
+{
+    const QString str = text.trimmed();
+
+    if (type == QMetaType::fromType<QString>())
+        return text; // strings are kept verbatim, including whitespace
+
+    if (type == QMetaType::fromType<bool>()) {
+        if (str.compare(u"true", Qt::CaseInsensitive) == 0 || str == u"1")
+            return true;
+        if (str.compare(u"false", Qt::CaseInsensitive) == 0 || str == u"0")
+            return false;
+        return {};
+    }
+    if (type == QMetaType::fromType<int>()) {
+        bool ok;
+        const int v = str.toInt(&ok);
+        return ok ? QVariant(v) : QVariant{};
+    }
+    if (type == QMetaType::fromType<qlonglong>()) {
+        bool ok;
+        const qlonglong v = str.toLongLong(&ok);
+        return ok ? QVariant(v) : QVariant{};
+    }
+    if (type == QMetaType::fromType<double>()) {
+        bool ok;
+        const double v = str.toDouble(&ok);
+        return ok ? QVariant(v) : QVariant{};
+    }
+    if (type == QMetaType::fromType<float>()) {
+        bool ok;
+        const float v = str.toFloat(&ok);
+        return ok ? QVariant(v) : QVariant{};
+    }
+    if (type == QMetaType::fromType<QColor>()) {
+        const QColor c = QColor::fromString(str);
+        return c.isValid() ? QVariant::fromValue(c) : QVariant{};
+    }
+    if (type == QMetaType::fromType<QDate>()) {
+        const QDate d = QDate::fromString(str, Qt::ISODate);
+        return d.isValid() ? QVariant(d) : QVariant{};
+    }
+    if (type == QMetaType::fromType<QTime>()) {
+        const QTime t = QTime::fromString(str, Qt::ISODate);
+        return t.isValid() ? QVariant(t) : QVariant{};
+    }
+    if (type == QMetaType::fromType<QDateTime>()) {
+        const QDateTime dt = QDateTime::fromString(str, Qt::ISODate);
+        return dt.isValid() ? QVariant(dt) : QVariant{};
+    }
+
+    // Multi-component numeric types: take the numbers in order, ignore the
+    // punctuation displayString() wraps them in.
+    const QList<double> n = extractNumbers(str);
+    const auto f = [&n](int i) { return static_cast<float>(n[i]); };
+    if (type == QMetaType::fromType<QPointF>())
+        return n.size() == 2 ? QVariant(QPointF(n[0], n[1])) : QVariant{};
+    if (type == QMetaType::fromType<QSizeF>())
+        return n.size() == 2 ? QVariant(QSizeF(n[0], n[1])) : QVariant{};
+    if (type == QMetaType::fromType<QRectF>())
+        return n.size() == 4 ? QVariant(QRectF(n[0], n[1], n[2], n[3])) : QVariant{};
+    if (type == QMetaType::fromType<QVector2D>())
+        return n.size() == 2 ? QVariant(QVector2D(f(0), f(1))) : QVariant{};
+    if (type == QMetaType::fromType<QVector3D>())
+        return n.size() == 3 ? QVariant(QVector3D(f(0), f(1), f(2))) : QVariant{};
+    if (type == QMetaType::fromType<QVector4D>())
+        return n.size() == 4 ? QVariant(QVector4D(f(0), f(1), f(2), f(3))) : QVariant{};
+    if (type == QMetaType::fromType<QQuaternion>())
+        return n.size() == 4 ? QVariant(QQuaternion(f(0), f(1), f(2), f(3))) : QVariant{};
+
+    // Anything else: let QMetaType try, but never fall back to a string.
+    QVariant v(str);
+    return v.convert(type) ? v : QVariant{};
 }
 
 // Returns a short, human-readable type label for a leaf value.
@@ -357,30 +482,11 @@ bool SettingsTreeModel::setData(const QModelIndex &index, const QVariant &value,
     if (value.metaType() == target) {
         converted = value;
     } else {
-        // Parse from the string the editor produced.
-        const QString str = value.toString().trimmed();
-        if (target == QMetaType::fromType<QColor>()) {
-            const QColor c = QColor::fromString(str);
-            if (!c.isValid()) return false;
-            converted = QVariant::fromValue(c);
-        } else if (target == QMetaType::fromType<bool>()) {
-            converted = (str == "true" || str == "1");
-        } else if (target == QMetaType::fromType<int>()) {
-            bool ok; const int v = str.toInt(&ok);
-            if (!ok) return false;
-            converted = v;
-        } else if (target == QMetaType::fromType<qlonglong>()) {
-            bool ok; const qlonglong v = str.toLongLong(&ok);
-            if (!ok) return false;
-            converted = v;
-        } else if (target == QMetaType::fromType<double>()
-                   || target == QMetaType::fromType<float>()) {
-            bool ok; const double v = str.toDouble(&ok);
-            if (!ok) return false;
-            converted = v;
-        } else {
-            converted = str;
-        }
+        // Parse from the string the editor produced. Text that does not fit the
+        // setting's type is rejected, so a Point never silently becomes a String.
+        converted = parseDisplayString(value.toString(), target);
+        if (!converted.isValid())
+            return false;
     }
 
     // If this item is a scalar element inside a list node, we must update the
