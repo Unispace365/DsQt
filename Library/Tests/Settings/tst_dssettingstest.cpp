@@ -184,6 +184,8 @@ class DsSettingsTest : public QObject
     void schemaEntry_localPath_data();
     void schemaEntry_localPath();
     void treeModel_fileUrls_shouldBeCheckedAsPaths();
+    void schemaEntry_switch_shouldBeTheDefaultForBooleans();
+    void treeModel_switch_shouldFlipBooleans();
 
     // Restart marker
     void schemaEntry_restart_shouldAcceptBoolsAndLegacyStrings();
@@ -2136,6 +2138,53 @@ void DsSettingsTest::treeModel_fileUrls_shouldBeCheckedAsPaths()
     const QString tip = findValueIndex(model, "missing").data(Qt::ToolTipRole).toString();
     QVERIFY2(tip.contains(QDir::toNativeSeparators(media.filePath("gone.wav")).toHtmlEscaped()),
              qPrintable(tip));
+}
+
+// ── Boolean switches ───────────────────────────────────────────────────────────
+
+void DsSettingsTest::schemaEntry_switch_shouldBeTheDefaultForBooleans()
+{
+    using Entry = dsqt::SettingsSchemaEntry;
+    const QMetaType boolean = QMetaType::fromType<bool>();
+
+    QCOMPARE(Entry::fromMap({}, boolean).kind, Entry::Kind::Switch);
+    QCOMPARE(Entry::fromMap({{"description", "On or off"}}, boolean).kind, Entry::Kind::Switch);
+    QCOMPARE(Entry::fromMap({{"editor", "text"}}, boolean).kind, Entry::Kind::None);
+
+    // Options still win, for Booleans with labels of their own.
+    const Entry labelled = Entry::fromMap(
+        {{"options", QVariantList{true, false}}, {"labels", QVariantList{"Shown", "Hidden"}}}, boolean);
+    QCOMPARE(labelled.kind, Entry::Kind::Options);
+
+    // Only Booleans.
+    QCOMPARE(Entry::fromMap({}, QMetaType::fromType<QString>()).kind, Entry::Kind::None);
+    QCOMPARE(Entry::fromMap({}, QMetaType::fromType<int>()).kind, Entry::Kind::None);
+}
+
+void DsSettingsTest::treeModel_switch_shouldFlipBooleans()
+{
+    using Entry = dsqt::SettingsSchemaEntry;
+    TempSettingsFile settings("enabled = true\nflags = [false, true]\nplain = false\n",
+                              "[plain]\neditor = \"text\"\n");
+    dsqt::SettingsTreeModel model;
+    model.setSettingsFile(settings.file.get());
+
+    const auto kind = [&model](const QString &path) {
+        return findValueIndex(model, path).data(dsqt::SettingsTreeModel::SchemaEntryRole).value<Entry>().kind;
+    };
+    QCOMPARE(kind("enabled"), Entry::Kind::Switch);
+    QCOMPARE(kind("flags.0"), Entry::Kind::Switch); // list elements too
+    QCOMPARE(kind("plain"), Entry::Kind::None);
+
+    // The switch stores a bool, which stays a Boolean.
+    QVERIFY(model.setData(findValueIndex(model, "enabled"), false, Qt::EditRole));
+    QCOMPARE(settings.file->value("enabled").metaType(), QMetaType::fromType<bool>());
+    QCOMPARE(settings.file->value("enabled").toBool(), false);
+    QCOMPARE(findValueIndex(model, "enabled").data(Qt::DisplayRole).toString(), QStringLiteral("false"));
+
+    QVERIFY(model.setData(findValueIndex(model, "flags.0"), true, Qt::EditRole));
+    const QVariantList flags = settings.file->value("flags").toList();
+    QCOMPARE(flags, (QVariantList{true, true}));
 }
 
 // ── Restart marker ───────────────────────────────────────────────────────────

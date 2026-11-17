@@ -349,6 +349,13 @@ SettingsSchemaEntry SettingsSchemaEntry::fromMap(const QVariantMap &schema, QMet
         return e;
     }
 
+    // Booleans get a switch without a schema; editor = "text" keeps plain text.
+    if (valueType == QMetaType::fromType<bool>()) {
+        if (editor != u"text")
+            e.kind = Kind::Switch;
+        return e;
+    }
+
     const bool integral = isIntegralType(valueType);
     if (!integral && !isFloatingType(valueType))
         return e; // min/max/step only describe numbers

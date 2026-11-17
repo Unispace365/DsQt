@@ -17,6 +17,7 @@ struct SettingsSchemaEntry
         Options, // value picked from a list
         File,    // string holding a file path: browse with a file dialog
         Folder,  // string holding a folder path: browse with a folder dialog
+        Switch,  // Boolean: an on/off switch (every Boolean, unless editor = "text")
     };
 
     Kind      kind = Kind::None;

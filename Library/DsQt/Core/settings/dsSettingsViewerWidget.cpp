@@ -19,6 +19,7 @@
 #include <QLineEdit>
 #include <QListWidget>
 #include <QHideEvent>
+#include <QKeyEvent>
 #include <QMenu>
 #include <QMessageBox>
 #include <QMouseEvent>
@@ -33,6 +34,7 @@
 #include <QToolTip>
 #include <QTreeView>
 #include <QUrl>
+#include <QVariantAnimation>
 #include <QVBoxLayout>
 
 namespace dsqt {
@@ -65,6 +67,7 @@ public:
 //  - file and folder paths (schema editor, or detected): painted browse button
 //    that opens a file or folder dialog; the result is stored with a path
 //    variable (%LOCAL%, %APP%, ...) where one applies;
+//  - Booleans: painted on/off switch, flipped with a click or Space;
 //  - everything else (and a slider's exact value, via double-click on its
 //    text or F2): QLineEdit.
 //
@@ -84,6 +87,16 @@ public:
         view->viewport()->installEventFilter(this);
         view->viewport()->setMouseTracking(true); // cursor feedback
         view->viewport()->setAttribute(Qt::WA_Hover);
+        view->installEventFilter(this); // Space flips a switch
+
+        // Slides a switch's knob over when it is flipped.
+        m_switchAnimation = new QVariantAnimation(this);
+        m_switchAnimation->setDuration(120);
+        m_switchAnimation->setEasingCurve(QEasingCurve::OutCubic);
+        QObject::connect(m_switchAnimation, &QVariantAnimation::valueChanged, this, [this] {
+            if (m_switchIndex.isValid())
+                m_view->viewport()->update(m_view->visualRect(m_switchIndex));
+        });
     }
 
     // ── Painting ──
@@ -148,6 +161,9 @@ public:
         case SettingsSchemaEntry::Kind::File:
         case SettingsSchemaEntry::Kind::Folder:
             paintPath(painter, opt, entry, text, colors);
+            break;
+        case SettingsSchemaEntry::Kind::Switch:
+            paintSwitch(painter, opt, index, text, colors);
             break;
         case SettingsSchemaEntry::Kind::None:
             break;
@@ -248,6 +264,17 @@ protected:
     // Mouse handling for painted sliders and dropdowns, on the view's viewport.
     bool eventFilter(QObject *watched, QEvent *event) override
     {
+        if (watched == m_view && event->type() == QEvent::KeyPress) {
+            // Space flips the current row's switch, whichever column is current.
+            const auto *ke = static_cast<QKeyEvent *>(event);
+            const QModelIndex value = m_view->currentIndex().siblingAtColumn(1);
+            if (ke->key() == Qt::Key_Space && ke->modifiers() == Qt::NoModifier
+                && !m_editing.isValid()
+                && schemaEntry(value).kind == SettingsSchemaEntry::Kind::Switch) {
+                toggle(value);
+                return true;
+            }
+        }
         if (watched != m_view->viewport())
             return QStyledItemDelegate::eventFilter(watched, event);
 
@@ -278,6 +305,12 @@ protected:
                     QTimer::singleShot(0, m_view, [this, target] { browse(target); });
                 }
                 return true; // a double-click on the button must not start text editing
+            case Hit::Switch:
+                // A double-click arrives instead of a second press: it flips
+                // the switch back, as two clicks would.
+                m_view->setCurrentIndex(index);
+                toggle(index);
+                return true;
             case Hit::None:
                 break;
             }
@@ -316,7 +349,7 @@ protected:
     }
 
 private:
-    enum class Hit { None, Slider, Options, Browse };
+    enum class Hit { None, Slider, Options, Browse, Switch };
 
     struct Colors
     {
@@ -385,6 +418,13 @@ private:
         if (entry.kind == SettingsSchemaEntry::Kind::File
             || entry.kind == SettingsSchemaEntry::Kind::Folder)
             return browseButtonRect(cell).contains(pos) ? Hit::Browse : Hit::None;
+        if (entry.kind == SettingsSchemaEntry::Kind::Switch) {
+            // The full cell height, a little wider than the switch; the text
+            // next to it stays editable with a double-click.
+            const QRectF track = switchRect(cell);
+            const QRectF area(track.left() - 4, cell.top(), track.width() + 8, cell.height());
+            return area.contains(pos) ? Hit::Switch : Hit::None;
+        }
         if (entry.kind == SettingsSchemaEntry::Kind::Slider) {
             const SliderLayout layout = sliderLayout(cell, m_view->font(), entry);
             if (layout.track.isEmpty())
@@ -527,6 +567,79 @@ private:
         painter->drawPath(arrow);
     }
 
+    // The switch's track, at the left of the cell, as tall as a slider handle.
+    QRectF switchRect(const QRect &cell) const
+    {
+        const qreal height = std::clamp(cell.height() - 8.0, 12.0, 18.0);
+        const qreal width  = std::round(height * 1.8);
+        return QRectF(cell.left() + textMargin() + 0.5,
+                      cell.top() + (cell.height() - height) / 2.0 + 0.5, width, height);
+    }
+
+    // Flips a Boolean and slides the knob over to its new side.
+    void toggle(const QModelIndex &index)
+    {
+        const bool on = index.data(Qt::EditRole).toBool();
+        if (!m_view->model()->setData(index, !on, Qt::EditRole))
+            return;
+        m_switchAnimation->stop();
+        m_switchIndex = index;
+        m_switchAnimation->setStartValue(on ? 1.0 : 0.0);
+        m_switchAnimation->setEndValue(on ? 0.0 : 1.0);
+        m_switchAnimation->start();
+    }
+
+    static QColor blend(const QColor &a, const QColor &b, qreal t)
+    {
+        const auto mix = [t](float x, float y) { return x + (y - x) * float(t); };
+        return QColor::fromRgbF(mix(a.redF(), b.redF()), mix(a.greenF(), b.greenF()),
+                                mix(a.blueF(), b.blueF()), mix(a.alphaF(), b.alphaF()));
+    }
+
+    void paintSwitch(QPainter *painter,
+                     const QStyleOptionViewItem &opt,
+                     const QModelIndex &index,
+                     const QString &text,
+                     const Colors &colors) const
+    {
+        const QRectF track = switchRect(opt.rect);
+        const bool on = index.data(Qt::EditRole).toBool();
+
+        // 0 = off, 1 = on; in between while the knob slides over.
+        qreal t = on ? 1.0 : 0.0;
+        if (m_switchAnimation->state() == QAbstractAnimation::Running && index == m_switchIndex)
+            t = m_switchAnimation->currentValue().toReal();
+
+        // Track: the groove colour with an outline when off, the accent when on.
+        const qreal radius = track.height() / 2;
+        QColor outline = colors.text;
+        outline.setAlphaF(0.35f * float(1.0 - t));
+        painter->setPen(t < 1.0 ? QPen(outline, 1.0) : QPen(Qt::NoPen));
+        painter->setBrush(blend(colors.groove, colors.fill, t));
+        painter->drawRoundedRect(track, radius, radius);
+
+        // Knob: in the base colour, a little larger while the row is hovered.
+        const bool hover = opt.state & QStyle::State_MouseOver;
+        const qreal knob = radius - (hover ? 2.0 : 2.5);
+        const qreal from = track.left() + radius;
+        const qreal to   = track.right() - radius;
+        const QPointF centre(from + (to - from) * t, track.center().y());
+        QColor border = colors.text;
+        border.setAlphaF(0.25f * float(1.0 - t));
+        painter->setPen(t < 1.0 ? QPen(border, 1.0) : QPen(Qt::NoPen));
+        painter->setBrush(colors.handle);
+        painter->drawEllipse(centre, knob, knob);
+
+        // The value as written in the file, slightly dimmed.
+        QColor textColor = colors.text;
+        textColor.setAlphaF(0.75f);
+        const int textLeft = int(std::ceil(track.right())) + 8;
+        const QRect textRect(textLeft, opt.rect.top(), opt.rect.right() - textLeft, opt.rect.height());
+        painter->setPen(textColor);
+        painter->drawText(textRect, Qt::AlignLeft | Qt::AlignVCenter,
+                          opt.fontMetrics.elidedText(text, Qt::ElideRight, textRect.width()));
+    }
+
     // The "…" button at the right end of a path cell.
     static QRect browseButtonRect(const QRect &cell)
     {
@@ -639,6 +752,8 @@ private:
 
     QAbstractItemView    *m_view;
     QPersistentModelIndex m_drag;            // slider being dragged, if any
+    QVariantAnimation    *m_switchAnimation = nullptr;
+    QPersistentModelIndex m_switchIndex;     // switch whose knob is sliding
     mutable QPersistentModelIndex m_editing; // cell with an open editor, if any
 };
 
