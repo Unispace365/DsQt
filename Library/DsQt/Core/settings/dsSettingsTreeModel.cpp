@@ -308,6 +308,15 @@ SettingsSchemaEntry SettingsSchemaEntry::fromMap(const QVariantMap &schema, QMet
     e.valueType   = valueType;
     e.description = schema.value(QStringLiteral("description")).toString();
 
+    // restart = true, or a legacy-style restart = "full"; "false"/"none" read as off.
+    const QVariant restart = schema.value(QStringLiteral("restart"));
+    if (restart.metaType() == QMetaType::fromType<bool>()) {
+        e.restart = restart.toBool();
+    } else if (restart.metaType() == QMetaType::fromType<QString>()) {
+        const QString text = restart.toString().trimmed().toLower();
+        e.restart = !text.isEmpty() && text != u"false" && text != u"none" && text != u"no";
+    }
+
     // "editor", not "type": in legacy [value, {metadata}] tables "type" names
     // the value's type ("int", "color"), not how it is edited.
     const QString editor = schema.value(QStringLiteral("editor")).toString().trimmed().toLower();
@@ -669,6 +678,10 @@ QVariant SettingsTreeModel::data(const QModelIndex &index, int role) const
         QStringList lines;
         if (!item->schema.description.isEmpty())
             lines.append(item->schema.description);
+        if (item->schema.restart)
+            lines.append(item->hasOverride()
+                             ? QStringLiteral("Changed: takes effect after the app restarts.")
+                             : QStringLiteral("Takes effect after the app restarts."));
         if (item->schema.pathMissing)
             lines.append(QStringLiteral("Not found: %1")
                              .arg(QDir::toNativeSeparators(

@@ -605,6 +605,101 @@ private:
     QPersistentModelIndex m_drag; // slider being dragged, if any
 };
 
+// ── SettingsTypeDelegate ──────────────────────────────────────────────────────
+// Column 2 (type): the type name, followed by a small warning sign for
+// settings whose schema says a change only takes effect after the app
+// restarts. The sign is an amber outline, and filled once the value has been
+// changed at runtime: that change is waiting for a restart. The tooltip says
+// the same in words. It is painted rather than drawn as the emoji, so its size
+// and baseline match the text at any DPI.
+
+class SettingsTypeDelegate : public QStyledItemDelegate
+{
+public:
+    using QStyledItemDelegate::QStyledItemDelegate;
+
+    void paint(QPainter *painter,
+               const QStyleOptionViewItem &option,
+               const QModelIndex &index) const override
+    {
+        const auto entry = index.data(SettingsTreeModel::SchemaEntryRole).value<SettingsSchemaEntry>();
+        if (!entry.restart) {
+            QStyledItemDelegate::paint(painter, option, index);
+            return;
+        }
+
+        QStyleOptionViewItem opt(option);
+        initStyleOption(&opt, index);
+        const QString text = opt.text;
+        const QWidget *widget = opt.widget;
+        QStyle *style = widget ? widget->style() : QApplication::style();
+        opt.text.clear();
+        style->drawControl(QStyle::CE_ItemViewItem, &opt, painter, widget);
+
+        const QPalette::ColorGroup group = !(opt.state & QStyle::State_Enabled) ? QPalette::Disabled
+                                           : (opt.state & QStyle::State_Active) ? QPalette::Normal
+                                                                                : QPalette::Inactive;
+        const bool selected = opt.state & QStyle::State_Selected;
+        const QColor textColor = opt.palette.color(group, selected ? QPalette::HighlightedText
+                                                                   : QPalette::Text);
+        const bool pending =
+            index.data(SettingsTreeModel::ProvenanceRole).toString() == QStringLiteral("override");
+
+        // The type name, then the sign right after it, cut short if the column
+        // is too narrow for both.
+        const int margin   = style->pixelMetric(QStyle::PM_FocusFrameHMargin, nullptr, widget) + 1;
+        const qreal size   = std::round(opt.fontMetrics.height() * 0.85);
+        const int  gap     = 6;
+        const int  room    = opt.rect.width() - 2 * margin - gap - int(size);
+        const QString shown = opt.fontMetrics.elidedText(text, Qt::ElideRight, std::max(0, room));
+        const QRect textRect(opt.rect.left() + margin, opt.rect.top(),
+                             opt.fontMetrics.horizontalAdvance(shown), opt.rect.height());
+
+        painter->save();
+        painter->setRenderHint(QPainter::Antialiasing);
+        painter->setFont(opt.font);
+        painter->setPen(textColor);
+        painter->drawText(textRect, Qt::AlignLeft | Qt::AlignVCenter, shown);
+
+        const QRectF sign(textRect.right() + 1 + gap, opt.rect.center().y() + 0.5 - size / 2,
+                          size, size);
+        paintWarningSign(painter, sign, pending, textColor);
+        painter->restore();
+    }
+
+private:
+    // A rounded warning triangle with an exclamation mark, in amber.
+    static void paintWarningSign(QPainter *painter, const QRectF &r, bool filled, const QColor &text)
+    {
+        // Amber that reads on both light and dark backgrounds.
+        const bool   dark  = text.lightness() > 128; // light text: dark theme
+        const QColor amber = dark ? QColor(252, 200, 60) : QColor(214, 140, 0);
+
+        const qreal  pen = std::max(1.0, r.height() / 11.0);
+        const QRectF t   = r.adjusted(pen / 2, pen / 2 + r.height() * 0.04, -pen / 2, -pen / 2);
+        QPainterPath triangle;
+        triangle.moveTo(t.center().x(), t.top());
+        triangle.lineTo(t.right(), t.bottom());
+        triangle.lineTo(t.left(), t.bottom());
+        triangle.closeSubpath();
+
+        painter->setPen(QPen(amber, pen, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
+        painter->setBrush(filled ? QBrush(amber) : QBrush(Qt::NoBrush));
+        painter->drawPath(triangle);
+
+        // The exclamation mark: a bar and a dot, centred in the lower part.
+        const QColor mark = filled ? QColor(32, 24, 0) : amber;
+        const qreal  x    = t.center().x();
+        const qreal  w    = std::max(1.2, r.width() * 0.11);
+        painter->setPen(QPen(mark, w, Qt::SolidLine, Qt::RoundCap));
+        painter->drawLine(QPointF(x, t.top() + t.height() * 0.38),
+                          QPointF(x, t.top() + t.height() * 0.66));
+        painter->setPen(Qt::NoPen);
+        painter->setBrush(mark);
+        painter->drawEllipse(QPointF(x, t.top() + t.height() * 0.83), w * 0.62, w * 0.62);
+    }
+};
+
 // ── ArrayEditorDialog ─────────────────────────────────────────────────────────
 // Lets the user add, remove and reorder items in a QVariantList setting.
 // Items can be dragged to reorder them inside the list view.
@@ -895,6 +990,7 @@ void SettingsViewerWidget::rebuild()
         proxy->setSourceModel(model);
         view->setModel(proxy);
         view->setItemDelegateForColumn(1, new SettingsValueDelegate(view));
+        view->setItemDelegateForColumn(2, new SettingsTypeDelegate(view));
         view->setAlternatingRowColors(true);
         view->setUniformRowHeights(true);
         view->setRootIsDecorated(true);

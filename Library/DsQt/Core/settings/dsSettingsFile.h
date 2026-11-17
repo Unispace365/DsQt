@@ -115,6 +115,10 @@ public:
     //   editor = "file"              # "file" or "folder": browse button;
     //   filter = "Images (*.png)"    # "text": no path detection
     //
+    //   [engine.project_path]
+    //   restart = true               # any setting: marked as applying
+    //                                # only after the app restarts
+    //
     // A list element ("points.1") falls back to the entry of its list ("points").
     // Later schema files override earlier ones key by key.
     Q_INVOKABLE QVariantMap schema(const QString &key) const;

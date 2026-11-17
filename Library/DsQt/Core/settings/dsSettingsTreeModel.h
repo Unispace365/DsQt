@@ -22,6 +22,7 @@ struct SettingsSchemaEntry
     Kind      kind = Kind::None;
     QMetaType valueType;   // type of the setting the entry was built for
     QString   description; // tooltip text, may be empty
+    bool      restart = false; // a change only takes effect after the app restarts
 
     // Slider
     double min      = 0.0;

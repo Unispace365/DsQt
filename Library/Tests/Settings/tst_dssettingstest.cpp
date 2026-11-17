@@ -182,6 +182,10 @@ class DsSettingsTest : public QObject
     void schemaEntry_detectPath();
     void treeModel_paths_shouldBeDetectedAndFlaggedWhenMissing();
 
+    // Restart marker
+    void schemaEntry_restart_shouldAcceptBoolsAndLegacyStrings();
+    void treeModel_restart_shouldExplainItselfInTheTooltip();
+
   private:
     // Directory the test data is copied into by the build (see CMakeLists.txt).
     static QString settingsDir() { return QDir::current().filePath("settings"); }
@@ -2065,6 +2069,49 @@ void DsSettingsTest::treeModel_paths_shouldBeDetectedAndFlaggedWhenMissing()
     QCOMPARE(entry("chosen").kind, Entry::Kind::File);
     QVERIFY(entry("chosen").pathMissing);
     QCOMPARE(entry("title").kind, Entry::Kind::None);
+}
+
+// ── Restart marker ───────────────────────────────────────────────────────────
+
+void DsSettingsTest::schemaEntry_restart_shouldAcceptBoolsAndLegacyStrings()
+{
+    using Entry = dsqt::SettingsSchemaEntry;
+    const QMetaType string = QMetaType::fromType<QString>();
+
+    QVERIFY(Entry::fromMap({{"restart", true}}, string).restart);
+    QVERIFY(Entry::fromMap({{"restart", "full"}}, string).restart); // as in old metadata
+    QVERIFY(!Entry::fromMap({{"restart", false}}, string).restart);
+    QVERIFY(!Entry::fromMap({{"restart", "none"}}, string).restart);
+    QVERIFY(!Entry::fromMap({{"restart", ""}}, string).restart);
+    QVERIFY(!Entry::fromMap({}, string).restart);
+
+    // It combines with any editor.
+    const Entry slider = Entry::fromMap({{"min", 0}, {"max", 10}, {"restart", true}},
+                                        QMetaType::fromType<qlonglong>());
+    QCOMPARE(slider.kind, Entry::Kind::Slider);
+    QVERIFY(slider.restart);
+}
+
+void DsSettingsTest::treeModel_restart_shouldExplainItselfInTheTooltip()
+{
+    using Entry = dsqt::SettingsSchemaEntry;
+    TempSettingsFile settings("project = \"demo\"\nother = 1\n", "[project]\nrestart = true\n");
+
+    // restart on its own is enough to make a schema entry.
+    QCOMPARE(settings.file->schema("project").value("restart").toBool(), true);
+
+    dsqt::SettingsTreeModel model;
+    model.setSettingsFile(settings.file.get());
+
+    const QModelIndex project = findValueIndex(model, "project");
+    QVERIFY(project.data(dsqt::SettingsTreeModel::SchemaEntryRole).value<Entry>().restart);
+    QVERIFY(project.data(Qt::ToolTipRole).toString().contains("Takes effect after the app restarts."));
+    QVERIFY(!findValueIndex(model, "other").data(Qt::ToolTipRole).toString().contains("restart"));
+
+    // Once changed at runtime, the tooltip says the change is waiting.
+    QVERIFY(model.setData(project, QStringLiteral("changed"), Qt::EditRole));
+    QVERIFY(findValueIndex(model, "project").data(Qt::ToolTipRole).toString()
+                .contains("Changed: takes effect after the app restarts."));
 }
 
 QTEST_MAIN(DsSettingsTest)

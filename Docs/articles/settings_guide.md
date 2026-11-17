@@ -818,6 +818,12 @@ max = 45.0
 - Schema files are layered like the settings files they accompany: a later search path overrides an earlier one key by key, so an application can change the `max` of a library entry without repeating the rest. They are watched and reloaded live as well.
 - A schema only affects the viewer; it never changes values, and code that calls `setOverride()` is not clamped.
 - Entries that do not fit the setting are ignored: `min`/`max` on a string or a point, or a dropdown whose options all fail to convert, leave the plain text editor in place.
+- `restart = true` marks a setting that the app only reads at startup, such as `engine.project_path`. It works on any setting, alone or together with a slider, dropdown or path editor. The viewer shows a small amber warning sign after the type name, filled in once the value has been changed at runtime, and the tooltip says the change takes effect after the app restarts. Nothing restarts automatically. A legacy-style `restart = "full"` is read the same way; `false`, `"none"` or an empty string turn it off.
+
+```toml
+[engine.project_path]
+restart = true
+```
 
 #### Paths
 
