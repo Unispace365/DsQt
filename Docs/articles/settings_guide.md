@@ -477,6 +477,8 @@ DsQt supports path variable expansion for portable configurations:
 | `%RES%` | Resolved resource location (from `engine.resource.location`) | `file:///C:/.../resources/` |
 | `%ENV%(VAR)` | Environment variable | `%ENV%(HOME)` |
 
+`%DOCUMENTS%` is the Documents folder the operating system reports, so on Windows it follows a Documents folder that was moved to another drive. The log files and BridgeSync use the same folder. `%LOCAL%` is always its `downstream` subfolder. Older DsQt versions always used `<home>/Documents/downstream`; if that folder still has content while Documents is elsewhere, DsQt logs a warning, because files there (such as settings overrides) are no longer read. Move what you still need.
+
 A path containing a variable that can't be resolved is dropped rather than used as-is (e.g. when building search paths before `engine.project_path` has loaded).
 
 ### Usage Examples
