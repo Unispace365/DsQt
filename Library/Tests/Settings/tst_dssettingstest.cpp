@@ -1468,7 +1468,10 @@ void DsSettingsTest::registryBind_deferred_shouldNotResolveOnAnUnrelatedFile()
 // does), not <home>/Documents.
 void DsSettingsTest::environment_localShouldFollowTheDocumentsLocation()
 {
-    const QString documents = QDir::cleanPath(QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation));
+    // DsEnvironment falls back to <home>/Documents when the OS reports no Documents folder.
+    QString documents = QDir::cleanPath(QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation));
+    if (documents.isEmpty())
+        documents = QDir::cleanPath(QDir::homePath() + QStringLiteral("/Documents"));
     const QString expected  = documents + QStringLiteral("/downstream");
 
     QCOMPARE(dsqt::DsEnvironment::expandq(QStringLiteral("%DOCUMENTS%")), documents);
