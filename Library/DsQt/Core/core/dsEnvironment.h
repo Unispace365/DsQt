@@ -157,6 +157,29 @@ class DsEnvironment {
      */
     static bool loadEngineSettings();
 
+    /// A folder that loadEngineSettings() adds to the settings search paths.
+    struct SettingsLocation {
+        QString name;    ///< "Application", "Application Platform", "Local" or "Local Platform"
+        QString pattern; ///< as configured, e.g. "%LOCAL%/settings/%PP%/%CFG_FOLDER%"
+        QString folder;  ///< `pattern` expanded; empty while one of its variables is not set
+    };
+
+    /**
+     * @brief The folders settings files are read from, lowest priority first.
+     *
+     * - Application: %APP%/settings, the files installed with the application.
+     * - Application Platform: %APP%/settings/%CFG_FOLDER%, the installed files for the
+     *   configuration named by configuration.toml's config_folder.
+     * - Local: %LOCAL%/settings/%PP%, this machine's files for the project
+     *   (engine.project_path), outside the installation.
+     * - Local Platform: %LOCAL%/settings/%PP%/%CFG_FOLDER%, this machine's files for
+     *   the configuration.
+     *
+     * A file in a later folder overrides the same keys of the files before it.
+     * A folder is only searched once its variables are known (see Settings::searchPaths()).
+     */
+    static QList<SettingsLocation> settingsLocations();
+
     /**
      * @brief Checks if settings files exist at the appropriate paths.
      *

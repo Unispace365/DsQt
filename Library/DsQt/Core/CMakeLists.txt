@@ -60,6 +60,7 @@ qt_add_qml_module(Core
         settings/dsSettingsTreeModel.cpp settings/dsSettingsTreeModel.h
         settings/dsSettingsUtils.h
         settings/dsSettingsViewerWidget.cpp settings/dsSettingsViewerWidget.h
+        settings/dsTomlEditor.cpp settings/dsTomlEditor.h
         settings/dsQmlSettingsProxy.cpp settings/dsQmlSettingsProxy.h
         settings/dsQmlSettingsViewerHelper.cpp settings/dsQmlSettingsViewerHelper.h
         ui/dsQmlClock.h ui/dsQmlClock.cpp

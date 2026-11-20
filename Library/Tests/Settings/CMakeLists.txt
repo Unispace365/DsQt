@@ -37,6 +37,7 @@ if(DSQT_SETTINGS_TEST_STANDALONE)
     target_sources(${DS_EXE_NAME} PRIVATE
         "${DS_QT_PLATFORM_100_LIBRARY}/settings/dsSettings.cpp"
         "${DS_QT_PLATFORM_100_LIBRARY}/settings/dsSettingsFile.cpp"
+        "${DS_QT_PLATFORM_100_LIBRARY}/settings/dsTomlEditor.cpp"
         "${DS_QT_PLATFORM_100_LIBRARY}/settings/dsQmlSettingsProxy.cpp"
         "${DS_QT_PLATFORM_100_LIBRARY}/settings/dsQmlSettingsProxy.h"
         "${DS_QT_PLATFORM_100_LIBRARY}/settings/dsSettingsTreeModel.cpp"
