@@ -796,6 +796,8 @@ This is a developer/debugging tool, not something to embed in an end-user QML UI
 
 **Save…** asks where to write the current tab's overrides, in a dialog named after the tab (*Save App Settings*, *Save Engine*). There is one choice per folder settings files are read from, lowest priority first, plus Custom. Click a card to pick it, then **Save here**:
 
+![The Save dialog for the Effects tab, with Local Platform chosen](images/settings_save_dialog.png)
+
 | Choice | Folder | What it is for |
 |--------|--------|----------------|
 | Application | `%APP%/settings` | The files installed with the application, shared by every machine. |
