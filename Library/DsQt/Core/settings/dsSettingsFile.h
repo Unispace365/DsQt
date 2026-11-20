@@ -313,13 +313,20 @@ public:
     QVariantMap overrides() const { return m_overrides; }
 
     // Saves the current overrides to filePath as TOML.
-    // If filePath already exists, only overridden keys are updated or inserted;
-    // all other content in the file is preserved.
-    // If filePath does not exist, a new file containing only the overrides is written.
-    // The in-memory overrides are kept after the save (subsequent saves include them).
-    // Returns an empty string on success, or an error description on failure.
-    // Note: toml++ does not preserve comments when round-tripping an existing file.
+    // If filePath already exists, only the overridden keys whose value differs
+    // from the file's are written, in place; everything else in the file is kept
+    // byte for byte: comments, blank lines, key order, quoting and line endings
+    // (see settings::editToml() in dsTomlEditor.h). A missing key is appended to
+    // its table, a missing table to the end of the file.
+    // If filePath does not exist, it is created (with its folder) holding just
+    // the overrides.
+    // The in-memory overrides are kept after the save; a reload that finds the
+    // same values in the files prunes them.
+    // Returns an empty string on success, or an error description on failure;
+    // on failure the file is left untouched.
     Q_INVOKABLE QString saveOverridesTo(const QString &filePath) const;
+    // As above; `written` receives the dotted keys that were written to the file.
+    QString saveOverridesTo(const QString &filePath, QStringList *written) const;
 
     // Calls callback immediately with the current value of key, then again whenever a
     // rebuild leaves that key holding a different value — a file reload, setOverride,

@@ -2,6 +2,7 @@
 
 #include <QWidget>
 
+class QDialog;
 class QTabWidget;
 
 namespace dsqt {
@@ -33,11 +34,15 @@ protected:
 private:
     void rebuild();
     SettingsFile *currentSettingsFile() const;
+    // Creates the Save dialog if needed and sets it up for the current tab;
+    // it checks the folders it can write to in the background.
+    void prepareSaveDialog();
     void onSave();
     void onRestore();
 
     Settings   *m_settings;
     QTabWidget *m_tabs;
+    QDialog    *m_saveDialog = nullptr; // a SaveLocationDialog, kept between Saves
 };
 
 }
