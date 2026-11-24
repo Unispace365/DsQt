@@ -253,6 +253,7 @@ ApplicationWindow {
             if(appLogWindow === null) {
                 appLogWindow = appLog.createObject(window)
                 appLogWindow.closing.connect( () => { windowMenuBar.logsApplicationChecked = false } )
+                DsToolWindows.track(appLogWindow, "appLog")
             }
             appLogWindow.file = ""
             appLogWindow.file = Ds.env.logFile();
@@ -264,6 +265,7 @@ ApplicationWindow {
             if(bridgeSyncLogWindow === null) {
                 bridgeSyncLogWindow = bridgeSyncLog.createObject(window)
                 bridgeSyncLogWindow.closing.connect( () => { windowMenuBar.logsBridgeSyncChecked = false } )
+                DsToolWindows.track(bridgeSyncLogWindow, "bridgeSyncLog")
             }
             bridgeSyncLogWindow.visible = isChecked
         }
@@ -280,6 +282,7 @@ ApplicationWindow {
                                                                                            touchFilter: window.touchFilterForDebug
                                                                                        })
                 touchFilterDebugWindow.closing.connect(() => { windowMenuBar.touchFilterDebugChecked = false })
+                DsToolWindows.track(touchFilterDebugWindow, "touchFilterDebug")
             }
             touchFilterDebugWindow.visible = isChecked
             if (isChecked) touchFilterDebugWindow.raise()

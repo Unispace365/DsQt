@@ -10,10 +10,9 @@ Window {
     title: "Text Viewer"
     color: system.base
 
-    flags: Qt.WindowStaysOnTopHint | Qt.Window | Qt.WindowSystemMenuHint
-
-    //visible: true
-    //flags: Qt.WindowTitleHint | Qt.WindowCloseButtonHint | Qt.Tool
+    // A normal, resizable window. DsAppBase registers it with DsToolWindows,
+    // which keeps it above the application only and remembers where it was.
+    flags: Qt.Window
 
     // onScreenChanged: (screen) => {
     //     x = screen.virtualX + 0.5 * (screen.width - width)

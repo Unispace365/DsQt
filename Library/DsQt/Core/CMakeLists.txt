@@ -50,6 +50,7 @@ qt_add_qml_module(Core
         core/dsQmlPathHelper.h
         core/dsQmlTextMeasurer.h
         core/dsReloadUrlInterceptor.h core/dsReloadUrlInterceptor.cpp
+        core/dsToolWindow.h core/dsToolWindow.cpp
         model/dsContentModel.cpp model/dsContentModel.h
         model/dsQmlTextFileModel.cpp model/dsQmlTextFileModel.h
         model/dsResource.cpp model/dsResource.h
