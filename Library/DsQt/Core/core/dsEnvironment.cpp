@@ -152,14 +152,35 @@ QString DsEnvironment::contract(QString path) {
     return p;
 }
 
+// The settings search paths, lowest priority first (see settingsLocations()).
+#ifdef Q_OS_IOS
+static const QString sAppSettingsPattern = QStringLiteral(":/settings");
+#else
+static const QString sAppSettingsPattern = QStringLiteral("%APP%/settings");
+#endif
+static const QString sAppConfigSettingsPattern   = sAppSettingsPattern + QStringLiteral("/%CFG_FOLDER%");
+static const QString sLocalSettingsPattern       = QStringLiteral("%LOCAL%/settings/%PP%");
+static const QString sLocalConfigSettingsPattern = QStringLiteral("%LOCAL%/settings/%PP%/%CFG_FOLDER%");
+
+QList<DsEnvironment::SettingsLocation> DsEnvironment::settingsLocations() {
+    QList<SettingsLocation> locations{
+        {u"Application"_s, sAppSettingsPattern, {}},
+        {u"Application Platform"_s, sAppConfigSettingsPattern, {}},
+        {u"Local"_s, sLocalSettingsPattern, {}},
+        {u"Local Platform"_s, sLocalConfigSettingsPattern, {}},
+    };
+    for (SettingsLocation& location : locations) {
+        const QString folder = expandq(location.pattern);
+        if (!folder.contains(u'%'))
+            location.folder = folder;
+    }
+    return locations;
+}
+
 bool DsEnvironment::loadEngineSettings() {
     qCInfo(lgEnv) << "\nLoad Settings >>>>>>>>>>>>>>>>>>>>>>>>";
 
-#ifdef Q_OS_IOS
-    const QString baseSettings = QStringLiteral(":/settings");
-#else
-    const QString baseSettings = QStringLiteral("%APP%/settings");
-#endif
+    const QString baseSettings = sAppSettingsPattern;
 
     // Set the search path BEFORE loading any settings.
     Settings::instance().setSearchPaths({baseSettings});
@@ -226,7 +247,7 @@ bool DsEnvironment::loadEngineSettings() {
         qCDebug(lgEnv) << "Project Path:" << sProjectPath;
 
         // Append to search paths.
-        Settings::instance().setSearchPaths({baseSettings, "%LOCAL%/settings/%PP%"});
+        Settings::instance().setSearchPaths({baseSettings, sLocalSettingsPattern});
     }
 
     // Setup config folder path (%CFG_FOLDER%).
@@ -238,10 +259,8 @@ bool DsEnvironment::loadEngineSettings() {
         qCDebug(lgEnv) << "Config Folder:" << sConfigFolder;
 
         // Append to search paths.
-        Settings::instance().setSearchPaths({baseSettings,
-            baseSettings+ QStringLiteral("/%CFG_FOLDER%"),
-            "%LOCAL%/settings/%PP%",
-            "%LOCAL%/settings/%PP%/%CFG_FOLDER%"});
+        Settings::instance().setSearchPaths({baseSettings, sAppConfigSettingsPattern,
+                                             sLocalSettingsPattern, sLocalConfigSettingsPattern});
     }
 
     sResourceFolder = Settings::find<QString>("engine", "engine.resource.location");

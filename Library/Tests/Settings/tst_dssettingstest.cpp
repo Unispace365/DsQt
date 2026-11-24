@@ -3,6 +3,7 @@
 #include <settings/dsSettingsFile.h>
 #include <settings/dsQmlSettingsProxy.h>
 #include <settings/dsSettingsTreeModel.h>
+#include <settings/dsTomlEditor.h>
 #include <core/dsEnvironment.h>
 #include <QPointF>
 #include <QQuaternion>
@@ -195,6 +196,32 @@ class DsSettingsTest : public QObject
     void librarySchema_shouldBeCompiledIntoTheModules();
     void librarySchema_shouldLayerUnderTheApplicationSchema();
     void schema_restart_shouldBeInheritedFromATable();
+
+    // Saving overrides into a hand-written file (settings::editToml)
+    void tomlEdit_changedScalar_shouldOnlyChangeItsValue();
+    void tomlEdit_string_shouldKeepItsQuotingStyle();
+    void tomlEdit_equalValues_shouldLeaveTheTextAlone();
+    void tomlEdit_array_ofTheSameLength_shouldChangeElementsInPlace();
+    void tomlEdit_array_ofAnotherLength_shouldKeepItsLayout();
+    void tomlEdit_array_legacyDoubleBrackets_shouldWriteTheInnerArray();
+    void tomlEdit_inlineTable_shouldChangeOnlyTheChangedComponent();
+    void tomlEdit_tableOfComponents_shouldChangeOnlyTheChangedComponent();
+    void tomlEdit_newKey_shouldBeAppendedToItsTable();
+    void tomlEdit_newKey_inDottedOrInlineTables();
+    void tomlEdit_newRootKey_shouldGoBeforeTheFirstTable();
+    void tomlEdit_newTable_shouldBeAppendedAtTheEnd();
+    void tomlEdit_crlf_shouldBeKept();
+    void tomlEdit_emptyText_shouldGetJustTheValues();
+    void tomlEdit_arrayOfTables_shouldBeRefused();
+    void tomlEdit_invalidToml_shouldBeRefused();
+    void saveOverridesTo_shouldEditTheFileInPlace();
+    void registry_shouldNoticeASearchFolderCreatedLater();
+    void tomlRemove_shouldDropOnlyTheKeyLines();
+    void tomlRemove_inlineTableMembers();
+    void tomlRemove_tableValueKeepsItsHeader();
+    void tomlRemove_arrayOfTablesShouldBeRefused();
+    void tomlKeysSet_shouldListTheKeysWithTheirValues();
+    void removeKeysFromFile_shouldEditInPlace();
 
   private:
     // Directory the test data is copied into by the build (see CMakeLists.txt).
@@ -1185,6 +1212,506 @@ void DsSettingsTest::settingsFile_shouldKeepOverridesSavedOutsideSearchPaths()
 
     QCOMPARE(settings.overrides().value("width").toInt(), 300);
     QCOMPARE(settings.find<int>("width"), 300);
+}
+
+//*****************
+// Saving overrides: settings::editToml
+//*****************
+
+// Edits `text`; returns "<error>" (and logs why) if the edit was refused.
+static QString editedToml(const QString &text, const QVariantMap &values, QStringList *changed = nullptr)
+{
+    const dsqt::settings::TomlEditResult result = dsqt::settings::editToml(text, values);
+    if (!result.error.isEmpty()) {
+        qWarning() << "editToml:" << result.error;
+        return QStringLiteral("<error>");
+    }
+    if (changed)
+        *changed = result.changed;
+    return result.text;
+}
+
+void DsSettingsTest::tomlEdit_changedScalar_shouldOnlyChangeItsValue()
+{
+    const QString before = QStringLiteral(
+        "# Window\n"
+        "[window]\n"
+        "width  = 1920   # pixels\n"
+        "height = 1080\n"
+        "scale = 1.5\n"
+        "\n"
+        "fullscreen = false # for now\n");
+    QStringList changed;
+    const QString after = editedToml(before,
+                                     {{"window", QVariantMap{{"width", 1024},
+                                                             {"scale", 2.0},
+                                                             {"fullscreen", true},
+                                                             {"height", 1080}}}},
+                                     &changed);
+    QCOMPARE(after, QStringLiteral(
+        "# Window\n"
+        "[window]\n"
+        "width  = 1024   # pixels\n"
+        "height = 1080\n"
+        "scale = 2.0\n"
+        "\n"
+        "fullscreen = true # for now\n"));
+    // height already held 1080, so it is not reported.
+    QCOMPARE(changed, (QStringList{"window.fullscreen", "window.scale", "window.width"}));
+
+    // A float written into an integer-looking value stays an integer when whole.
+    QCOMPARE(editedToml("x = 3\n", {{"x", 4.0}}), QStringLiteral("x = 4\n"));
+    QCOMPARE(editedToml("x = 3\n", {{"x", 4.25}}), QStringLiteral("x = 4.25\n"));
+}
+
+void DsSettingsTest::tomlEdit_string_shouldKeepItsQuotingStyle()
+{
+    const QString before = QStringLiteral(
+        "basic = \"one\" # comment\n"
+        "literal = 'C:\\path'\n"
+        "color = '#ff0000'\n"
+        "quoteInLiteral = 'plain'\n");
+    const QString after = editedToml(before,
+                                     {{"basic", QStringLiteral("two \"2\"")},
+                                      {"literal", QStringLiteral("D:\\other")},
+                                      {"color", QColor(0, 255, 0)},
+                                      {"quoteInLiteral", QStringLiteral("it's")}});
+    QCOMPARE(after, QStringLiteral(
+        "basic = \"two \\\"2\\\"\" # comment\n"
+        "literal = 'D:\\other'\n"
+        "color = '#00ff00'\n"
+        "quoteInLiteral = \"it's\"\n"));
+}
+
+void DsSettingsTest::tomlEdit_equalValues_shouldLeaveTheTextAlone()
+{
+    const QString before = QStringLiteral(
+        "a = 0x10\n"
+        "pos = {x=1,y=2}\n"
+        "tint = \"red\"\n"
+        "list = [ 1,2 , 3 ]\n");
+    QStringList changed{"something"};
+    const QString after = editedToml(before,
+                                     {{"a", 16},
+                                      {"pos", QPointF(1, 2)},
+                                      {"tint", QColor(Qt::red)},
+                                      {"list", QVariantList{1, 2, 3}}},
+                                     &changed);
+    QCOMPARE(after, before);
+    QVERIFY(changed.isEmpty());
+}
+
+void DsSettingsTest::tomlEdit_array_ofTheSameLength_shouldChangeElementsInPlace()
+{
+    const QString before = QStringLiteral(
+        "names = [\n"
+        "    'alpha', # first\n"
+        "    \"beta\",  # second\n"
+        "]\n"
+        "nums = [1, 2, 3]\n");
+    const QString after = editedToml(before,
+                                     {{"names", QVariantList{"alpha", "gamma"}},
+                                      {"nums", QVariantList{1, 5, 3}}});
+    QCOMPARE(after, QStringLiteral(
+        "names = [\n"
+        "    'alpha', # first\n"
+        "    \"gamma\",  # second\n"
+        "]\n"
+        "nums = [1, 5, 3]\n"));
+}
+
+void DsSettingsTest::tomlEdit_array_ofAnotherLength_shouldKeepItsLayout()
+{
+    const QString before = QStringLiteral(
+        "nums = [1, 2, 3] # three\n"
+        "[menu]\n"
+        "  items = [\n"
+        "      'a',\n"
+        "      'b',\n"
+        "  ]\n");
+    const QString after = editedToml(before,
+                                     {{"nums", QVariantList{1, 2}},
+                                      {"menu", QVariantMap{{"items", QVariantList{"a", "b", "c"}}}}});
+    QCOMPARE(after, QStringLiteral(
+        "nums = [1, 2] # three\n"
+        "[menu]\n"
+        "  items = [\n"
+        "      'a',\n"
+        "      'b',\n"
+        "      'c',\n"
+        "  ]\n"));
+}
+
+void DsSettingsTest::tomlEdit_array_legacyDoubleBrackets_shouldWriteTheInnerArray()
+{
+    QCOMPARE(editedToml("list = [[1, 2]]\n", {{"list", QVariantList{1, 3}}}),
+             QStringLiteral("list = [[1, 3]]\n"));
+    QCOMPARE(editedToml("width = [100, {type = \"int\"}]\n", {{"width", 200}}),
+             QStringLiteral("width = [200, {type = \"int\"}]\n"));
+}
+
+void DsSettingsTest::tomlEdit_inlineTable_shouldChangeOnlyTheChangedComponent()
+{
+    const QString before = QStringLiteral(
+        "pos  = { x = 10, y = 20 }   # top left\n"
+        "size = {width=800, height=600}\n"
+        "tint = { r = 255, g = 0, b = 0 }\n"
+        "fade = { r = 1.0, g = 0.5, b = 0.0 }\n"
+        "obj  = { name = 'a', count = 1 }\n");
+    const QString after = editedToml(before,
+                                     {{"pos", QPointF(10, 25)},
+                                      {"size", QSizeF(1024, 600)},
+                                      {"tint", QColor(255, 128, 0)},
+                                      {"fade", QColor::fromRgbF(1.0, 0.5, 1.0)},
+                                      {"obj", QVariantMap{{"count", 2}}}});
+    QCOMPARE(after, QStringLiteral(
+        "pos  = { x = 10, y = 25 }   # top left\n"
+        "size = {width=1024, height=600}\n"
+        "tint = { r = 255, g = 128, b = 0 }\n"
+        "fade = { r = 1.0, g = 0.5, b = 1.0 }\n"
+        "obj  = { name = 'a', count = 2 }\n"));
+}
+
+void DsSettingsTest::tomlEdit_tableOfComponents_shouldChangeOnlyTheChangedComponent()
+{
+    const QString before = QStringLiteral(
+        "[window.rect]\n"
+        "x = 0\n"
+        "y = 0 # top\n"
+        "w = 1920\n"
+        "h = 1080\n");
+    const QString after = editedToml(before,
+                                     {{"window", QVariantMap{{"rect", QRectF(0, 0, 1920, 1200)}}}});
+    QCOMPARE(after, QStringLiteral(
+        "[window.rect]\n"
+        "x = 0\n"
+        "y = 0 # top\n"
+        "w = 1920\n"
+        "h = 1200\n"));
+}
+
+void DsSettingsTest::tomlEdit_newKey_shouldBeAppendedToItsTable()
+{
+    const QString before = QStringLiteral(
+        "[a]\n"
+        "    one = 1 # first\n"
+        "\n"
+        "# About b\n"
+        "[b]\n"
+        "two = 2\n");
+    const QString after = editedToml(before,
+                                     {{"a", QVariantMap{{"new", "x"}, {"pos", QPointF(1, 2)}}}});
+    QCOMPARE(after, QStringLiteral(
+        "[a]\n"
+        "    one = 1 # first\n"
+        "    new = \"x\"\n"
+        "    pos = { x = 1, y = 2 }\n"
+        "\n"
+        "# About b\n"
+        "[b]\n"
+        "two = 2\n"));
+
+    // A table with only a header gets the key straight below it; a quoted key stays quoted.
+    QCOMPARE(editedToml("[empty]\n# nothing yet\n", {{"empty", QVariantMap{{"a b", 1}}}}),
+             QStringLiteral("[empty]\n\"a b\" = 1\n# nothing yet\n"));
+}
+
+void DsSettingsTest::tomlEdit_newKey_inDottedOrInlineTables()
+{
+    const QString before = QStringLiteral(
+        "[fruit]\n"
+        "apple.color = 'red'\n"
+        "pear = { color = 'green' }\n");
+    const QString after = editedToml(before,
+                                     {{"fruit", QVariantMap{{"apple", QVariantMap{{"size", 3}}},
+                                                            {"pear", QVariantMap{{"size", 4}}}}}});
+    QCOMPARE(after, QStringLiteral(
+        "[fruit]\n"
+        "apple.color = 'red'\n"
+        "apple.size = 3\n"
+        "pear = { color = 'green', size = 4 }\n"));
+}
+
+void DsSettingsTest::tomlEdit_newRootKey_shouldGoBeforeTheFirstTable()
+{
+    const QString before = QStringLiteral(
+        "# File comment\n"
+        "\n"
+        "# About a\n"
+        "[a]\n"
+        "x = 1\n");
+    QCOMPARE(editedToml(before, {{"top", true}}), QStringLiteral(
+        "# File comment\n"
+        "\n"
+        "top = true\n"
+        "\n"
+        "# About a\n"
+        "[a]\n"
+        "x = 1\n"));
+
+    // After the last root key when there is one.
+    QCOMPARE(editedToml("name = 'n'\n\n[a]\nx = 1\n", {{"top", 2}}),
+             QStringLiteral("name = 'n'\ntop = 2\n\n[a]\nx = 1\n"));
+}
+
+void DsSettingsTest::tomlEdit_newTable_shouldBeAppendedAtTheEnd()
+{
+    const QString before = QStringLiteral(
+        "[a]\n"
+        "x = 1 # no newline at the end");
+    const QString after = editedToml(before,
+                                     {{"a", QVariantMap{{"sub", QVariantMap{{"y", 2}}}}},
+                                      {"b", QVariantMap{{"z", "three"}, {"w", 4}}}});
+    QCOMPARE(after, QStringLiteral(
+        "[a]\n"
+        "x = 1 # no newline at the end\n"
+        "\n"
+        "[a.sub]\n"
+        "y = 2\n"
+        "\n"
+        "[b]\n"
+        "w = 4\n"
+        "z = \"three\"\n"));
+}
+
+void DsSettingsTest::tomlEdit_crlf_shouldBeKept()
+{
+    const QString before = QStringLiteral(
+        "# CRLF file\r\n"
+        "[a]\r\n"
+        "x = 1\r\n"
+        "list = [\r\n"
+        "  1,\r\n"
+        "]\r\n");
+    const QString after = editedToml(before,
+                                     {{"a", QVariantMap{{"x", 2}, {"y", 3}, {"list", QVariantList{1, 2}}}}});
+    QCOMPARE(after, QStringLiteral(
+        "# CRLF file\r\n"
+        "[a]\r\n"
+        "x = 2\r\n"
+        "list = [\r\n"
+        "  1,\r\n"
+        "  2,\r\n"
+        "]\r\n"
+        "y = 3\r\n"));
+    QCOMPARE(editedToml(QStringLiteral("a = 1\r\n"), {{"b", QVariantMap{{"c", 1}}}}),
+             QStringLiteral("a = 1\r\n\r\n[b]\r\nc = 1\r\n"));
+}
+
+void DsSettingsTest::tomlEdit_emptyText_shouldGetJustTheValues()
+{
+    QCOMPARE(editedToml({}, {{"top", 1}, {"window", QVariantMap{{"size", QSizeF(800, 600)}}}}),
+             QStringLiteral("top = 1\n"
+                            "\n"
+                            "[window]\n"
+                            "size = { w = 800, h = 600 }\n"));
+}
+
+void DsSettingsTest::tomlEdit_arrayOfTables_shouldBeRefused()
+{
+    const QString before = QStringLiteral("[[slide]]\nname = 'a'\n");
+    const auto result = dsqt::settings::editToml(
+        before, {{"slide", QVariantList{QVariantMap{{"name", "b"}}}}});
+    QVERIFY(result.error.contains(QStringLiteral("array of tables")));
+    QCOMPARE(result.text, before);
+}
+
+void DsSettingsTest::tomlEdit_invalidToml_shouldBeRefused()
+{
+    const QString before = QStringLiteral("a = = 1\n");
+    const auto result = dsqt::settings::editToml(before, {{"a", 2}});
+    QVERIFY(!result.error.isEmpty());
+    QCOMPARE(result.text, before);
+}
+
+void DsSettingsTest::saveOverridesTo_shouldEditTheFileInPlace()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    const QString path = QDir(dir.path()).filePath("settings.toml");
+    const QByteArray before = "# Hand-written\r\n"
+                              "[window]\r\n"
+                              "width = 100   # px\r\n"
+                              "title = 'Main'\r\n";
+    {
+        QFile file(path);
+        QVERIFY(file.open(QIODevice::WriteOnly)); // binary: keep the CRLFs
+        file.write(before);
+    }
+
+    dsqt::SettingsFile settings(nullptr, {dir.path()});
+    settings.setFileName("settings.toml");
+    settings.setOverride("window.width", 300);
+    settings.setOverride("window.height", 200);
+
+    QStringList written;
+    QCOMPARE(settings.saveOverridesTo(path, &written), QString{});
+    QCOMPARE(written, (QStringList{"window.height", "window.width"}));
+
+    QFile file(path);
+    QVERIFY(file.open(QIODevice::ReadOnly));
+    QCOMPARE(file.readAll(), QByteArray("# Hand-written\r\n"
+                                        "[window]\r\n"
+                                        "width = 300   # px\r\n"
+                                        "title = 'Main'\r\n"
+                                        "height = 200\r\n"));
+    file.close();
+
+    // A file that does not exist yet is created, folder and all.
+    const QString fresh = QDir(dir.path()).filePath("sub/new.toml");
+    QCOMPARE(settings.saveOverridesTo(fresh), QString{});
+    QFile created(fresh);
+    QVERIFY(created.open(QIODevice::ReadOnly));
+    QCOMPARE(created.readAll(), QByteArray("[window]\nheight = 200\nwidth = 300\n"));
+}
+
+void DsSettingsTest::registry_shouldNoticeASearchFolderCreatedLater()
+{
+    // Saving into a search folder that does not exist yet (say Local Platform)
+    // creates it. The watcher must notice, so the reload prunes the override
+    // that the new file now holds.
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    const QString base = QDir(dir.path()).filePath("base");
+    const QString later = QDir(dir.path()).filePath("later/sub");
+    QVERIFY(QDir().mkpath(base));
+    writeTextFile(QDir(base).filePath("watch.toml"), "width = 100\n");
+
+    auto &settings = dsqt::Settings::instance();
+    settings.setSearchPaths({base, later});
+    dsqt::Settings::add("watch_test", "watch.toml");
+    auto *sf = settings.settingsFile("watch_test");
+    QVERIFY(sf);
+    QCOMPARE(sf->find<int>("width"), 100);
+
+    sf->setOverride("width", 300);
+    QCOMPARE(sf->provenance("width"), QStringLiteral("override"));
+
+    QVERIFY(QDir().mkpath(later));
+    const QString saved = QDir(later).filePath("watch.toml");
+    QCOMPARE(sf->saveOverridesTo(saved), QString{});
+
+    QTRY_COMPARE(sf->provenance("width"), saved);
+    QVERIFY(sf->overrides().isEmpty());
+    QCOMPARE(sf->find<int>("width"), 300);
+
+    // Stop watching the temporary folders before they are deleted.
+    dsqt::Settings::forget("watch_test");
+    settings.setSearchPaths(saved_search_paths);
+}
+
+void DsSettingsTest::tomlRemove_shouldDropOnlyTheKeyLines()
+{
+    const QString before = QStringLiteral(
+        "# About ripple\r\n"
+        "[ripple]\r\n"
+        "# How fast\r\n"
+        "msPerTile = 100 # ms\r\n"
+        "jitterMs = 0\r\n"
+        "\r\n"
+        "[menu]\r\n"
+        "rightClick = 'ripple'\r\n");
+    const auto result = dsqt::settings::removeFromToml(
+        before, {"ripple.msPerTile", "menu.rightClick", "not.there"});
+    QVERIFY2(result.error.isEmpty(), qPrintable(result.error));
+    QCOMPARE(result.text, QStringLiteral(
+        "# About ripple\r\n"
+        "[ripple]\r\n"
+        "# How fast\r\n"
+        "jitterMs = 0\r\n"
+        "\r\n"
+        "[menu]\r\n"));
+    QCOMPARE(result.changed, (QStringList{"ripple.msPerTile", "menu.rightClick"}));
+}
+
+void DsSettingsTest::tomlRemove_inlineTableMembers()
+{
+    const QString before = QStringLiteral(
+        "a = { x = 1, y = 2, z = 3 }\n"
+        "b = {x=1, y=2}\n"
+        "c = { only = 1 }\n");
+    const auto result = dsqt::settings::removeFromToml(before, {"a.y", "b.y", "c.only"});
+    QVERIFY2(result.error.isEmpty(), qPrintable(result.error));
+    QCOMPARE(result.text, QStringLiteral(
+        "a = { x = 1, z = 3 }\n"
+        "b = {x=1}\n"
+        "c = {}\n"));
+
+    // Removing the first member keeps the spacing after the brace.
+    QCOMPARE(dsqt::settings::removeFromToml("p = { x = 1, y = 2 }\n", {"p.x"}).text,
+             QStringLiteral("p = { y = 2 }\n"));
+}
+
+void DsSettingsTest::tomlRemove_tableValueKeepsItsHeader()
+{
+    // A point held as a table: its keys go, the header (and its comment) stays.
+    const QString before = QStringLiteral(
+        "# Where it starts\n"
+        "[pos]\n"
+        "x = 1\n"
+        "y = 2\n"
+        "[other]\n"
+        "dotted.a = 1\n"
+        "dotted.b = 2\n");
+    const auto result = dsqt::settings::removeFromToml(before, {"pos", "other.dotted.a"});
+    QVERIFY2(result.error.isEmpty(), qPrintable(result.error));
+    QCOMPARE(result.text, QStringLiteral(
+        "# Where it starts\n"
+        "[pos]\n"
+        "[other]\n"
+        "dotted.b = 2\n"));
+}
+
+void DsSettingsTest::tomlRemove_arrayOfTablesShouldBeRefused()
+{
+    const QString before = QStringLiteral("[[slide]]\nname = 'a'\n");
+    const auto result = dsqt::settings::removeFromToml(before, {"slide.name"});
+    QVERIFY(result.error.contains(QStringLiteral("array of tables")));
+    QCOMPARE(result.text, before);
+}
+
+void DsSettingsTest::tomlKeysSet_shouldListTheKeysWithTheirValues()
+{
+    const QString text = QStringLiteral(
+        "[ripple]\n"
+        "msPerTile = 100   # ms\n"
+        "list = [\n"
+        "  1,\n"
+        "  2,\n"
+        "]\n"
+        "[pos]\n"
+        "x = 1\n"
+        "[[slide]]\n"
+        "name = 'a'\n");
+    const auto found = dsqt::settings::tomlKeysSet(
+        text, {"ripple.msPerTile", "ripple.list", "pos", "ripple.missing", "slide.name"});
+    QCOMPARE(found.size(), 3);
+    QCOMPARE(found[0], (std::pair<QString, QString>{"ripple.msPerTile", "100"}));
+    QCOMPARE(found[1], (std::pair<QString, QString>{"ripple.list", "[ 1, 2, ]"}));
+    QCOMPARE(found[2].first, QStringLiteral("pos"));
+}
+
+void DsSettingsTest::removeKeysFromFile_shouldEditInPlace()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    const QString path = QDir(dir.path()).filePath("local.toml");
+    {
+        QFile file(path);
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        file.write("# Local\r\n[a]\r\nx = 1\r\ny = 2\r\n");
+    }
+    QStringList removed;
+    QCOMPARE(dsqt::settings::removeKeysFromFile(path, {"a.x", "a.z"}, &removed), QString{});
+    QCOMPARE(removed, QStringList{"a.x"});
+    QFile file(path);
+    QVERIFY(file.open(QIODevice::ReadOnly));
+    QCOMPARE(file.readAll(), QByteArray("# Local\r\n[a]\r\ny = 2\r\n"));
+
+    // A file that does not exist is left alone.
+    QCOMPARE(dsqt::settings::removeKeysFromFile(QDir(dir.path()).filePath("none.toml"), {"a.x"}),
+             QString{});
+    QVERIFY(!QFile::exists(QDir(dir.path()).filePath("none.toml")));
 }
 
 //*****************

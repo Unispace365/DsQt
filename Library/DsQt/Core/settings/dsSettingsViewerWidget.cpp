@@ -2,17 +2,39 @@
 #include "settings/dsSettings.h"
 #include "settings/dsSettingsFile.h"
 #include "settings/dsSettingsTreeModel.h"
+#include "settings/dsSettingsUtils.h"
+#include "settings/dsTomlEditor.h"
 #include "core/dsEnvironment.h"
 
 #include <QApplication>
+#include <QFontDatabase>
+#include <QCheckBox>
+#include <QResizeEvent>
+#include <QFrame>
+#include <QToolButton>
+#include <QMutex>
+#include <QPalette>
+#include <QCoreApplication>
+#include <QStyle>
+#include <QThreadPool>
+#include <QPointer>
+#include <QHash>
+#include <QDir>
+#include <QRegularExpression>
+#include <QRadioButton>
+#include <QLabel>
+#include <QGridLayout>
+#include <QButtonGroup>
 #include <QColor>
 #include <QColorDialog>
 #include <QComboBox>
 #include <QDesktopServices>
 #include <QDialog>
 #include <QDialogButtonBox>
+#include <QFile>
 #include <QFileDialog>
 #include <QFileInfo>
+#include <algorithm>
 #include <functional>
 #include <QHBoxLayout>
 #include <QHeaderView>
@@ -1087,6 +1109,810 @@ private:
 
 // ─────────────────────────────────────────────────────────────────────────────
 
+// ── SaveLocationDialog ───────────────────────────────────────────────────────
+// Asks where Save writes the current tab's overrides: into the settings file in
+// one of the folders settings are read from (DsEnvironment::settingsLocations()),
+// or a file of the user's choosing (Custom). The viewer keeps one instance and
+// prepares it while it is open, so Save shows it at once.
+
+// Why `filePath` cannot be written, or an empty string if it can.
+//
+// This must not touch the disk: the settings folders are watched, and a probe
+// file created there makes Settings reload every settings file (and the viewer
+// rebuild every tree) - which once made the dialog take a second to appear. So
+// it asks for the access rights instead. On Windows the read-only attribute
+// says nothing about a folder, so the NTFS permission lookup is switched on to
+// read the access control lists. QSaveFile writes a temporary file next to the
+// target, so the folder (or the nearest one above it that exists, which mkpath
+// creates the rest from) must be writable as well as an existing file.
+// Safe to call from any thread.
+// Why a Save choice cannot be used: a short status for its pill ("Read-Only")
+// and the explanation for the pill's tooltip. Empty when it can be used.
+struct Unusable {
+    QString label;
+    QString detail;
+    bool isEmpty() const { return label.isEmpty(); }
+};
+
+static Unusable unwritableReason(const QString &filePath)
+{
+    // Without the NTFS lookup isWritable() reports the read-only attribute,
+    // with it only the access rights, so ask both ways. The lookup is switched
+    // on for the whole process, so two checks must not overlap.
+    static QMutex mutex;
+    const QMutexLocker lock(&mutex);
+    const QFileInfo info(filePath);
+    if (info.exists() && !info.isWritable())
+        return {QObject::tr("Read-Only"), QObject::tr("The file is read-only.")};
+#ifdef Q_OS_WIN
+    QNtfsPermissionCheckGuard permissions;
+#endif
+    QString folder = info.absolutePath();
+    while (!QFileInfo(folder).isDir()) {
+        const QString parent = QFileInfo(folder).absolutePath(); // QDir::cdUp() needs it to exist
+        if (parent == folder)
+            return {QObject::tr("Unavailable"), QObject::tr("No folder on this path exists.")};
+        folder = parent;
+    }
+    if (!QFileInfo(folder).isWritable())
+        return {QObject::tr("Read-Only"), QObject::tr("You cannot write to the folder %1.")
+                                              .arg(QDir::toNativeSeparators(folder))};
+    if (info.exists() && !QFileInfo(filePath).isWritable()) // fresh: no cached answer
+        return {QObject::tr("Read-Only"), QObject::tr("You cannot write to the file.")};
+    return {};
+}
+
+// The icon font Windows ships: Segoe Fluent Icons (Windows 11) or Segoe MDL2
+// Assets (Windows 10). Empty where neither is installed.
+static QString iconFontFamily()
+{
+    static const QString family = [] {
+        for (const char *name : {"Segoe Fluent Icons", "Segoe MDL2 Assets"}) {
+            if (QFontDatabase::hasFamily(QString::fromLatin1(name)))
+                return QString::fromLatin1(name);
+        }
+        return QString();
+    }();
+    return family;
+}
+
+// Glyphs of that font.
+namespace Glyph {
+constexpr char16_t Save = 0xE74E;
+constexpr char16_t Monitor = 0xE7F4;
+constexpr char16_t Folder = 0xE8B7;
+constexpr char16_t Document = 0xE8A5;
+constexpr char16_t OpenFolder = 0xE838;
+constexpr char16_t Info = 0xE946;
+} // namespace Glyph
+
+// A monochrome icon in the text colour, so it follows the theme and greys out
+// with its card: a glyph of the system icon font, or the style's own icon
+// where that font is missing.
+static void setGlyph(QLabel *label, char16_t glyph, QStyle::StandardPixmap fallback, int size)
+{
+    const QString family = iconFontFamily();
+    if (family.isEmpty()) {
+        label->setPixmap(label->style()->standardIcon(fallback).pixmap(size, size));
+        return;
+    }
+    QFont font(family);
+    font.setPixelSize(size);
+    label->setFont(font);
+    label->setObjectName(QStringLiteral("glyph"));
+    label->setText(QString(QChar(glyph)));
+}
+
+static void setGlyph(QToolButton *button, char16_t glyph, QStyle::StandardPixmap fallback, int size)
+{
+    const QString family = iconFontFamily();
+    if (family.isEmpty()) {
+        button->setIcon(button->style()->standardIcon(fallback));
+        button->setIconSize({size, size});
+        return;
+    }
+    QFont font(family);
+    font.setPixelSize(size);
+    button->setFont(font);
+    button->setText(QString(QChar(glyph)));
+}
+
+// "1 value" or "4 values". Qt's %n plurals only resolve once a translation is
+// loaded, so English spells out both forms.
+static QString countOf(int n, const QString &one, const QString &many)
+{
+    return n == 1 ? one : many.arg(n);
+}
+
+// The location chosen last, by name ("Local Platform", "Custom"), and the last
+// custom file; both are kept for as long as the application runs.
+static QString s_lastSaveLocation;
+static QString s_lastCustomPath;
+
+// A choice in the Save dialog: clicking anywhere on it picks it.
+class ChoiceCard : public QFrame
+{
+public:
+    explicit ChoiceCard(QRadioButton *radio)
+        : m_radio(radio)
+    {
+        setObjectName(QStringLiteral("choiceCard"));
+        setCursor(Qt::PointingHandCursor);
+    }
+
+protected:
+    void mousePressEvent(QMouseEvent *event) override
+    {
+        if (m_radio->isEnabled())
+            m_radio->click();
+        QFrame::mousePressEvent(event);
+    }
+
+private:
+    QRadioButton *m_radio;
+};
+
+// A path that is shortened in the middle when it does not fit, so the drive
+// and the file name stay visible. The full path is in the tooltip.
+class PathLabel : public QLabel
+{
+public:
+    PathLabel() { setMinimumWidth(120); }
+
+    void setPath(const QString &path)
+    {
+        m_path = path;
+        setToolTip(path);
+        elide();
+    }
+
+    QSize sizeHint() const override
+    {
+        // Long paths are shortened rather than widening the dialog.
+        const int width = std::min(fontMetrics().horizontalAdvance(m_path) + 2, 560);
+        return {width, QLabel::sizeHint().height()};
+    }
+    QSize minimumSizeHint() const override { return {120, QLabel::minimumSizeHint().height()}; }
+
+protected:
+    void resizeEvent(QResizeEvent *event) override
+    {
+        QLabel::resizeEvent(event);
+        elide();
+    }
+
+private:
+    void elide() { QLabel::setText(fontMetrics().elidedText(m_path, Qt::ElideMiddle, width())); }
+
+    QString m_path;
+};
+
+class SaveLocationDialog : public QDialog
+{
+public:
+    static inline const QString customName = QStringLiteral("Custom");
+
+    explicit SaveLocationDialog(QWidget *parent)
+        : QDialog(parent)
+    {
+        setStyleSheet(styleSheetFor(palette()));
+        setMinimumWidth(720);
+
+        // ── Header: icon, title and what the list means ────────────────────
+        auto *icon = new QLabel;
+        setGlyph(icon, Glyph::Save, QStyle::SP_DialogSaveButton, 34);
+        icon->setAlignment(Qt::AlignTop);
+        m_title = new QLabel;
+        m_title->setObjectName(QStringLiteral("dialogTitle"));
+        m_subtitle = new QLabel;
+        m_subtitle->setObjectName(QStringLiteral("muted"));
+        m_subtitle->setWordWrap(true);
+        auto *titles = new QVBoxLayout;
+        titles->setSpacing(2);
+        titles->addWidget(m_title);
+        titles->addWidget(m_subtitle);
+        auto *header = new QHBoxLayout;
+        header->setSpacing(14);
+        header->addWidget(icon);
+        header->addLayout(titles, 1);
+
+        auto *rule = new QFrame;
+        rule->setObjectName(QStringLiteral("rule"));
+        rule->setFixedHeight(1);
+
+        auto *heading = new QLabel(tr("Settings locations"));
+        heading->setObjectName(QStringLiteral("sectionTitle"));
+
+        // ── One card per location, then Custom ─────────────────────────────
+        auto *cards = new QVBoxLayout;
+        cards->setSpacing(8);
+        QStringList names;
+        for (const DsEnvironment::SettingsLocation &location : DsEnvironment::settingsLocations())
+            names.append(location.name);
+        names.append(customName);
+        for (const QString &name : std::as_const(names)) {
+            cards->addWidget(makeCard(name));
+        }
+        Row &custom = m_rows.last();
+        custom.path->setPath(tr("Choose a different .toml file"));
+
+        connect(&m_group, &QButtonGroup::buttonClicked, this, [this] { m_userPicked = true; });
+        connect(&m_group, &QButtonGroup::buttonToggled, this, [this] {
+            markSelected();
+            updateRemoval();
+        });
+
+        // Shown when files below the chosen one set values that changed: they
+        // would keep overriding what is saved.
+        m_remove = new QCheckBox;
+        m_remove->setHidden(true);
+
+        // ── Footer: how existing files are treated, and the buttons ────────
+        auto *infoIcon = new QLabel;
+        setGlyph(infoIcon, Glyph::Info, QStyle::SP_MessageBoxInformation, 16);
+        auto *info = new QLabel(tr("Existing files keep their comments and formatting; "
+                                   "only the values that changed are written."));
+        info->setObjectName(QStringLiteral("muted"));
+        info->setWordWrap(true);
+        auto *infoRow = new QHBoxLayout;
+        infoRow->setSpacing(8);
+        infoRow->addWidget(infoIcon, 0, Qt::AlignTop);
+        infoRow->addWidget(info, 1);
+
+        auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
+        buttons->button(QDialogButtonBox::Ok)->setText(tr("Save here"));
+        buttons->button(QDialogButtonBox::Ok)->setObjectName(QStringLiteral("primary"));
+        buttons->button(QDialogButtonBox::Cancel)->setObjectName(QStringLiteral("secondary"));
+        connect(buttons, &QDialogButtonBox::accepted, this, &QDialog::accept);
+        connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
+
+        auto *layout = new QVBoxLayout(this);
+        layout->setContentsMargins(20, 18, 20, 16);
+        layout->setSpacing(12);
+        layout->addLayout(header);
+        layout->addWidget(rule);
+        layout->addWidget(heading);
+        layout->addLayout(cards);
+        layout->addWidget(m_remove);
+        layout->addLayout(infoRow);
+        layout->addWidget(buttons);
+    }
+
+    // Sets the dialog up for the settings file `fileName`, shown as `title`
+    // ("App Settings"). Uses what earlier checks found right away and checks
+    // again in the background, updating the choices when that is done.
+    // `changedKeys` are the dotted keys of the tab's overrides: each card counts
+    // the ones its file sets.
+    void prepare(const QString &title, const QString &fileName, const QStringList &changedKeys)
+    {
+        m_keys = changedKeys;
+        m_remove->setChecked(false);
+        setWindowTitle(tr("Save %1").arg(title));
+        m_title->setText(tr("Save %1").arg(title));
+        m_subtitle->setText(tr("Select where the %1 settings are saved. "
+                               "Files lower in the list override files above them.")
+                                .arg(title));
+        m_userPicked = false;
+        if (fileName != m_fileName) {
+            m_fileName = fileName;
+            m_customPath.clear();
+            m_rows.last().path->setPath(tr("Choose a different .toml file"));
+        }
+
+        const QList<DsEnvironment::SettingsLocation> locations = DsEnvironment::settingsLocations();
+        for (Row &row : m_rows) {
+            const auto location = std::find_if(locations.cbegin(), locations.cend(),
+                                               [&row](const auto &l) { return l.name == row.name; });
+            if (location == locations.cend())
+                continue; // Custom
+            row.file.clear();
+            row.fixedReason = {};
+            if (location->folder.isEmpty()) {
+                static const QRegularExpression variable(QStringLiteral("%[A-Z_]+%"));
+                QStringList unset;
+                for (const auto &match : variable.globalMatch(DsEnvironment::expandq(location->pattern)))
+                    unset.append(match.captured());
+                row.path->setPath(QDir::toNativeSeparators(location->pattern + u'/' + fileName));
+                row.fixedReason = {tr("Not Set"),
+                                   tr("%1 is not set, so this folder is not used.")
+                                       .arg(unset.join(QStringLiteral(" and ")))};
+            } else {
+                row.file = QDir(location->folder).filePath(fileName);
+                row.path->setPath(QDir::toNativeSeparators(row.file));
+                // A folder whose variables are set is a search path: the locations
+                // are the ones loadEngineSettings() searches.
+                if (settings::isResourcePath(location->folder))
+                    row.fixedReason = {tr("Built-In"),
+                                       tr("These settings are built into the application.")};
+            }
+        }
+        refresh();
+        probe();
+    }
+
+    // The name of the chosen location: one of DsEnvironment::settingsLocations()'s, or customName.
+    QString chosenName() const
+    {
+        for (const Row &row : m_rows)
+            if (row.radio->isChecked())
+                return row.name;
+        return {};
+    }
+
+    // A file below the chosen one that sets values that changed, with those
+    // keys and their values as written there.
+    struct Removal {
+        QString name; // the location, "Local Platform"
+        QString file;
+        QList<std::pair<QString, QString>> keys;
+    };
+
+    // What to remove from the files below the chosen one, if its checkbox is ticked.
+    QList<Removal> removals() const
+    {
+        if (m_remove->isHidden() || !m_remove->isEnabled() || !m_remove->isChecked())
+            return {};
+        return m_removals;
+    }
+
+    // The file to write. For Custom, the file picked with its browse button,
+    // or an empty string if none was.
+    QString chosenFile() const
+    {
+        for (const Row &row : m_rows)
+            if (row.radio->isChecked())
+                return row.name == customName ? m_customPath : row.file;
+        return {};
+    }
+
+private:
+    struct Row {
+        QString name;
+        ChoiceCard *card = nullptr;
+        QRadioButton *radio = nullptr;
+        QLabel *icon = nullptr;
+        QLabel *title = nullptr;
+        QLabel *status = nullptr;
+        PathLabel *path = nullptr;
+        // What saving here does with the changed values; not for Custom.
+        QLabel *updates = nullptr;    // this file sets them already
+        QLabel *overrides = nullptr;  // a file above sets them; saved here, they win
+        QLabel *overridden = nullptr; // a file below sets them; that file keeps winning
+        QString file;        // empty for Custom and for a folder that is not known
+        Unusable fixedReason; // why the choice does not apply, known without touching the disk
+    };
+    struct Check {
+        Unusable reason; // why the file cannot be written; empty if it can
+        bool exists = false;
+        QStringList keys;                       // the changed keys looked for
+        QList<std::pair<QString, QString>> set; // those the file sets, with their values
+    };
+
+    // Colours derived from the palette, so the dialog follows a light or dark theme.
+    static QString styleSheetFor(const QPalette &palette)
+    {
+        const QColor window = palette.color(QPalette::Window);
+        const QColor text = palette.color(QPalette::WindowText);
+        const QColor accent = palette.color(QPalette::Highlight);
+        const bool dark = window.lightness() < 128;
+        const auto rgba = [](const QColor &c, double alpha) {
+            return QStringLiteral("rgba(%1, %2, %3, %4)")
+                .arg(c.red()).arg(c.green()).arg(c.blue()).arg(alpha);
+        };
+        const QColor green = dark ? QColor(102, 187, 106) : QColor(46, 125, 50);
+        const QColor amber = dark ? QColor(255, 183, 77) : QColor(178, 106, 0);
+        const QColor red = dark ? QColor(239, 83, 80) : QColor(198, 40, 40);
+        const QColor accentText = dark ? accent.lighter(135) : accent.darker(120);
+        return QStringLiteral(R"(
+            QLabel#dialogTitle { font-size: 15pt; font-weight: 600; }
+            QLabel#sectionTitle { font-size: 11pt; font-weight: 600; }
+            QLabel#muted, QLabel#path { color: %1; }
+            QFrame#rule { background: %2; }
+            QFrame#choiceCard { background: %3; border: 1px solid %2; border-radius: 8px; }
+            QFrame#choiceCard[selected="true"] { background: %4; border: 1px solid %5; }
+            QLabel#cardTitle { font-size: 11pt; font-weight: 600; }
+            QLabel#path:disabled, QLabel#cardTitle:disabled, QLabel#badge:disabled { color: %6; }
+            QLabel#badge, QLabel#pill, QLabel#chip {
+                border-radius: 4px; padding: 1px 7px; font-size: 8pt; font-weight: 600; }
+            QLabel#badge { background: %7; color: %1; }
+            QLabel#chip[kind="updates"] { background: %15; border: 1px solid %16; color: %17; }
+            QLabel#chip[kind="overrides"] { background: %9; border: 1px solid %10; color: %11; }
+            QLabel#chip[kind="overridden"] { background: %18; border: 1px solid %19; color: %20; }
+            QLabel#glyph:disabled { color: %6; }
+            QToolButton#browse { color: %21; background: %3; border: 1px solid %6;
+                                 border-radius: 5px; padding: 4px 7px; }
+            QToolButton#browse:hover { background: %2; }
+            QLabel#pill { font-size: 9pt; padding: 2px 9px; border: 1px solid %2; color: %1; }
+            QLabel#pill[kind="update"] { background: %9; border-color: %10; color: %11; }
+            QLabel#pill[kind="new"] { background: %12; border-color: %5; color: %8; }
+            QPushButton#primary, QPushButton#secondary {
+                border-radius: 5px; padding: 6px 22px; min-width: 70px; }
+            QPushButton#primary { background: %5; border: 1px solid %5; color: %13; font-weight: 600; }
+            QPushButton#primary:hover { background: %14; }
+            QPushButton#secondary { background: %3; border: 1px solid %6; }
+            QPushButton#secondary:hover { background: %2; }
+        )")
+            .arg(rgba(text, 0.6), rgba(text, 0.14), rgba(text, 0.035), rgba(accent, 0.14),
+                 accent.name(), rgba(text, 0.35), rgba(text, 0.09), accentText.name())
+            .arg(rgba(green, 0.14), rgba(green, 0.55), green.name(), rgba(accent, 0.12),
+                 palette.color(QPalette::HighlightedText).name(), accent.lighter(112).name())
+            .arg(rgba(amber, 0.14), rgba(amber, 0.55), amber.name(), rgba(red, 0.14),
+                 rgba(red, 0.55), red.name(), text.name());
+    }
+
+    QWidget *makeCard(const QString &name)
+    {
+        Row row;
+        row.name = name;
+        row.radio = new QRadioButton;
+        row.radio->setAccessibleName(name);
+        row.card = new ChoiceCard(row.radio);
+
+        const bool custom = name == customName;
+        const bool installed = name.startsWith(QStringLiteral("Application"));
+        row.icon = new QLabel;
+        if (custom)
+            setGlyph(row.icon, Glyph::Document, QStyle::SP_FileIcon, 22);
+        else if (installed)
+            setGlyph(row.icon, Glyph::Monitor, QStyle::SP_ComputerIcon, 22);
+        else
+            setGlyph(row.icon, Glyph::Folder, QStyle::SP_DirIcon, 22);
+
+        row.title = new QLabel(custom ? tr("Custom file…") : name);
+        row.title->setObjectName(QStringLiteral("cardTitle"));
+        // Where the file lives: installed with the application, this machine's
+        // own, or anywhere.
+        auto *badge = new QLabel(custom ? tr("CUSTOM") : installed ? tr("INSTALLED") : tr("THIS MACHINE"));
+        badge->setObjectName(QStringLiteral("badge"));
+        badge->setToolTip(custom ? tr("A file of your choosing")
+                          : installed ? tr("Installed with the application; shared by every machine it is installed on")
+                                      : tr("Kept outside the installation, for this machine only"));
+
+        auto *titleRow = new QHBoxLayout;
+        titleRow->setSpacing(8);
+        titleRow->addWidget(row.title);
+        titleRow->addWidget(badge);
+        titleRow->addStretch();
+
+        row.path = new PathLabel;
+        row.path->setObjectName(QStringLiteral("path"));
+
+        auto *text = new QVBoxLayout;
+        text->setSpacing(3);
+        text->addLayout(titleRow);
+        text->addWidget(row.path);
+        if (!custom) {
+            auto *chips = new QHBoxLayout;
+            chips->setSpacing(6);
+            for (auto [chip, kind] : {std::pair{&row.updates, "updates"},
+                                      std::pair{&row.overrides, "overrides"},
+                                      std::pair{&row.overridden, "overridden"}}) {
+                *chip = new QLabel;
+                (*chip)->setObjectName(QStringLiteral("chip"));
+                (*chip)->setProperty("kind", QString::fromLatin1(kind));
+                (*chip)->setHidden(true);
+                chips->addWidget(*chip);
+            }
+            chips->addStretch();
+            text->addLayout(chips);
+        }
+
+        auto *layout = new QHBoxLayout(row.card);
+        layout->setContentsMargins(14, 10, 14, 10);
+        layout->setSpacing(12);
+        layout->addWidget(row.radio);
+        layout->addWidget(row.icon);
+        layout->addLayout(text, 1);
+
+        if (custom) {
+            auto *browse = new QToolButton;
+            browse->setObjectName(QStringLiteral("browse"));
+            setGlyph(browse, Glyph::OpenFolder, QStyle::SP_DirOpenIcon, 18);
+            browse->setToolTip(tr("Choose the file…"));
+            connect(browse, &QToolButton::clicked, this, [this] { browseCustom(); });
+            layout->addWidget(browse);
+        } else {
+            row.status = new QLabel;
+            row.status->setObjectName(QStringLiteral("pill"));
+            layout->addWidget(row.status, 0, Qt::AlignTop);
+        }
+
+        m_group.addButton(row.radio);
+        m_rows.append(row);
+        return row.card;
+    }
+
+    void browseCustom()
+    {
+        const QString start = !m_customPath.isEmpty() ? m_customPath
+                              : s_lastCustomPath.isEmpty()
+                                  ? m_fileName
+                                  : QFileInfo(s_lastCustomPath).dir().filePath(m_fileName);
+        // The file is edited, not replaced, so there is no overwrite to confirm.
+        const QString path = QFileDialog::getSaveFileName(this, tr("Save overrides"), start,
+                                                          tr("TOML files (*.toml);;All files (*)"),
+                                                          nullptr, QFileDialog::DontConfirmOverwrite);
+        if (path.isEmpty())
+            return;
+        m_customPath = path;
+        s_lastCustomPath = path;
+        m_rows.last().path->setPath(QDir::toNativeSeparators(path));
+        m_rows.last().radio->setChecked(true);
+        m_userPicked = true;
+    }
+
+    static void setKind(QLabel *label, const char *kind)
+    {
+        label->setProperty("kind", QString::fromLatin1(kind));
+        label->style()->unpolish(label);
+        label->style()->polish(label);
+    }
+
+    // Shows what is known about each choice and selects one.
+    void refresh()
+    {
+        for (Row &row : m_rows) {
+            if (row.name == customName)
+                continue;
+            Unusable reason = row.fixedReason;
+            bool known = true;
+            bool exists = false;
+            if (reason.isEmpty()) {
+                const auto check = m_checks.constFind(row.file);
+                known = check != m_checks.cend();
+                if (known) {
+                    reason = check->reason;
+                    exists = check->exists;
+                }
+            }
+            const bool usable = known && reason.isEmpty();
+            row.card->setEnabled(usable);
+            if (!known) {
+                row.status->setText(tr("Checking…"));
+                row.status->setToolTip(tr("Checking whether this file can be written."));
+                setKind(row.status, "");
+            } else if (!reason.isEmpty()) {
+                row.status->setText(reason.label);
+                row.status->setToolTip(reason.detail);
+                setKind(row.status, "");
+            } else if (exists) {
+                row.status->setText(tr("Existing"));
+                row.status->setToolTip(tr("The file exists. Only the values that changed are "
+                                          "written into it; the rest is kept as it is."));
+                setKind(row.status, "update");
+            } else {
+                row.status->setText(tr("New"));
+                row.status->setToolTip(tr("The file does not exist yet; saving creates it."));
+                setKind(row.status, "new");
+            }
+            // A disabled card shows no tooltips, so the reason goes on the card too.
+            row.card->setToolTip(usable ? QString() : row.status->toolTip());
+        }
+        updateChips();
+        QAbstractButton *checked = m_group.checkedButton();
+        if (!m_userPicked || !checked || !checked->isEnabled())
+            selectDefault();
+        markSelected();
+        updateRemoval();
+    }
+
+    // The changed keys `row`'s file sets, with their values; null while unknown.
+    const QList<std::pair<QString, QString>> *keysSetBy(const Row &row) const
+    {
+        if (row.file.isEmpty())
+            return nullptr;
+        const auto found = m_checks.constFind(row.file);
+        if (found == m_checks.cend() || found->keys != m_keys)
+            return nullptr;
+        return &found->set;
+    }
+
+    // The value `key` has in `row`'s file, or an empty string if it does not set it.
+    QString valueIn(const Row &row, const QString &key) const
+    {
+        if (const auto *set = keysSetBy(row)) {
+            for (const auto &[k, value] : *set)
+                if (k == key)
+                    return value;
+        }
+        return {};
+    }
+
+    // Sorts each changed value into one chip per card: Overridden by when a
+    // file below sets it (saving here then has no effect), else Updates when
+    // this file sets it, else Overrides when a file above does.
+    void updateChips()
+    {
+        for (qsizetype i = 0; i < m_rows.size(); ++i) {
+            Row &row = m_rows[i];
+            if (!row.updates)
+                continue; // Custom
+            QStringList updates, overrides, overridden;
+            if (row.card->isEnabled()) {
+                for (const QString &key : std::as_const(m_keys)) {
+                    // The last file below that sets it is the one that wins.
+                    QString below;
+                    for (qsizetype j = i + 1; j < m_rows.size(); ++j) {
+                        if (const QString value = valueIn(m_rows[j], key); !value.isEmpty())
+                            below = QStringLiteral("    %1 = %2 (%3)").arg(key, value, m_rows[j].name);
+                    }
+                    if (!below.isEmpty()) {
+                        overridden.append(below);
+                        continue;
+                    }
+                    if (const QString value = valueIn(row, key); !value.isEmpty()) {
+                        updates.append(QStringLiteral("    %1 = %2").arg(key, value));
+                        continue;
+                    }
+                    // The last file above that sets it is the one saving here beats.
+                    QString above;
+                    for (qsizetype j = 0; j < i; ++j) {
+                        if (const QString value = valueIn(m_rows[j], key); !value.isEmpty())
+                            above = QStringLiteral("    %1 = %2 (%3)").arg(key, value, m_rows[j].name);
+                    }
+                    if (!above.isEmpty())
+                        overrides.append(above);
+                }
+            }
+            const auto show = [](QLabel *chip, const QStringList &lines, const QString &text,
+                                 const QString &heading) {
+                chip->setHidden(lines.isEmpty());
+                chip->setText(text.arg(lines.size()));
+                chip->setToolTip(heading + u'\n' + lines.join(u'\n'));
+            };
+            show(row.updates, updates, tr("Updates %1"),
+                 tr("This file already sets these changed values; saving here changes them:"));
+            show(row.overrides, overrides, tr("Overrides %1"),
+                 tr("Files above set these changed values; saved here, yours take their place:"));
+            show(row.overridden, overridden, tr("Overridden by %1"),
+                 tr("Files below set these changed values, so they keep overriding what you "
+                    "save here:"));
+        }
+    }
+
+    // "A (2), B (1) and C (1)"
+    static QString joinNames(const QStringList &parts)
+    {
+        if (parts.size() < 2)
+            return parts.join(QString());
+        return parts.mid(0, parts.size() - 1).join(QStringLiteral(", ")) + tr(" and ") + parts.last();
+    }
+
+    // Offers to remove the changed values from the files below the chosen one,
+    // which would otherwise keep overriding what is saved.
+    void updateRemoval()
+    {
+        m_removals.clear();
+        qsizetype chosen = -1;
+        for (qsizetype i = 0; i < m_rows.size(); ++i)
+            if (m_rows[i].radio->isChecked())
+                chosen = i;
+        int total = 0;
+        QStringList parts;
+        QStringList details;
+        QStringList blocked;
+        if (chosen >= 0 && m_rows[chosen].name != customName) {
+            for (qsizetype i = chosen + 1; i < m_rows.size(); ++i) {
+                const Row &row = m_rows[i];
+                if (row.name == customName || row.file.isEmpty())
+                    continue;
+                const auto found = m_checks.constFind(row.file);
+                if (found == m_checks.cend() || found->keys != m_keys || found->set.isEmpty())
+                    continue;
+                m_removals.append({row.name, row.file, found->set});
+                total += int(found->set.size());
+                parts.append(QStringLiteral("%1 (%2)").arg(row.name).arg(found->set.size()));
+                details.append(row.name + u':');
+                for (const auto &[key, value] : found->set)
+                    details.append(QStringLiteral("    %1 = %2").arg(key, value));
+                if (!found->reason.isEmpty())
+                    blocked.append(QStringLiteral("%1: %2").arg(row.name, found->reason.detail));
+            }
+        }
+        m_remove->setHidden(m_removals.isEmpty());
+        if (m_removals.isEmpty()) {
+            m_remove->setChecked(false);
+            return;
+        }
+        m_remove->setText(tr("Also remove %1 from %2")
+                              .arg(countOf(total, tr("1 value"), tr("%1 values")), joinNames(parts)));
+        QString tip = tr("These files come later and set values you changed, so they would "
+                         "keep overriding what you save:")
+                      + u'\n' + details.join(u'\n');
+        if (!blocked.isEmpty())
+            tip += QStringLiteral("\n\n") + tr("They cannot be removed:") + u'\n' + blocked.join(u'\n');
+        m_remove->setToolTip(tip);
+        m_remove->setEnabled(blocked.isEmpty());
+        if (!blocked.isEmpty())
+            m_remove->setChecked(false);
+    }
+
+    // Highlights the card of the checked choice.
+    void markSelected()
+    {
+        for (const Row &row : m_rows) {
+            const bool selected = row.radio->isChecked();
+            if (row.card->property("selected").toBool() == selected)
+                continue;
+            row.card->setProperty("selected", selected);
+            row.card->style()->unpolish(row.card);
+            row.card->style()->polish(row.card);
+        }
+    }
+
+    // The choice made last if it still applies; otherwise the least far-reaching
+    // one: a machine's own platform files before the installed files that every
+    // machine shares.
+    void selectDefault()
+    {
+        const auto find = [this](const QString &name) -> QRadioButton * {
+            for (const Row &row : m_rows)
+                if (row.name == name && row.radio->isEnabled())
+                    return row.radio;
+            return nullptr;
+        };
+        QRadioButton *pick = find(s_lastSaveLocation);
+        for (const char *name : {"Local Platform", "Local", "Application Platform", "Application"}) {
+            if (!pick)
+                pick = find(QString::fromLatin1(name));
+        }
+        if (!pick)
+            pick = find(customName);
+        pick->setChecked(true);
+    }
+
+    // Checks the files on a worker thread; refresh() shows the result.
+    void probe()
+    {
+        QStringList files;
+        for (const Row &row : m_rows)
+            if (!row.file.isEmpty() && row.fixedReason.isEmpty())
+                files.append(row.file);
+        if (files.isEmpty())
+            return;
+        const int generation = ++m_generation;
+        const QStringList keys = m_keys;
+        QPointer<SaveLocationDialog> self(this);
+        QThreadPool::globalInstance()->start([self, files, keys, generation] {
+            QHash<QString, Check> results;
+            for (const QString &file : files) {
+                Check check{unwritableReason(file), QFileInfo::exists(file), keys, {}};
+                if (check.exists && !keys.isEmpty()) {
+                    QFile in(file);
+                    if (in.open(QIODevice::ReadOnly))
+                        check.set = settings::tomlKeysSet(QString::fromUtf8(in.readAll()), keys);
+                }
+                results.insert(file, check);
+            }
+            // Back on the GUI thread; `self` is only dereferenced there.
+            QMetaObject::invokeMethod(
+                QCoreApplication::instance(),
+                [self, results, generation] {
+                    if (!self || generation != self->m_generation)
+                        return; // closed, or a newer check is on its way
+                    self->m_checks.insert(results);
+                    self->refresh();
+                },
+                Qt::QueuedConnection);
+        });
+    }
+
+    QLabel *m_title = nullptr;
+    QLabel *m_subtitle = nullptr;
+    QButtonGroup m_group;
+    QList<Row> m_rows;
+    QHash<QString, Check> m_checks; // by file, kept so the next prepare() can show them at once
+    QString m_fileName;
+    QString m_customPath;
+    QStringList m_keys;        // the changed keys, dotted
+    QCheckBox *m_remove = nullptr;
+    QList<Removal> m_removals; // what the checkbox would remove
+    int m_generation = 0;
+    bool m_userPicked = false;
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 SettingsViewerWidget::SettingsViewerWidget(Settings *settings, QWidget *parent)
     : QWidget(parent, Qt::Window | Qt::WindowTitleHint | Qt::WindowSystemMenuHint
                           | Qt::WindowCloseButtonHint | Qt::WindowMaximizeButtonHint)
@@ -1112,6 +1938,15 @@ SettingsViewerWidget::SettingsViewerWidget(Settings *settings, QWidget *parent)
     layout->addLayout(btnRow);
 
     connect(settings, &Settings::instancesChanged, this, &SettingsViewerWidget::rebuild);
+    // Keep the Save dialog ready for the current tab while the viewer is open.
+    connect(m_tabs, &QTabWidget::currentChanged, this, [this] {
+        if (isVisible())
+            prepareSaveDialog();
+    });
+    connect(settings, &Settings::searchPathsChanged, this, [this] {
+        if (isVisible())
+            prepareSaveDialog();
+    });
     connect(saveBtn,    &QPushButton::clicked, this, &SettingsViewerWidget::onSave);
     connect(restoreBtn, &QPushButton::clicked, this, &SettingsViewerWidget::onRestore);
     rebuild();
@@ -1120,6 +1955,7 @@ SettingsViewerWidget::SettingsViewerWidget(Settings *settings, QWidget *parent)
 void SettingsViewerWidget::showEvent(QShowEvent *event)
 {
     QWidget::showEvent(event);
+    prepareSaveDialog();
     emit visibilityChanged(true);
 }
 
@@ -1279,6 +2115,34 @@ SettingsFile *SettingsViewerWidget::currentSettingsFile() const
     return model->settingsFile();
 }
 
+// The dotted keys of the leaves of a nested map: {"a": {"b": 1}} -> "a.b".
+static QStringList leafKeys(const QVariantMap &map, const QString &prefix = {})
+{
+    QStringList keys;
+    for (auto it = map.cbegin(); it != map.cend(); ++it) {
+        const QString key = prefix.isEmpty() ? it.key() : prefix + u'.' + it.key();
+        if (it.value().metaType() == QMetaType::fromType<QVariantMap>())
+            keys += leafKeys(it.value().toMap(), key);
+        else
+            keys.append(key);
+    }
+    return keys;
+}
+
+void SettingsViewerWidget::prepareSaveDialog()
+{
+    auto *sf = currentSettingsFile();
+    if (!sf)
+        return;
+    if (!m_saveDialog) {
+        m_saveDialog = new SaveLocationDialog(this);
+        m_saveDialog->winId(); // create the native window now rather than on Save
+    }
+    static_cast<SaveLocationDialog *>(m_saveDialog)
+        ->prepare(m_tabs->tabText(m_tabs->currentIndex()), QFileInfo(sf->fileName()).fileName(),
+                  leafKeys(sf->overrides()));
+}
+
 void SettingsViewerWidget::onSave()
 {
     auto *sf = currentSettingsFile();
@@ -1291,17 +2155,118 @@ void SettingsViewerWidget::onSave()
         return;
     }
 
-    const QString path = QFileDialog::getSaveFileName(
-        this,
-        tr("Save overrides"),
-        {},
-        tr("TOML files (*.toml);;All files (*)"));
-    if (path.isEmpty())
+    const QString fileName = QFileInfo(sf->fileName()).fileName();
+    prepareSaveDialog();
+    auto *dialog = static_cast<SaveLocationDialog *>(m_saveDialog);
+    if (dialog->exec() != QDialog::Accepted)
         return;
+    s_lastSaveLocation = dialog->chosenName();
 
-    const QString err = sf->saveOverridesTo(path);
-    if (!err.isEmpty())
+    QString path = dialog->chosenFile();
+    if (path.isEmpty()) {
+        const QString start = s_lastCustomPath.isEmpty()
+                                  ? fileName
+                                  : QFileInfo(s_lastCustomPath).dir().filePath(fileName);
+        // The file is edited, not replaced, so there is no overwrite to confirm.
+        path = QFileDialog::getSaveFileName(this, tr("Save overrides"), start,
+                                            tr("TOML files (*.toml);;All files (*)"), nullptr,
+                                            QFileDialog::DontConfirmOverwrite);
+        if (path.isEmpty())
+            return;
+        s_lastCustomPath = path;
+    }
+
+    // A file reload while the dialog was open drops overrides that the files now hold.
+    if (sf->overrides().isEmpty()) {
+        QMessageBox::information(this, tr("Save settings"),
+                                 tr("There are no overrides to save any more: the settings "
+                                    "files already hold these values."));
+        return;
+    }
+
+    // Removing values from other files cannot be undone from here: confirm it,
+    // saying how far it reaches.
+    const QList<SaveLocationDialog::Removal> removals = dialog->removals();
+    if (!removals.isEmpty()) {
+        int count = 0;
+        QStringList lines;
+        QStringList installed;
+        for (const SaveLocationDialog::Removal &removal : removals) {
+            count += int(removal.keys.size());
+            lines.append(removal.name + u':');
+            for (const auto &[key, value] : removal.keys)
+                lines.append(QStringLiteral("    %1 = %2").arg(key, value));
+            if (removal.name.startsWith(QStringLiteral("Application")))
+                installed.append(removal.name);
+        }
+        const int writes = int(leafKeys(sf->overrides()).size());
+        QString details = lines.join(u'\n') + QStringLiteral("\n\n")
+                          + tr("The removed values cannot be restored from here.");
+        if (!installed.isEmpty())
+            details += QStringLiteral("\n\n")
+                       + tr("%1 is installed with the application: removing values there "
+                            "changes every machine that uses this installation.")
+                             .arg(installed.join(tr(" and ")));
+        QMessageBox box(QMessageBox::Warning, tr("Save and Remove"),
+                        tr("This writes %1 to %2 and removes %3 from %4.")
+                            .arg(countOf(writes, tr("1 value"), tr("%1 values")), dialog->chosenName(),
+                                 countOf(count, tr("1 value"), tr("%1 values")),
+                                 countOf(int(removals.size()), tr("1 other file"), tr("%1 other files"))),
+                        QMessageBox::NoButton, this);
+        box.setInformativeText(details);
+        QAbstractButton *proceed = box.addButton(tr("Save and Remove"), QMessageBox::AcceptRole);
+        box.setDefaultButton(box.addButton(QMessageBox::Cancel));
+        box.exec();
+        if (box.clickedButton() != proceed)
+            return;
+    }
+
+    QStringList written;
+    const QString err = sf->saveOverridesTo(path, &written);
+    if (!err.isEmpty()) {
         QMessageBox::warning(this, tr("Save settings"), err);
+        return;
+    }
+
+    QStringList report;
+    QStringList problems;
+    for (const SaveLocationDialog::Removal &removal : removals) {
+        QStringList keys;
+        for (const auto &[key, value] : removal.keys)
+            keys.append(key);
+        QStringList removed;
+        const QString problem = settings::removeKeysFromFile(removal.file, keys, &removed);
+        if (!problem.isEmpty())
+            problems.append(problem);
+        else if (!removed.isEmpty())
+            report.append(tr("Removed %1 from %2:")
+                              .arg(countOf(int(removed.size()), tr("1 value"), tr("%1 values")),
+                                   QDir::toNativeSeparators(removal.file))
+                          + u'\n' + removed.join(u'\n'));
+    }
+
+    // Read the files again now rather than when the file watcher notices: the
+    // overrides the saved file now holds are dropped, so their values show as
+    // coming from that file. (One saved below a file that still sets the same
+    // key stays an override, as it should.)
+    sf->reload();
+
+    const QString where = QDir::toNativeSeparators(path);
+    QStringList shown = written.mid(0, 12);
+    if (written.size() > shown.size())
+        shown.append(tr("… and %1 more").arg(written.size() - shown.size()));
+    QStringList message{written.isEmpty()
+                            ? tr("%1 already holds these values; nothing was written.").arg(where)
+                            : tr("Wrote %1 to %2:")
+                                      .arg(countOf(int(written.size()), tr("1 value"), tr("%1 values")), where)
+                                  + u'\n' + shown.join(u'\n')};
+    message += report;
+    if (!problems.isEmpty()) {
+        message.append(tr("Some values could not be removed:") + u'\n' + problems.join(u'\n'));
+        QMessageBox::warning(this, tr("Save settings"), message.join(QStringLiteral("\n\n")));
+        return;
+    }
+    QMessageBox::information(this, tr("Save settings"), message.join(QStringLiteral("\n\n")));
 }
 
 void SettingsViewerWidget::onRestore()

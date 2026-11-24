@@ -1,9 +1,9 @@
 #include "settings/dsSettingsFile.h"
 #include "settings/dsSettings.h"
 #include "settings/dsSettingsUtils.h"
+#include "settings/dsTomlEditor.h"
 
 #include <algorithm>
-#include <sstream>
 #include <string_view>
 
 #include <QColor>
@@ -1051,225 +1051,69 @@ QVariantMap SettingsFile::allSettings() const
     return m_merged;
 }
 
-// ── TOML output helpers ────────────────────────────────────────────────────
-// Convert Qt types back to toml++ nodes for serialisation.
-// applyVariantToTable handles all leaf QVariant types (scalars and collections).
-// applyOverridesToTable walks a QVariantMap recursively and writes every entry
-// into an existing (or freshly created) toml::table.
-
-static void appendVariantToArray(toml::array &arr, const QVariant &v);
-
-static void applyVariantToTable(toml::table &tbl,
-                                const std::string &key,
-                                const QVariant &v)
-{
-    const QMetaType mt = v.metaType();
-
-    // ── Scalars ──────────────────────────────────────────────────────────────
-    if (mt == QMetaType::fromType<bool>()) {
-        tbl.insert_or_assign(key, v.toBool());
-    } else if (mt == QMetaType::fromType<int>() || mt == QMetaType::fromType<qint32>()) {
-        tbl.insert_or_assign(key, static_cast<int64_t>(v.toInt()));
-    } else if (mt == QMetaType::fromType<qlonglong>() || mt == QMetaType::fromType<qint64>()) {
-        tbl.insert_or_assign(key, static_cast<int64_t>(v.toLongLong()));
-    } else if (mt == QMetaType::fromType<double>()) {
-        tbl.insert_or_assign(key, v.toDouble());
-    } else if (mt == QMetaType::fromType<float>()) {
-        tbl.insert_or_assign(key, static_cast<double>(v.toFloat()));
-
-    // ── Colour → hex string ──────────────────────────────────────────────────
-    } else if (mt == QMetaType::fromType<QColor>()) {
-        const QColor c = v.value<QColor>();
-        // Omit alpha component when fully opaque for cleaner output.
-        const QString hex = (c.alpha() == 255)
-                                ? c.name(QColor::HexRgb)
-                                : c.name(QColor::HexArgb);
-        tbl.insert_or_assign(key, hex.toStdString());
-
-    // ── Compound geometric types → inline tables ─────────────────────────────
-    } else if (mt == QMetaType::fromType<QPointF>()) {
-        const QPointF p = v.value<QPointF>();
-        toml::table t; t.is_inline(true);
-        t.insert_or_assign("x", p.x()); t.insert_or_assign("y", p.y());
-        tbl.insert_or_assign(key, std::move(t));
-    } else if (mt == QMetaType::fromType<QSizeF>()) {
-        const QSizeF s = v.value<QSizeF>();
-        toml::table t; t.is_inline(true);
-        t.insert_or_assign("w", s.width()); t.insert_or_assign("h", s.height());
-        tbl.insert_or_assign(key, std::move(t));
-    } else if (mt == QMetaType::fromType<QRectF>()) {
-        const QRectF r = v.value<QRectF>();
-        toml::table t; t.is_inline(true);
-        t.insert_or_assign("x", r.x()); t.insert_or_assign("y", r.y());
-        t.insert_or_assign("w", r.width()); t.insert_or_assign("h", r.height());
-        tbl.insert_or_assign(key, std::move(t));
-    } else if (mt == QMetaType::fromType<QVector2D>()) {
-        const QVector2D vec = v.value<QVector2D>();
-        toml::table t; t.is_inline(true);
-        t.insert_or_assign("x", static_cast<double>(vec.x()));
-        t.insert_or_assign("y", static_cast<double>(vec.y()));
-        tbl.insert_or_assign(key, std::move(t));
-    } else if (mt == QMetaType::fromType<QVector3D>()) {
-        const QVector3D vec = v.value<QVector3D>();
-        toml::table t; t.is_inline(true);
-        t.insert_or_assign("x", static_cast<double>(vec.x()));
-        t.insert_or_assign("y", static_cast<double>(vec.y()));
-        t.insert_or_assign("z", static_cast<double>(vec.z()));
-        tbl.insert_or_assign(key, std::move(t));
-    } else if (mt == QMetaType::fromType<QVector4D>()) {
-        const QVector4D vec = v.value<QVector4D>();
-        toml::table t; t.is_inline(true);
-        t.insert_or_assign("x", static_cast<double>(vec.x()));
-        t.insert_or_assign("y", static_cast<double>(vec.y()));
-        t.insert_or_assign("z", static_cast<double>(vec.z()));
-        t.insert_or_assign("w", static_cast<double>(vec.w()));
-        tbl.insert_or_assign(key, std::move(t));
-    } else if (mt == QMetaType::fromType<QQuaternion>()) {
-        const QQuaternion q = v.value<QQuaternion>();
-        toml::table t; t.is_inline(true);
-        t.insert_or_assign("scalar", static_cast<double>(q.scalar()));
-        t.insert_or_assign("x", static_cast<double>(q.x()));
-        t.insert_or_assign("y", static_cast<double>(q.y()));
-        t.insert_or_assign("z", static_cast<double>(q.z()));
-        tbl.insert_or_assign(key, std::move(t));
-
-    // ── Date / time ──────────────────────────────────────────────────────────
-    } else if (mt == QMetaType::fromType<QDate>()) {
-        const QDate d = v.value<QDate>();
-        tbl.insert_or_assign(key, toml::date{
-            static_cast<uint16_t>(d.year()),
-            static_cast<uint8_t>(d.month()),
-            static_cast<uint8_t>(d.day())});
-    } else if (mt == QMetaType::fromType<QTime>()) {
-        const QTime t2 = v.value<QTime>();
-        tbl.insert_or_assign(key, toml::time{
-            static_cast<uint8_t>(t2.hour()),
-            static_cast<uint8_t>(t2.minute()),
-            static_cast<uint8_t>(t2.second()),
-            static_cast<uint32_t>(t2.msec()) * 1'000'000u});
-    } else if (mt == QMetaType::fromType<QDateTime>()) {
-        const QDateTime dt = v.value<QDateTime>();
-        const QDate d = dt.date();
-        const QTime t2 = dt.time();
-        tbl.insert_or_assign(key, toml::date_time{
-            toml::date{static_cast<uint16_t>(d.year()),
-                       static_cast<uint8_t>(d.month()),
-                       static_cast<uint8_t>(d.day())},
-            toml::time{static_cast<uint8_t>(t2.hour()),
-                       static_cast<uint8_t>(t2.minute()),
-                       static_cast<uint8_t>(t2.second()),
-                       static_cast<uint32_t>(t2.msec()) * 1'000'000u}});
-
-    // ── Collections ──────────────────────────────────────────────────────────
-    } else if (mt == QMetaType::fromType<QVariantList>()) {
-        toml::array a;
-        for (const QVariant &elem : v.toList())
-            appendVariantToArray(a, elem);
-        tbl.insert_or_assign(key, std::move(a));
-    } else if (mt == QMetaType::fromType<QVariantMap>()) {
-        toml::table t;
-        const QVariantMap m = v.toMap();
-        for (auto it = m.cbegin(); it != m.cend(); ++it)
-            applyVariantToTable(t, it.key().toStdString(), it.value());
-        tbl.insert_or_assign(key, std::move(t));
-
-    // ── Fallback: string representation ─────────────────────────────────────
-    } else {
-        tbl.insert_or_assign(key, v.toString().toStdString());
-    }
-}
-
-static void appendVariantToArray(toml::array &arr, const QVariant &v)
-{
-    const QMetaType mt = v.metaType();
-    if (mt == QMetaType::fromType<bool>())
-        arr.push_back(v.toBool());
-    else if (mt == QMetaType::fromType<int>() || mt == QMetaType::fromType<qint32>())
-        arr.push_back(static_cast<int64_t>(v.toInt()));
-    else if (mt == QMetaType::fromType<qlonglong>())
-        arr.push_back(static_cast<int64_t>(v.toLongLong()));
-    else if (mt == QMetaType::fromType<double>() || mt == QMetaType::fromType<float>())
-        arr.push_back(v.toDouble());
-    else if (mt == QMetaType::fromType<QColor>()) {
-        const QColor c = v.value<QColor>();
-        const QString hex = (c.alpha() == 255) ? c.name(QColor::HexRgb)
-                                               : c.name(QColor::HexArgb);
-        arr.push_back(hex.toStdString());
-    } else if (mt == QMetaType::fromType<QVariantList>()) {
-        toml::array nested;
-        for (const QVariant &elem : v.toList())
-            appendVariantToArray(nested, elem);
-        arr.push_back(std::move(nested));
-    } else if (mt == QMetaType::fromType<QVariantMap>()) {
-        toml::table t;
-        const QVariantMap m = v.toMap();
-        for (auto it = m.cbegin(); it != m.cend(); ++it)
-            applyVariantToTable(t, it.key().toStdString(), it.value());
-        arr.push_back(std::move(t));
-    } else {
-        arr.push_back(v.toString().toStdString());
-    }
-}
-
-// Walks overrides (a QVariantMap) and writes every entry into tbl.
-// For sub-maps, recurses into the corresponding toml::table (creating it if absent).
-// For everything else, delegates to applyVariantToTable.
-static void applyOverridesToTable(toml::table &tbl, const QVariantMap &overrides)
-{
-    for (auto it = overrides.cbegin(); it != overrides.cend(); ++it) {
-        const std::string key = it.key().toStdString();
-        if (it.value().metaType() == QMetaType::fromType<QVariantMap>()) {
-            // Ensure the sub-table exists.
-            toml::node *existing = tbl.get(key);
-            if (!existing || !existing->is_table())
-                tbl.insert_or_assign(key, toml::table{});
-            applyOverridesToTable(*tbl.get(key)->as_table(), it.value().toMap());
-        } else {
-            applyVariantToTable(tbl, key, it.value());
-        }
-    }
-}
-
 QString SettingsFile::saveOverridesTo(const QString &filePath) const
 {
+    return saveOverridesTo(filePath, nullptr);
+}
+
+QString SettingsFile::saveOverridesTo(const QString &filePath, QStringList *written) const
+{
     settings::checkThread(this, Q_FUNC_INFO);
+    if (written)
+        written->clear();
 
     if (m_overrides.isEmpty())
         return {}; // nothing to do — not an error
 
-    // Read the existing file (if any) so we can preserve unmodified content.
-    toml::table result;
-    if (QFile::exists(filePath)) {
-        try {
-            result = parseFile(filePath);
-        } catch (const toml::parse_error &e) {
-            return QString("Failed to parse existing file '%1': %2")
-                       .arg(filePath,
-                            QString::fromUtf8(e.description().data()));
-        }
+    // Edit the existing text rather than re-serialising a parsed table: toml++
+    // would drop every comment and blank line of a hand-written file.
+    const bool exists = QFile::exists(filePath);
+    QByteArray original;
+    if (exists) {
+        QFile in(filePath);
+        if (!in.open(QIODevice::ReadOnly))
+            return QString("Cannot read '%1': %2").arg(filePath, in.errorString());
+        original = in.readAll();
     }
 
-    // Apply overrides into the (possibly empty) table.
-    applyOverridesToTable(result, m_overrides);
+    const QString text = QString::fromUtf8(original);
+    const settings::TomlEditResult edit = settings::editToml(text, m_overrides);
+    if (!edit.error.isEmpty())
+        return QString("Cannot update '%1': %2").arg(filePath, edit.error);
+    if (written)
+        *written = edit.changed;
+    if (exists && edit.text == text)
+        return {}; // the file already holds these values
 
-    // Serialise to a string, then write atomically via QSaveFile.
-    std::ostringstream oss;
-    oss << result;
-    if (!oss)
-        return "TOML serialisation failed.";
+    const QString folder = QFileInfo(filePath).absolutePath();
+    if (!QDir().mkpath(folder))
+        return QString("Cannot create the folder '%1'.").arg(folder);
 
+    // No QIODevice::Text: line endings are the file's own and must stay as they are.
     QSaveFile file(filePath);
-    if (!file.open(QIODevice::WriteOnly | QIODevice::Text))
-        return QString("Cannot open '%1' for writing: %2")
-                   .arg(filePath, file.errorString());
-
-    file.write(QByteArray::fromStdString(oss.str()));
-
+    if (!file.open(QIODevice::WriteOnly))
+        return QString("Cannot open '%1' for writing: %2").arg(filePath, file.errorString());
+    file.write(edit.text.toUtf8());
     if (!file.commit())
-        return QString("Write failed for '%1': %2")
-                   .arg(filePath, file.errorString());
+        return QString("Write failed for '%1': %2").arg(filePath, file.errorString());
 
     return {}; // success
 }
+
+namespace settings {
+
+QVariant parseTomlValue(const QString &text)
+{
+    const std::string document = "v = " + text.toStdString();
+    try {
+        const toml::table table = toml::parse(document);
+        if (const toml::node *node = table.get("v"))
+            return nodeToVariant(*node);
+    } catch (const toml::parse_error &) {
+    }
+    return {};
+}
+
+} // namespace settings
 
 }
