@@ -2,6 +2,7 @@
 
 #include <QCoreApplication>
 #include <QEvent>
+#include <QFontDatabase>
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
 #include <QScreen>
@@ -116,6 +117,12 @@ void DsQmlToolWindowHelper::show()
         if (!m_widget)
             return;
         m_widget->installEventFilter(this);
+        // The system's own UI font, as standard dialogs use, rather than the
+        // application's default font: engine.font.toml sizes that for the
+        // full-screen content (12 pt), which makes a tool window needlessly
+        // large. Item views already got the system font from Qt; now the
+        // whole window matches.
+        m_widget->setFont(QFontDatabase::systemFont(QFontDatabase::GeneralFont));
         toolwindow::makeTransient(m_widget, this);
         toolwindow::restoreGeometry(m_widget, m_key);
         // An open window is saved where it is when the application quits.

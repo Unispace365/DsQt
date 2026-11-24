@@ -17,6 +17,8 @@ namespace dsqt {
 //   application, and only the application (unlike Qt::WindowStaysOnTopHint,
 //   which puts a window above every program on the desktop), and they can be
 //   moved and resized like any other window.
+// - Widget windows use the system's UI font (Segoe UI 9 pt on Windows), as
+//   standard dialogs do, not the application font engine.font.toml sets.
 // - Their position and size are remembered between openings and between runs,
 //   per application, under the key the window is registered with.
 // - Their visibility is reported back, so a checkable menu item stays in step
