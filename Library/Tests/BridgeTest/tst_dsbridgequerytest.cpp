@@ -27,6 +27,8 @@ class DSBridgeQueryTest : public QObject {
     void queryTables_supportsOlderDatabases_data();
     void queryTables_supportsOlderDatabases();
     void queryTables_publishesAndRemovesTags();
+    void queryTables_appliesOptionDefaults();
+    void queryTables_skipsUnknownOptionDefaults();
     void qmlBridge_tagLookups();
     void qmlBridge_tagAssociationsUpdate();
 
@@ -219,6 +221,34 @@ void DSBridgeQueryTest::queryTables_supportsOlderDatabases() {
     QCOMPARE(content.tagUids().size(), tagTable ? 3 : 0);
     QCOMPARE(record.value("topic_class_tag_uids").toStringList().size(), tagTable && recordTagsTable ? 2 : 0);
     QCOMPARE(record.value("key_words").toStringList().size(), tagTable && tagColumn ? 2 : 0);
+}
+
+void DSBridgeQueryTest::queryTables_appliesOptionDefaults() {
+    QVERIFY(execute("INSERT INTO lookup (uid, type, parent_uid, name, app_key) VALUES "
+                    "('field4', 'field', 'type1', 'Annotations', 'annotations'), "
+                    "('option1', 'select', 'field4', 'No Annotation', 'none')"));
+    QVERIFY(execute("INSERT INTO defaults (field_uid, field_type, option_value) VALUES "
+                    "('field4', 'OPTIONS', 'option1')"));
+    const auto content = mQuery->queryTables();
+    const auto record  = content.find("record1");
+    QCOMPARE(record.value("annotations").toString(), "none");
+    QCOMPARE(record.value("annotations_value_uid").toString(), "option1");
+}
+
+void DSBridgeQueryTest::queryTables_skipsUnknownOptionDefaults() {
+    // BridgeSync may not write the options to the lookup table at all. A default
+    // naming one used to throw std::out_of_range on the background thread, which
+    // ended the application when the result was read.
+    QVERIFY(execute("INSERT INTO lookup (uid, type, parent_uid, name, app_key) VALUES "
+                    "('field4', 'field', 'type1', 'Annotations', 'annotations')"));
+    QVERIFY(execute("INSERT INTO defaults (field_uid, field_type, option_value) VALUES "
+                    "('field4', 'OPTIONS', 'missing')"));
+    QTest::ignoreMessage(QtWarningMsg, QRegularExpression("Option \"missing\" of field \"annotations\""));
+    const auto content = mQuery->queryTables();
+    const auto record  = content.find("record1");
+    QCOMPARE(record.value("title").toString(), "An article");
+    QVERIFY(!record.contains("annotations"));
+    QVERIFY(!record.contains("annotations_value_uid"));
 }
 
 void DSBridgeQueryTest::queryTables_publishesAndRemovesTags() {

@@ -8,7 +8,9 @@
 
 #include "qqmlcontext.h"
 
+#include <QException>
 #include <QFuture>
+#include <QSet>
 #include <QSharedPointer>
 #include <QSqlField>
 #include <QString>
@@ -270,9 +272,35 @@ bool DsBridgeSqlQuery::isBridgeSyncRunning() {
 #endif
 }
 
+// The message of an exception the background read threw. QtConcurrent wraps
+// anything that is not a QException in a QUnhandledException, so look inside.
+static QString exceptionMessage(std::exception_ptr exception) {
+    try {
+        std::rethrow_exception(exception);
+    } catch (const QUnhandledException& e) {
+        if (e.exception()) return exceptionMessage(e.exception());
+        return QStringLiteral("unknown exception");
+    } catch (const std::exception& e) {
+        return QString::fromLocal8Bit(e.what());
+    } catch (...) {
+        return QStringLiteral("unknown exception");
+    }
+}
+
 void DsBridgeSqlQuery::onUpdated() {
     // This runs in the main thread when the background task completes.
-    mContent = mFutures.result();
+    // result() rethrows whatever the background read threw. Left uncaught, it
+    // would end the application over one bad row; keep the current content
+    // instead, and let the next database update try again.
+    try {
+        mContent = mFutures.result();
+    } catch (...) {
+        qCCritical(lgBridgeSyncQuery) << "Reading the content database failed, keeping the current content:"
+                                      << exceptionMessage(std::current_exception());
+        mIsRunning.testAndSetRelaxed(true, false);
+        if (mIsPending.fetchAndStoreRelaxed(false)) QTimer::singleShot(0, this, &DsBridgeSqlQuery::queryDatabase);
+        return;
+    }
     if (mContent.m_queue.isEmpty()) {
         // No new content to process. Go straight to cleaning up stale content so that bridge signals are emitted.
         mContent.m_queue = ContentLookup::get().keys();
@@ -833,6 +861,16 @@ DatabaseContent DsBridgeSqlQuery::queryTables() {
         selectMap[result.value("uid").toString()] = result.value("app_key").toString();
     });
 
+    // An option missing from the lookup table leaves its field unset. Say so
+    // once per field and option per read, not once per record.
+    QSet<QString> unknownOptions;
+    const auto    warnUnknownOption = [&](const QString& field, const QString& option) {
+        if (unknownOptions.contains(field + u'/' + option)) return;
+        unknownOptions.insert(field + u'/' + option);
+        qCWarning(lgBridgeSyncQuery) << "Option" << option << "of field" << field
+                                     << "is not in the content database; leaving the field unset";
+    };
+
     // Process defaults query.
     defaultsQuery.process([&](const QSqlRecord& result) {
         // Retrieve the record.
@@ -851,10 +889,15 @@ DatabaseContent DsBridgeSqlQuery::queryTables() {
         } else if (type == "NUMBER") {
             record.insertOrAssign(field_uid, result.value("number").toFloat());
         } else if (type == "OPTIONS") {
-            const auto  key   = result.value("option_value").toString();
-            const auto& value = selectMap.at(key);
-            record.insertOrAssign(field_uid, value);
-            record.insertOrAssign(field_uid + "_value_uid", key);
+            // BridgeSync does not always write the options themselves to the
+            // lookup table, so the default may name one we do not know.
+            const auto key = result.value("option_value").toString();
+            if (const auto it = selectMap.find(key); it != selectMap.end()) {
+                record.insertOrAssign(field_uid, it->second);
+                record.insertOrAssign(field_uid + "_value_uid", key);
+            } else {
+                warnUnknownOption(field_uid, key);
+            }
         } else if (type == "CHECKBOX") {
             record.insertOrAssign(field_uid, result.value("checked").toBool());
         }
@@ -996,7 +1039,7 @@ DatabaseContent DsBridgeSqlQuery::queryTables() {
                 record.insertOrAssign(field_uid, selectMap[key]);
                 record.insertOrAssign(field_uid + "_value_uid", key);
             } else {
-                // TODO log warning
+                warnUnknownOption(field_uid, key);
             }
         } else if (field_type == "CHECKBOX") {
             record.insertOrAssign(field_uid, result.value("checked").toBool());
