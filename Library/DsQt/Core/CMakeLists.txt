@@ -60,6 +60,7 @@ qt_add_qml_module(Core
         settings/dsSettingsTreeModel.cpp settings/dsSettingsTreeModel.h
         settings/dsSettingsUtils.h
         settings/dsSettingsViewerWidget.cpp settings/dsSettingsViewerWidget.h
+        settings/dsTomlEditor.cpp settings/dsTomlEditor.h
         settings/dsQmlSettingsProxy.cpp settings/dsQmlSettingsProxy.h
         settings/dsQmlSettingsViewerHelper.cpp settings/dsQmlSettingsViewerHelper.h
         ui/dsQmlClock.h ui/dsQmlClock.cpp
@@ -119,6 +120,14 @@ qt_add_shaders(Core "dsqt_core_effects"
 qt_target_qml_sources(Core
     RESOURCES
         "${CMAKE_CURRENT_BINARY_DIR}/.qsb/shaders/dsMultiEffect.frag.qsb"
+)
+
+# Settings viewer schema for the settings this module reads (see
+# SettingsFile::librarySchemaPaths): served at :/qt/qml/Dsqt/Core/schema/.
+qt_target_qml_sources(Core
+    RESOURCES
+        schema/engine.schema.toml
+        schema/configuration.schema.toml
 )
 set(CoreTargets ${CoreTargets} PARENT_SCOPE)
 

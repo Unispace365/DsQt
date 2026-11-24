@@ -50,6 +50,14 @@ qt_add_qml_module(Bridge
         
 )
 
+# Settings viewer schema for the settings this module reads (see
+# SettingsFile::librarySchemaPaths): served at :/qt/qml/Dsqt/Bridge/schema/.
+qt_target_qml_sources(Bridge
+    RESOURCES
+        schema/engine.schema.toml
+        schema/app_settings.schema.toml
+)
+
 set(BridgeTargets ${BridgeTargets} PARENT_SCOPE)
 
 target_link_libraries(Bridge

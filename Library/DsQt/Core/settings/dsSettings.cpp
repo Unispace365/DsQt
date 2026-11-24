@@ -4,6 +4,9 @@
 #include "core/dsEnvironment.h"
 
 #include <QCoreApplication>
+#include <QDir>
+#include <QFileInfo>
+#include <QSet>
 #include <QThread>
 
 #include <algorithm>
@@ -188,7 +191,7 @@ void Settings::onFileChanged(const QString &path)
 
     // Reload only the SettingsFile instances whose resolved file paths include this file.
     for (SettingsFile *s : std::as_const(m_instances)) {
-        if (s->resolvedFilePaths().contains(path))
+        if (s->resolvedFilePaths().contains(path) || s->resolvedSchemaPaths().contains(path))
             s->reload();
     }
 }
@@ -212,16 +215,36 @@ void Settings::rebuildWatcher()
         m_watcher.removePaths(m_watcher.directories());
 
     for (SettingsFile *s : std::as_const(m_instances)) {
-        for (const QString &file : s->resolvedFilePaths()) {
+        for (const QString &file : s->resolvedFilePaths() + s->resolvedSchemaPaths()) {
             if (!settings::isResourcePath(file))
                 m_watcher.addPath(file);
         }
     }
 
     // Always watch the search path directories so we detect file creation.
+    // A folder that does not exist yet cannot be watched, so watch the nearest
+    // one above it that does: creating the folder (for instance by saving a
+    // settings file into it from the settings viewer) then triggers
+    // onDirectoryChanged(), which reloads and watches the new folder itself.
+    QSet<QString> watchedDirs;
     for (const QString &dir : std::as_const(m_searchPaths)) {
-        if (!settings::isResourcePath(dir))
-            m_watcher.addPath(dir);
+        if (settings::isResourcePath(dir))
+            continue;
+        QString existing = dir;
+        if (!QDir::isRelativePath(dir)) {
+            while (!QFileInfo(existing).isDir()) {
+                const QString parent = QFileInfo(existing).absolutePath();
+                if (parent == existing) {
+                    existing.clear();
+                    break;
+                }
+                existing = parent;
+            }
+        }
+        if (!existing.isEmpty() && !watchedDirs.contains(existing)) {
+            watchedDirs.insert(existing);
+            m_watcher.addPath(existing);
+        }
     }
 }
 

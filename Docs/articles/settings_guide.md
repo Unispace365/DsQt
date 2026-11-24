@@ -20,6 +20,8 @@ This guide covers how to write and use TOML configuration files in DsQt applicat
 12. [Accessing Settings from QML](#accessing-settings-from-qml)
 13. [Accessing Settings from C++](#accessing-settings-from-c)
 14. [Settings Viewer](#settings-viewer)
+    - [Saving to a settings file](#saving-to-a-settings-file)
+    - [Schema Files (Sliders and Dropdowns)](#schema-files-sliders-and-dropdowns)
 15. [File Organization](#file-organization)
 
 ---
@@ -532,7 +534,7 @@ These capabilities are new in the rewritten settings system (the old system was 
 
 ### Live Reload
 
-Every settings file's resolved paths — and every directory in the current search paths — are watched on disk automatically. Editing a `.toml` file, or dropping a new file into a watched folder, triggers an automatic reload and republishes the merged values (and any `bind()` callbacks fire again) with no extra code required.
+Every settings file's resolved paths — and every directory in the current search paths — are watched on disk automatically. A search folder that does not exist yet is noticed through the nearest folder above it that does, so creating it (for instance by saving a file into it) reloads the settings as well. Editing a `.toml` file, or dropping a new file into a watched folder, triggers an automatic reload and republishes the merged values (and any `bind()` callbacks fire again) with no extra code required.
 
 ### Defaults
 
@@ -554,7 +556,7 @@ Merge order (lowest to highest priority): **defaults → primary file → extra 
 
 If a file is reloaded and now contains the same value an override was masking, the override is automatically pruned so the file value shows through again.
 
-`saveOverridesTo(filePath)` writes the current overrides out as TOML — merging into the existing file's other keys if it already exists, or creating a new file containing just the overrides. (toml++ doesn't preserve comments when rewriting an existing file.) The in-memory overrides are kept after saving.
+`saveOverridesTo(filePath)` writes the current overrides into a TOML file. An existing file is edited, not rewritten: only the overridden keys whose value differs from the file's are written, each in place on its own line, and everything else stays byte for byte as it was — comments, blank lines, key order, quoting style and line endings. A file that does not exist yet is created (folder and all) with just the overrides. The in-memory overrides are kept after saving; once the file is reloaded and holds the same values, they are pruned. See [Saving to a settings file](#saving-to-a-settings-file) for the details.
 
 ### Inspecting where a value came from
 
@@ -780,12 +782,175 @@ It opens a window (a plain Qt Widgets `QWidget`, not QML) with one tab per regis
 
 - The search box filters the tree as you type: a case-insensitive substring match against the key, display value, or full dotted path. Only matching rows (and the ancestors needed to reach them) stay visible — everything else is hidden rather than shown in a separate results list.
 - Overridden values are shown in **bold**; hovering any leaf shows a tooltip with its provenance (a file path, `"default"`, or `"override"`).
-- Color values show a swatch, and double-clicking one opens a `QColorDialog`. Double-clicking any other leaf turns it into an inline text editor; the parsed value is applied as a runtime override (`setOverride`) as soon as you commit it.
+- Color values show a swatch, and double-clicking one opens a `QColorDialog`. Double-clicking any other leaf turns it into an inline text editor; the parsed value is applied as a runtime override (`setOverride`) as soon as you commit it. Text that does not fit the setting's type (e.g. `abc` for a Point) is rejected with a tooltip rather than stored as a string. Points, sizes, rects and vectors accept their numbers with any separators: `(3, 4)`, `3,4` and `800x600` all work.
+- Settings described by a [schema file](#schema-files-sliders-and-dropdowns) get a slider or a dropdown instead of a text box.
+- Booleans show an on/off switch, with the value as written in the file next to it. Click the switch, or press Space on its row, to flip it; the change is applied at once. A schema entry with `editor = "text"` keeps plain text editing for a Boolean, and `options` give it a dropdown instead.
+- String settings that hold a file or folder path get a **…** button that opens a file or folder dialog (see [Paths](#paths)). Paths that do not exist are shown in a warning colour, with the expanded location in the tooltip.
 - Double-clicking a list (array) node opens a dedicated editor dialog for adding, removing, and drag-reordering its elements; accepting it writes the whole list back as an override.
 - Right-clicking a leaf offers **Revert** (if it's currently overridden) or **Open File** (if its provenance is a real file path, via the OS default application).
-- **Save…** and **Restore…** buttons at the bottom write the current tab's overrides out to a chosen `.toml` file (`saveOverridesTo()`) or clear them (`resetOverrides()`), respectively.
+- **Save…** writes the current tab's overrides into a settings file; see [Saving to a settings file](#saving-to-a-settings-file). **Restore…** clears them (`resetOverrides()`).
 
 This is a developer/debugging tool, not something to embed in an end-user QML UI.
+
+### Saving to a settings file
+
+**Save…** asks where to write the current tab's overrides, in a dialog named after the tab (*Save App Settings*, *Save Engine*). There is one choice per folder settings files are read from, lowest priority first, plus Custom. Click a card to pick it, then **Save here**:
+
+![The Save dialog for the Effects tab, with Local Platform chosen](images/settings_save_dialog.png)
+
+| Choice | Folder | What it is for |
+|--------|--------|----------------|
+| Application | `%APP%/settings` | The files installed with the application, shared by every machine. |
+| Application Platform | `%APP%/settings/%CFG_FOLDER%` | The installed files for the platform (configuration) that `configuration.toml`'s `config_folder` names. |
+| Local | `%LOCAL%/settings/%PP%` | This machine's own files for the project (`engine.project_path`), outside the installation. |
+| Local Platform | `%LOCAL%/settings/%PP%/%CFG_FOLDER%` | This machine's own files for that platform. |
+| Custom file… | any | Its folder button picks the file; otherwise a file dialog opens after **Save here**. |
+
+A file in a later folder overrides the same keys of the files above it. These are the folders `DsEnvironment::loadEngineSettings()` makes the search paths; `DsEnvironment::settingsLocations()` lists them with their expanded paths.
+
+Each card shows the file it writes, the tab's settings file (`effects.toml` for the Effects tab) in that folder, shortened in the middle when it is long (the full path is in its tooltip). A badge says whether the folder is *installed* with the application (and shared by every machine it is installed on) or kept on *this machine* only. The status on the right says what is there; its tooltip explains it:
+
+| Status | Meaning |
+|--------|---------|
+| *Existing* | The file exists; only the values that changed are written into it. |
+| *New* | The file does not exist yet; saving creates it (and its folder). |
+| *Read-Only* | The file, or the folder it would go in, cannot be written. Disabled. |
+| *Not Set* | A variable in the folder is not set (no `config_folder`, no `engine.project_path`), so the folder is not used. Disabled. |
+| *Unavailable* | No folder on the path exists at all, such as a missing drive. Disabled. |
+| *Built-In* | iOS only: the application's settings are built into it. Disabled. |
+| *Checking…* | The background check has not finished yet. |
+
+Whether a folder can be written is read from its access rights (on Windows, from the access control lists), as well as the file's read-only flag. Nothing is written to find out: the settings folders are watched, and a probe file in one would reload every settings file.
+
+The viewer keeps the dialog ready while it is open and does these checks in the background whenever the viewer is shown, the tab changes or the search paths change, so Save shows the dialog straight away. A choice still being checked shows *Checking…* for that moment.
+
+The first time, Local Platform is selected, as the least far-reaching choice: it only changes this machine and this platform. If it is disabled, the next of Local, Application Platform and Application that can be written is selected. After that the dialog selects whatever was chosen last, for as long as the application runs.
+
+After saving, the viewer reloads the tab's settings files. Overrides that the saved file now provides are dropped, so those values show the file as their source instead of *override*. A value saved to a folder above one that sets the same key stays an override, because that other file would still win without it.
+
+#### Values that a later file sets
+
+Under its path, each card shows what saving there does with the values you changed. Each value is counted once, in the first of these that applies; a chip with nothing to count is left out, and its tooltip lists the keys with their values and the file that sets them:
+
+| Chip | Colour | Meaning |
+|------|--------|---------|
+| *Overridden by 4* | red | A file below sets these values, so it keeps overriding what you save here. |
+| *Updates 1* | amber | This file already sets these values; saving changes them in place. |
+| *Overrides 2* | green | A file above sets these values; saved here, yours take their place. |
+
+Values that no file sets yet are simply added and get no chip. When you choose a card with *Overridden by*, a checkbox appears under the cards:
+
+> ☐ Also remove 4 values from Application Platform (1), Local (1) and Local Platform (2)
+
+Take five changed values: two that Local Platform sets, one each from Local, Application Platform and Application. Saving them to Application writes all five into Application's file. Without the checkbox only the one from Application takes effect; the other four stay overrides, because the files below still set them. With it, those four keys are also removed from the three files below, and after the reload all five values come from Application.
+
+- The checkbox is off by default, and only shown when there is something to remove. Choosing Local Platform, the last folder, never shows it.
+- It is disabled, with the reason in its tooltip, when one of those files cannot be written.
+- Save asks before it removes anything: *This writes 5 values to Application and removes 4 values from 3 other files*, with every key and value that goes. When one of those files is installed with the application (Application Platform here), it adds that removing values there changes every machine that uses the installation.
+- A key is removed as little as a value is written: its `key = value` line goes with its own trailing comment, comments on lines of their own and the table's `[header]` stay, and a member of an inline table goes with its comma. (`settings::removeFromToml()` and `removeKeysFromFile()` in `dsTomlEditor.h`.)
+- The message after saving lists what was written to which file and what was removed from which.
+
+Saving into an existing file changes as little as possible. toml++ cannot write a parsed file back with its comments, so DsQt edits the file's text instead (`settings::editToml()`, in `dsTomlEditor.h`), and parses the result with toml++ before writing it, to check that it is still valid TOML:
+
+- A key whose value is already equal is left alone; Save reports the keys it wrote.
+- A changed value is replaced where it stands. A string keeps its quotes (`'literal'` or `"basic"`), a number written as an integer stays one when the new value is whole, and a trailing comment stays where it is.
+- Points, sizes, rects, vectors and colours written as tables — inline `{ x = 10, y = 20 }` or a `[window.rect]` table — are changed one component at a time, so moving a point down only rewrites its `y`. A colour is kept in the file's own scale (0–255 or 0.0–1.0).
+- An array of the same length is changed element by element, which keeps a multi-line array's comments. One of another length is written anew, on one line or one element per line, as the original was. The legacy `[[1, 2]]` and `[value, {type = ...}]` forms keep their wrapping.
+- A missing key is appended after the last key of its table (next to its siblings for dotted keys, inside the braces for an inline table). A missing table is appended at the end of the file as a `[table]` header.
+- New lines use the file's own line ending, CRLF or LF.
+
+For example, saving four changed Effects values into the commented `effects.toml` of an application gives this diff, and nothing else in the file changes:
+
+```diff
+ # chase-down, chase-up, chase-vertical, scatter or all.
+-rightClick = "ripple"
++rightClick = "square"
+ ...
+ [ripple]
+-msPerTile = 100
++msPerTile = 120
+ jitterMs = 0
+ ...
+ [sweep]
+ msPerColumn = 50
+ msPerRow = 100
++jitterMs = 30
+ ...
+ [chase]
+-horizontalMinMs = 20
++horizontalMinMs = 25
+```
+
+Keys inside an array of tables (`[[slides]]`) cannot be addressed one by one, so Save refuses to write them and leaves the file untouched; pick Custom to write them to a file of their own. Save always writes into the tab's primary file, never into its `engine.extra` files.
+
+### Schema Files (Sliders and Dropdowns)
+
+A schema file tells the settings viewer how to edit specific values. It sits next to the settings file it describes, with `.schema.toml` in place of `.toml`: `engine.toml` → `engine.schema.toml`. Each entry is a table at the setting's dotted path:
+
+```toml
+# engine.schema.toml
+
+[window.width]           # slider: min and max, optional step
+min = 640
+max = 3840
+step = 10
+description = "Window width in pixels"   # optional: shown as the tooltip
+
+[render.mode]            # dropdown: options, optional labels
+options = ["fast", "balanced", "quality"]
+labels  = ["Fast", "Balanced", "Best quality"]
+
+[ripples.maxAngle]       # a real number; without step, the step is 1/100 of the range
+min = 0.0
+max = 45.0
+```
+
+- **Sliders** apply to integer and real settings that have both `min` and `max`. Drag the track (the value is applied live while you drag) or double-click the number to type an exact value; typed values are clamped to the range but not snapped to the step. For integers the step is rounded to a whole number (default 1). For reals the number of decimals shown follows the step.
+- **Dropdowns** apply to any type. Options may be written as strings or numbers and are converted to the setting's type (`"#ff0000"` for a colour, `2` or `"2"` for an integer); options that do not convert are ignored. `labels` pairs up with `options` by position; without it the options are shown as they are. A current value that is not one of the options is shown in italics.
+- An entry for a list (`points`) applies to each of its elements.
+- Schema files are layered like the settings files they accompany: a later search path overrides an earlier one key by key, so an application can change the `max` of a library entry without repeating the rest. They are watched and reloaded live as well.
+- A schema only affects the viewer; it never changes values, and code that calls `setOverride()` is not clamped.
+- Entries that do not fit the setting are ignored: `min`/`max` on a string or a point, or a dropdown whose options all fail to convert, leave the plain text editor in place.
+- `restart = true` marks a setting that the app only reads at startup, such as `engine.project_path`. It works on any setting, alone or together with a slider, dropdown or path editor. On a table (`[engine.font]`) it applies to every setting below it; nothing else in an entry is inherited. The viewer shows a small amber warning sign after the type name, filled in once the value has been changed at runtime, and the tooltip says the change takes effect after the app restarts. Nothing restarts automatically. A legacy-style `restart = "full"` is read the same way; `false`, `"none"` or an empty string turn it off.
+
+```toml
+[engine.project_path]
+restart = true
+```
+
+#### Paths
+
+String settings that hold a path get a **…** button at the right of the value. It opens a folder dialog or a file dialog, starting at the current value (or the nearest folder of it that exists). The chosen path is stored with a [path variable](#path-variables) where one applies: a file picked in the Documents/downstream folder becomes `%LOCAL%/…`, one in the application folder `%APP%/…`. The deepest matching folder wins, matching happens on folder boundaries only, and a path outside all of them is stored as an absolute path. A folder value that ended in `/` keeps its trailing slash.
+
+Paths are recognised without a schema when the value starts with one of `%APP%`, `%LOCAL%`, `%DOCUMENTS%`, `%SHARED%`, `%CFG_FOLDER%` or `%RES%`, or with a drive letter or UNC prefix (`C:/`, `\\server`), or is a `/`-rooted path that exists. Whether it is a file or a folder comes from the disk when the path exists; otherwise a trailing slash or a missing extension means folder. URLs, relative paths and plain words are left alone. A schema can say so explicitly:
+
+```toml
+[content.background]
+editor = "file"                  # "file" or "folder"
+filter = "Images (*.png *.jpg)"  # optional, for the file dialog
+
+[ui.title]
+editor = "text"                  # never treat this string as a path
+```
+
+The conversion is also available as `DsEnvironment::contractPath()`. Unlike the older `DsEnvironment::contract()`, it only ever replaces the start of a path.
+
+#### Built-in schemas
+
+DsQt describes the settings its own modules read, so an application does not have to. Each module carries a fragment for the settings files it reads, next to its code, compiled into its resources at `:/qt/qml/Dsqt/<Module>/schema/<file>.schema.toml`:
+
+| Module | Describes |
+|---|---|
+| Core | `engine.project_path`, `engine.idle_timeout`, `engine.window.*` (mode as a dropdown), `engine.resource.*`, `engine.font.*` (style, weight, hinting… as dropdowns and sliders), `engine.logging.rules`; `configuration.toml`'s `config_folder` |
+| Bridge | `engine.bridgesync.*`; `app_settings.toml`'s `platform.id` |
+| Qsys | `engine.qsys.*` |
+| Touch | `engine.touch_filter.*` (sliders) |
+
+These fragments are the lowest layer: an application's own schema files are merged over them key by key, so `engine.schema.toml` in an app's settings folder only needs what it adds or changes (an extra description, a narrower range). An application only gets the fragments of the modules it links. When a module starts reading a new setting, add it to that module's `schema/` file in the same change.
+
+New projects made with ProjectCloner start with an `app_settings.schema.toml` for the application's own settings.
+
+The raw entry for a key is available as `SettingsFile::schema(key)` (also from QML), and as the `schema` role of `SettingsTreeModel`. `SettingsFile::resolvedSchemaPaths()` lists every schema file that applies, built-in fragments first.
 
 ---
 

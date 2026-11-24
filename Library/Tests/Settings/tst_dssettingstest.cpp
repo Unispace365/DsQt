@@ -3,6 +3,8 @@
 #include <settings/dsSettingsFile.h>
 #include <settings/dsQmlSettingsProxy.h>
 #include <settings/dsSettingsTreeModel.h>
+#include <settings/dsTomlEditor.h>
+#include <core/dsEnvironment.h>
 #include <QPointF>
 #include <QQuaternion>
 #include <QRectF>
@@ -161,6 +163,65 @@ class DsSettingsTest : public QObject
     void treeModel_setData_shouldKeepTheOriginalType_data();
     void treeModel_setData_shouldKeepTheOriginalType();
     void treeModel_setData_shouldRejectTextThatDoesNotFit();
+
+    // Schema files (sliders and dropdowns in the settings viewer)
+    void schema_shouldLoadEntriesFromTheSchemaFile();
+    void schema_laterFilesShouldOverrideEarlierOnesKeyByKey();
+    void schema_shouldBeReadAgainOnReload();
+    void schemaEntry_slider_shouldSnapToTheStepGrid();
+    void schemaEntry_slider_shouldKeepAnOffGridMaxReachable();
+    void schemaEntry_options_shouldConvertToTheSettingType();
+    void schemaEntry_shouldIgnoreWhatDoesNotFitTheType();
+    void treeModel_schema_shouldDriveDisplayTooltipAndClamping();
+    void treeModel_valueChanges_shouldUpdateRowsInPlace();
+
+    // Paths (browse button in the settings viewer)
+    void environment_contractPath_data();
+    void environment_contractPath();
+    void schemaEntry_editor_shouldSelectFileOrFolderForStrings();
+    void schemaEntry_detectPath_data();
+    void schemaEntry_detectPath();
+    void treeModel_paths_shouldBeDetectedAndFlaggedWhenMissing();
+    void schemaEntry_localPath_data();
+    void schemaEntry_localPath();
+    void treeModel_fileUrls_shouldBeCheckedAsPaths();
+    void schemaEntry_switch_shouldBeTheDefaultForBooleans();
+    void treeModel_switch_shouldFlipBooleans();
+
+    // Restart marker
+    void schemaEntry_restart_shouldAcceptBoolsAndLegacyStrings();
+    void treeModel_restart_shouldExplainItselfInTheTooltip();
+
+    // DsQt's built-in schema fragments
+    void librarySchema_shouldBeCompiledIntoTheModules();
+    void librarySchema_shouldLayerUnderTheApplicationSchema();
+    void schema_restart_shouldBeInheritedFromATable();
+
+    // Saving overrides into a hand-written file (settings::editToml)
+    void tomlEdit_changedScalar_shouldOnlyChangeItsValue();
+    void tomlEdit_string_shouldKeepItsQuotingStyle();
+    void tomlEdit_equalValues_shouldLeaveTheTextAlone();
+    void tomlEdit_array_ofTheSameLength_shouldChangeElementsInPlace();
+    void tomlEdit_array_ofAnotherLength_shouldKeepItsLayout();
+    void tomlEdit_array_legacyDoubleBrackets_shouldWriteTheInnerArray();
+    void tomlEdit_inlineTable_shouldChangeOnlyTheChangedComponent();
+    void tomlEdit_tableOfComponents_shouldChangeOnlyTheChangedComponent();
+    void tomlEdit_newKey_shouldBeAppendedToItsTable();
+    void tomlEdit_newKey_inDottedOrInlineTables();
+    void tomlEdit_newRootKey_shouldGoBeforeTheFirstTable();
+    void tomlEdit_newTable_shouldBeAppendedAtTheEnd();
+    void tomlEdit_crlf_shouldBeKept();
+    void tomlEdit_emptyText_shouldGetJustTheValues();
+    void tomlEdit_arrayOfTables_shouldBeRefused();
+    void tomlEdit_invalidToml_shouldBeRefused();
+    void saveOverridesTo_shouldEditTheFileInPlace();
+    void registry_shouldNoticeASearchFolderCreatedLater();
+    void tomlRemove_shouldDropOnlyTheKeyLines();
+    void tomlRemove_inlineTableMembers();
+    void tomlRemove_tableValueKeepsItsHeader();
+    void tomlRemove_arrayOfTablesShouldBeRefused();
+    void tomlKeysSet_shouldListTheKeysWithTheirValues();
+    void removeKeysFromFile_shouldEditInPlace();
 
   private:
     // Directory the test data is copied into by the build (see CMakeLists.txt).
@@ -1154,6 +1215,506 @@ void DsSettingsTest::settingsFile_shouldKeepOverridesSavedOutsideSearchPaths()
 }
 
 //*****************
+// Saving overrides: settings::editToml
+//*****************
+
+// Edits `text`; returns "<error>" (and logs why) if the edit was refused.
+static QString editedToml(const QString &text, const QVariantMap &values, QStringList *changed = nullptr)
+{
+    const dsqt::settings::TomlEditResult result = dsqt::settings::editToml(text, values);
+    if (!result.error.isEmpty()) {
+        qWarning() << "editToml:" << result.error;
+        return QStringLiteral("<error>");
+    }
+    if (changed)
+        *changed = result.changed;
+    return result.text;
+}
+
+void DsSettingsTest::tomlEdit_changedScalar_shouldOnlyChangeItsValue()
+{
+    const QString before = QStringLiteral(
+        "# Window\n"
+        "[window]\n"
+        "width  = 1920   # pixels\n"
+        "height = 1080\n"
+        "scale = 1.5\n"
+        "\n"
+        "fullscreen = false # for now\n");
+    QStringList changed;
+    const QString after = editedToml(before,
+                                     {{"window", QVariantMap{{"width", 1024},
+                                                             {"scale", 2.0},
+                                                             {"fullscreen", true},
+                                                             {"height", 1080}}}},
+                                     &changed);
+    QCOMPARE(after, QStringLiteral(
+        "# Window\n"
+        "[window]\n"
+        "width  = 1024   # pixels\n"
+        "height = 1080\n"
+        "scale = 2.0\n"
+        "\n"
+        "fullscreen = true # for now\n"));
+    // height already held 1080, so it is not reported.
+    QCOMPARE(changed, (QStringList{"window.fullscreen", "window.scale", "window.width"}));
+
+    // A float written into an integer-looking value stays an integer when whole.
+    QCOMPARE(editedToml("x = 3\n", {{"x", 4.0}}), QStringLiteral("x = 4\n"));
+    QCOMPARE(editedToml("x = 3\n", {{"x", 4.25}}), QStringLiteral("x = 4.25\n"));
+}
+
+void DsSettingsTest::tomlEdit_string_shouldKeepItsQuotingStyle()
+{
+    const QString before = QStringLiteral(
+        "basic = \"one\" # comment\n"
+        "literal = 'C:\\path'\n"
+        "color = '#ff0000'\n"
+        "quoteInLiteral = 'plain'\n");
+    const QString after = editedToml(before,
+                                     {{"basic", QStringLiteral("two \"2\"")},
+                                      {"literal", QStringLiteral("D:\\other")},
+                                      {"color", QColor(0, 255, 0)},
+                                      {"quoteInLiteral", QStringLiteral("it's")}});
+    QCOMPARE(after, QStringLiteral(
+        "basic = \"two \\\"2\\\"\" # comment\n"
+        "literal = 'D:\\other'\n"
+        "color = '#00ff00'\n"
+        "quoteInLiteral = \"it's\"\n"));
+}
+
+void DsSettingsTest::tomlEdit_equalValues_shouldLeaveTheTextAlone()
+{
+    const QString before = QStringLiteral(
+        "a = 0x10\n"
+        "pos = {x=1,y=2}\n"
+        "tint = \"red\"\n"
+        "list = [ 1,2 , 3 ]\n");
+    QStringList changed{"something"};
+    const QString after = editedToml(before,
+                                     {{"a", 16},
+                                      {"pos", QPointF(1, 2)},
+                                      {"tint", QColor(Qt::red)},
+                                      {"list", QVariantList{1, 2, 3}}},
+                                     &changed);
+    QCOMPARE(after, before);
+    QVERIFY(changed.isEmpty());
+}
+
+void DsSettingsTest::tomlEdit_array_ofTheSameLength_shouldChangeElementsInPlace()
+{
+    const QString before = QStringLiteral(
+        "names = [\n"
+        "    'alpha', # first\n"
+        "    \"beta\",  # second\n"
+        "]\n"
+        "nums = [1, 2, 3]\n");
+    const QString after = editedToml(before,
+                                     {{"names", QVariantList{"alpha", "gamma"}},
+                                      {"nums", QVariantList{1, 5, 3}}});
+    QCOMPARE(after, QStringLiteral(
+        "names = [\n"
+        "    'alpha', # first\n"
+        "    \"gamma\",  # second\n"
+        "]\n"
+        "nums = [1, 5, 3]\n"));
+}
+
+void DsSettingsTest::tomlEdit_array_ofAnotherLength_shouldKeepItsLayout()
+{
+    const QString before = QStringLiteral(
+        "nums = [1, 2, 3] # three\n"
+        "[menu]\n"
+        "  items = [\n"
+        "      'a',\n"
+        "      'b',\n"
+        "  ]\n");
+    const QString after = editedToml(before,
+                                     {{"nums", QVariantList{1, 2}},
+                                      {"menu", QVariantMap{{"items", QVariantList{"a", "b", "c"}}}}});
+    QCOMPARE(after, QStringLiteral(
+        "nums = [1, 2] # three\n"
+        "[menu]\n"
+        "  items = [\n"
+        "      'a',\n"
+        "      'b',\n"
+        "      'c',\n"
+        "  ]\n"));
+}
+
+void DsSettingsTest::tomlEdit_array_legacyDoubleBrackets_shouldWriteTheInnerArray()
+{
+    QCOMPARE(editedToml("list = [[1, 2]]\n", {{"list", QVariantList{1, 3}}}),
+             QStringLiteral("list = [[1, 3]]\n"));
+    QCOMPARE(editedToml("width = [100, {type = \"int\"}]\n", {{"width", 200}}),
+             QStringLiteral("width = [200, {type = \"int\"}]\n"));
+}
+
+void DsSettingsTest::tomlEdit_inlineTable_shouldChangeOnlyTheChangedComponent()
+{
+    const QString before = QStringLiteral(
+        "pos  = { x = 10, y = 20 }   # top left\n"
+        "size = {width=800, height=600}\n"
+        "tint = { r = 255, g = 0, b = 0 }\n"
+        "fade = { r = 1.0, g = 0.5, b = 0.0 }\n"
+        "obj  = { name = 'a', count = 1 }\n");
+    const QString after = editedToml(before,
+                                     {{"pos", QPointF(10, 25)},
+                                      {"size", QSizeF(1024, 600)},
+                                      {"tint", QColor(255, 128, 0)},
+                                      {"fade", QColor::fromRgbF(1.0, 0.5, 1.0)},
+                                      {"obj", QVariantMap{{"count", 2}}}});
+    QCOMPARE(after, QStringLiteral(
+        "pos  = { x = 10, y = 25 }   # top left\n"
+        "size = {width=1024, height=600}\n"
+        "tint = { r = 255, g = 128, b = 0 }\n"
+        "fade = { r = 1.0, g = 0.5, b = 1.0 }\n"
+        "obj  = { name = 'a', count = 2 }\n"));
+}
+
+void DsSettingsTest::tomlEdit_tableOfComponents_shouldChangeOnlyTheChangedComponent()
+{
+    const QString before = QStringLiteral(
+        "[window.rect]\n"
+        "x = 0\n"
+        "y = 0 # top\n"
+        "w = 1920\n"
+        "h = 1080\n");
+    const QString after = editedToml(before,
+                                     {{"window", QVariantMap{{"rect", QRectF(0, 0, 1920, 1200)}}}});
+    QCOMPARE(after, QStringLiteral(
+        "[window.rect]\n"
+        "x = 0\n"
+        "y = 0 # top\n"
+        "w = 1920\n"
+        "h = 1200\n"));
+}
+
+void DsSettingsTest::tomlEdit_newKey_shouldBeAppendedToItsTable()
+{
+    const QString before = QStringLiteral(
+        "[a]\n"
+        "    one = 1 # first\n"
+        "\n"
+        "# About b\n"
+        "[b]\n"
+        "two = 2\n");
+    const QString after = editedToml(before,
+                                     {{"a", QVariantMap{{"new", "x"}, {"pos", QPointF(1, 2)}}}});
+    QCOMPARE(after, QStringLiteral(
+        "[a]\n"
+        "    one = 1 # first\n"
+        "    new = \"x\"\n"
+        "    pos = { x = 1, y = 2 }\n"
+        "\n"
+        "# About b\n"
+        "[b]\n"
+        "two = 2\n"));
+
+    // A table with only a header gets the key straight below it; a quoted key stays quoted.
+    QCOMPARE(editedToml("[empty]\n# nothing yet\n", {{"empty", QVariantMap{{"a b", 1}}}}),
+             QStringLiteral("[empty]\n\"a b\" = 1\n# nothing yet\n"));
+}
+
+void DsSettingsTest::tomlEdit_newKey_inDottedOrInlineTables()
+{
+    const QString before = QStringLiteral(
+        "[fruit]\n"
+        "apple.color = 'red'\n"
+        "pear = { color = 'green' }\n");
+    const QString after = editedToml(before,
+                                     {{"fruit", QVariantMap{{"apple", QVariantMap{{"size", 3}}},
+                                                            {"pear", QVariantMap{{"size", 4}}}}}});
+    QCOMPARE(after, QStringLiteral(
+        "[fruit]\n"
+        "apple.color = 'red'\n"
+        "apple.size = 3\n"
+        "pear = { color = 'green', size = 4 }\n"));
+}
+
+void DsSettingsTest::tomlEdit_newRootKey_shouldGoBeforeTheFirstTable()
+{
+    const QString before = QStringLiteral(
+        "# File comment\n"
+        "\n"
+        "# About a\n"
+        "[a]\n"
+        "x = 1\n");
+    QCOMPARE(editedToml(before, {{"top", true}}), QStringLiteral(
+        "# File comment\n"
+        "\n"
+        "top = true\n"
+        "\n"
+        "# About a\n"
+        "[a]\n"
+        "x = 1\n"));
+
+    // After the last root key when there is one.
+    QCOMPARE(editedToml("name = 'n'\n\n[a]\nx = 1\n", {{"top", 2}}),
+             QStringLiteral("name = 'n'\ntop = 2\n\n[a]\nx = 1\n"));
+}
+
+void DsSettingsTest::tomlEdit_newTable_shouldBeAppendedAtTheEnd()
+{
+    const QString before = QStringLiteral(
+        "[a]\n"
+        "x = 1 # no newline at the end");
+    const QString after = editedToml(before,
+                                     {{"a", QVariantMap{{"sub", QVariantMap{{"y", 2}}}}},
+                                      {"b", QVariantMap{{"z", "three"}, {"w", 4}}}});
+    QCOMPARE(after, QStringLiteral(
+        "[a]\n"
+        "x = 1 # no newline at the end\n"
+        "\n"
+        "[a.sub]\n"
+        "y = 2\n"
+        "\n"
+        "[b]\n"
+        "w = 4\n"
+        "z = \"three\"\n"));
+}
+
+void DsSettingsTest::tomlEdit_crlf_shouldBeKept()
+{
+    const QString before = QStringLiteral(
+        "# CRLF file\r\n"
+        "[a]\r\n"
+        "x = 1\r\n"
+        "list = [\r\n"
+        "  1,\r\n"
+        "]\r\n");
+    const QString after = editedToml(before,
+                                     {{"a", QVariantMap{{"x", 2}, {"y", 3}, {"list", QVariantList{1, 2}}}}});
+    QCOMPARE(after, QStringLiteral(
+        "# CRLF file\r\n"
+        "[a]\r\n"
+        "x = 2\r\n"
+        "list = [\r\n"
+        "  1,\r\n"
+        "  2,\r\n"
+        "]\r\n"
+        "y = 3\r\n"));
+    QCOMPARE(editedToml(QStringLiteral("a = 1\r\n"), {{"b", QVariantMap{{"c", 1}}}}),
+             QStringLiteral("a = 1\r\n\r\n[b]\r\nc = 1\r\n"));
+}
+
+void DsSettingsTest::tomlEdit_emptyText_shouldGetJustTheValues()
+{
+    QCOMPARE(editedToml({}, {{"top", 1}, {"window", QVariantMap{{"size", QSizeF(800, 600)}}}}),
+             QStringLiteral("top = 1\n"
+                            "\n"
+                            "[window]\n"
+                            "size = { w = 800, h = 600 }\n"));
+}
+
+void DsSettingsTest::tomlEdit_arrayOfTables_shouldBeRefused()
+{
+    const QString before = QStringLiteral("[[slide]]\nname = 'a'\n");
+    const auto result = dsqt::settings::editToml(
+        before, {{"slide", QVariantList{QVariantMap{{"name", "b"}}}}});
+    QVERIFY(result.error.contains(QStringLiteral("array of tables")));
+    QCOMPARE(result.text, before);
+}
+
+void DsSettingsTest::tomlEdit_invalidToml_shouldBeRefused()
+{
+    const QString before = QStringLiteral("a = = 1\n");
+    const auto result = dsqt::settings::editToml(before, {{"a", 2}});
+    QVERIFY(!result.error.isEmpty());
+    QCOMPARE(result.text, before);
+}
+
+void DsSettingsTest::saveOverridesTo_shouldEditTheFileInPlace()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    const QString path = QDir(dir.path()).filePath("settings.toml");
+    const QByteArray before = "# Hand-written\r\n"
+                              "[window]\r\n"
+                              "width = 100   # px\r\n"
+                              "title = 'Main'\r\n";
+    {
+        QFile file(path);
+        QVERIFY(file.open(QIODevice::WriteOnly)); // binary: keep the CRLFs
+        file.write(before);
+    }
+
+    dsqt::SettingsFile settings(nullptr, {dir.path()});
+    settings.setFileName("settings.toml");
+    settings.setOverride("window.width", 300);
+    settings.setOverride("window.height", 200);
+
+    QStringList written;
+    QCOMPARE(settings.saveOverridesTo(path, &written), QString{});
+    QCOMPARE(written, (QStringList{"window.height", "window.width"}));
+
+    QFile file(path);
+    QVERIFY(file.open(QIODevice::ReadOnly));
+    QCOMPARE(file.readAll(), QByteArray("# Hand-written\r\n"
+                                        "[window]\r\n"
+                                        "width = 300   # px\r\n"
+                                        "title = 'Main'\r\n"
+                                        "height = 200\r\n"));
+    file.close();
+
+    // A file that does not exist yet is created, folder and all.
+    const QString fresh = QDir(dir.path()).filePath("sub/new.toml");
+    QCOMPARE(settings.saveOverridesTo(fresh), QString{});
+    QFile created(fresh);
+    QVERIFY(created.open(QIODevice::ReadOnly));
+    QCOMPARE(created.readAll(), QByteArray("[window]\nheight = 200\nwidth = 300\n"));
+}
+
+void DsSettingsTest::registry_shouldNoticeASearchFolderCreatedLater()
+{
+    // Saving into a search folder that does not exist yet (say Local Platform)
+    // creates it. The watcher must notice, so the reload prunes the override
+    // that the new file now holds.
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    const QString base = QDir(dir.path()).filePath("base");
+    const QString later = QDir(dir.path()).filePath("later/sub");
+    QVERIFY(QDir().mkpath(base));
+    writeTextFile(QDir(base).filePath("watch.toml"), "width = 100\n");
+
+    auto &settings = dsqt::Settings::instance();
+    settings.setSearchPaths({base, later});
+    dsqt::Settings::add("watch_test", "watch.toml");
+    auto *sf = settings.settingsFile("watch_test");
+    QVERIFY(sf);
+    QCOMPARE(sf->find<int>("width"), 100);
+
+    sf->setOverride("width", 300);
+    QCOMPARE(sf->provenance("width"), QStringLiteral("override"));
+
+    QVERIFY(QDir().mkpath(later));
+    const QString saved = QDir(later).filePath("watch.toml");
+    QCOMPARE(sf->saveOverridesTo(saved), QString{});
+
+    QTRY_COMPARE(sf->provenance("width"), saved);
+    QVERIFY(sf->overrides().isEmpty());
+    QCOMPARE(sf->find<int>("width"), 300);
+
+    // Stop watching the temporary folders before they are deleted.
+    dsqt::Settings::forget("watch_test");
+    settings.setSearchPaths(saved_search_paths);
+}
+
+void DsSettingsTest::tomlRemove_shouldDropOnlyTheKeyLines()
+{
+    const QString before = QStringLiteral(
+        "# About ripple\r\n"
+        "[ripple]\r\n"
+        "# How fast\r\n"
+        "msPerTile = 100 # ms\r\n"
+        "jitterMs = 0\r\n"
+        "\r\n"
+        "[menu]\r\n"
+        "rightClick = 'ripple'\r\n");
+    const auto result = dsqt::settings::removeFromToml(
+        before, {"ripple.msPerTile", "menu.rightClick", "not.there"});
+    QVERIFY2(result.error.isEmpty(), qPrintable(result.error));
+    QCOMPARE(result.text, QStringLiteral(
+        "# About ripple\r\n"
+        "[ripple]\r\n"
+        "# How fast\r\n"
+        "jitterMs = 0\r\n"
+        "\r\n"
+        "[menu]\r\n"));
+    QCOMPARE(result.changed, (QStringList{"ripple.msPerTile", "menu.rightClick"}));
+}
+
+void DsSettingsTest::tomlRemove_inlineTableMembers()
+{
+    const QString before = QStringLiteral(
+        "a = { x = 1, y = 2, z = 3 }\n"
+        "b = {x=1, y=2}\n"
+        "c = { only = 1 }\n");
+    const auto result = dsqt::settings::removeFromToml(before, {"a.y", "b.y", "c.only"});
+    QVERIFY2(result.error.isEmpty(), qPrintable(result.error));
+    QCOMPARE(result.text, QStringLiteral(
+        "a = { x = 1, z = 3 }\n"
+        "b = {x=1}\n"
+        "c = {}\n"));
+
+    // Removing the first member keeps the spacing after the brace.
+    QCOMPARE(dsqt::settings::removeFromToml("p = { x = 1, y = 2 }\n", {"p.x"}).text,
+             QStringLiteral("p = { y = 2 }\n"));
+}
+
+void DsSettingsTest::tomlRemove_tableValueKeepsItsHeader()
+{
+    // A point held as a table: its keys go, the header (and its comment) stays.
+    const QString before = QStringLiteral(
+        "# Where it starts\n"
+        "[pos]\n"
+        "x = 1\n"
+        "y = 2\n"
+        "[other]\n"
+        "dotted.a = 1\n"
+        "dotted.b = 2\n");
+    const auto result = dsqt::settings::removeFromToml(before, {"pos", "other.dotted.a"});
+    QVERIFY2(result.error.isEmpty(), qPrintable(result.error));
+    QCOMPARE(result.text, QStringLiteral(
+        "# Where it starts\n"
+        "[pos]\n"
+        "[other]\n"
+        "dotted.b = 2\n"));
+}
+
+void DsSettingsTest::tomlRemove_arrayOfTablesShouldBeRefused()
+{
+    const QString before = QStringLiteral("[[slide]]\nname = 'a'\n");
+    const auto result = dsqt::settings::removeFromToml(before, {"slide.name"});
+    QVERIFY(result.error.contains(QStringLiteral("array of tables")));
+    QCOMPARE(result.text, before);
+}
+
+void DsSettingsTest::tomlKeysSet_shouldListTheKeysWithTheirValues()
+{
+    const QString text = QStringLiteral(
+        "[ripple]\n"
+        "msPerTile = 100   # ms\n"
+        "list = [\n"
+        "  1,\n"
+        "  2,\n"
+        "]\n"
+        "[pos]\n"
+        "x = 1\n"
+        "[[slide]]\n"
+        "name = 'a'\n");
+    const auto found = dsqt::settings::tomlKeysSet(
+        text, {"ripple.msPerTile", "ripple.list", "pos", "ripple.missing", "slide.name"});
+    QCOMPARE(found.size(), 3);
+    QCOMPARE(found[0], (std::pair<QString, QString>{"ripple.msPerTile", "100"}));
+    QCOMPARE(found[1], (std::pair<QString, QString>{"ripple.list", "[ 1, 2, ]"}));
+    QCOMPARE(found[2].first, QStringLiteral("pos"));
+}
+
+void DsSettingsTest::removeKeysFromFile_shouldEditInPlace()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    const QString path = QDir(dir.path()).filePath("local.toml");
+    {
+        QFile file(path);
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        file.write("# Local\r\n[a]\r\nx = 1\r\ny = 2\r\n");
+    }
+    QStringList removed;
+    QCOMPARE(dsqt::settings::removeKeysFromFile(path, {"a.x", "a.z"}, &removed), QString{});
+    QCOMPARE(removed, QStringList{"a.x"});
+    QFile file(path);
+    QVERIFY(file.open(QIODevice::ReadOnly));
+    QCOMPARE(file.readAll(), QByteArray("# Local\r\n[a]\r\ny = 2\r\n"));
+
+    // A file that does not exist is left alone.
+    QCOMPARE(dsqt::settings::removeKeysFromFile(QDir(dir.path()).filePath("none.toml"), {"a.x"}),
+             QString{});
+    QVERIFY(!QFile::exists(QDir(dir.path()).filePath("none.toml")));
+}
+
+//*****************
 //Bindings
 //*****************
 
@@ -1500,16 +2061,65 @@ struct TempSettingsFile
     QTemporaryDir dir;
     std::unique_ptr<dsqt::SettingsFile> file;
 
-    explicit TempSettingsFile(const QByteArray &toml)
+    explicit TempSettingsFile(const QByteArray &toml, const QByteArray &schema = {})
     {
-        QFile out(dir.filePath("viewer.toml"));
-        if (out.open(QIODevice::WriteOnly))
-            out.write(toml);
-        out.close();
+        write("viewer.toml", toml);
+        if (!schema.isEmpty())
+            write("viewer.schema.toml", schema);
         file = std::make_unique<dsqt::SettingsFile>(nullptr, QStringList{dir.path()});
         file->setFileName("viewer.toml");
     }
+
+    void write(const QString &name, const QByteArray &content)
+    {
+        QFile out(dir.filePath(name));
+        if (out.open(QIODevice::WriteOnly | QIODevice::Truncate))
+            out.write(content);
+    }
 };
+
+const QByteArray kViewerToml = R"(
+points = [1, 2, 3]
+
+[window]
+width = 1920
+scale = 0.5
+title = "hello"
+
+[render]
+mode = "fast"
+quality = 2
+
+[range]
+min = 1
+)";
+
+const QByteArray kViewerSchema = R"(
+[window.width]
+min = 640
+max = 3840
+step = 10
+description = "Width of the window"
+
+[window.scale]
+min = 0.0
+max = 1.0
+
+[render.mode]
+options = ["red", "fast"]
+labels = ["Red", "Fast"]
+
+[render.quality]
+options = [1, 2, 4]
+
+[range.min]          # a setting that happens to be called "min"
+min = 0
+max = 5
+
+[points]
+min = 0
+max = 10
+)";
 
 } // namespace
 
@@ -1653,6 +2263,566 @@ void DsSettingsTest::treeModel_setData_shouldRejectTextThatDoesNotFit()
 
     QCOMPARE(settings.file->value("pos"), QVariant(QPointF(1, 2)));
     QCOMPARE(settings.file->provenance("pos"), settings.file->resolvedFilePaths().value(0));
+}
+
+// ── Schema files ─────────────────────────────────────────────────────────────
+
+void DsSettingsTest::schema_shouldLoadEntriesFromTheSchemaFile()
+{
+    TempSettingsFile settings(kViewerToml, kViewerSchema);
+    dsqt::SettingsFile &file = *settings.file;
+
+    QCOMPARE(file.resolvedSchemaPaths(), QStringList{settings.dir.filePath("viewer.schema.toml")});
+
+    const QVariantMap width = file.schema("window.width");
+    QCOMPARE(width.value("min").toInt(), 640);
+    QCOMPARE(width.value("max").toInt(), 3840);
+    QCOMPARE(width.value("step").toInt(), 10);
+    QCOMPARE(width.value("description").toString(), QStringLiteral("Width of the window"));
+
+    // Read literally: "red" stays a string, it does not become a QColor.
+    const QVariantList options = file.schema("render.mode").value("options").toList();
+    QCOMPARE(options.size(), 2);
+    QCOMPARE(options.at(0).metaType(), QMetaType::fromType<QString>());
+    QCOMPARE(options.at(0).toString(), QStringLiteral("red"));
+
+    // A table holding a *setting* named "min" is not an entry for its parent.
+    QVERIFY(file.schema("range").isEmpty());
+    QCOMPARE(file.schema("range.min").value("max").toInt(), 5);
+
+    // List elements fall back to their list's entry.
+    QCOMPARE(file.schema("points.1"), file.schema("points"));
+    QVERIFY(!file.schema("points").isEmpty());
+
+    QVERIFY(file.schema("window").isEmpty());
+    QVERIFY(file.schema("does.not.exist").isEmpty());
+}
+
+void DsSettingsTest::schema_laterFilesShouldOverrideEarlierOnesKeyByKey()
+{
+    QTemporaryDir base, app;
+    const auto write = [](const QTemporaryDir &dir, const QString &name, const QByteArray &text) {
+        QFile out(dir.filePath(name));
+        QVERIFY(out.open(QIODevice::WriteOnly));
+        out.write(text);
+    };
+    write(base, "viewer.toml", "value = 5\n");
+    write(base, "viewer.schema.toml", "[value]\nmin = 0\nmax = 10\nstep = 1\n");
+    write(app, "viewer.toml", "value = 6\n");
+    write(app, "viewer.schema.toml", "[value]\nmax = 20\n");
+
+    dsqt::SettingsFile file(nullptr, QStringList{base.path(), app.path()});
+    file.setFileName("viewer.toml");
+
+    const QVariantMap entry = file.schema("value");
+    QCOMPARE(entry.value("min").toInt(), 0);
+    QCOMPARE(entry.value("max").toInt(), 20);
+    QCOMPARE(entry.value("step").toInt(), 1);
+}
+
+void DsSettingsTest::schema_shouldBeReadAgainOnReload()
+{
+    TempSettingsFile settings(kViewerToml, "[window.width]\nmin = 1\nmax = 2\n");
+    QCOMPARE(settings.file->schema("window.width").value("max").toInt(), 2);
+
+    settings.write("viewer.schema.toml", "[window.width]\nmin = 1\nmax = 3\n");
+    settings.file->reload();
+    QCOMPARE(settings.file->schema("window.width").value("max").toInt(), 3);
+}
+
+void DsSettingsTest::schemaEntry_slider_shouldSnapToTheStepGrid()
+{
+    using Entry = dsqt::SettingsSchemaEntry;
+
+    // Integer setting: a fractional step is rounded to a whole one.
+    const Entry ints = Entry::fromMap({{"min", 0}, {"max", 100}, {"step", 2.6}},
+                                      QMetaType::fromType<qlonglong>());
+    QCOMPARE(ints.kind, Entry::Kind::Slider);
+    QVERIFY(ints.integral);
+    QCOMPARE(ints.step, 3.0);
+    QCOMPARE(ints.snapped(7.0), QVariant(qlonglong(6)));
+    QCOMPARE(ints.snapped(-50.0), QVariant(qlonglong(0)));
+    QCOMPARE(ints.format(42.0), QStringLiteral("42"));
+
+    // Real setting without a step: a hundredth of the range, two decimals.
+    const Entry reals = Entry::fromMap({{"min", 0.0}, {"max", 1.0}}, QMetaType::fromType<double>());
+    QCOMPARE(reals.kind, Entry::Kind::Slider);
+    QCOMPARE(reals.decimals, 2);
+    QCOMPARE(reals.snapped(0.333), QVariant(0.33));
+    QCOMPARE(reals.snapped(0.1 * 3), QVariant(0.3)); // no 0.30000000000000004
+    QCOMPARE(reals.format(0.5), QStringLiteral("0.50"));
+    QCOMPARE(reals.ratio(0.25), 0.25);
+    QCOMPARE(reals.ratio(7.0), 1.0);
+
+    // Hand-typed values are clamped, not snapped.
+    QCOMPARE(reals.clamped(0.337), QVariant(0.337));
+    QCOMPARE(reals.clamped(3.0), QVariant(1.0));
+}
+
+void DsSettingsTest::schemaEntry_slider_shouldKeepAnOffGridMaxReachable()
+{
+    using Entry = dsqt::SettingsSchemaEntry;
+    const Entry entry = Entry::fromMap({{"min", 0}, {"max", 10}, {"step", 3}},
+                                       QMetaType::fromType<qlonglong>());
+    QCOMPARE(entry.snapped(10.0), QVariant(qlonglong(10)));
+    QCOMPARE(entry.snapped(9.4), QVariant(qlonglong(9)));
+    QCOMPARE(entry.snapped(9.6), QVariant(qlonglong(10)));
+}
+
+void DsSettingsTest::schemaEntry_options_shouldConvertToTheSettingType()
+{
+    using Entry = dsqt::SettingsSchemaEntry;
+
+    // Strings and numbers both work for a number setting; what does not fit is dropped.
+    const Entry ints = Entry::fromMap({{"options", QVariantList{"1", qlonglong(2), 2.5, "x"}}},
+                                      QMetaType::fromType<qlonglong>());
+    QCOMPARE(ints.kind, Entry::Kind::Options);
+    QCOMPARE(ints.options, (QVariantList{qlonglong(1), qlonglong(2)}));
+    QCOMPARE(ints.labels, (QStringList{"1", "2"}));
+    QCOMPARE(ints.optionIndex(QVariant(qlonglong(2))), 1);
+    QCOMPARE(ints.optionIndex(QVariant(qlonglong(3))), -1);
+
+    // Labels pair up with options by position.
+    const Entry strings = Entry::fromMap({{"options", QVariantList{"red", "fast"}},
+                                          {"labels", QVariantList{"Red", "Fast"}}},
+                                         QMetaType::fromType<QString>());
+    QCOMPARE(strings.options, (QVariantList{QStringLiteral("red"), QStringLiteral("fast")}));
+    QCOMPARE(strings.labels, (QStringList{"Red", "Fast"}));
+
+    // Options of a colour setting are parsed as colours.
+    const Entry colours = Entry::fromMap({{"options", QVariantList{"#ff0000", "nonsense"}}},
+                                         QMetaType::fromType<QColor>());
+    QCOMPARE(colours.options, (QVariantList{QVariant::fromValue(QColor(Qt::red))}));
+}
+
+void DsSettingsTest::schemaEntry_shouldIgnoreWhatDoesNotFitTheType()
+{
+    using Entry = dsqt::SettingsSchemaEntry;
+    const QVariantMap range{{"min", 0}, {"max", 10}};
+
+    QCOMPARE(Entry::fromMap(range, QMetaType::fromType<QString>()).kind, Entry::Kind::None);
+    QCOMPARE(Entry::fromMap(range, QMetaType::fromType<QPointF>()).kind, Entry::Kind::None);
+    QCOMPARE(Entry::fromMap({{"min", 5}, {"max", 5}}, QMetaType::fromType<double>()).kind,
+             Entry::Kind::None);
+    QCOMPARE(Entry::fromMap({{"min", 0}}, QMetaType::fromType<double>()).kind, Entry::Kind::None);
+
+    // Options take precedence; if none of them fit, there is no fallback to a slider.
+    QCOMPARE(Entry::fromMap({{"min", 0}, {"max", 10}, {"options", QVariantList{"x"}}},
+                            QMetaType::fromType<qlonglong>())
+                 .kind,
+             Entry::Kind::None);
+
+    // A description alone still reaches the tooltip.
+    const Entry described = Entry::fromMap({{"description", "Hi"}}, QMetaType::fromType<QString>());
+    QCOMPARE(described.kind, Entry::Kind::None);
+    QCOMPARE(described.description, QStringLiteral("Hi"));
+}
+
+void DsSettingsTest::treeModel_schema_shouldDriveDisplayTooltipAndClamping()
+{
+    using Entry = dsqt::SettingsSchemaEntry;
+    TempSettingsFile settings(kViewerToml, kViewerSchema);
+    dsqt::SettingsTreeModel model;
+    model.setSettingsFile(settings.file.get());
+
+    const QModelIndex width = findValueIndex(model, "window.width");
+    const auto widthEntry = width.data(dsqt::SettingsTreeModel::SchemaEntryRole).value<Entry>();
+    QCOMPARE(widthEntry.kind, Entry::Kind::Slider);
+    QCOMPARE(widthEntry.max, 3840.0);
+    QVERIFY(width.data(Qt::ToolTipRole).toString().contains("<qt>Width of the window<br>"));
+    QCOMPARE(width.data(dsqt::SettingsTreeModel::SchemaRole).toMap().value("step").toInt(), 10);
+
+    // An option with a label is displayed by its label; the value is untouched.
+    const QModelIndex mode = findValueIndex(model, "render.mode");
+    QCOMPARE(mode.data(dsqt::SettingsTreeModel::SchemaEntryRole).value<Entry>().kind,
+             Entry::Kind::Options);
+    QCOMPARE(mode.data(Qt::DisplayRole).toString(), QStringLiteral("Fast"));
+    QCOMPARE(mode.data(Qt::EditRole), QVariant(QStringLiteral("fast")));
+
+    // List elements use their list's entry.
+    const QModelIndex point = findValueIndex(model, "points.1");
+    QCOMPARE(point.data(dsqt::SettingsTreeModel::SchemaEntryRole).value<Entry>().kind,
+             Entry::Kind::Slider);
+
+    // Typed values outside a slider's range are clamped to it.
+    QVERIFY(model.setData(width, QStringLiteral("99999"), Qt::EditRole));
+    QCOMPARE(settings.file->value("window.width"), QVariant(qlonglong(3840)));
+}
+
+void DsSettingsTest::treeModel_valueChanges_shouldUpdateRowsInPlace()
+{
+    TempSettingsFile settings(kViewerToml, kViewerSchema);
+    dsqt::SettingsTreeModel model;
+    model.setSettingsFile(settings.file.get());
+
+    QSignalSpy resets(&model, &QAbstractItemModel::modelReset);
+    QSignalSpy changes(&model, &QAbstractItemModel::dataChanged);
+
+    // Same keys, new value: rows are updated, the model is not reset, and a
+    // persistent index (what a view's selection or a slider drag holds) survives.
+    const QPersistentModelIndex width = findValueIndex(model, "window.width");
+    settings.file->setOverride("window.width", qlonglong(1000));
+    QCOMPARE(resets.count(), 0);
+    QVERIFY(width.isValid());
+    QCOMPARE(width.data(Qt::EditRole), QVariant(qlonglong(1000)));
+    QVERIFY(std::any_of(changes.cbegin(), changes.cend(), [&](const QList<QVariant> &args) {
+        const auto topLeft = args.at(0).value<QModelIndex>();
+        const auto bottomRight = args.at(1).value<QModelIndex>();
+        return topLeft.parent() == width.parent() && topLeft.row() <= width.row()
+               && bottomRight.row() >= width.row() && bottomRight.column() >= width.column();
+    }));
+
+    // A new key changes the tree's shape: that still resets.
+    settings.file->setOverride("window.height", qlonglong(1080));
+    QCOMPARE(resets.count(), 1);
+}
+
+// ── Paths ────────────────────────────────────────────────────────────────────
+
+void DsSettingsTest::environment_contractPath_data()
+{
+    QTest::addColumn<QString>("path");
+    QTest::addColumn<QString>("expected");
+
+    QTest::newRow("local wins over documents")
+        << "C:/Users/me/Documents/downstream/cache/a.png" << "%LOCAL%/cache/a.png";
+    QTest::newRow("documents")        << "C:/Users/me/Documents/notes.txt" << "%DOCUMENTS%/notes.txt";
+    QTest::newRow("root itself")      << "C:/Users/me/Documents/downstream" << "%LOCAL%";
+    QTest::newRow("trailing slash")   << "C:/Users/me/Documents/downstream/cache/" << "%LOCAL%/cache/";
+    QTest::newRow("app")              << "D:/Apps/RippleWall/data/movies" << "%APP%/data/movies";
+    QTest::newRow("folder boundary")  << "C:/Users/me/Documents2/x" << "C:/Users/me/Documents2/x";
+    QTest::newRow("outside")          << "E:/media/clip.mp4" << "E:/media/clip.mp4";
+    QTest::newRow("backslashes")      << R"(D:\Apps\RippleWall\settings\app.toml)" << "%APP%/settings/app.toml";
+    QTest::newRow("only at the start") << "E:/backup/D:/Apps/RippleWall" << "E:/backup/D:/Apps/RippleWall";
+    QTest::newRow("cleaned")          << "D:/Apps/RippleWall/./data/../data/x" << "%APP%/data/x";
+#ifdef Q_OS_WIN
+    QTest::newRow("case on windows")  << "c:/users/ME/documents/downstream/x" << "%LOCAL%/x";
+#endif
+}
+
+void DsSettingsTest::environment_contractPath()
+{
+    QFETCH(QString, path);
+    QFETCH(QString, expected);
+
+    const QList<dsqt::DsEnvironment::PathVariable> variables{
+        {"%DOCUMENTS%", "C:/Users/me/Documents"},
+        {"%LOCAL%", "C:/Users/me/Documents/downstream"},
+        {"%APP%", R"(D:\Apps\RippleWall)"},
+        {"%SHARED%", ""},       // unknown folders are ignored
+        {"%RES%", "%RES%"},     // as are unresolved ones
+    };
+    QCOMPARE(dsqt::DsEnvironment::contractPath(path, variables), expected);
+}
+
+void DsSettingsTest::schemaEntry_editor_shouldSelectFileOrFolderForStrings()
+{
+    using Entry = dsqt::SettingsSchemaEntry;
+    const QMetaType string = QMetaType::fromType<QString>();
+
+    const Entry file = Entry::fromMap({{"editor", "file"}, {"filter", "Images (*.png)"}}, string);
+    QCOMPARE(file.kind, Entry::Kind::File);
+    QCOMPARE(file.fileFilter, QStringLiteral("Images (*.png)"));
+    QCOMPARE(Entry::fromMap({{"editor", "Folder"}}, string).kind, Entry::Kind::Folder);
+
+    // "text" switches path detection off; file/folder on a non-string is ignored.
+    // A legacy-metadata style "type" key is not read at all.
+    QCOMPARE(Entry::fromMap({{"type", "file"}}, string).kind, Entry::Kind::None);
+    const Entry text = Entry::fromMap({{"editor", "text"}}, string);
+    QCOMPARE(text.kind, Entry::Kind::None);
+    QVERIFY(!text.detectPaths);
+    QCOMPARE(Entry::fromMap({{"editor", "file"}}, QMetaType::fromType<qlonglong>()).kind,
+             Entry::Kind::None);
+}
+
+void DsSettingsTest::schemaEntry_detectPath_data()
+{
+    using Kind = dsqt::SettingsSchemaEntry::Kind;
+    QTest::addColumn<QString>("value");
+    QTest::addColumn<Kind>("expected");
+
+    QTest::newRow("variable folder")    << "%LOCAL%/no-such-cache/" << Kind::Folder;
+    QTest::newRow("variable no ext")    << "%APP%/no-such-data" << Kind::Folder;
+    QTest::newRow("variable file")      << "%APP%/no-such-image.png" << Kind::File;
+    QTest::newRow("variable any case")  << "%local%/x.txt" << Kind::File;
+    QTest::newRow("drive")              << "Q:/does/not/exist.mp4" << Kind::File;
+    QTest::newRow("drive backslash")    << R"(Q:\does\not\exist)" << Kind::Folder;
+    QTest::newRow("unc")                << R"(\\server\share\clip.mp4)" << Kind::File;
+    QTest::newRow("missing slash root") << "/api/v1" << Kind::None;
+    QTest::newRow("relative")           << "data/movies" << Kind::None;
+    QTest::newRow("word")               << "ripple" << Kind::None;
+    QTest::newRow("file url variable")  << "file:///%APP%/no-such-sound.wav" << Kind::File;
+    QTest::newRow("file url drive")     << "file:///Q:/does/not/exist/" << Kind::Folder;
+    QTest::newRow("file url any case")  << "FILE:///Q:/clip.mp4" << Kind::File;
+    QTest::newRow("url")                << "https://example.com/a.png" << Kind::None;
+    QTest::newRow("qrc")                << "qrc:/qt/qml/App/Main.qml" << Kind::None;
+    QTest::newRow("empty")              << "" << Kind::None;
+}
+
+void DsSettingsTest::schemaEntry_detectPath()
+{
+    using Kind = dsqt::SettingsSchemaEntry::Kind;
+    QFETCH(QString, value);
+    QFETCH(Kind, expected);
+    QCOMPARE(dsqt::SettingsSchemaEntry::detectPath(value), expected);
+}
+
+void DsSettingsTest::treeModel_paths_shouldBeDetectedAndFlaggedWhenMissing()
+{
+    using Entry = dsqt::SettingsSchemaEntry;
+    QTemporaryDir media;
+    QVERIFY(media.isValid());
+    {
+        QFile clip(media.filePath("clip"));  // a file without an extension
+        QVERIFY(clip.open(QIODevice::WriteOnly));
+    }
+
+    const QByteArray toml = QStringLiteral(
+        "folder = \"%1\"\n"
+        "clip = \"%2\"\n"
+        "missing = \"%1/gone.png\"\n"
+        "plain = \"%1\"\n"
+        "chosen = \"anything\"\n"
+        "title = \"hello\"\n")
+        .arg(media.path(), media.filePath("clip")).toUtf8();
+    const QByteArray schema = "[plain]\neditor = \"text\"\n\n[chosen]\neditor = \"file\"\n";
+    TempSettingsFile settings(toml, schema);
+    dsqt::SettingsTreeModel model;
+    model.setSettingsFile(settings.file.get());
+
+    const auto entry = [&model](const QString &path) {
+        return findValueIndex(model, path).data(dsqt::SettingsTreeModel::SchemaEntryRole).value<Entry>();
+    };
+
+    // Existing paths are classified by what is on disk, not by their extension.
+    QCOMPARE(entry("folder").kind, Entry::Kind::Folder);
+    QVERIFY(!entry("folder").pathMissing);
+    QCOMPARE(entry("clip").kind, Entry::Kind::File);
+
+    // Missing paths are still recognised, and flagged.
+    QCOMPARE(entry("missing").kind, Entry::Kind::File);
+    QVERIFY(entry("missing").pathMissing);
+    QVERIFY(findValueIndex(model, "missing").data(Qt::ToolTipRole).toString().contains("Not found"));
+
+    // The schema decides when it says so.
+    QCOMPARE(entry("plain").kind, Entry::Kind::None);
+    QCOMPARE(entry("chosen").kind, Entry::Kind::File);
+    QVERIFY(entry("chosen").pathMissing);
+    QCOMPARE(entry("title").kind, Entry::Kind::None);
+}
+
+void DsSettingsTest::schemaEntry_localPath_data()
+{
+    QTest::addColumn<QString>("value");
+    QTest::addColumn<QString>("expected");
+
+    const QString app = dsqt::DsEnvironment::expandq("%APP%/data/fire.wav");
+    QTest::newRow("plain variable")    << "%APP%/data/fire.wav" << app;
+    QTest::newRow("url variable")      << "file:///%APP%/data/fire.wav" << app;
+    QTest::newRow("url two slashes")   << "file://%APP%/data/fire.wav" << app;
+    QTest::newRow("url drive")         << "file:///C:/temp/fire.wav" << "C:/temp/fire.wav";
+    QTest::newRow("url escapes")       << "file:///C:/temp/my%20clip.mp4" << "C:/temp/my clip.mp4";
+    QTest::newRow("url spaces")        << "file:///C:/temp/my clip.mp4" << "C:/temp/my clip.mp4";
+    QTest::newRow("url rooted")        << "file:///home/user/x.png" << "/home/user/x.png";
+    QTest::newRow("url single slash")  << "file:/C:/temp/x.png" << "C:/temp/x.png";
+    QTest::newRow("url host")          << "file://server/share/x.png" << "//server/share/x.png";
+    QTest::newRow("cfg folder")        << "file:///%CFG_FOLDER%/x.png"
+                                       << dsqt::DsEnvironment::expandq("%CFG_FOLDER%/x.png");
+}
+
+void DsSettingsTest::schemaEntry_localPath()
+{
+    QFETCH(QString, value);
+    QFETCH(QString, expected);
+    QCOMPARE(dsqt::SettingsSchemaEntry::localPath(value), expected);
+}
+
+void DsSettingsTest::treeModel_fileUrls_shouldBeCheckedAsPaths()
+{
+    using Entry = dsqt::SettingsSchemaEntry;
+    QTemporaryDir media;
+    QVERIFY(media.isValid());
+    {
+        QFile clip(media.filePath("fire.wav"));
+        QVERIFY(clip.open(QIODevice::WriteOnly));
+    }
+
+    const QByteArray toml = QStringLiteral(
+        "found = \"file:///%1\"\n"
+        "missing = \"file:///%2\"\n")
+        .arg(media.filePath("fire.wav"), media.filePath("gone.wav")).toUtf8();
+    TempSettingsFile settings(toml, "[found]\neditor = \"file\"\n");
+    dsqt::SettingsTreeModel model;
+    model.setSettingsFile(settings.file.get());
+
+    const auto entry = [&model](const QString &path) {
+        return findValueIndex(model, path).data(dsqt::SettingsTreeModel::SchemaEntryRole).value<Entry>();
+    };
+    QCOMPARE(entry("found").kind, Entry::Kind::File);
+    QVERIFY(!entry("found").pathMissing);
+    QCOMPARE(entry("missing").kind, Entry::Kind::File); // detected without a schema
+    QVERIFY(entry("missing").pathMissing);
+    const QString tip = findValueIndex(model, "missing").data(Qt::ToolTipRole).toString();
+    QVERIFY2(tip.contains(QDir::toNativeSeparators(media.filePath("gone.wav")).toHtmlEscaped()),
+             qPrintable(tip));
+}
+
+// ── Boolean switches ───────────────────────────────────────────────────────────
+
+void DsSettingsTest::schemaEntry_switch_shouldBeTheDefaultForBooleans()
+{
+    using Entry = dsqt::SettingsSchemaEntry;
+    const QMetaType boolean = QMetaType::fromType<bool>();
+
+    QCOMPARE(Entry::fromMap({}, boolean).kind, Entry::Kind::Switch);
+    QCOMPARE(Entry::fromMap({{"description", "On or off"}}, boolean).kind, Entry::Kind::Switch);
+    QCOMPARE(Entry::fromMap({{"editor", "text"}}, boolean).kind, Entry::Kind::None);
+
+    // Options still win, for Booleans with labels of their own.
+    const Entry labelled = Entry::fromMap(
+        {{"options", QVariantList{true, false}}, {"labels", QVariantList{"Shown", "Hidden"}}}, boolean);
+    QCOMPARE(labelled.kind, Entry::Kind::Options);
+
+    // Only Booleans.
+    QCOMPARE(Entry::fromMap({}, QMetaType::fromType<QString>()).kind, Entry::Kind::None);
+    QCOMPARE(Entry::fromMap({}, QMetaType::fromType<int>()).kind, Entry::Kind::None);
+}
+
+void DsSettingsTest::treeModel_switch_shouldFlipBooleans()
+{
+    using Entry = dsqt::SettingsSchemaEntry;
+    TempSettingsFile settings("enabled = true\nflags = [false, true]\nplain = false\n",
+                              "[plain]\neditor = \"text\"\n");
+    dsqt::SettingsTreeModel model;
+    model.setSettingsFile(settings.file.get());
+
+    const auto kind = [&model](const QString &path) {
+        return findValueIndex(model, path).data(dsqt::SettingsTreeModel::SchemaEntryRole).value<Entry>().kind;
+    };
+    QCOMPARE(kind("enabled"), Entry::Kind::Switch);
+    QCOMPARE(kind("flags.0"), Entry::Kind::Switch); // list elements too
+    QCOMPARE(kind("plain"), Entry::Kind::None);
+
+    // The switch stores a bool, which stays a Boolean.
+    QVERIFY(model.setData(findValueIndex(model, "enabled"), false, Qt::EditRole));
+    QCOMPARE(settings.file->value("enabled").metaType(), QMetaType::fromType<bool>());
+    QCOMPARE(settings.file->value("enabled").toBool(), false);
+    QCOMPARE(findValueIndex(model, "enabled").data(Qt::DisplayRole).toString(), QStringLiteral("false"));
+
+    QVERIFY(model.setData(findValueIndex(model, "flags.0"), true, Qt::EditRole));
+    const QVariantList flags = settings.file->value("flags").toList();
+    QCOMPARE(flags, (QVariantList{true, true}));
+}
+
+// ── Restart marker ───────────────────────────────────────────────────────────
+
+void DsSettingsTest::schemaEntry_restart_shouldAcceptBoolsAndLegacyStrings()
+{
+    using Entry = dsqt::SettingsSchemaEntry;
+    const QMetaType string = QMetaType::fromType<QString>();
+
+    QVERIFY(Entry::fromMap({{"restart", true}}, string).restart);
+    QVERIFY(Entry::fromMap({{"restart", "full"}}, string).restart); // as in old metadata
+    QVERIFY(!Entry::fromMap({{"restart", false}}, string).restart);
+    QVERIFY(!Entry::fromMap({{"restart", "none"}}, string).restart);
+    QVERIFY(!Entry::fromMap({{"restart", ""}}, string).restart);
+    QVERIFY(!Entry::fromMap({}, string).restart);
+
+    // It combines with any editor.
+    const Entry slider = Entry::fromMap({{"min", 0}, {"max", 10}, {"restart", true}},
+                                        QMetaType::fromType<qlonglong>());
+    QCOMPARE(slider.kind, Entry::Kind::Slider);
+    QVERIFY(slider.restart);
+}
+
+void DsSettingsTest::treeModel_restart_shouldExplainItselfInTheTooltip()
+{
+    using Entry = dsqt::SettingsSchemaEntry;
+    TempSettingsFile settings("project = \"demo\"\nother = 1\n", "[project]\nrestart = true\n");
+
+    // restart on its own is enough to make a schema entry.
+    QCOMPARE(settings.file->schema("project").value("restart").toBool(), true);
+
+    dsqt::SettingsTreeModel model;
+    model.setSettingsFile(settings.file.get());
+
+    const QModelIndex project = findValueIndex(model, "project");
+    QVERIFY(project.data(dsqt::SettingsTreeModel::SchemaEntryRole).value<Entry>().restart);
+    QVERIFY(project.data(Qt::ToolTipRole).toString().contains("Takes effect after the app restarts."));
+    QVERIFY(!findValueIndex(model, "other").data(Qt::ToolTipRole).toString().contains("restart"));
+
+    // Once changed at runtime, the tooltip says the change is waiting.
+    QVERIFY(model.setData(project, QStringLiteral("changed"), Qt::EditRole));
+    QVERIFY(findValueIndex(model, "project").data(Qt::ToolTipRole).toString()
+                .contains("Changed: takes effect after the app restarts."));
+}
+
+// ── DsQt's built-in schema fragments ─────────────────────────────────────────
+
+void DsSettingsTest::librarySchema_shouldBeCompiledIntoTheModules()
+{
+    // This test links Dsqt::Core only: Core's fragments are there, Bridge's are not.
+    const QStringList engine = dsqt::SettingsFile::librarySchemaPaths("engine.toml");
+    QVERIFY2(engine.contains(":/qt/qml/Dsqt/Core/schema/engine.schema.toml"),
+             qPrintable(engine.join(", ")));
+    QVERIFY(!engine.contains(":/qt/qml/Dsqt/Bridge/schema/engine.schema.toml"));
+    QCOMPARE(dsqt::SettingsFile::librarySchemaPaths("configuration.toml"),
+             QStringList{":/qt/qml/Dsqt/Core/schema/configuration.schema.toml"});
+    QVERIFY(dsqt::SettingsFile::librarySchemaPaths("viewer.toml").isEmpty());
+}
+
+void DsSettingsTest::librarySchema_shouldLayerUnderTheApplicationSchema()
+{
+    QTemporaryDir dir;
+    const auto write = [&dir](const QString &name, const QByteArray &text) {
+        QFile out(dir.filePath(name));
+        QVERIFY(out.open(QIODevice::WriteOnly));
+        out.write(text);
+    };
+    write("engine.toml", "[engine.window]\nmode = \"window\"\n\n[engine.font.default]\nstyle = \"StyleItalic\"\n");
+    write("engine.schema.toml", "[engine.window.mode]\ndescription = \"Ours\"\n");
+
+    dsqt::SettingsFile file(nullptr, QStringList{dir.path()});
+    file.setFileName("engine.toml");
+
+    // Library fragments come first, the application's schema files after them.
+    const QStringList paths = file.resolvedSchemaPaths();
+    QCOMPARE(paths.first(), QStringLiteral(":/qt/qml/Dsqt/Core/schema/engine.schema.toml"));
+    QCOMPARE(paths.last(), dir.filePath("engine.schema.toml"));
+
+    // Key by key: Core's options stay, the application's description wins.
+    const QVariantMap mode = file.schema("engine.window.mode");
+    QCOMPARE(mode.value("options").toList().size(), 3);
+    QCOMPARE(mode.value("description").toString(), QStringLiteral("Ours"));
+
+    // Through the model: Core's dropdown, and restart inherited from [engine.font].
+    using Entry = dsqt::SettingsSchemaEntry;
+    dsqt::SettingsTreeModel model;
+    model.setSettingsFile(&file);
+    const auto entry = [&model](const QString &path) {
+        return findValueIndex(model, path).data(dsqt::SettingsTreeModel::SchemaEntryRole).value<Entry>();
+    };
+    QCOMPARE(entry("engine.window.mode").kind, Entry::Kind::Options);
+    QVERIFY(!entry("engine.window.mode").restart);
+    QCOMPARE(entry("engine.font.default.style").kind, Entry::Kind::Options);
+    QVERIFY(entry("engine.font.default.style").restart);
+    QCOMPARE(findValueIndex(model, "engine.font.default.style").data(Qt::DisplayRole).toString(),
+             QStringLiteral("Italic"));
+}
+
+void DsSettingsTest::schema_restart_shouldBeInheritedFromATable()
+{
+    using Entry = dsqt::SettingsSchemaEntry;
+    TempSettingsFile settings("[group.inner]\na = 1\n\n[other]\nb = 2\n",
+                              "[group]\nrestart = true\n\n[group.inner.a]\nmin = 0\nmax = 5\n");
+    dsqt::SettingsTreeModel model;
+    model.setSettingsFile(settings.file.get());
+
+    const auto a = findValueIndex(model, "group.inner.a").data(dsqt::SettingsTreeModel::SchemaEntryRole).value<Entry>();
+    QVERIFY(a.restart);                     // from [group], two levels up
+    QCOMPARE(a.kind, Entry::Kind::Slider);  // its own entry still applies
+    QVERIFY(!findValueIndex(model, "other.b").data(dsqt::SettingsTreeModel::SchemaEntryRole)
+                 .value<Entry>().restart);
 }
 
 QTEST_MAIN(DsSettingsTest)

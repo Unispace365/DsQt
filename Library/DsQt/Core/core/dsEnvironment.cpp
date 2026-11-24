@@ -81,6 +81,63 @@ std::string DsEnvironment::contract(const std::string& path) {
     return contract(QString::fromStdString(path)).toStdString();
 }
 
+QList<DsEnvironment::PathVariable> DsEnvironment::pathVariables() {
+    const QList<PathVariable> all{
+        {u"%LOCAL%"_s, sDocumentsDownstream}, {u"%DOCUMENTS%"_s, sDocuments},
+        {u"%APP%"_s, sAppRootFolder},         {u"%SHARED%"_s, sSharedFolder},
+        {u"%CFG_FOLDER%"_s, sConfigFolder},   {u"%RES%"_s, sResourceFolder},
+    };
+    QList<PathVariable> known;
+    for (const PathVariable& variable : all) {
+        // Before initialize() the folders still hold their own placeholders.
+        if (!variable.second.isEmpty() && !variable.second.contains(u'%'))
+            known.append(variable);
+    }
+    return known;
+}
+
+QString DsEnvironment::contractPath(const QString& path) {
+    return contractPath(path, pathVariables());
+}
+
+QString DsEnvironment::contractPath(const QString& path, const QList<PathVariable>& variables) {
+#ifdef Q_OS_WIN
+    constexpr Qt::CaseSensitivity cs = Qt::CaseInsensitive;
+#else
+    constexpr Qt::CaseSensitivity cs = Qt::CaseSensitive;
+#endif
+    const QString normalized    = QDir::fromNativeSeparators(path.trimmed());
+    const bool    trailingSlash = normalized.size() > 1 && normalized.endsWith(u'/');
+    const QString p             = QDir::cleanPath(normalized);
+
+    // The deepest root folder that contains p, matched on a folder boundary.
+    QString bestVariable;
+    qsizetype bestLength = -1;
+    for (const auto& [variable, folder] : variables) {
+        const QString root = QDir::cleanPath(QDir::fromNativeSeparators(folder));
+        if (root.isEmpty() || root.contains(u'%') || root.size() <= bestLength)
+            continue;
+        const bool inside = p.compare(root, cs) == 0
+                            || (p.startsWith(root, cs)
+                                && (root.endsWith(u'/') || p.at(root.size()) == u'/'));
+        if (inside) {
+            bestVariable = variable;
+            bestLength   = root.size();
+        }
+    }
+
+    QString result = p;
+    if (bestLength >= 0) {
+        QString rest = p.mid(bestLength);
+        if (!rest.isEmpty() && !rest.startsWith(u'/'))
+            rest.prepend(u'/'); // the root itself ended in a slash, e.g. "C:/"
+        result = bestVariable + rest;
+    }
+    if (trailingSlash && !result.endsWith(u'/'))
+        result += u'/';
+    return result;
+}
+
 QString DsEnvironment::contract(QString path) {
     QString p = path;
     //        // This can result in double path separators, so flatten
@@ -95,14 +152,35 @@ QString DsEnvironment::contract(QString path) {
     return p;
 }
 
+// The settings search paths, lowest priority first (see settingsLocations()).
+#ifdef Q_OS_IOS
+static const QString sAppSettingsPattern = QStringLiteral(":/settings");
+#else
+static const QString sAppSettingsPattern = QStringLiteral("%APP%/settings");
+#endif
+static const QString sAppConfigSettingsPattern   = sAppSettingsPattern + QStringLiteral("/%CFG_FOLDER%");
+static const QString sLocalSettingsPattern       = QStringLiteral("%LOCAL%/settings/%PP%");
+static const QString sLocalConfigSettingsPattern = QStringLiteral("%LOCAL%/settings/%PP%/%CFG_FOLDER%");
+
+QList<DsEnvironment::SettingsLocation> DsEnvironment::settingsLocations() {
+    QList<SettingsLocation> locations{
+        {u"Application"_s, sAppSettingsPattern, {}},
+        {u"Application Platform"_s, sAppConfigSettingsPattern, {}},
+        {u"Local"_s, sLocalSettingsPattern, {}},
+        {u"Local Platform"_s, sLocalConfigSettingsPattern, {}},
+    };
+    for (SettingsLocation& location : locations) {
+        const QString folder = expandq(location.pattern);
+        if (!folder.contains(u'%'))
+            location.folder = folder;
+    }
+    return locations;
+}
+
 bool DsEnvironment::loadEngineSettings() {
     qCInfo(lgEnv) << "\nLoad Settings >>>>>>>>>>>>>>>>>>>>>>>>";
 
-#ifdef Q_OS_IOS
-    const QString baseSettings = QStringLiteral(":/settings");
-#else
-    const QString baseSettings = QStringLiteral("%APP%/settings");
-#endif
+    const QString baseSettings = sAppSettingsPattern;
 
     // Set the search path BEFORE loading any settings.
     Settings::instance().setSearchPaths({baseSettings});
@@ -169,7 +247,7 @@ bool DsEnvironment::loadEngineSettings() {
         qCDebug(lgEnv) << "Project Path:" << sProjectPath;
 
         // Append to search paths.
-        Settings::instance().setSearchPaths({baseSettings, "%LOCAL%/settings/%PP%"});
+        Settings::instance().setSearchPaths({baseSettings, sLocalSettingsPattern});
     }
 
     // Setup config folder path (%CFG_FOLDER%).
@@ -181,10 +259,8 @@ bool DsEnvironment::loadEngineSettings() {
         qCDebug(lgEnv) << "Config Folder:" << sConfigFolder;
 
         // Append to search paths.
-        Settings::instance().setSearchPaths({baseSettings,
-            baseSettings+ QStringLiteral("/%CFG_FOLDER%"),
-            "%LOCAL%/settings/%PP%",
-            "%LOCAL%/settings/%PP%/%CFG_FOLDER%"});
+        Settings::instance().setSearchPaths({baseSettings, sAppConfigSettingsPattern,
+                                             sLocalSettingsPattern, sLocalConfigSettingsPattern});
     }
 
     sResourceFolder = Settings::find<QString>("engine", "engine.resource.location");

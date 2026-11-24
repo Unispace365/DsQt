@@ -1,0 +1,11 @@
+# How the settings viewer edits this app's app_settings.toml: sliders,
+# dropdowns, file and folder pickers, descriptions and restart markers.
+# DsQt's own settings (engine.toml and the keys its modules read) already have
+# a schema built into DsQt; add entries here for the app's own settings.
+# See "Schema Files" in DsQt's settings guide.
+
+[quickMenu.closeDelay]
+min = 1000
+max = 30000
+step = 500
+description = "Milliseconds before the quick menu closes by itself."
