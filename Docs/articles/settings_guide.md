@@ -792,6 +792,8 @@ It opens a window (a plain Qt Widgets `QWidget`, not QML) with one tab per regis
 
 This is a developer/debugging tool, not something to embed in an end-user QML UI.
 
+The window behaves like every DsQt tool window (`core/dsToolWindow.h`): it stays above the application, and only the application; it can be moved and resized; and it reopens where it was last closed, also after a restart. To give your own widget window the same behaviour, derive its QML handle from `dsqt::DsQmlToolWindowHelper` and implement `createWidget()`; for a QML `Window`, call `DsToolWindows.track(window, "someKey")` once after creating it.
+
 ### Saving to a settings file
 
 **Save…** asks where to write the current tab's overrides, in a dialog named after the tab (*Save App Settings*, *Save Engine*). There is one choice per folder settings files are read from, lowest priority first, plus Custom. Click a card to pick it, then **Save here**:

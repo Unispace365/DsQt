@@ -1,51 +1,31 @@
 #pragma once
 
-#include <QObject>
-#include <QPointer>
+#include "core/dsToolWindow.h"
+
 #include <QQmlEngine>
 
 namespace dsqt::bridge {
 
-class DsContentBrowserWidget;
-
-// Thin QML-accessible wrapper that lazily creates and shows a
-// DsContentBrowserWidget.
+// QML handle for the Content Browser window (a DsContentBrowserWidget).
 //
-// Declare it inside DsAppBase (or any Item) and call show() from a menu signal:
+// Declare it inside DsAppBase (or any Item) and drive it from the menu:
 //
 //   DsContentBrowserHelper { id: contentBrowser }
-//   onContentBrowserTriggered: contentBrowser.show()
+//   onContentBrowserTriggered: (isChecked) => { contentBrowser.setVisible(isChecked) }
 //
-// The widget is created on the first show() call, which happens after
-// QQmlApplicationEngine::loadFromModule() so the graphics context is ready.
-// Subsequent calls just bring the existing window to the front.
-class DsQmlContentBrowserHelper : public QObject
+// show(), hide(), setVisible() and `visible` come from DsQmlToolWindowHelper,
+// which also makes the window transient to the main window and remembers its
+// geometry (see core/dsToolWindow.h).
+class DsQmlContentBrowserHelper : public dsqt::DsQmlToolWindowHelper
 {
     Q_OBJECT
     QML_NAMED_ELEMENT(DsContentBrowserHelper)
-    Q_PROPERTY(bool visible READ isVisible NOTIFY visibleChanged)
 
 public:
     explicit DsQmlContentBrowserHelper(QObject *parent = nullptr);
-    ~DsQmlContentBrowserHelper() override;
 
-    // Lazily creates the widget (if needed), then shows and raises it.
-    Q_INVOKABLE void show();
-    // Hides the widget. No-op if it was never created.
-    Q_INVOKABLE void hide();
-    // Convenience for checkable menu actions: shows when true, hides when false.
-    Q_INVOKABLE void setVisible(bool visible);
-
-    bool isVisible() const;
-
-signals:
-    // Mirrors the widget's real on-screen state, so a menu checkbox bound to
-    // this property stays correct even if the window is closed via its own
-    // close button rather than through setVisible()/hide().
-    void visibleChanged(bool visible);
-
-private:
-    QPointer<DsContentBrowserWidget> m_viewer;
+protected:
+    QWidget *createWidget() override;
 };
 
 } // namespace dsqt::bridge
