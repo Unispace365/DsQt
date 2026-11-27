@@ -231,7 +231,6 @@ set_target_properties(${DS_EXE_NAME} PROPERTIES
 #find_package(PkgConfig REQUIRED)
 #pkg_check_modules(tomlplusplus REQUIRED IMPORTED_TARGET tomlplusplus)
 find_package(tomlplusplus CONFIG REQUIRED)
-find_package(glm CONFIG REQUIRED)
 
 
 

@@ -182,6 +182,8 @@ imported targets carry their own include paths and link dependencies. Remove
 manual source-tree include paths; do not add `PkgConfig::tomlplusplus` just to
 satisfy DsQt. If the app uses toml++ directly, find its CMake package and link
 `tomlplusplus::tomlplusplus` as in the current ClonerSource template.
+DsQt no longer uses GLM: remove `glm::glm`, `find_package(glm ...)` and the
+`glm` entry in `vcpkg.json` unless the app includes GLM headers itself.
 
 ### Update: qt_add_qml_module
 

@@ -238,7 +238,7 @@ alone does not initialize the compiler, Windows SDK headers, or libraries.
 Install Xcode, CMake 3.29+, a bootstrapped vcpkg checkout, and a complete Qt kit
 including Multimedia and the modules required by DsQt. Build and install DsQt
 for the same Qt version, SDK, and architecture as the app. The manifest supplies
-compiled toml++ and glm; do not substitute a header-only toml++ shim.
+compiled toml++; do not substitute a header-only toml++ shim.
 
 | Configure preset | Target | Build presets |
 | --- | --- | --- |

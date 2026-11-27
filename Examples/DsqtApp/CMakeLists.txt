@@ -85,7 +85,6 @@ set_target_properties(${DS_EXE_NAME} PROPERTIES
 
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(tomlplusplus REQUIRED IMPORTED_TARGET tomlplusplus)
-find_package(glm CONFIG REQUIRED)
 
 FetchContent_Declare(
     qtimgui
@@ -105,7 +104,7 @@ include(${imgui_base}/imgui.cmakeinc)
 include(${imgui_base}/imguiquick.cmakeinc)
 
 target_link_libraries(${DS_EXE_NAME}
-    PRIVATE Qt6::Quick Dsqt Dsqtplugin Dsqtplugin_init Dsqt_resources_1 Dsqt_resources_2 Dsqt_resources_3 glm::glm PkgConfig::tomlplusplus Qt6::Sql Qt6::GuiPrivate Qt6::Gui Qt6::ShaderTools Qt6::ShaderToolsPrivate
+    PRIVATE Qt6::Quick Dsqt Dsqtplugin Dsqtplugin_init Dsqt_resources_1 Dsqt_resources_2 Dsqt_resources_3 PkgConfig::tomlplusplus Qt6::Sql Qt6::GuiPrivate Qt6::Gui Qt6::ShaderTools Qt6::ShaderToolsPrivate
 )
 
 
